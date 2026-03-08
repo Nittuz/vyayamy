@@ -42,20 +42,26 @@ export function SkeletonList({ count = 3 }: { count?: number }) {
 export function TodaySkeleton() {
   return (
     <div className="skeleton-today" aria-hidden="true">
-      <div className="skeleton-today-header">
-        <Skeleton width="200px" height="34px" borderRadius="var(--radius-sm)" />
-        <Skeleton width="140px" height="14px" />
+      {/* Header */}
+      <Skeleton width="160px" height="20px" borderRadius="var(--radius-sm)" />
+      {/* Hero card */}
+      <div className="skeleton-hero">
+        <Skeleton width="90px" height="11px" />
+        <Skeleton width="180px" height="28px" borderRadius="var(--radius-sm)" />
+        <Skeleton width="100px" height="14px" />
+        <Skeleton height="44px" borderRadius="var(--radius-button)" />
       </div>
-      <Skeleton height="44px" borderRadius="var(--radius-button)" />
+      {/* Week strip */}
       <div className="skeleton-card" style={{ padding: 'var(--space-4) var(--space-5)' }}>
-        <Skeleton width="80px" height="12px" />
+        <Skeleton width="80px" height="11px" />
         <div className="skeleton-week-strip">
           {Array.from({ length: 7 }, (_, i) => (
             <Skeleton key={i} width="28px" height="28px" borderRadius="var(--radius-full)" />
           ))}
         </div>
       </div>
-      <Skeleton width="80px" height="20px" />
+      {/* Recent items */}
+      <Skeleton width="60px" height="11px" />
       <SkeletonList count={3} />
     </div>
   );

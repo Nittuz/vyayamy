@@ -1,0 +1,132 @@
+/* ── Week strip card ── */
+.week-strip {
+  padding: var(--space-4) var(--space-5);
+  margin-bottom: var(--space-section);
+}
+
+.week-strip-header {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  margin-bottom: var(--space-3);
+}
+
+.week-strip-label {
+  font-size: var(--font-micro);
+  font-weight: var(--font-weight-semibold);
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  color: var(--color-text-secondary);
+}
+
+.week-strip-count {
+  font-variant-numeric: tabular-nums;
+}
+
+/* ── Day grid ── */
+.week-strip-days {
+  display: grid;
+  grid-template-columns: repeat(7, 1fr);
+  gap: var(--space-1);
+}
+
+.week-day {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 6px;
+  padding: var(--space-1) 0;
+}
+
+.week-day-label {
+  font-size: var(--font-micro);
+  font-weight: var(--font-weight-medium);
+  color: var(--color-text-tertiary);
+  line-height: 1;
+}
+
+.week-day-indicator {
+  width: 28px;
+  height: 28px;
+  border-radius: var(--radius-full);
+  background: var(--color-bg);
+  transition: background var(--duration-fast) ease, box-shadow var(--duration-fast) ease;
+}
+
+/* ── Day states ── */
+
+/* Completed: past day, workout done — filled accent */
+.week-day--completed .week-day-indicator {
+  background: var(--color-accent);
+}
+
+/* Today: current day, not yet trained — ring */
+.week-day--today .week-day-label {
+  color: var(--color-text);
+  font-weight: var(--font-weight-bold);
+}
+
+.week-day--today .week-day-indicator {
+  background: transparent;
+  box-shadow: inset 0 0 0 2px var(--color-accent);
+}
+
+/* Today done: current day, trained — filled accent + ring */
+.week-day--today-done .week-day-label {
+  color: var(--color-text);
+  font-weight: var(--font-weight-bold);
+}
+
+.week-day--today-done .week-day-indicator {
+  background: var(--color-accent);
+  box-shadow: 0 0 0 2px var(--color-surface), 0 0 0 3.5px var(--color-accent);
+}
+
+/* Planned: future day, workout scheduled — subtle dot */
+.week-day--planned .week-day-indicator {
+  background: var(--color-border-strong);
+}
+
+/* Rest: plan says rest — small dash */
+.week-day--rest .week-day-indicator {
+  background: transparent;
+  position: relative;
+}
+
+.week-day--rest .week-day-indicator::after {
+  content: '';
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  width: 10px;
+  height: 2px;
+  border-radius: 1px;
+  background: var(--color-border-strong);
+  transform: translate(-50%, -50%);
+}
+
+/* Missed: past scheduled, not done — hollow ring with muted tint */
+.week-day--missed .week-day-indicator {
+  background: transparent;
+  box-shadow: inset 0 0 0 2px var(--color-border-strong);
+}
+
+.week-day--missed .week-day-label {
+  color: var(--color-text-tertiary);
+}
+
+/* Empty: no plan data — minimal */
+.week-day--empty .week-day-indicator {
+  background: var(--color-bg);
+}
+
+@media (max-width: 359px) {
+  .week-day-indicator {
+    width: 24px;
+    height: 24px;
+  }
+
+  .week-day--rest .week-day-indicator::after {
+    width: 8px;
+  }
+}

@@ -3,32 +3,15 @@ import { useAuth } from '../lib/useAuth';
 import { useProfile } from '../lib/queries/profile';
 import { useActiveWorkout, useLastWorkout, useRecentWorkouts, useCreateWorkout } from '../lib/queries/workouts';
 import { useTemplates } from '../lib/queries/templates';
-import { useActivePlan, useWeekCompletions, getTodaySlot, isSlotCompletedOnDate, dayOfWeekName } from '../lib/queries/plans';
+import { useActivePlan, useWeekCompletions, getTodaySlot, isSlotCompletedOnDate, getUpcomingSlots } from '../lib/queries/plans';
 import { useWeeklyFrequency } from '../lib/queries/records';
 import { formatRelativeDate, formatDuration, getGreeting } from '../lib/format';
-import { PlayIcon, RepeatIcon, ChevronRightIcon, CheckIcon } from '../components/Icons';
+import { ChevronRightIcon, RepeatIcon } from '../components/Icons';
+import { TodayHero } from '../components/TodayHero';
+import { WeekStrip } from '../components/WeekStrip';
 import { EmptyState, DumbbellIllustration } from '../components/EmptyState';
 import { TodaySkeleton } from '../components/Skeleton';
 import './Today.css';
-
-const DAY_LABELS = ['M', 'T', 'W', 'T', 'F', 'S', 'S'];
-
-function getWeekDays(): Date[] {
-  const today = new Date();
-  const dow = today.getDay();
-  const monday = new Date(today);
-  monday.setDate(today.getDate() - ((dow + 6) % 7));
-  monday.setHours(0, 0, 0, 0);
-  return Array.from({ length: 7 }, (_, i) => {
-    const d = new Date(monday);
-    d.setDate(monday.getDate() + i);
-    return d;
-  });
-}
-
-function dateKey(d: Date): string {
-  return `${d.getFullYear()}-${d.getMonth()}-${d.getDate()}`;
-}
 
 export function Today() {
   const navigate = useNavigate();
@@ -36,7 +19,7 @@ export function Today() {
   const { data: profile, isLoading: profileLoading } = useProfile(user?.id);
   const { data: activeWorkout } = useActiveWorkout(user?.id);
   const { data: lastWorkout } = useLastWorkout(user?.id);
-  const { data: recentWorkouts, isLoading: recentsLoading } = useRecentWorkouts(user?.id, 10);
+  const { data: recentWorkouts, isLoading: recentsLoading } = useRecentWorkouts(user?.id, 5);
   const { data: templates } = useTemplates(user?.id);
   const { data: plan } = useActivePlan(user?.id);
   const { data: weekCompletions } = useWeekCompletions(user?.id);
@@ -52,22 +35,17 @@ export function Today() {
   const templateMap = new Map(templates?.map((t) => [t.id, t]) ?? []);
   const plannedTemplate = todaySlot?.template_id ? templateMap.get(todaySlot.template_id) : null;
 
+  const upcoming = plan ? getUpcomingSlots(plan, 2) : [];
+  const upcomingWithNames = upcoming.map((s) => ({
+    slot: s,
+    template: s.template_id ? templateMap.get(s.template_id) : null,
+  }));
+
   const firstName = profile?.display_name?.split(/\s+/)[0];
   const greeting = firstName ? `${getGreeting()}, ${firstName}` : getGreeting();
 
-  const lastTrainedText = lastWorkout
-    ? `Last trained ${formatRelativeDate(lastWorkout.started_at).toLowerCase()}`
-    : null;
-
-  const weekDays = getWeekDays();
-  const todayKey = dateKey(new Date());
-  const trainedDays = new Set(
-    (recentWorkouts ?? []).map((w) => dateKey(new Date(w.started_at))),
-  );
-
-  const isInitialLoad = profileLoading && recentsLoading;
-  const displayWorkouts = recentWorkouts?.slice(0, 5) ?? [];
-  const displayTemplates = templates?.slice(0, 4) ?? [];
+  const displayWorkouts = recentWorkouts?.slice(0, 3) ?? [];
+  const displayTemplates = templates?.filter((t) => t.id !== plannedTemplate?.id).slice(0, 4) ?? [];
 
   async function handleStartEmpty() {
     const w = await createWorkout.mutateAsync({ title: 'Workout' });
@@ -92,7 +70,7 @@ export function Today() {
     navigate('/workout/active');
   }
 
-  if (isInitialLoad) {
+  if (profileLoading && recentsLoading) {
     return (
       <div className="today">
         <TodaySkeleton />
@@ -102,207 +80,123 @@ export function Today() {
 
   return (
     <div className="today">
+      {/* 1. Header — quiet greeting */}
       <header className="today-header">
-        <h1 className="page-title">{greeting}</h1>
-        {lastTrainedText && (
-          <p className="today-context meta">{lastTrainedText}</p>
-        )}
+        <h1 className="today-greeting">{greeting}</h1>
       </header>
 
-      {/* Actions */}
-      <section className="today-actions">
-        {activeWorkout != null ? (
-          <Link to="/workout/active" className="btn-primary today-action-btn">
-            <PlayIcon size={18} />
-            <span>Resume workout</span>
-          </Link>
-        ) : (
-          <>
+      {/* 2. Hero — single dominant CTA */}
+      <TodayHero
+        activeWorkout={activeWorkout ?? null}
+        plan={plan ?? null}
+        todaySlot={todaySlot}
+        todayCompleted={todayCompleted}
+        plannedTemplate={plannedTemplate ?? null}
+        isPending={createWorkout.isPending}
+        onStartPlanned={() => plannedTemplate && handleStartFromTemplate(plannedTemplate)}
+        onStartEmpty={handleStartEmpty}
+      />
+
+      {/* 3. Week strip */}
+      <WeekStrip
+        plan={plan ?? null}
+        weekCompletions={weekCompletions ?? []}
+        recentWorkouts={recentWorkouts ?? []}
+        weeklyCount={thisWeekCount}
+      />
+
+      {/* 4. Plan context — quiet, informational */}
+      {plan && (
+        <section className="today-plan-context">
+          <div className="today-section-header">
+            <h2 className="today-section-label">{plan.name}</h2>
+            <Link to="/profile/plan" className="today-section-link meta">
+              View plan <ChevronRightIcon size={14} />
+            </Link>
+          </div>
+          {upcomingWithNames.length > 0 && (
+            <div className="today-upcoming">
+              <span className="today-upcoming-label">Coming up</span>
+              {upcomingWithNames.map(({ slot, template }, i) => (
+                <span key={slot.id ?? i} className="today-upcoming-item">
+                  {template?.name ?? (slot.is_rest_day ? 'Rest' : 'Workout')}
+                </span>
+              ))}
+            </div>
+          )}
+        </section>
+      )}
+
+      {/* 5. Train something else */}
+      <section className="today-section">
+        <div className="today-section-header">
+          <h2 className="today-section-label">Train something else</h2>
+        </div>
+        <div className="today-alt-actions">
+          {lastWorkout && !activeWorkout && (
             <button
               type="button"
-              className="btn-primary today-action-btn"
-              onClick={() => handleStartEmpty()}
+              className="today-alt-chip"
+              onClick={handleRepeatLast}
               disabled={createWorkout.isPending}
             >
-              <PlayIcon size={18} />
-              <span>Start workout</span>
+              <RepeatIcon size={14} />
+              <span>Repeat last session</span>
             </button>
-            {lastWorkout != null && (
-              <button
-                type="button"
-                className="btn-secondary today-action-btn"
-                onClick={() => handleRepeatLast()}
-                disabled={createWorkout.isPending}
-              >
-                <RepeatIcon size={18} />
-                <span>Repeat last session</span>
-              </button>
-            )}
-          </>
-        )}
-      </section>
-
-      {/* Week strip */}
-      <section className="card today-week-card">
-        <div className="today-week-header">
-          <span className="today-week-title">This week</span>
-          <span className="today-week-count meta">
-            {thisWeekCount} {thisWeekCount === 1 ? 'workout' : 'workouts'}
-          </span>
-        </div>
-        <div className="today-week-strip">
-          {weekDays.map((day, i) => {
-            const key = dateKey(day);
-            const trained = trainedDays.has(key);
-            const isToday = key === todayKey;
-            return (
-              <div
-                key={i}
-                className={
-                  'today-day' +
-                  (trained ? ' today-day--active' : '') +
-                  (isToday ? ' today-day--today' : '')
-                }
-              >
-                <span className="today-day-label">{DAY_LABELS[i]}</span>
-                <span className="today-day-dot" />
-              </div>
-            );
-          })}
-        </div>
-      </section>
-
-      {/* Today's plan */}
-      {plan && todaySlot && !todaySlot.is_rest_day && plannedTemplate && !todayCompleted && activeWorkout == null && (
-        <section className="today-plan-card card">
-          <div className="today-plan-header">
-            <span className="today-plan-label">
-              {plan.plan_type === 'weekly'
-                ? dayOfWeekName((new Date().getDay() + 6) % 7)
-                : `Day ${plan.cycle_cursor + 1}`}
-            </span>
-            <Link to="/profile/plan" className="today-see-all meta">
-              Plan <ChevronRightIcon size={14} />
-            </Link>
-          </div>
-          <p className="today-plan-name">{plannedTemplate.name}</p>
-          {plannedTemplate.exercise_order.length > 0 && (
-            <p className="meta today-plan-count">
-              {plannedTemplate.exercise_order.length} exercise{plannedTemplate.exercise_order.length !== 1 ? 's' : ''}
-            </p>
           )}
-          <button
-            type="button"
-            className="btn-primary today-plan-cta"
-            onClick={() => handleStartFromTemplate(plannedTemplate)}
-            disabled={createWorkout.isPending}
-          >
-            <PlayIcon size={16} />
-            <span>Start {plannedTemplate.name}</span>
-          </button>
-        </section>
-      )}
-
-      {plan && todaySlot && todaySlot.is_rest_day && (
-        <section className="today-plan-card today-plan-card--rest card">
-          <div className="today-plan-header">
-            <span className="today-plan-label">
-              {plan.plan_type === 'weekly'
-                ? dayOfWeekName((new Date().getDay() + 6) % 7)
-                : `Day ${plan.cycle_cursor + 1}`}
-            </span>
-            <Link to="/profile/plan" className="today-see-all meta">
-              Plan <ChevronRightIcon size={14} />
-            </Link>
-          </div>
-          <p className="today-plan-name">Rest Day</p>
-          <p className="meta">{todaySlot.label ?? 'Recovery and restoration'}</p>
-        </section>
-      )}
-
-      {plan && todaySlot && !todaySlot.is_rest_day && todayCompleted && (
-        <section className="today-plan-card today-plan-card--done card">
-          <div className="today-plan-header">
-            <span className="today-plan-label">
-              {plan.plan_type === 'weekly'
-                ? dayOfWeekName((new Date().getDay() + 6) % 7)
-                : `Day ${plan.cycle_cursor + 1}`}
-            </span>
-            <span className="today-plan-done-badge">
-              <CheckIcon size={12} /> Done
-            </span>
-          </div>
-          <p className="today-plan-name">{plannedTemplate?.name ?? 'Workout'}</p>
-          <p className="meta today-plan-done-msg">Plan complete for today.</p>
-        </section>
-      )}
-
-      {/* Quick start */}
-      <section className="today-section">
-        <div className="today-section-header">
-          <h2 className="section-title">Quick start</h2>
-          <Link to="/profile/plan" className="today-see-all meta">
-            {plan ? 'Plan' : 'Manage'} <ChevronRightIcon size={14} />
-          </Link>
+          {displayTemplates.map((t) => (
+            <button
+              key={t.id}
+              type="button"
+              className="today-alt-chip"
+              onClick={() => handleStartFromTemplate(t)}
+              disabled={createWorkout.isPending}
+            >
+              <span>{t.name}</span>
+              {t.exercise_order.length > 0 && (
+                <span className="today-alt-chip-count">{t.exercise_order.length}</span>
+              )}
+            </button>
+          ))}
+          {!activeWorkout && (
+            <button
+              type="button"
+              className="today-alt-chip today-alt-chip--empty"
+              onClick={handleStartEmpty}
+              disabled={createWorkout.isPending}
+            >
+              <span>Empty workout</span>
+            </button>
+          )}
         </div>
-        {displayTemplates.length > 0 ? (
-          <div className="today-routines">
-            {displayTemplates.map((t) => (
-              <button
-                key={t.id}
-                type="button"
-                className="today-routine-chip"
-                onClick={() => handleStartFromTemplate(t)}
-                disabled={createWorkout.isPending}
-              >
-                <span className="today-routine-chip-name">{t.name}</span>
-                {t.exercise_order.length > 0 && (
-                  <span className="today-routine-chip-count">
-                    {t.exercise_order.length}
-                  </span>
-                )}
-              </button>
-            ))}
-          </div>
-        ) : (
-          <div className="today-routines">
-            <Link to="/profile/plan" className="today-routine-chip today-routine-chip--create">
-              <span className="today-routine-chip-name">+ Create a template</span>
-            </Link>
-          </div>
-        )}
       </section>
 
-      {/* Recent */}
+      {/* 6. Recent workouts */}
       <section className="today-section">
         <div className="today-section-header">
-          <h2 className="section-title">Recent</h2>
+          <h2 className="today-section-label">Recent</h2>
           {displayWorkouts.length > 0 && (
-            <Link to="/history" className="today-see-all meta">
+            <Link to="/history" className="today-section-link meta">
               See all <ChevronRightIcon size={14} />
             </Link>
           )}
         </div>
         {displayWorkouts.length > 0 ? (
-          <div className="card today-recent-card">
-            <ul className="today-list">
-              {displayWorkouts.map((w) => (
-                <li key={w.id}>
-                  <Link to={`/history/${w.id}`} className="today-list-item">
-                    <div className="today-list-item-main">
-                      <span className="card-title">{w.title}</span>
-                      <span className="meta">
-                        {formatRelativeDate(w.started_at)}
-                      </span>
-                    </div>
-                    <span className="today-list-duration tabular">
-                      {formatDuration(w.started_at, w.ended_at)}
-                    </span>
-                  </Link>
-                </li>
-              ))}
-            </ul>
-          </div>
+          <ul className="today-recent-list">
+            {displayWorkouts.map((w) => (
+              <li key={w.id}>
+                <Link to={`/history/${w.id}`} className="today-recent-item">
+                  <div className="today-recent-item-main">
+                    <span className="today-recent-title">{w.title}</span>
+                    <span className="meta">{formatRelativeDate(w.started_at)}</span>
+                  </div>
+                  <span className="today-recent-duration tabular">
+                    {formatDuration(w.started_at, w.ended_at)}
+                  </span>
+                </Link>
+              </li>
+            ))}
+          </ul>
         ) : (
           <EmptyState
             icon={<DumbbellIllustration />}
