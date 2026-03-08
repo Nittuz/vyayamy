@@ -56,10 +56,6 @@
   }
 }
 
-.exercise-block-ref {
-  padding-bottom: var(--space-2);
-}
-
 /* Column labels */
 .exercise-block-col-labels {
   display: grid;
@@ -171,20 +167,9 @@
   100% { background: var(--color-bg); }
 }
 
-/* Inline input */
-.set-row-input {
-  width: 100%;
-  height: 36px;
-  padding: 0 var(--space-3);
-  font-size: var(--font-body);
+/* Inline input overrides */
+.set-row .input--inline {
   font-weight: var(--font-weight-medium);
-  text-align: center;
-  color: var(--color-text);
-  background: var(--color-surface);
-  border: 2px solid var(--color-accent);
-  border-radius: 6px;
-  outline: none;
-  font-variant-numeric: tabular-nums;
 }
 
 /* Copy button */
@@ -262,17 +247,12 @@
   gap: var(--space-half);
 }
 
-.exercise-block-grip {
-  color: var(--color-text-tertiary);
-  opacity: 0.5;
-}
-
 .exercise-block-move {
   display: flex;
   align-items: center;
   justify-content: center;
-  width: 24px;
-  height: 24px;
+  width: 32px;
+  height: 32px;
   padding: 0;
   background: none;
   border: none;
@@ -328,7 +308,7 @@
   }
 
   .set-row-value,
-  .set-row-input {
+  .set-row .input--inline {
     height: 32px;
     padding: 0 var(--space-2);
   }

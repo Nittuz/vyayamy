@@ -1,7 +1,7 @@
 import { useState, useRef, useEffect } from 'react';
 import type { Set } from '../types/database';
 import type { WorkoutExerciseWithMeta } from '../lib/queries/workouts';
-import { CopyIcon, CheckIcon, GripVerticalIcon, ChevronUpIcon, ChevronDownIcon } from './Icons';
+import { CopyIcon, CheckIcon, XIcon, ChevronUpIcon, ChevronDownIcon } from './Icons';
 import './ExerciseBlock.css';
 
 type ExerciseBlockProps = {
@@ -135,15 +135,14 @@ export function ExerciseBlock({
         <div className="exercise-block-head-meta">
           {(onMoveUp || onMoveDown) && (!isFirst || !isLast) && (
             <div className="exercise-block-reorder" onClick={(e) => e.stopPropagation()}>
-              <GripVerticalIcon size={14} className="exercise-block-grip" />
               {onMoveUp && !isFirst && (
                 <button type="button" className="exercise-block-move" onClick={onMoveUp} aria-label="Move up">
-                  <ChevronUpIcon size={14} strokeWidth={2.5} />
+                  <ChevronUpIcon size={16} strokeWidth={2.5} />
                 </button>
               )}
               {onMoveDown && !isLast && (
                 <button type="button" className="exercise-block-move" onClick={onMoveDown} aria-label="Move down">
-                  <ChevronDownIcon size={14} strokeWidth={2.5} />
+                  <ChevronDownIcon size={16} strokeWidth={2.5} />
                 </button>
               )}
             </div>
@@ -200,7 +199,7 @@ export function ExerciseBlock({
                           if (e.key === 'Enter') saveAndAdvance(s);
                           if (e.key === 'Escape') cancelEdit();
                         }}
-                        className="set-row-input tabular"
+                        className="input input--sm input--inline tabular"
                       />
                     ) : (
                       <button
@@ -232,7 +231,7 @@ export function ExerciseBlock({
                           if (e.key === 'Enter') saveAndAdvance(s);
                           if (e.key === 'Escape') cancelEdit();
                         }}
-                        className="set-row-input tabular"
+                        className="input input--sm input--inline tabular"
                       />
                     ) : (
                       <button
@@ -265,7 +264,7 @@ export function ExerciseBlock({
                         title="Delete set"
                         aria-label="Delete set"
                       >
-                        ×
+                        <XIcon size={12} strokeWidth={2.5} />
                       </button>
                     )}
                     <button

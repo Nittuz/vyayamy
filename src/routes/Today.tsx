@@ -59,6 +59,11 @@ export function Today() {
   const displayWorkouts = recentWorkouts?.slice(0, 5) ?? [];
   const displayTemplates = templates?.slice(0, 4) ?? [];
 
+  async function handleStartEmpty() {
+    const w = await createWorkout.mutateAsync({ title: 'Workout' });
+    if (w) navigate('/workout/active');
+  }
+
   async function handleRepeatLast() {
     if (!lastWorkout) return;
     await createWorkout.mutateAsync({
@@ -103,10 +108,15 @@ export function Today() {
           </Link>
         ) : (
           <>
-            <Link to="/workout" className="btn-primary today-action-btn">
+            <button
+              type="button"
+              className="btn-primary today-action-btn"
+              onClick={() => handleStartEmpty()}
+              disabled={createWorkout.isPending}
+            >
               <PlayIcon size={18} />
               <span>Start workout</span>
-            </Link>
+            </button>
             {lastWorkout != null && (
               <button
                 type="button"
@@ -153,9 +163,14 @@ export function Today() {
       </section>
 
       {/* Quick start from routines */}
-      {displayTemplates.length > 0 && (
-        <section className="today-section">
+      <section className="today-section">
+        <div className="today-section-header">
           <h2 className="section-title">Quick start</h2>
+          <Link to="/profile/routines" className="today-see-all meta">
+            Manage <ChevronRightIcon size={14} />
+          </Link>
+        </div>
+        {displayTemplates.length > 0 ? (
           <div className="today-routines">
             {displayTemplates.map((t) => (
               <button
@@ -174,8 +189,14 @@ export function Today() {
               </button>
             ))}
           </div>
-        </section>
-      )}
+        ) : (
+          <div className="today-routines">
+            <Link to="/profile/routines" className="today-routine-chip today-routine-chip--create">
+              <span className="today-routine-chip-name">+ Create a routine</span>
+            </Link>
+          </div>
+        )}
+      </section>
 
       {/* Recent */}
       <section className="today-section">
@@ -211,8 +232,6 @@ export function Today() {
           <EmptyState
             icon={<DumbbellIllustration />}
             message="Ready for your first workout? Your training history will show up here."
-            actionLabel="Start workout"
-            actionTo="/workout"
           />
         )}
       </section>

@@ -3,7 +3,6 @@ import { Layout } from './components/Layout';
 import { ProtectedRoute } from './components/ProtectedRoute';
 import { Login } from './routes/Login';
 import { Today } from './routes/Today';
-import { WorkoutStart } from './routes/WorkoutStart';
 import { WorkoutActive } from './routes/WorkoutActive';
 import { History } from './routes/History';
 import { HistoryDetail } from './routes/HistoryDetail';
@@ -24,7 +23,6 @@ function App() {
         }
       >
         <Route index element={<Today />} />
-        <Route path="workout" element={<WorkoutStart />} />
         <Route path="workout/active" element={<WorkoutActive />} />
         <Route path="history" element={<History />} />
         <Route path="history/:id" element={<HistoryDetail />} />

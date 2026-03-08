@@ -136,8 +136,12 @@ export function WorkoutActive() {
     const targetIndex = currentIndex + direction;
     if (targetIndex < 0 || targetIndex >= exercises.length) return;
     const targetWe = exercises[targetIndex];
-    reorderExercise.mutate({ workoutExerciseId: weId, newIndex: targetIndex });
-    reorderExercise.mutate({ workoutExerciseId: targetWe.id, newIndex: currentIndex });
+    reorderExercise.mutate({
+      sourceId: weId,
+      targetId: targetWe.id,
+      sourceIndex: currentIndex,
+      targetIndex,
+    });
   };
 
   const handleFinish = async () => {

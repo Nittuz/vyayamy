@@ -9,7 +9,6 @@
   --color-border-strong: #E7E5E4;
   --color-accent: #1C1917;
   --color-accent-muted: #57534E;
-  --color-accent-soft: #64748B;
   --color-success: #16A34A;
   --color-success-soft: rgba(22, 163, 74, 0.08);
   --color-danger: #DC2626;
@@ -17,7 +16,7 @@
   --color-pr-soft: rgba(217, 119, 6, 0.08);
   --color-hover: rgba(0, 0, 0, 0.03);
   --color-chart-axis: #A8A29E;
-  --color-accent-soft: rgba(28, 25, 23, 0.06);
+  --color-accent-soft: rgba(28, 25, 23, 0.06); /* soft tint for hover/active backgrounds */
   --color-surface-frosted: rgba(255, 255, 255, 0.82);
   --color-bg-frosted: rgba(248, 248, 246, 0.85);
 
@@ -285,6 +284,50 @@ body {
 .card--empty {
   padding: var(--space-8) var(--space-5);
   text-align: center;
+}
+
+/* Tag / badge */
+.tag {
+  font-size: var(--font-micro);
+  font-weight: var(--font-weight-medium);
+  color: var(--color-accent-muted);
+  background: var(--color-bg);
+  padding: var(--space-half) var(--space-2);
+  border-radius: var(--radius-full);
+  white-space: nowrap;
+}
+.tag--muted { color: var(--color-text-tertiary); }
+.tag--pr {
+  font-size: 9px;
+  font-weight: var(--font-weight-bold);
+  color: var(--color-pr);
+  background: var(--color-pr-soft);
+  padding: 1px 5px;
+  letter-spacing: 0.05em;
+  text-transform: uppercase;
+}
+
+/* Shared input */
+.input {
+  width: 100%;
+  padding: 0 var(--space-4);
+  font-size: var(--font-body);
+  color: var(--color-text);
+  background: var(--color-surface);
+  border: 1px solid var(--color-border-strong);
+  border-radius: var(--radius-sm);
+  transition: border-color var(--duration-fast) ease;
+}
+.input:focus { outline: none; border-color: var(--color-accent); }
+.input::placeholder { color: var(--color-text-tertiary); }
+.input--sm { height: 36px; padding: 0 var(--space-3); }
+.input--md { height: var(--touch-min); }
+.input--lg { height: 48px; }
+.input--bg { background: var(--color-bg); }
+.input--inline {
+  border: 2px solid var(--color-accent);
+  text-align: center;
+  background: var(--color-surface);
 }
 
 /* Focus styles */

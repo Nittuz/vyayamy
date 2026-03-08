@@ -75,6 +75,18 @@ BEM-inspired flat naming:
 
 Never nest selectors deeper than two levels. Keep specificity low.
 
+### Prefix / Abbreviation Policy
+
+Some existing components use short prefixes instead of full names. These are grandfathered and **should not be renamed**:
+
+| Prefix | Component           |
+|--------|---------------------|
+| `hd-`  | HistoryDetail       |
+| `pg-`  | Progress            |
+| `esm-` | ExerciseSearchModal |
+
+**New components must use full, descriptive block names** (e.g., `history-detail-`, `progress-`, `exercise-search-`). Do not introduce new abbreviations — they hurt discoverability and grep-ability.
+
 ## Animations
 
 Scope `@keyframes` to the component CSS file. Use theme transition tokens:

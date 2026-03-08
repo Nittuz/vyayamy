@@ -77,17 +77,6 @@
   color: var(--color-text-secondary);
 }
 
-.pg-pr-badge {
-  font-size: 9px;
-  font-weight: var(--font-weight-bold);
-  color: var(--color-pr);
-  background: var(--color-pr-soft);
-  padding: 1px 5px;
-  border-radius: var(--radius-full);
-  letter-spacing: 0.05em;
-  text-transform: uppercase;
-}
-
 .pg-pr-value {
   font-size: var(--font-body);
   font-weight: var(--font-weight-bold);
@@ -128,7 +117,3 @@
   margin-top: var(--space-1);
 }
 
-/* ── Empty state ── */
-.pg-empty {
-  margin: 0;
-}

@@ -10,6 +10,10 @@
   padding-bottom: calc(var(--space-8) + var(--nav-height) + env(safe-area-inset-bottom, 0px));
 }
 
+.layout-main--full {
+  padding-bottom: var(--space-8);
+}
+
 .layout-nav {
   position: fixed;
   bottom: 0;

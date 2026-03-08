@@ -28,7 +28,6 @@ export function useCreateTemplate(userId: string | undefined) {
       if (!userId) throw new Error('Not authenticated');
       const { data, error } = await supabase
         .from('templates')
-
         .insert({
           user_id: userId,
           name: input.name,
@@ -39,7 +38,32 @@ export function useCreateTemplate(userId: string | undefined) {
       if (error) throw error;
       return data as Template;
     },
-    onSuccess: () => queryClient.invalidateQueries({ queryKey: TEMPLATES_KEY }),
+    onMutate: async (input) => {
+      await queryClient.cancelQueries({ queryKey: [...TEMPLATES_KEY, userId ?? ''] });
+      const previous = queryClient.getQueryData<Template[]>([...TEMPLATES_KEY, userId ?? '']);
+      if (previous !== undefined) {
+        const now = new Date().toISOString();
+        const optimistic: Template = {
+          id: `temp-${crypto.randomUUID()}`,
+          user_id: userId ?? '',
+          name: input.name,
+          exercise_order: input.exercise_order ?? [],
+          created_at: now,
+          updated_at: now,
+        };
+        queryClient.setQueryData<Template[]>(
+          [...TEMPLATES_KEY, userId ?? ''],
+          [optimistic, ...previous],
+        );
+      }
+      return { previous };
+    },
+    onError: (_err, _vars, context) => {
+      if (context?.previous !== undefined) {
+        queryClient.setQueryData([...TEMPLATES_KEY, userId ?? ''], context.previous);
+      }
+    },
+    onSettled: () => queryClient.invalidateQueries({ queryKey: TEMPLATES_KEY }),
   });
 }
 

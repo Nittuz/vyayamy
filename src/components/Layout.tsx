@@ -20,29 +20,32 @@ function ScrollToTop() {
 
 export function Layout() {
   const location = useLocation();
+  const hideNav = location.pathname.startsWith('/workout');
   return (
     <div className="layout">
       <ScrollToTop />
-      <main className="layout-main">
+      <main className={'layout-main' + (hideNav ? ' layout-main--full' : '')}>
         <div key={location.pathname} className="page-transition">
           <Outlet />
         </div>
       </main>
-      <nav className="layout-nav" aria-label="Primary">
-        {navItems.map(({ to, label, icon }) => (
-          <NavLink
-            key={to}
-            to={to}
-            className={({ isActive }) =>
-              'layout-nav-link' + (isActive ? ' layout-nav-link--active' : '')
-            }
-            end={to === '/'}
-          >
-            <span className="layout-nav-icon">{icon}</span>
-            <span className="layout-nav-label">{label}</span>
-          </NavLink>
-        ))}
-      </nav>
+      {!hideNav && (
+        <nav className="layout-nav" aria-label="Primary">
+          {navItems.map(({ to, label, icon }) => (
+            <NavLink
+              key={to}
+              to={to}
+              className={({ isActive }) =>
+                'layout-nav-link' + (isActive ? ' layout-nav-link--active' : '')
+              }
+              end={to === '/'}
+            >
+              <span className="layout-nav-icon">{icon}</span>
+              <span className="layout-nav-label">{label}</span>
+            </NavLink>
+          ))}
+        </nav>
+      )}
     </div>
   );
 }

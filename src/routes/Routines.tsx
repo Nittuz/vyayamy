@@ -1,5 +1,4 @@
 import { useState } from 'react';
-import { Link } from 'react-router-dom';
 import { useAuth } from '../lib/useAuth';
 import {
   useTemplates,
@@ -12,6 +11,7 @@ import {
   useGlobalExercises,
   useRecentExerciseIds,
 } from '../lib/queries/exercises';
+import { BackLink } from '../components/BackLink';
 import { ConfirmDialog } from '../components/ConfirmDialog';
 import { Sheet } from '../components/Sheet';
 import { useToast } from '../lib/useToast';
@@ -94,7 +94,7 @@ export function Routines() {
 
   return (
     <div className="routines">
-      <Link to="/profile" className="routines-back btn-ghost">← Profile</Link>
+      <BackLink to="/profile" label="Profile" />
 
       <header className="routines-header">
         <h1 className="page-title">Routines</h1>
@@ -115,7 +115,7 @@ export function Routines() {
             placeholder="e.g. Push Day, Upper Body..."
             value={newRoutineName}
             onChange={(e) => setNewRoutineName(e.target.value)}
-            className="routines-input"
+            className="input input--md input--bg"
             autoFocus
             onKeyDown={(e) => {
               if (e.key === 'Enter') handleCreateRoutine();
@@ -146,7 +146,7 @@ export function Routines() {
                     type="text"
                     value={editingName}
                     onChange={(e) => setEditingName(e.target.value)}
-                    className="routines-input"
+                    className="input input--md input--bg"
                     autoFocus
                     onKeyDown={(e) => {
                       if (e.key === 'Enter') handleSaveEdit();
@@ -174,7 +174,7 @@ export function Routines() {
                   <div className="routines-info">
                     <span className="routines-name">{t.name}</span>
                     {t.exercise_order.length > 0 && (
-                      <span className="routines-badge">
+                      <span className="tag tag--muted">
                         {t.exercise_order.length} exercise{t.exercise_order.length !== 1 ? 's' : ''}
                       </span>
                     )}

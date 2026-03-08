@@ -98,11 +98,11 @@ export function History() {
                       <div className="history-card-tags">
                         {w.muscleGroups.length > 0 ? (
                           w.muscleGroups.map((mg) => (
-                            <span key={mg} className="history-tag">{mg}</span>
+                            <span key={mg} className="tag">{mg}</span>
                           ))
                         ) : (
                           w.exerciseCount > 0 && (
-                            <span className="history-tag history-tag--neutral">
+                            <span className="tag tag--muted">
                               {w.exerciseCount} exercise{w.exerciseCount !== 1 ? 's' : ''}
                             </span>
                           )
@@ -123,7 +123,7 @@ export function History() {
           icon={<CalendarIllustration />}
           message="Your training journal will appear here after your first session."
           actionLabel="Start workout"
-          actionTo="/workout"
+          actionTo="/"
         />
       )}
     </div>

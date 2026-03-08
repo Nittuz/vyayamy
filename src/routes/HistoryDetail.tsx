@@ -1,5 +1,5 @@
 import { useState, useMemo } from 'react';
-import { useParams, Link, useNavigate } from 'react-router-dom';
+import { useParams, useNavigate } from 'react-router-dom';
 import { useAuth } from '../lib/useAuth';
 import { useWorkoutWithExercises, useCreateWorkout } from '../lib/queries/workouts';
 import type { WorkoutExerciseWithMeta } from '../lib/queries/workouts';
@@ -7,6 +7,7 @@ import { useDeleteWorkout } from '../lib/queries/sets';
 import { useProfile } from '../lib/queries/profile';
 import { formatDuration } from '../lib/format';
 import { RepeatIcon } from '../components/Icons';
+import { BackLink } from '../components/BackLink';
 import { ConfirmDialog } from '../components/ConfirmDialog';
 import { DetailSkeleton } from '../components/Skeleton';
 import { useToast } from '../lib/useToast';
@@ -77,7 +78,7 @@ export function HistoryDetail() {
   if (id == null) {
     return (
       <div className="hd">
-        <Link to="/history" className="hd-back btn-ghost">← History</Link>
+        <BackLink to="/history" label="History" />
         <p className="meta">Invalid workout.</p>
       </div>
     );
@@ -86,7 +87,7 @@ export function HistoryDetail() {
   if (isLoading || detail == null || stats == null) {
     return (
       <div className="hd">
-        <Link to="/history" className="hd-back btn-ghost">← History</Link>
+        <BackLink to="/history" label="History" />
         <DetailSkeleton />
       </div>
     );
@@ -103,7 +104,7 @@ export function HistoryDetail() {
 
   return (
     <div className="hd">
-      <Link to="/history" className="hd-back btn-ghost">← History</Link>
+      <BackLink to="/history" label="History" />
 
       {/* Summary card */}
       <header className="card hd-summary">
@@ -141,7 +142,7 @@ export function HistoryDetail() {
         {stats.muscleGroups.length > 0 && (
           <div className="hd-muscles">
             {stats.muscleGroups.map((mg) => (
-              <span key={mg} className="hd-muscle-tag">{mg}</span>
+              <span key={mg} className="tag">{mg}</span>
             ))}
           </div>
         )}

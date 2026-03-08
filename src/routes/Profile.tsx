@@ -50,7 +50,7 @@ export function Profile() {
             <div className="profile-name-edit">
               <input
                 type="text"
-                className="profile-name-input"
+                className="input input--sm"
                 value={displayNameDraft}
                 onChange={(e) => setDisplayNameDraft(e.target.value)}
                 placeholder="Your name"

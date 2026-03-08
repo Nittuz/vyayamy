@@ -60,13 +60,15 @@ Use `userId ?? ''` (not `undefined`) to keep keys stable and serializable.
 
 ## Optimistic Updates
 
-Use optimistic updates only for high-frequency interactions (set updates, set deletes). Pattern:
+Use optimistic updates for high-frequency interactions (set updates, set deletes) and for creates where instant feedback matters (add set, create template). Pattern:
 
 1. `onMutate`: cancel in-flight queries, snapshot previous data, apply optimistic change
 2. `onError`: rollback from snapshot
 3. `onSettled`: invalidate to refetch canonical data
 
-Do not use optimistic updates for create or structural mutations (add exercise, finish workout).
+Optimistic creates require a temporary ID (`temp-${crypto.randomUUID()}`) that gets replaced when `onSettled` refetches the real data.
+
+Do not use optimistic updates for structural mutations that navigate away (add exercise, finish workout).
 
 ## Supabase Queries
 

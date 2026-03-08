@@ -35,6 +35,17 @@
   flex-direction: column;
 }
 
+.sheet-panel::before {
+  content: '';
+  display: block;
+  width: 36px;
+  height: 5px;
+  background: var(--color-border-strong);
+  border-radius: var(--radius-full);
+  margin: var(--space-3) auto 0;
+  flex-shrink: 0;
+}
+
 .sheet-panel--closing {
   animation: sheet-slide-out var(--duration-fast) var(--ease-in-out) forwards;
 }

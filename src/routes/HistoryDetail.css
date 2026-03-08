@@ -2,15 +2,6 @@
   padding-bottom: var(--space-10);
 }
 
-/* ── Back link ── */
-.hd-back {
-  display: inline-flex;
-  align-items: center;
-  margin-bottom: var(--space-3);
-  padding-left: 0;
-  text-decoration: none;
-}
-
 /* ── Summary card ── */
 .hd-summary {
   padding: var(--space-5);
@@ -73,15 +64,6 @@
   flex-wrap: wrap;
   gap: var(--space-1);
   margin-top: var(--space-3);
-}
-
-.hd-muscle-tag {
-  font-size: var(--font-micro);
-  font-weight: var(--font-weight-medium);
-  color: var(--color-accent-muted);
-  background: var(--color-bg);
-  padding: var(--space-half) var(--space-2);
-  border-radius: var(--radius-full);
 }
 
 /* ── Exercise blocks ── */

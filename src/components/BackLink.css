@@ -1,0 +1,7 @@
+.back-link {
+  display: inline-flex;
+  align-items: center;
+  margin-bottom: var(--space-3);
+  padding-left: 0;
+  text-decoration: none;
+}

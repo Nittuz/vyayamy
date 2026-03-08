@@ -124,7 +124,7 @@ export function ExerciseSearchModal({
                 value={customName}
                 onChange={(e) => setCustomName(e.target.value)}
                 placeholder="e.g. Cable Fly"
-                className="esm-create-input"
+                className="input input--md input--bg"
                 autoFocus
               />
               <div className="esm-create-actions">

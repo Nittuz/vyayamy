@@ -46,7 +46,38 @@ export function useAddSet(workoutId: string | undefined) {
       if (error) throw error;
       return data as Set;
     },
-    onSuccess: () => {
+    onMutate: async (input) => {
+      await queryClient.cancelQueries({ queryKey: detailKey(workoutId) });
+      const previous = queryClient.getQueryData<WorkoutDetail>(detailKey(workoutId));
+      if (previous) {
+        const tempId = `temp-${crypto.randomUUID()}`;
+        const optimisticSet: Set = {
+          id: tempId,
+          workout_exercise_id: input.workout_exercise_id,
+          order_index: input.order_index,
+          weight: input.weight ?? null,
+          reps: input.reps ?? null,
+          completed: input.completed ?? false,
+          completed_at: null,
+          created_at: new Date().toISOString(),
+        };
+        queryClient.setQueryData<WorkoutDetail>(detailKey(workoutId), {
+          ...previous,
+          workoutExercises: previous.workoutExercises.map((we) =>
+            we.id === input.workout_exercise_id
+              ? { ...we, sets: [...we.sets, optimisticSet] }
+              : we
+          ),
+        });
+      }
+      return { previous };
+    },
+    onError: (_err, _vars, context) => {
+      if (context?.previous) {
+        queryClient.setQueryData(detailKey(workoutId), context.previous);
+      }
+    },
+    onSettled: () => {
       queryClient.invalidateQueries({ queryKey: detailKey(workoutId) });
     },
   });
@@ -153,17 +184,50 @@ export function useReorderExercise(workoutId: string | undefined) {
   const queryClient = useQueryClient();
   return useMutation({
     mutationFn: async ({
-      workoutExerciseId,
-      newIndex,
+      sourceId,
+      targetId,
+      sourceIndex,
+      targetIndex,
     }: {
-      workoutExerciseId: string;
-      newIndex: number;
+      sourceId: string;
+      targetId: string;
+      sourceIndex: number;
+      targetIndex: number;
     }): Promise<void> => {
-      const { error } = await supabase
-        .from('workout_exercises')
-        .update({ order_index: newIndex })
-        .eq('id', workoutExerciseId);
-      if (error) throw error;
+      const [r1, r2] = await Promise.all([
+        supabase
+          .from('workout_exercises')
+          .update({ order_index: targetIndex })
+          .eq('id', sourceId),
+        supabase
+          .from('workout_exercises')
+          .update({ order_index: sourceIndex })
+          .eq('id', targetId),
+      ]);
+      if (r1.error) throw r1.error;
+      if (r2.error) throw r2.error;
+    },
+    onMutate: async ({ sourceId, targetId }) => {
+      await queryClient.cancelQueries({ queryKey: detailKey(workoutId) });
+      const previous = queryClient.getQueryData<WorkoutDetail>(detailKey(workoutId));
+      if (previous) {
+        const exercises = [...previous.workoutExercises];
+        const srcIdx = exercises.findIndex((we) => we.id === sourceId);
+        const tgtIdx = exercises.findIndex((we) => we.id === targetId);
+        if (srcIdx !== -1 && tgtIdx !== -1) {
+          [exercises[srcIdx], exercises[tgtIdx]] = [exercises[tgtIdx], exercises[srcIdx]];
+          queryClient.setQueryData<WorkoutDetail>(detailKey(workoutId), {
+            ...previous,
+            workoutExercises: exercises,
+          });
+        }
+      }
+      return { previous };
+    },
+    onError: (_err, _vars, context) => {
+      if (context?.previous) {
+        queryClient.setQueryData(detailKey(workoutId), context.previous);
+      }
     },
     onSettled: () => {
       queryClient.invalidateQueries({ queryKey: detailKey(workoutId) });

@@ -56,7 +56,7 @@ export function Login() {
               value={email}
               onChange={(e) => setEmail(e.target.value)}
               placeholder="you@example.com"
-              className="login-input"
+              className="input input--lg"
               required
               disabled={loading}
             />

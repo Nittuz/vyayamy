@@ -11,6 +11,13 @@ import {
 } from 'recharts';
 import { useAuth } from '../lib/useAuth';
 import {
+  CHART_TICK,
+  CHART_MARGIN,
+  CHART_TOOLTIP_STYLE,
+  CHART_TOOLTIP_LABEL,
+  CHART_CURSOR,
+} from '../lib/chartConfig';
+import {
   usePersonalRecords,
   useExerciseHistory,
   useWeeklyFrequency,
@@ -182,7 +189,7 @@ export function Progress() {
                           <span className="pg-pr-type-label">
                             {PR_TYPE_LABELS[pr.type] ?? pr.type}
                           </span>
-                          {isNew && <span className="pg-pr-badge">NEW</span>}
+                          {isNew && <span className="tag tag--pr">NEW</span>}
                         </div>
                         <span className="pg-pr-value tabular">
                           {formatPrValue(pr, units)}
@@ -205,7 +212,7 @@ export function Progress() {
             icon={<TrophyIllustration />}
             message="Finish workouts to see your personal records here."
             actionLabel="Start workout"
-            actionTo="/workout"
+            actionTo="/"
           />
         )}
       </section>
@@ -233,10 +240,7 @@ export function Progress() {
             {chartData.length > 0 ? (
               <div className="pg-chart">
                 <ResponsiveContainer width="100%" height={180}>
-                  <AreaChart
-                    data={chartData}
-                    margin={{ top: 8, right: 4, left: -20, bottom: 0 }}
-                  >
+                  <AreaChart data={chartData} margin={CHART_MARGIN}>
                     <defs>
                       <linearGradient id="chartGradient" x1="0" y1="0" x2="0" y2="1">
                         <stop offset="0%" stopColor="var(--color-accent)" stopOpacity={0.08} />
@@ -245,27 +249,20 @@ export function Progress() {
                     </defs>
                     <XAxis
                       dataKey="date"
-                      tick={{ fontSize: 11, fill: 'var(--color-chart-axis)' }}
+                      tick={CHART_TICK}
                       stroke="none"
                       tickLine={false}
                     />
                     <YAxis
-                      tick={{ fontSize: 11, fill: 'var(--color-chart-axis)' }}
+                      tick={CHART_TICK}
                       stroke="none"
                       tickLine={false}
                       axisLine={false}
                     />
                     <Tooltip
-                      contentStyle={{
-                        background: 'var(--color-surface)',
-                        border: 'none',
-                        borderRadius: '8px',
-                        boxShadow: '0 2px 8px rgba(0,0,0,0.06)',
-                        fontSize: '13px',
-                        padding: '8px 12px',
-                      }}
-                      labelStyle={{ color: 'var(--color-text-secondary)', marginBottom: 2 }}
-                      cursor={{ stroke: 'var(--color-border-strong)', strokeWidth: 1 }}
+                      contentStyle={CHART_TOOLTIP_STYLE}
+                      labelStyle={CHART_TOOLTIP_LABEL}
+                      cursor={CHART_CURSOR}
                     />
                     <Area
                       type="monotone"
@@ -302,7 +299,7 @@ export function Progress() {
               <ResponsiveContainer width="100%" height={140}>
                 <BarChart
                   data={weeklyFreq}
-                  margin={{ top: 4, right: 4, left: -20, bottom: 0 }}
+                  margin={{ ...CHART_MARGIN, top: 4 }}
                 >
                   <XAxis
                     dataKey="weekStart"
@@ -312,13 +309,13 @@ export function Progress() {
                         day: 'numeric',
                       })
                     }
-                    tick={{ fontSize: 11, fill: 'var(--color-chart-axis)' }}
+                    tick={CHART_TICK}
                     stroke="none"
                     tickLine={false}
                   />
                   <YAxis
                     allowDecimals={false}
-                    tick={{ fontSize: 11, fill: 'var(--color-chart-axis)' }}
+                    tick={CHART_TICK}
                     stroke="none"
                     tickLine={false}
                     axisLine={false}

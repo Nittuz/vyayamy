@@ -140,6 +140,15 @@ export function ChevronDownIcon(props: IconProps) {
   );
 }
 
+export function XIcon(props: IconProps) {
+  return (
+    <Svg {...props}>
+      <line x1="18" y1="6" x2="6" y2="18" />
+      <line x1="6" y1="6" x2="18" y2="18" />
+    </Svg>
+  );
+}
+
 export function GripVerticalIcon(props: IconProps) {
   return (
     <Svg {...props}>

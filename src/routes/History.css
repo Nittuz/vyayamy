@@ -107,27 +107,9 @@
   min-width: 0;
 }
 
-.history-tag {
-  font-size: var(--font-micro);
-  font-weight: var(--font-weight-medium);
-  color: var(--color-accent-muted);
-  background: var(--color-bg);
-  padding: var(--space-half) var(--space-2);
-  border-radius: var(--radius-full);
-  white-space: nowrap;
-}
-
-.history-tag--neutral {
-  color: var(--color-text-tertiary);
-}
-
 .history-card-duration {
   flex-shrink: 0;
   font-size: var(--font-meta);
   color: var(--color-text-secondary);
 }
 
-/* ── Empty state ── */
-.history-empty {
-  margin: 0;
-}
