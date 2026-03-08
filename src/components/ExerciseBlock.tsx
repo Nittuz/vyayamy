@@ -1,11 +1,13 @@
 import { useState, useRef, useEffect } from 'react';
 import type { Set } from '../types/database';
 import type { WorkoutExerciseWithMeta } from '../lib/queries/workouts';
-import { CopyIcon, CheckIcon, XIcon, ChevronUpIcon, ChevronDownIcon } from './Icons';
+import { CopyIcon, CheckIcon, XIcon, ChevronUpIcon, ChevronDownIcon, PlusIcon } from './Icons';
+import { hapticTap } from '../lib/haptics';
 import './ExerciseBlock.css';
 
 type ExerciseBlockProps = {
   we: WorkoutExerciseWithMeta;
+  units?: 'kg' | 'lb';
   onAddSet: (workoutExerciseId: string, orderIndex: number) => void;
   onUpdateSet: (
     setId: string,
@@ -21,6 +23,7 @@ type ExerciseBlockProps = {
 
 export function ExerciseBlock({
   we,
+  units = 'kg',
   onAddSet,
   onUpdateSet,
   onDeleteSet,
@@ -116,8 +119,10 @@ export function ExerciseBlock({
     ? we.sets.filter((s) => !hiddenSetIds.has(s.id))
     : we.sets;
 
+  const allDone = visibleSets.length > 0 && visibleSets.every((s) => s.completed);
+
   return (
-    <div className="card exercise-block">
+    <div className={'card exercise-block' + (allDone ? ' exercise-block--done' : '')}>
       <button
         type="button"
         className="exercise-block-head"
@@ -127,7 +132,7 @@ export function ExerciseBlock({
         <div className="exercise-block-head-text">
           <span className="card-title">{we.exercise.name}</span>
           {we.exercise.muscle_group != null && (
-            <span className="meta exercise-block-muscle">
+            <span className="tag tag--muted exercise-block-muscle">
               {we.exercise.muscle_group}
             </span>
           )}
@@ -147,7 +152,10 @@ export function ExerciseBlock({
               )}
             </div>
           )}
-          <span className="meta tabular">{visibleSets.length} sets</span>
+          <span className={'meta tabular' + (allDone ? ' exercise-block-sets-done' : '')}>
+            {allDone && <CheckIcon size={12} strokeWidth={3} />}
+            {visibleSets.length} sets
+          </span>
         </div>
       </button>
 
@@ -178,7 +186,9 @@ export function ExerciseBlock({
                     (removingSetId === s.id ? ' set-row--removing' : '')
                   }
                 >
-                  <span className="set-col-idx meta tabular">{i + 1}</span>
+                  <span className="set-col-idx">
+                    <span className="set-row-idx-badge">{i + 1}</span>
+                  </span>
 
                   <div className="set-col-val">
                     {isEditing && editingField.field === 'weight' ? (
@@ -207,7 +217,11 @@ export function ExerciseBlock({
                         className={'set-row-value tabular' + (flashField?.setId === s.id && flashField.field === 'weight' ? ' set-row-value--flash' : '')}
                         onClick={() => startEdit(s, 'weight')}
                       >
-                        {s.weight != null ? s.weight : '—'}
+                        {s.weight != null ? (
+                          <>{s.weight}<span className="set-row-unit">{units}</span></>
+                        ) : (
+                          <span className="set-row-placeholder">&mdash;</span>
+                        )}
                       </button>
                     )}
                   </div>
@@ -239,7 +253,11 @@ export function ExerciseBlock({
                         className={'set-row-value tabular' + (flashField?.setId === s.id && flashField.field === 'reps' ? ' set-row-value--flash' : '')}
                         onClick={() => startEdit(s, 'reps')}
                       >
-                        {s.reps != null ? s.reps : '—'}
+                        {s.reps != null ? (
+                          <>{s.reps}<span className="set-row-unit">reps</span></>
+                        ) : (
+                          <span className="set-row-placeholder">&mdash;</span>
+                        )}
                       </button>
                     )}
                   </div>
@@ -273,14 +291,15 @@ export function ExerciseBlock({
                         'set-row-check' +
                         (s.completed ? ' set-row-check--done' : '')
                       }
-                      onClick={() =>
+                      onClick={() => {
+                        if (!s.completed) hapticTap();
                         onUpdateSet(s.id, {
                           completed: !s.completed,
                           completed_at: s.completed
                             ? null
                             : new Date().toISOString(),
-                        })
-                      }
+                        });
+                      }}
                       aria-pressed={s.completed}
                       title={s.completed ? 'Mark incomplete' : 'Mark complete'}
                     >
@@ -297,7 +316,8 @@ export function ExerciseBlock({
             className="exercise-block-add-set"
             onClick={() => onAddSet(we.id, visibleSets.length)}
           >
-            + Add set
+            <PlusIcon size={14} strokeWidth={2.5} />
+            Add set
           </button>
         </div>
       )}

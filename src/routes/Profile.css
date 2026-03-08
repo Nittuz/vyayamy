@@ -94,7 +94,7 @@
   display: grid;
   grid-template-columns: repeat(3, 1fr);
   gap: var(--space-3);
-  margin-top: var(--space-4);
+  margin-top: var(--space-section);
 }
 
 .profile-stat-card {
@@ -124,7 +124,7 @@
 
 /* ── Card sections ── */
 .profile-card {
-  margin-top: var(--space-6);
+  margin-top: var(--space-section);
   padding: var(--space-5);
 }
 

@@ -7,9 +7,11 @@ import {
   useAddExerciseToWorkout,
   useCreateExercise,
 } from '../lib/queries/exercises';
+import { useAddSet } from '../lib/queries/sets';
 import { useDebouncedValue, useAnimatedPresence } from '../lib/hooks';
 import type { Exercise } from '../types/database';
 import { SearchIcon } from './Icons';
+import { SkeletonList } from './Skeleton';
 import './ExerciseSearchModal.css';
 
 type ExerciseSearchModalProps = {
@@ -39,6 +41,7 @@ export function ExerciseSearchModal({
   const recentExercises = useExercisesByIds(recentIds.data ?? []);
   const globalExercises = useGlobalExercises(12);
   const addToWorkout = useAddExerciseToWorkout();
+  const addSet = useAddSet(workoutId);
   const createExercise = useCreateExercise(userId);
 
   useEffect(() => {
@@ -57,11 +60,12 @@ export function ExerciseSearchModal({
 
   const handleSelect = async (exercise: Exercise) => {
     if (!workoutId) return;
-    await addToWorkout.mutateAsync({
+    const we = await addToWorkout.mutateAsync({
       workoutId,
       exerciseId: exercise.id,
       orderIndex,
     });
+    addSet.mutate({ workout_exercise_id: we.id, order_index: 0 });
     resetAndClose();
   };
 
@@ -69,11 +73,12 @@ export function ExerciseSearchModal({
     const name = customName.trim();
     if (!name || !userId || !workoutId) return;
     const exercise = await createExercise.mutateAsync({ name });
-    await addToWorkout.mutateAsync({
+    const we = await addToWorkout.mutateAsync({
       workoutId,
       exerciseId: exercise.id,
       orderIndex,
     });
+    addSet.mutate({ workout_exercise_id: we.id, order_index: 0 });
     resetAndClose();
   };
 
@@ -151,7 +156,7 @@ export function ExerciseSearchModal({
                 <section className="esm-section">
                   <h2 className="esm-section-title meta">Results</h2>
                   {searchResults.isLoading ? (
-                    <p className="meta esm-empty">Searching...</p>
+                    <SkeletonList count={3} />
                   ) : searchList.length === 0 ? (
                     <p className="meta esm-empty">No exercises found.</p>
                   ) : (
@@ -178,11 +183,41 @@ export function ExerciseSearchModal({
                 </section>
               ) : (
                 <>
-                  {recentList.length > 0 && (
+                  {(recentExercises.isLoading || recentList.length > 0) && (
                     <section className="esm-section">
                       <h2 className="esm-section-title meta">Recent</h2>
+                      {recentExercises.isLoading ? (
+                        <SkeletonList count={2} />
+                      ) : (
+                        <ul className="esm-list">
+                          {recentList.map((ex) => (
+                            <li key={ex.id}>
+                              <button
+                                type="button"
+                                className="esm-item"
+                                onClick={() => handleSelect(ex)}
+                                disabled={addToWorkout.isPending}
+                              >
+                                <span className="esm-item-name">{ex.name}</span>
+                                {ex.muscle_group != null && (
+                                  <span className="esm-item-muscle meta">
+                                    {ex.muscle_group}
+                                  </span>
+                                )}
+                              </button>
+                            </li>
+                          ))}
+                        </ul>
+                      )}
+                    </section>
+                  )}
+                  <section className="esm-section">
+                    <h2 className="esm-section-title meta">Common</h2>
+                    {globalExercises.isLoading ? (
+                      <SkeletonList count={3} />
+                    ) : (
                       <ul className="esm-list">
-                        {recentList.map((ex) => (
+                        {commonList.map((ex) => (
                           <li key={ex.id}>
                             <button
                               type="button"
@@ -200,29 +235,7 @@ export function ExerciseSearchModal({
                           </li>
                         ))}
                       </ul>
-                    </section>
-                  )}
-                  <section className="esm-section">
-                    <h2 className="esm-section-title meta">Common</h2>
-                    <ul className="esm-list">
-                      {commonList.map((ex) => (
-                        <li key={ex.id}>
-                          <button
-                            type="button"
-                            className="esm-item"
-                            onClick={() => handleSelect(ex)}
-                            disabled={addToWorkout.isPending}
-                          >
-                            <span className="esm-item-name">{ex.name}</span>
-                            {ex.muscle_group != null && (
-                              <span className="esm-item-muscle meta">
-                                {ex.muscle_group}
-                              </span>
-                            )}
-                          </button>
-                        </li>
-                      ))}
-                    </ul>
+                    )}
                   </section>
                 </>
               )}

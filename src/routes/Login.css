@@ -4,37 +4,79 @@
   align-items: center;
   justify-content: center;
   padding: var(--padding-page);
-  animation: login-in var(--duration-slow) var(--ease-out);
   background: var(--color-bg);
 }
 
-@keyframes login-in {
-  from { opacity: 0; transform: translateY(12px); }
-  to { opacity: 1; transform: translateY(0); }
-}
-
+/* ── Card ── */
 .login-card {
   width: 100%;
-  max-width: 340px;
+  max-width: 360px;
+  background: var(--color-surface);
+  border: 0.5px solid var(--color-border);
+  border-radius: var(--radius-lg);
+  box-shadow: var(--shadow-lg);
+  padding: var(--space-10) var(--space-8) var(--space-6);
+  animation: login-enter var(--duration-slow) var(--ease-out);
+}
+
+@keyframes login-enter {
+  from {
+    opacity: 0;
+    transform: translateY(12px) scale(0.98);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0) scale(1);
+  }
+}
+
+/* ── Header ── */
+.login-header {
+  text-align: center;
+  margin-bottom: var(--space-8);
+}
+
+.login-monogram {
+  width: 56px;
+  height: 56px;
+  margin: 0 auto var(--space-5);
+  border-radius: var(--radius-md);
+  background: var(--color-accent);
+  color: var(--color-on-accent);
+  font-size: var(--font-title);
+  font-weight: var(--font-weight-bold);
+  letter-spacing: -0.03em;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  user-select: none;
 }
 
 .login-title {
-  font-size: var(--font-display);
+  font-size: var(--font-title);
   font-weight: var(--font-weight-bold);
   letter-spacing: -0.03em;
   margin: 0;
+  line-height: 1.15;
 }
 
 .login-tagline {
   font-size: var(--font-body);
   color: var(--color-text-secondary);
-  margin: var(--space-2) 0 var(--space-8);
+  margin: var(--space-2) 0 0;
 }
 
+/* ── Form ── */
 .login-form {
   display: flex;
   flex-direction: column;
-  gap: var(--space-3);
+  gap: var(--space-4);
+}
+
+.login-field {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-2);
 }
 
 .login-label {
@@ -55,19 +97,86 @@
 
 .login-button {
   height: 48px;
-  margin-top: var(--space-2);
+  margin-top: var(--space-1);
 }
 
+/* ── Spinner ── */
+.login-spinner {
+  display: inline-block;
+  width: 20px;
+  height: 20px;
+  border: 2.5px solid var(--color-on-accent);
+  border-right-color: transparent;
+  border-radius: var(--radius-full);
+  animation: login-spin 0.6s linear infinite;
+}
+
+@keyframes login-spin {
+  to { transform: rotate(360deg); }
+}
+
+/* ── Sent state ── */
 .login-sent {
-  margin-top: var(--space-6);
-  padding: var(--space-5);
-  background: var(--color-surface);
-  border-radius: var(--radius-md);
-  box-shadow: var(--shadow-sm);
+  text-align: center;
+  animation: login-sent-in var(--duration-slow) var(--ease-out);
+}
+
+@keyframes login-sent-in {
+  from {
+    opacity: 0;
+    transform: scale(0.96);
+  }
+  to {
+    opacity: 1;
+    transform: scale(1);
+  }
+}
+
+.login-sent-icon {
+  margin-bottom: var(--space-4);
+}
+
+.login-sent-heading {
+  font-size: var(--font-card);
+  font-weight: var(--font-weight-semibold);
+  margin: 0 0 var(--space-2);
 }
 
 .login-sent-text {
   font-size: var(--font-body);
-  font-weight: var(--font-weight-medium);
+  color: var(--color-text-secondary);
   margin: 0 0 var(--space-2);
+  line-height: 1.5;
+}
+
+.login-sent-text strong {
+  color: var(--color-text);
+  font-weight: var(--font-weight-medium);
+}
+
+/* ── Hint below button ── */
+.login-hint {
+  font-size: var(--font-meta);
+  color: var(--color-text-tertiary);
+  text-align: center;
+  margin: 0;
+}
+
+/* ── Responsive ── */
+@media (max-width: 400px) {
+  .login-card {
+    padding: var(--space-8) var(--space-6) var(--space-5);
+  }
+}
+
+@media (min-width: 768px) {
+  .login {
+    background: var(--color-bg-desktop);
+  }
+}
+
+@media (prefers-color-scheme: dark) and (min-width: 768px) {
+  .login {
+    background: var(--color-bg-desktop);
+  }
 }

@@ -57,12 +57,12 @@
 
 .toast--success {
   background: var(--color-success);
-  color: white;
+  color: var(--color-on-accent);
 }
 
 .toast--error {
   background: var(--color-danger);
-  color: white;
+  color: var(--color-on-accent);
 }
 
 @keyframes toast-in {

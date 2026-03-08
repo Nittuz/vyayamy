@@ -247,6 +247,87 @@ export interface Database {
         };
         Relationships: [];
       };
+      training_plans: {
+        Row: {
+          id: string;
+          user_id: string;
+          name: string;
+          plan_type: 'weekly' | 'cycle';
+          is_active: boolean;
+          cycle_cursor: number;
+          created_at: string;
+          updated_at: string;
+        };
+        Insert: {
+          id?: string;
+          user_id: string;
+          name: string;
+          plan_type: 'weekly' | 'cycle';
+          is_active?: boolean;
+          cycle_cursor?: number;
+          created_at?: string;
+          updated_at?: string;
+        };
+        Update: {
+          id?: string;
+          user_id?: string;
+          name?: string;
+          plan_type?: 'weekly' | 'cycle';
+          is_active?: boolean;
+          cycle_cursor?: number;
+          created_at?: string;
+          updated_at?: string;
+        };
+        Relationships: [];
+      };
+      training_plan_slots: {
+        Row: {
+          id: string;
+          plan_id: string;
+          template_id: string | null;
+          day_of_week: number | null;
+          cycle_position: number | null;
+          is_rest_day: boolean;
+          label: string | null;
+          created_at: string;
+        };
+        Insert: {
+          id?: string;
+          plan_id: string;
+          template_id?: string | null;
+          day_of_week?: number | null;
+          cycle_position?: number | null;
+          is_rest_day?: boolean;
+          label?: string | null;
+          created_at?: string;
+        };
+        Update: {
+          id?: string;
+          plan_id?: string;
+          template_id?: string | null;
+          day_of_week?: number | null;
+          cycle_position?: number | null;
+          is_rest_day?: boolean;
+          label?: string | null;
+          created_at?: string;
+        };
+        Relationships: [
+          {
+            foreignKeyName: 'training_plan_slots_plan_id_fkey';
+            columns: ['plan_id'];
+            isOneToOne: false;
+            referencedRelation: 'training_plans';
+            referencedColumns: ['id'];
+          },
+          {
+            foreignKeyName: 'training_plan_slots_template_id_fkey';
+            columns: ['template_id'];
+            isOneToOne: false;
+            referencedRelation: 'templates';
+            referencedColumns: ['id'];
+          },
+        ];
+      };
     };
     Views: Record<string, never>;
     Functions: Record<string, never>;
@@ -262,3 +343,5 @@ export type WorkoutExercise = Database['public']['Tables']['workout_exercises'][
 export type Set = Database['public']['Tables']['sets']['Row'];
 export type PersonalRecord = Database['public']['Tables']['personal_records']['Row'];
 export type Template = Database['public']['Tables']['templates']['Row'];
+export type TrainingPlan = Database['public']['Tables']['training_plans']['Row'];
+export type TrainingPlanSlot = Database['public']['Tables']['training_plan_slots']['Row'];

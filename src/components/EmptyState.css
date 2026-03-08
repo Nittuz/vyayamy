@@ -1,14 +1,26 @@
+@keyframes empty-enter {
+  from { opacity: 0; transform: translateY(8px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+
+@keyframes empty-float {
+  0%, 100% { transform: translateY(0); }
+  50% { transform: translateY(-4px); }
+}
+
 .empty-state {
   display: flex;
   flex-direction: column;
   align-items: center;
   gap: var(--space-3);
+  animation: empty-enter var(--duration-slow) var(--ease-out);
 }
 
 .empty-state-icon {
   color: var(--color-text-tertiary);
   opacity: 0.6;
   margin-bottom: var(--space-1);
+  animation: empty-float 3s ease-in-out infinite;
 }
 
 .empty-state-message {

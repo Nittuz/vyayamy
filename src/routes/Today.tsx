@@ -3,9 +3,10 @@ import { useAuth } from '../lib/useAuth';
 import { useProfile } from '../lib/queries/profile';
 import { useActiveWorkout, useLastWorkout, useRecentWorkouts, useCreateWorkout } from '../lib/queries/workouts';
 import { useTemplates } from '../lib/queries/templates';
+import { useActivePlan, useWeekCompletions, getTodaySlot, isSlotCompletedOnDate, dayOfWeekName } from '../lib/queries/plans';
 import { useWeeklyFrequency } from '../lib/queries/records';
 import { formatRelativeDate, formatDuration, getGreeting } from '../lib/format';
-import { PlayIcon, RepeatIcon, ChevronRightIcon } from '../components/Icons';
+import { PlayIcon, RepeatIcon, ChevronRightIcon, CheckIcon } from '../components/Icons';
 import { EmptyState, DumbbellIllustration } from '../components/EmptyState';
 import { TodaySkeleton } from '../components/Skeleton';
 import './Today.css';
@@ -37,10 +38,19 @@ export function Today() {
   const { data: lastWorkout } = useLastWorkout(user?.id);
   const { data: recentWorkouts, isLoading: recentsLoading } = useRecentWorkouts(user?.id, 10);
   const { data: templates } = useTemplates(user?.id);
+  const { data: plan } = useActivePlan(user?.id);
+  const { data: weekCompletions } = useWeekCompletions(user?.id);
   const createWorkout = useCreateWorkout(user?.id);
   const { data: weeklyFreq } = useWeeklyFrequency(user?.id, 1);
 
   const thisWeekCount = weeklyFreq?.[0]?.count ?? 0;
+
+  const todaySlot = plan ? getTodaySlot(plan) : null;
+  const todayCompleted = todaySlot && weekCompletions
+    ? isSlotCompletedOnDate(todaySlot, weekCompletions, new Date())
+    : false;
+  const templateMap = new Map(templates?.map((t) => [t.id, t]) ?? []);
+  const plannedTemplate = todaySlot?.template_id ? templateMap.get(todaySlot.template_id) : null;
 
   const firstName = profile?.display_name?.split(/\s+/)[0];
   const greeting = firstName ? `${getGreeting()}, ${firstName}` : getGreeting();
@@ -162,12 +172,77 @@ export function Today() {
         </div>
       </section>
 
-      {/* Quick start from routines */}
+      {/* Today's plan */}
+      {plan && todaySlot && !todaySlot.is_rest_day && plannedTemplate && !todayCompleted && activeWorkout == null && (
+        <section className="today-plan-card card">
+          <div className="today-plan-header">
+            <span className="today-plan-label">
+              {plan.plan_type === 'weekly'
+                ? dayOfWeekName((new Date().getDay() + 6) % 7)
+                : `Day ${plan.cycle_cursor + 1}`}
+            </span>
+            <Link to="/profile/plan" className="today-see-all meta">
+              Plan <ChevronRightIcon size={14} />
+            </Link>
+          </div>
+          <p className="today-plan-name">{plannedTemplate.name}</p>
+          {plannedTemplate.exercise_order.length > 0 && (
+            <p className="meta today-plan-count">
+              {plannedTemplate.exercise_order.length} exercise{plannedTemplate.exercise_order.length !== 1 ? 's' : ''}
+            </p>
+          )}
+          <button
+            type="button"
+            className="btn-primary today-plan-cta"
+            onClick={() => handleStartFromTemplate(plannedTemplate)}
+            disabled={createWorkout.isPending}
+          >
+            <PlayIcon size={16} />
+            <span>Start {plannedTemplate.name}</span>
+          </button>
+        </section>
+      )}
+
+      {plan && todaySlot && todaySlot.is_rest_day && (
+        <section className="today-plan-card today-plan-card--rest card">
+          <div className="today-plan-header">
+            <span className="today-plan-label">
+              {plan.plan_type === 'weekly'
+                ? dayOfWeekName((new Date().getDay() + 6) % 7)
+                : `Day ${plan.cycle_cursor + 1}`}
+            </span>
+            <Link to="/profile/plan" className="today-see-all meta">
+              Plan <ChevronRightIcon size={14} />
+            </Link>
+          </div>
+          <p className="today-plan-name">Rest Day</p>
+          <p className="meta">{todaySlot.label ?? 'Recovery and restoration'}</p>
+        </section>
+      )}
+
+      {plan && todaySlot && !todaySlot.is_rest_day && todayCompleted && (
+        <section className="today-plan-card today-plan-card--done card">
+          <div className="today-plan-header">
+            <span className="today-plan-label">
+              {plan.plan_type === 'weekly'
+                ? dayOfWeekName((new Date().getDay() + 6) % 7)
+                : `Day ${plan.cycle_cursor + 1}`}
+            </span>
+            <span className="today-plan-done-badge">
+              <CheckIcon size={12} /> Done
+            </span>
+          </div>
+          <p className="today-plan-name">{plannedTemplate?.name ?? 'Workout'}</p>
+          <p className="meta today-plan-done-msg">Plan complete for today.</p>
+        </section>
+      )}
+
+      {/* Quick start */}
       <section className="today-section">
         <div className="today-section-header">
           <h2 className="section-title">Quick start</h2>
-          <Link to="/profile/routines" className="today-see-all meta">
-            Manage <ChevronRightIcon size={14} />
+          <Link to="/profile/plan" className="today-see-all meta">
+            {plan ? 'Plan' : 'Manage'} <ChevronRightIcon size={14} />
           </Link>
         </div>
         {displayTemplates.length > 0 ? (
@@ -191,8 +266,8 @@ export function Today() {
           </div>
         ) : (
           <div className="today-routines">
-            <Link to="/profile/routines" className="today-routine-chip today-routine-chip--create">
-              <span className="today-routine-chip-name">+ Create a routine</span>
+            <Link to="/profile/plan" className="today-routine-chip today-routine-chip--create">
+              <span className="today-routine-chip-name">+ Create a template</span>
             </Link>
           </div>
         )}
@@ -231,7 +306,7 @@ export function Today() {
         ) : (
           <EmptyState
             icon={<DumbbellIllustration />}
-            message="Ready for your first workout? Your training history will show up here."
+            message="Your training history will appear here."
           />
         )}
       </section>

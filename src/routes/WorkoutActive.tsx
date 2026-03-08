@@ -1,13 +1,15 @@
-import { useState, useEffect, useRef, useCallback } from 'react';
+import { useState, useEffect, useRef, useCallback, useMemo } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useQueryClient } from '@tanstack/react-query';
 import { useAuth } from '../lib/useAuth';
 import { useActiveWorkout, useWorkoutWithExercises } from '../lib/queries/workouts';
+import { useProfile } from '../lib/queries/profile';
 import { useAddSet, useUpdateSet, useDeleteSet, useFinishWorkout, useReorderExercise } from '../lib/queries/sets';
+import { useActivePlan, useAdvanceCycle, getTodaySlot } from '../lib/queries/plans';
 import { detectAndInsertPRs } from '../lib/pr-detection';
 import { ExerciseBlock } from '../components/ExerciseBlock';
+import { PlusIcon, CheckIcon } from '../components/Icons';
 import { ExerciseSearchModal } from '../components/ExerciseSearchModal';
-import { ConfirmDialog } from '../components/ConfirmDialog';
 import { Sheet } from '../components/Sheet';
 import { useToast } from '../lib/useToast';
 import { TrophyIllustration } from '../components/EmptyState';
@@ -40,6 +42,8 @@ export function WorkoutActive() {
   const navigate = useNavigate();
   const queryClient = useQueryClient();
   const { user } = useAuth();
+  const { data: profile } = useProfile(user?.id);
+  const units = profile?.units ?? 'kg';
   const { data: activeWorkout } = useActiveWorkout(user?.id);
   const { data: detail, isLoading } = useWorkoutWithExercises(activeWorkout?.id);
   const addSet = useAddSet(activeWorkout?.id);
@@ -47,6 +51,8 @@ export function WorkoutActive() {
   const deleteSet = useDeleteSet(activeWorkout?.id);
   const finishWorkout = useFinishWorkout(user?.id);
   const reorderExercise = useReorderExercise(activeWorkout?.id);
+  const { data: activePlan } = useActivePlan(user?.id);
+  const advanceCycle = useAdvanceCycle(user?.id);
   const [addExerciseOpen, setAddExerciseOpen] = useState(false);
   const [confirmFinish, setConfirmFinish] = useState(false);
   const [completing, setCompleting] = useState(false);
@@ -169,6 +175,13 @@ export function WorkoutActive() {
       await finishWorkout.mutateAsync(activeWorkout.id);
       queryClient.invalidateQueries({ queryKey: ['records'] });
 
+      if (activePlan?.plan_type === 'cycle' && activePlan.slots.length > 0) {
+        const todaySlot = getTodaySlot(activePlan);
+        if (todaySlot && !todaySlot.is_rest_day && todaySlot.template_id === activeWorkout.template_id) {
+          advanceCycle.mutate({ planId: activePlan.id, totalSlots: activePlan.slots.length });
+        }
+      }
+
       let volume = 0;
       for (const we of detail.workoutExercises) {
         for (const s of we.sets) {
@@ -207,18 +220,56 @@ export function WorkoutActive() {
       0
     ) ?? 0;
 
+  const liveVolume = useMemo(() => {
+    if (!detail) return 0;
+    let vol = 0;
+    for (const we of detail.workoutExercises) {
+      for (const s of we.sets) {
+        if (s.completed && s.weight != null && s.reps != null && !hiddenSetIds.has(s.id)) {
+          vol += s.weight * s.reps;
+        }
+      }
+    }
+    return vol;
+  }, [detail, hiddenSetIds]);
+
+  const progressPct = totalSets > 0 ? (completedSets / totalSets) * 100 : 0;
+
+  const formatVolume = (v: number) =>
+    v >= 1000 ? `${(v / 1000).toFixed(1).replace(/\.0$/, '')}k` : String(v);
+
   return (
     <div className={'workout-active' + (completing ? ' workout-active--completing' : '')}>
       <header className="workout-active-header">
         <h1 className="workout-active-title">
           {detail?.workout.title ?? 'Workout'}
         </h1>
-        <div className="workout-active-stats">
-          <span className="workout-active-stat meta tabular">{elapsed}</span>
-          {totalSets > 0 && (
-            <span className="workout-active-stat meta tabular">
-              {completedSets}/{totalSets} sets
-            </span>
+        {totalSets > 0 && (
+          <div className="workout-active-progress">
+            <div
+              className="workout-active-progress-fill"
+              style={{ width: `${progressPct}%` }}
+            />
+          </div>
+        )}
+        <div className="workout-active-stat-row">
+          <div className="workout-active-stat">
+            <span className="workout-active-stat-value tabular">{elapsed}</span>
+            <span className="workout-active-stat-label">Duration</span>
+          </div>
+          <div className="workout-active-stat-divider" />
+          <div className="workout-active-stat">
+            <span className="workout-active-stat-value tabular">{completedSets}/{totalSets}</span>
+            <span className="workout-active-stat-label">Sets</span>
+          </div>
+          {liveVolume > 0 && (
+            <>
+              <div className="workout-active-stat-divider" />
+              <div className="workout-active-stat">
+                <span className="workout-active-stat-value tabular">{formatVolume(liveVolume)}</span>
+                <span className="workout-active-stat-label">Volume</span>
+              </div>
+            </>
           )}
         </div>
       </header>
@@ -228,6 +279,7 @@ export function WorkoutActive() {
           <ExerciseBlock
             key={we.id}
             we={we}
+            units={units}
             onAddSet={handleAddSet}
             onUpdateSet={handleUpdateSet}
             onDeleteSet={handleDeleteSet}
@@ -248,10 +300,11 @@ export function WorkoutActive() {
       <footer className="workout-active-footer">
         <button
           type="button"
-          className="workout-active-add-btn"
+          className="btn-secondary workout-active-add-btn"
           onClick={() => setAddExerciseOpen(true)}
         >
-          + Add exercise
+          <PlusIcon size={18} strokeWidth={2.5} />
+          Add exercise
         </button>
         <button
           type="button"
@@ -271,14 +324,53 @@ export function WorkoutActive() {
         orderIndex={detail?.workoutExercises.length ?? 0}
       />
 
-      <ConfirmDialog
-        open={confirmFinish}
-        title="Finish workout"
-        message={`Complete "${detail?.workout.title ?? 'Workout'}" with ${completedSets} of ${totalSets} sets done?`}
-        confirmLabel="Finish"
-        onConfirm={handleFinish}
-        onCancel={() => setConfirmFinish(false)}
-      />
+      <Sheet open={confirmFinish} onClose={() => setConfirmFinish(false)}>
+        <div className="workout-finish-confirm">
+          <div className="workout-finish-confirm-icon">
+            <CheckIcon size={28} strokeWidth={2.5} />
+          </div>
+          <h3 className="workout-finish-confirm-title">
+            Finish {detail?.workout.title ?? 'Workout'}?
+          </h3>
+          <div className="workout-finish-confirm-stats">
+            <div className="workout-finish-confirm-stat">
+              <span className="workout-finish-confirm-stat-value tabular">{elapsed}</span>
+              <span className="workout-finish-confirm-stat-label">Duration</span>
+            </div>
+            <div className="workout-active-stat-divider" />
+            <div className="workout-finish-confirm-stat">
+              <span className="workout-finish-confirm-stat-value tabular">{completedSets}/{totalSets}</span>
+              <span className="workout-finish-confirm-stat-label">Sets</span>
+            </div>
+            <div className="workout-active-stat-divider" />
+            <div className="workout-finish-confirm-stat">
+              <span className="workout-finish-confirm-stat-value tabular">{detail?.workoutExercises.length ?? 0}</span>
+              <span className="workout-finish-confirm-stat-label">Exercises</span>
+            </div>
+          </div>
+          {completedSets < totalSets && totalSets > 0 && (
+            <p className="workout-finish-confirm-warning meta">
+              {totalSets - completedSets} incomplete {totalSets - completedSets === 1 ? 'set' : 'sets'} will be saved as-is.
+            </p>
+          )}
+          <button
+            type="button"
+            className="btn-primary workout-finish-confirm-btn"
+            onClick={handleFinish}
+            disabled={finishWorkout.isPending}
+          >
+            <CheckIcon size={18} strokeWidth={2.5} />
+            Finish workout
+          </button>
+          <button
+            type="button"
+            className="btn-ghost workout-finish-confirm-back"
+            onClick={() => setConfirmFinish(false)}
+          >
+            Keep going
+          </button>
+        </div>
+      </Sheet>
 
       <Sheet open={summary != null} onClose={handleDismissSummary} title="Workout complete">
         {summary && (

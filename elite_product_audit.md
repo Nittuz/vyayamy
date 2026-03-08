@@ -1,1431 +1,497 @@
 Elite Product Audit — Vyayamy
-
 1. Executive Summary
+Vyayamy is a genuinely well-built fitness tracking PWA that sits firmly above the average developer-built app. The warm neutral palette, systematic spacing tokens, frosted-glass nav, loading skeletons, and inline set editing show real design intent. This is not a template app.
 
-Vyayamy is a good but not yet great product. It is significantly better than the typical developer-built fitness app. The foundations are right: a restrained warm-neutral color palette, a proper spacing scale, a well-structured token system, and a mobile-first architecture that makes the right architectural choices (bottom nav, bottom sheets, touch targets). Someone with taste made the initial decisions.
+However, it is not yet great. It lives in the space of "good but not confident" — the kind of app a skilled developer with taste built, but without the final rounds of restraint, unification, and polish that a dedicated product designer would apply. It feels like revision 0.9 of a premium product.
 
-However, the app sits in the uncanny valley between "thoughtfully designed" and "truly polished." The design system is coherent in concept but inconsistent in execution. Several screens betray their implementation origin — they feel assembled from correct parts rather than composed as a whole. The Profile page is overgrown. The Progress page is undercooked. Empty states are perfunctory. Desktop is an afterthought. And several small craft failures (inline styles, hardcoded colors, CSS typos, missing exit animations, dead code) accumulate into a product that feels 70% of the way to premium.
+The biggest macro-level issues preventing world-class feel:
 
-The biggest single issue: the app lacks restraint in its busiest moments and lacks ambition in its quietest ones. The active workout screen packs functional density without elegance. The empty states are clinically informative but emotionally flat. The charts are generic Recharts defaults. The Profile page tries to do everything.
-
-To reach the Linear/Apple Health tier, this app needs: tighter visual rhythm, more purposeful information density, animated state transitions, stronger empty states, a desktop-aware layout, and a ruthless edit pass on the Profile page.
-
-
+Two competing entry points to start a workout (Today page CTAs + separate WorkoutStart page) create conceptual fog
+The active workout screen shares screen real estate with the bottom nav, creating a cluttered double-footer that undermines focus
+Input styles are duplicated across 5+ files instead of being a single design system primitive
+A duplicate CSS variable (--color-accent-soft defined twice with different values) signals the design system is not fully audited
+Charts use near-default Recharts styling, breaking the otherwise warm, refined aesthetic
+Routines — a core workflow feature — is buried under Profile, like a settings submenu
+The bones are strong. The gaps are about discipline, restraint, and finishing the last 15%.
 
 2. Overall Scorecard
-
-Design & UX Scores (1-10):
-
-
-
-
-
-
-
-Category
-
-
-
-Score
-
-
-
-Notes
-
-
-
-
-
-Clarity
-
-
-
-7
-
-
-
-Good page-level intent, but some screens lack a single clear CTA
-
-
-
-
-
-Reduction / Simplicity
-
-
-
-6
-
-
-
-Profile is bloated; workout screen has dense controls
-
-
-
-
-
-Information Density
-
-
-
-6.5
-
-
-
-Mostly appropriate; Progress page oscillates between sparse and cramped
-
-
-
-
-
-Visual Rhythm
-
-
-
-6
-
-
-
-Token system exists but inconsistently applied; several spacing mismatches
-
-
-
-
-
-Design Taste Level
-
-
-
-7
-
-
-
-Above average — warm palette, restrained type — but generic in details
-
-
-
-
-
-Interaction Quality
-
-
-
-6.5
-
-
-
-Set editing is clever; sheet/modal usage is sound; but many rough edges
-
-
-
-
-
-Perceived Performance
-
-
-
-7
-
-
-
-Good query architecture; skeleton screens exist; page-in animations help
-
-
-
-
-
-Consistency of System
-
-
-
-5.5
-
-
-
-Token system exists but components diverge (inline styles, hardcoded values, prefix inconsistency)
-
-
-
-
-
-Mobile UX
-
-
-
-7
-
-
-
-Touch targets correct, bottom nav solid, safe-area handling present
-
-
-
-
-
-Desktop UX
-
-
-
-3
-
-
-
-A 640px column centered in a void — no desktop consideration at all
-
-
-
-
-
-Polish / Craft
-
-
-
-5
-
-
-
-Missing: exit animations, scroll restoration, error recovery, loading nuance
-
-
-
-
-
-Overall Product Quality
-
-
-
-6
-
-
-
-Good foundation, inconsistent execution, needs a focused craft pass
-
+Category	Score (1–10)
+Clarity	7
+Reduction / Simplicity	6
+Information Density	7
+Visual Rhythm	7.5
+Design Taste Level	7
+Interaction Quality	8
+Perceived Performance	7.5
+Consistency of System	6
+Mobile UX	7
+Desktop UX	6.5
+Polish / Craft	6.5
+Overall Product Quality	7
 UX Friction Scores (1 = smooth, 10 = frustrating):
 
-
-
-
-
-
-
-Category
-
-
-
-Score
-
-
-
-Notes
-
-
-
-
-
-Navigation Friction
-
-
-
-3
-
-
-
-Bottom nav is clear; back links are present; workout flow is linear
-
-
-
-
-
-Cognitive Friction
-
-
-
-4
-
-
-
-Generally understandable, but the Profile page requires mental modeling
-
-
-
-
-
-Input Friction
-
-
-
-5
-
-
-
-Set editing is tap-edit-blur but no visual save confirmation; keyboard flows have edge cases
-
-
-
-
-
-Workflow Friction
-
-
-
-4
-
-
-
-Workout logging flow is reasonable; "repeat last" is smart; routine setup is clunky
-
-
-
-
-
-Visual Friction
-
-
-
-4
-
-
-
-Layout is mostly calm; noise creeps in on Progress and Profile
-
-
-
-
-
-Mobile Friction
-
-
-
-3.5
-
-
-
-Good touch targets; some scroll/density issues on small screens
-
-
-
+Friction Type	Score
+Navigation Friction	4
+Cognitive Friction	5
+Input Friction	3
+Workflow Friction	5
+Visual Friction	3
+Mobile Friction	4
 3. What Already Feels Strong
+The design token system is genuinely good. The 4px spacing scale, multi-tier typography (display → micro), semantic color tokens, transition easing tokens, and shadow hierarchy in theme.css are well-structured and consistently used. This is the foundation of a real design system.
 
-1. Color palette and restraint. The warm neutral palette (#F8F8F6 background, #1C1917 text, stone-based secondaries) is genuinely tasteful. It avoids the cold blue/gray SaaS default. The accent color being the same near-black as text creates a calm, unified look. This is a strong foundation.
+The warm neutral palette is differentiated. Stone-based warm grays (#1C1917, #78716C, #A8A29E, #F8F8F6) give the app a human, calm quality that separates it from the cold blue/gray of most fitness apps. This is a high-taste color choice.
 
-2. Typography system. Seven size tokens from --font-display (34px) to --font-micro (11px) with appropriate weight and tracking adjustments. The system font stack prioritizing SF Pro is the right call for this type of app. font-variant-numeric: tabular-nums applied to data values shows attention to craft.
-
-3. Bottom navigation. The frosted glass effect (backdrop-filter: saturate(180%) blur(20px)) with a subtle 0.5px border is the current gold standard for mobile nav bars. Icon + label pattern is correct. Active state is clear without being loud. Safe-area-inset handling is present.
-
-4. Spacing token system. 4px-base scale (--space-1 through --space-12) provides enough granularity without being unwieldy. The semantic aliases (--padding-page, --space-section) are a good idea even if underused.
-
-5. The "Today" screen concept. Greeting + last-trained context + primary action + week strip + quick start + recent history is a well-prioritized information hierarchy. The week strip with filled/empty dots is a clean, glanceable pattern.
-
-6. Set editing interaction pattern. The tap-to-edit → inline input → Enter-to-advance-to-next-field flow in ExerciseBlock shows real thought about the high-frequency input loop. The skipBlurRef to handle focus transitions is a good technical detail.
-
-7. Sheet component. Bottom sheet with slide-up animation, Escape to close, backdrop click to dismiss, body scroll lock — the fundamental interaction is correct and follows platform conventions.
-
-8. Touch target compliance. --touch-min: 44px applied to buttons, inputs, list items, and nav links. This is non-negotiable for a fitness app used with sweaty hands, and it's consistently applied.
+The frosted-glass bottom nav is an Apple-level detail.
 
 
+Layout.css
+Lines 28-29
+  backdrop-filter: saturate(180%) blur(20px);
+  -webkit-backdrop-filter: saturate(180%) blur(20px);
+The saturate + blur combination with --color-surface-frosted is exactly the iOS tab bar treatment. It feels premium.
+
+The inline set editing flow in ExerciseBlock is thoughtfully designed. Tap-to-edit, Enter-to-advance (weight → reps), flash confirmation on save, copy-previous-set shortcut, and undo-via-toast for deletion. This is the kind of interaction detail that separates a good workout logger from a great one.
+
+
+ExerciseBlock.tsx
+Lines 80-95
+  const saveAndAdvance = (s: Set) => {
+    if (!editingField) return;
+    // ... saves current field, then advances to next
+    if (editingField.field === 'weight') {
+      skipBlurRef.current = true;
+      setEditingField({ setId: s.id, field: 'reps' });
+      setEditValue(s.reps?.toString() ?? '');
+    } else {
+      setEditingField(null);
+    }
+  };
+Empty states are consistent and warm. Custom SVG illustrations (DumbbellIllustration, TrophyIllustration, etc.) with gentle copy and optional CTAs. Not a generic "Nothing here" placeholder.
+
+Loading states are content-aware. TodaySkeleton mirrors the actual Today layout with correct proportions. DetailSkeleton matches HistoryDetail. This eliminates layout shift and feels fast.
+
+The page crossfade transition on route change via key={location.pathname} is subtle and correct — 250ms opacity fade. Not overdone.
+
+Safe area handling with env(safe-area-inset-bottom) throughout nav and footers shows production-grade mobile awareness.
 
 4. Biggest Quality Gaps
+Gap 1: Two competing workout entry points create conceptual fog
+The Today page offers "Start workout" (→ navigates to /workout WorkoutStart page) AND "Repeat last session" (→ directly creates and goes to /workout/active). The WorkoutStart page then offers "Empty workout", "Repeat last", and routine templates.
 
-Gap 1: Profile Page is an Everything Drawer
+This means:
 
-[src/routes/Profile.tsx](src/routes/Profile.tsx) manages 12 pieces of state, contains inline styles for the exercise picker sheet (lines 359-418), and handles four distinct concerns: identity management, settings, routine CRUD, and sign-out. This is the single weakest screen in the app.
+"Start workout" on Today takes you to an intermediate choice screen
+"Repeat last session" on Today bypasses that screen entirely
+The same "repeat last" action exists in both places
+Quick-start routine chips on Today also bypass WorkoutStart
+The user's mental model is fractured. A world-class app would have one canonical path to start a workout.
 
-The exercise picker inside the Sheet uses raw inline styles:
+Gap 2: Active workout shares screen with bottom nav — double footer
+WorkoutActive renders inside Layout, which means the bottom nav is visible during an active workout. The workout's own sticky footer (Add exercise + Finish) sits above the nav with padding-bottom: calc(var(--space-3) + env(safe-area-inset-bottom, 0px) + var(--nav-height)).
 
-const handleSaveDisplayName = () => {
-    const name = displayNameDraft.trim();
-    updateProfile.mutate(
-      { display_name: name || null },
-      { onSuccess: () => setEditingDisplayName(false) },
-    );
+This means the user sees two fixed bars at the bottom of the screen during the most important workflow in the entire app. This is the opposite of focus. Apple Health, Strong, and every premium workout app hide chrome during an active session.
 
-And then lines 365-418 are all inline style={{...}} objects — no CSS classes, no design system, no consistency with the rest of the app. This screams "built in a hurry."
+Gap 3: Input styles duplicated across the codebase
+There are at least 5 separately-defined input styles:
 
-Gap 2: No Exit Animations
+login-input in Login.css
+routines-input in Routines.css
+profile-name-input in Profile.css
+esm-create-input in ExerciseSearchModal.css
+esm-search-input in ExerciseSearchModal.css
+Each has slightly different heights (36px, 40px, 44px, 48px), padding, border treatments, and focus styles. This is a clear design system gap — inputs should be a single shared primitive with size variants.
 
-Every sheet, modal, toast, and page transition has an entrance animation but no exit animation. Closing a bottom sheet is instant — the content and backdrop simply vanish. This is the single most noticeable craft failure. Premium apps (iOS sheets, Linear modals, Stripe drawers) all animate out. The absence makes every dismissal feel broken.
+Gap 4: Duplicate CSS variable
 
-Gap 3: Desktop is Abandoned
+theme.css
+Lines 12-20
+  --color-accent-soft: #64748B;
+  // ... (8 lines later)
+  --color-accent-soft: rgba(28, 25, 23, 0.06);
+--color-accent-soft is defined twice — first as a solid slate blue (#64748B), then overwritten as a near-transparent warm black. The first definition is dead code, but its existence suggests the token system hasn't been fully audited. The value #64748B is also the only cool-toned color in an otherwise warm palette, which would be a palette coherence violation if it were actually used.
 
-The entire app renders in a 640px column centered on screen. On a 1440px monitor, there's ~800px of empty #F8F8F6 background on either side. There's exactly one desktop media query in the entire codebase:
-
-@media (min-width: 768px) {
-  :root {
-    --padding-page: 32px;
-    --font-display: 38px;
-  }
-}
-
-This changes two values. No layout adaptation. No sidebar. No two-column layouts. No larger touch targets becoming click targets. For a PWA that will install on desktops, this is a significant gap.
-
-Gap 4: Empty States Are Emotionally Flat
-
-Every empty state in the app follows the same pattern: a card with centered gray text.
-
-
-
+Gap 5: Charts break the design language
+The Recharts configuration uses near-default styling. The tooltip in the Progress page has:
 
 
-Today: "Your training history will appear here after your first workout."
+Progress.tsx
+Lines 259-268
+  contentStyle={{
+    background: 'var(--color-surface)',
+    border: 'none',
+    borderRadius: '8px',
+    boxShadow: '0 2px 8px rgba(0,0,0,0.06)',
+    fontSize: '13px',
+    padding: '8px 12px',
+  }}
+This is inline-styled with hardcoded values instead of using design tokens. The rgba(0,0,0,0.06) shadow won't adapt to dark mode. The charts themselves lack the warmth of the rest of the UI — they feel like a generic data viz dropped into a carefully designed app.
 
-
-
-History: "Your training journal will appear here after your first workout."  
-
-
-
-Progress: "Finish workouts to see personal records here."
-
-These are informationally correct and emotionally dead. No illustrations, no personality, no motivation, no call to action beyond the generic message. For a fitness app, empty states are the first impression — they should inspire action, not just describe absence.
-
-Gap 5: Chart Styling is Generic Default
-
-The Recharts configuration in [src/routes/Progress.tsx](src/routes/Progress.tsx) uses hardcoded color strings (fill: '#A8A29E') instead of CSS variables, default tooltip styling with inline style objects, and minimal customization. The bar chart uses opacity: 0.7 on all bars, making them look washed out. The line chart dots are visible at all times, adding noise. The Y-axis left margin is negative (left: -20), a hack to fit content. These charts look like Recharts tutorial examples, not designed data visualizations.
-
-Gap 6: Inconsistent Design System Adherence
-
-The token system in [theme.css](src/styles/theme.css) is well-defined but inconsistently respected:
-
-
-
-
-
-Hardcoded colors: WorkoutActive footer uses rgba(248, 248, 246, 0.85) instead of a variable. Chart axes use literal '#A8A29E'.
-
-
-
-Inline styles: ConfirmDialog uses style={{ marginBottom: 'var(--space-6)' }} and style={{ display: 'flex', gap: 'var(--space-3)' }}. Profile exercise picker is entirely inline-styled.
-
-
-
-CSS prefix inconsistency: History Detail uses hd-, Progress uses pg-, Today uses today-, ExerciseBlock uses exercise-block-. No consistent naming convention.
-
-
-
-Dead CSS: today-time-actions is defined in [Today.css](src/routes/Today.css) (line 22) but the component uses today-actions — evidence of a rename that wasn't cleaned up.
-
-
-
-CSS typo: .h focus-block-info in [HistoryDetail.css](src/routes/HistoryDetail.css) should be .hd-block-info. This selector is broken and the element it targets has no styles.
-
-Gap 7: Loading States Are Primitive
-
-[ProtectedRoute.tsx](src/components/ProtectedRoute.tsx) shows <p className="meta">Loading…</p> as its auth-loading state. HistoryDetail shows the same "Loading..." text. The SkeletonList component exists but is only used on the History page. The Today page — the most important first-load screen — has no loading skeleton at all.
-
-
+Gap 6: Routines buried under Profile
+Routines/templates are a core workflow feature (they power quick-start from Today, and are available on WorkoutStart). But accessing and managing them requires: Profile → Routines. This is treating a primary feature like a secondary setting. Linear doesn't hide project templates under user settings. Notion doesn't bury its template gallery in preferences.
 
 5. Design Taste Audit
-
-Where it feels refined:
-
-
-
-
-
-Login page: minimal, centered, generous whitespace, no unnecessary decoration. The title "Vyayamy" with the tagline "A minimal training journal" followed by a single input field is restrained and confident.
-
-
-
-Bottom nav bar: the frosted glass treatment with 0.5px border is current and premium.
-
-
-
-Week strip dots: simple, glanceable, no over-decoration.
-
-
-
-The warm stone palette: avoids the generic blue/gray tech aesthetic.
-
-Where it feels generic:
-
-
-
-
-
-Card surfaces: every card is background: white, border-radius: 12px, box-shadow: 0 1px 2px rgba(0,0,0,0.04). This is correct but not distinctive. It's the same surface treatment as every modern SaaS app.
-
-
-
-Section titles with uppercase/letter-spacing micro labels ("THIS WEEK", "RECENT", "PERSONAL RECORDS"): this is a common pattern that feels more "Bootstrap 5 dashboard" than "Apple Health."
-
-
-
-Filter chips (History, Progress): the capsule-shaped toggle chips are ubiquitous and unremarkable.
-
-Where it feels dated:
-
-
-
-
-
-The 3px left border on PR cards with "NEW" indicator (border-left: 3px solid var(--color-pr)): this is a Bootstrap-era "accent border" pattern. Modern premium apps use subtler indicators — a dot, a glow, a background tint.
-
-
-
-The !important overrides in Profile CSS (lines 170, 290, 313-314): these are code smells that indicate the design system is fighting itself.
-
-
-
-Routine management action buttons ("Exercises", "Edit", "Delete") as bare ghost buttons in a row: this feels like a CRUD admin panel, not a consumer product.
-
-Where it feels overdesigned:
-
-
-
-
-
-Nothing significant. The app generally errs on the side of underdesign, which is preferable.
-
-Where it feels underdesigned:
-
-
-
-
-
-Charts and data visualization (Progress page)
-
-
-
-Empty states across the board
-
-
-
-Desktop viewport
-
-
-
-Error states (generic toast messages)
-
-
-
-The WorkoutActive footer with two equally-weighted buttons ("Add exercise" and "Finish workout") — these should have different visual weight since "Add exercise" is continuous and "Finish workout" is terminal.
-
-
-
+What feels refined:
+
+The warm stone palette conveys calm and intentionality
+Typography hierarchy (display at 34px down to micro at 11px) is well-calibrated
+The frosted nav, hairline borders (0.5px solid), and restrained shadow system
+The week-strip dot visualization on Today — simple, glanceable, Apple Watch-esque
+The PR card gradient treatment (pg-pr-card--new) with warm amber is elegant
+What feels generic:
+
+The .btn-primary is a solid black rounded rectangle. Competent, but indistinguishable from any modern template. The same button used for "Start workout", "Finish workout", "Done", "Create routine", "Send magic link" — it lacks any contextual weight variation
+The .card base style (white + thin border + subtle shadow) is the single most common component pattern in modern web apps. It works, but it doesn't distinguish the product
+The "← History" and "← Profile" back links using btn-ghost feel ad-hoc, not like a designed navigation pattern
+What feels dated or developer-built:
+
+The × character used for set deletion in ExerciseBlock:
+
+ExerciseBlock.tsx
+Lines 268-269
+                      >
+                        ×
+A text character instead of an icon component. This is the kind of shortcut that breaks the illusion of polish.
+
+The reorder UI (GripVerticalIcon + ChevronUp/Down buttons) in ExerciseBlock:
+
+ExerciseBlock.tsx
+Lines 136-149
+            <div className="exercise-block-reorder" onClick={(e) => e.stopPropagation()}>
+              <GripVerticalIcon size={14} className="exercise-block-grip" />
+              // ... up/down buttons
+            </div>
+This looks like a developer who needed reorder functionality and built the simplest thing. A grip handle that doesn't enable drag-and-drop, paired with tiny arrows, is confusing affordance — the grip suggests "drag me" but you can't drag. Either commit to drag-and-drop or remove the grip icon entirely.
+
+The Routines page management UI (inline edit, exposed Delete button per item) feels like a CRUD admin panel rather than a designed experience
+What feels overdesigned:
+
+Nothing significant — if anything, the app errs toward underdesign rather than overdesign, which is the better error
+What feels not cohesive:
+
+The chart sections on Progress feel imported from a different app. The rest of the UI has warm, organic quality; the charts are cold and generic
+The Login page is so minimal it feels disconnected from the warmth of the rest of the app
 6. Information Density Audit
+Today screen: Density is appropriate. The greeting + context line, CTAs, week strip, quick start chips, and recent list create a clear top-to-bottom hierarchy. However, the "Quick start" section adds horizontal scrolling mental overhead that could be avoided if routines were presented differently.
 
-Today page: Good density. The hierarchy flows naturally: greeting → action → weekly context → quick start → recent history. The one issue is that "Repeat last session" competes visually with "Start workout" — the secondary button is nearly as prominent as the primary.
+WorkoutStart screen: Under-dense. Two cards and an optional routine list on a full page feels sparse. This screen's content could be a sheet or be absorbed into Today.
 
-WorkoutStart page: Sparse. Two option cards and an optional routine list. This is fine for its purpose — it's a brief interstitial. The subtitle "Choose how to begin." is unnecessary; the options are self-evident.
-
-WorkoutActive page: This is where density becomes challenging. Each exercise block contains: exercise name, muscle group, set count, move up/down buttons, column labels, set rows with weight/reps/copy/delete/check buttons, and an add-set link. With 3-4 exercises and 3-4 sets each, this page becomes a wall of interactive elements. The fixed footer adds two more buttons. On a small phone, this is a lot of cognitive load.
-
-History page: Well-balanced. Grouped by date, each card shows title, date, muscle tags, duration, and a chevron. The tags at the bottom add useful context without overwhelming. The filter chips at the top are appropriately minimal.
-
-HistoryDetail page: The summary card with stats (duration, exercises, sets, volume) divided by thin vertical lines is a clean density pattern. The exercise blocks below are read-only and simpler than the active workout view, which is correct.
-
-Progress page: This page oscillates between too much and too little:
+WorkoutActive screen: This is the densest screen and it handles it well. The exercise block's 4-column grid (Set / Weight / Reps / Actions) is efficient. The completed-set green highlight provides instant visual parsing. However, the actions column (copy + delete + check) can feel cramped on small screens — three controls in 80px is tight.
 
 
+ExerciseBlock.css
+Lines 66-67
+  grid-template-columns: 28px 1fr 1fr 80px;
+History screen: Good density. The grouped-by-date pattern with micro-sized group labels creates clear visual breaks. Muscle group tags in cards add useful scannability without clutter.
 
+HistoryDetail screen: The stats row (Duration / Exercises / Sets / Volume) with dividers is elegant and efficiently dense. The per-exercise set tables are appropriately compact.
 
+Progress screen: This screen has the most density problems. When a user has many PRs, the vertically stacked PR cards create a very long scroll. There's no way to collapse, filter, or paginate. The exercise trend pill selector can also overflow awkwardly when there are many exercises — it wraps, which is fine, but slice(0, 8) is an arbitrary cap that isn't communicated to the user.
 
-PR cards are dense: exercise name, muscle group, up to 3 PR types with labels/values, a "NEW" badge, and a date. Multiple PR cards stacked create a wall.
-
-
-
-The exercise trend section has pill selectors (up to 8 exercise names) that can wrap onto multiple lines, creating visual chaos.
-
-
-
-The frequency bar chart is too small at 100px height — it's hard to read.
-
-
-
-Empty states create large blank cards that waste vertical space.
-
-Profile page: Too dense with too many interaction modes. The page juggles: avatar, editable name, email, member-since date, 3 stat cards, a settings section with unit toggle, a routines section with create/edit/delete/exercise management, and sign-out. This is a settings page, a routine builder, and a profile page all in one.
-
-
+Profile screen: Good balance. The 3-column stat grid is compact and glanceable. The settings section with the kg/lb toggle is clean. Not too much, not too little.
 
 7. Visual Rhythm Audit
+Spacing consistency: The --space-6 (24px) gap between major sections is used consistently across Today, History, Progress, and Profile. Section titles use --space-3 (12px) bottom margin. This creates a steady cadence. It works but is somewhat monotonous — there's no variation in breathing room between more and less important sections.
 
-Spacing system adherence:
-The spacing system is generally respected but with notable exceptions:
+Alignment: Generally excellent. The --padding-page (20px mobile, 32px tablet, 40px desktop) is used consistently for horizontal page padding. Cards use --space-4 or --space-5 internal padding consistently.
 
+One rhythm issue: The Today page has:
 
+Header → 24px gap → Actions → 24px gap → Week card → 24px gap → Quick start → 24px gap → Recent
+Every section break is identical. A more composed layout would use a larger gap before the "Recent" section (which is a secondary content area) and a tighter gap between the CTA and week strip (which are both primary engagement elements).
 
-
-
-gap: 2px appears in several places ([Profile.css](src/routes/Profile.css) line 33, [HistoryDetail.css](src/routes/HistoryDetail.css) line 102, etc.) — this is finer than --space-1 (4px) and breaks the scale.
-
-
-
-margin-top: 2px and padding: 2px appear in tags and badges — again off-scale.
+Another rhythm issue: In ExerciseBlock, the completed set highlight extends with negative margins:
 
 
+ExerciseBlock.css
+Lines 115-118
+.set-row--done {
+  background: var(--color-success-soft);
+  margin: 0 calc(-1 * var(--space-5));
+  padding-left: var(--space-5);
+This is a nice "bleed" effect, but it causes the green background to touch the card edges. On the last completed set before an incomplete set, the green row with border-bottom-color: transparent creates a visual discontinuity. The rhythm breaks.
 
-The --space-5 (20px) value is used frequently for page padding but creates asymmetric relationships with --space-4 (16px) and --space-6 (24px).
-
-Section spacing:
-Pages use margin-bottom: var(--space-5) between sections, but there's inconsistency:
-
-
-
-
-
-Today: --space-5 between week card and sections, --space-6 for header margin
+The layout-level composition (content constrained to 640px, centered on desktop with border + shadow frame) is clean and calm. The desktop framing at 768px+:
 
 
-
-History: --space-6 between groups
-
-
-
-Progress: --space-6 for section top margin
-
-
-
-Profile: --space-4 for stats, --space-5 for cards
-
-This 4-5-6 dance is close enough to look intentional from 10 feet away but creates subtle rhythm breaks at close inspection.
-
-Alignment:
-Generally good horizontal alignment within the 640px content column. The page padding (--padding-page: 20px) is consistent. But the exercise block body has its own --space-5 padding that creates a subtle inset from the card edge, while the head has --space-5 horizontal padding too — these should match but the visual weight differs because the body has denser content.
-
-Compositional quality:
-The app feels assembled more than composed. Each component individually makes sense, but pages don't have the rhythmic breathing of a truly designed layout. The Today page comes closest — it has a clear visual hierarchy that flows. The Profile page feels most assembled — sections are stacked without compositional intent.
-
-
+theme.css
+Lines 313-319
+  #root {
+    margin-top: var(--space-6);
+    margin-bottom: var(--space-6);
+    border: 0.5px solid var(--color-border);
+    border-radius: var(--radius-lg);
+    box-shadow: var(--shadow-lg);
+    overflow: hidden;
+This creates a phone-frame effect on desktop that's intentional and appropriate for a mobile-first app. However, it means desktop users see a lot of empty space on either side — there's no consideration for what happens at 1440px+ widths.
 
 8. UX Friction Audit
-
-Navigation friction (low):
-The bottom nav is clear and conventional. Back navigation uses text links ("← History") which is functional but not as discoverable as a standard back arrow button. The WorkoutStart → WorkoutActive → Today flow is linear and makes sense. One friction point: there's no way to get to WorkoutStart from the bottom nav — you must go through Today first.
-
-Comprehension friction (moderate):
-
-
-
-
-
-The "copy previous set" button in ExerciseBlock uses a PlusIcon, which reads as "add" not "copy." This is a misaffordance.
-
-
-
-The week strip on Today doesn't indicate what the dots mean until you observe the pattern. No legend, no tooltip.
-
-
-
-"Repeat last session" on Today vs "Repeat workout" on HistoryDetail — slightly different labels for the same action.
-
-
-
-The "Exercises" button on routine items in Profile opens a sheet to manage exercises — but "Exercises" as a label doesn't communicate "manage the exercises in this routine."
-
-Data entry friction (moderate):
-
-
-
-
-
-The set editing flow (tap → input → enter/blur) is fast once learned but has no onboarding. First-time users won't know they can tap the dash to edit.
-
-
-
-No undo for completed sets or deleted sets.
-
-
-
-Weight input accepts decimal but doesn't show a decimal keyboard on all devices (uses inputMode="decimal" which is correct, but the type="number" can conflict on some browsers).
-
-
-
-There's no way to batch-edit sets or copy an entire exercise's sets from a previous workout.
-
-Editing friction (moderate):
-
-
-
-
-
-Profile name editing requires: tap name → type → tap "Save" OR press Enter. The separate "Save" and "Cancel" buttons add visual weight to what should be a seamless inline edit.
-
-
-
-Routine name editing has the same pattern.
-
-
-
-No way to reorder exercises in a routine (only in active workout).
-
-State change friction (moderate):
-
-
-
-
-
-Completing a set shows a green check animation (check-pop) which is good. But uncompleting a set is instant with no confirmation — easy to accidentally undo.
-
-
-
-Finishing a workout shows a confirmation dialog but no summary of what was accomplished.
-
-
-
-Deleting a workout from HistoryDetail shows a confirmation but doesn't mention the workout name.
-
-Mobile friction (low-moderate):
-
-
-
-
-
-Touch targets are correct (44px minimum).
-
-
-
-The exercise block's move up/down buttons (↑↓) are small text arrows inside ghost buttons — hard to tap accurately during a workout.
-
-
-
-On very small screens (320px width), the set row grid (28px 1fr 1fr 80px) may compress the weight/reps fields.
-
-
-
-The quick-start routine chips are horizontally scrollable but there's no visual indicator of scrollability.
-
-
-
+Navigation Friction (Score: 4)
+Bottom nav with 4 items is clear and standard
+BUT: No way to get to WorkoutActive from the nav if you navigate away mid-workout (you must go to Today and tap "Resume")
+Back navigation from HistoryDetail and Routines uses text links, not a consistent back pattern
+Routines requires two taps from any nav destination: Profile → Routines
+Cognitive Friction (Score: 5)
+The two workout entry paths (Today CTAs vs. WorkoutStart page) force a "which way?" decision
+The GripVerticalIcon on ExerciseBlock suggests draggability but only offers button-based reorder — mismatched affordance
+"Quick start" chips on Today look similar to filter chips but launch entire workouts — the action weight is hidden
+On the History filter chips, "3 mo" is an abbreviation while "Month" and "Year" are not — inconsistent labeling
+Input Friction (Score: 3)
+The tap-to-edit pattern in ExerciseBlock is fast and obvious
+Enter-to-advance from weight to reps is excellent for flow
+Copy-previous-set is a genuine power feature
+Number inputs use inputMode="decimal" and inputMode="numeric" correctly
+The one issue: no stepper control for weight/reps. Every value requires typing. A long-press or swipe-to-increment would reduce friction for the common case of adjusting by 2.5kg or 1 rep
+Workflow Friction (Score: 5)
+Starting a workout from a routine: Today → tap chip → auto-navigate to active. This is fast.
+Starting an empty workout: Today → "Start workout" → WorkoutStart page → "Empty workout" → active. Three screens. Should be one or two.
+Creating a routine: Profile → Routines → "+ New" → type name → Create → tap "Exercises" → pick exercises one by one. Each exercise requires a separate tap with no batch selection. For a 6-exercise routine, this is 8+ taps.
+Deleting a workout: HistoryDetail → "Delete workout" → confirm sheet → confirm. This is appropriately guarded.
+Visual Friction (Score: 3)
+The palette and type hierarchy minimize visual friction
+Cards, lists, and sections are clearly delineated
+The one visual friction point: the completed-set green highlight, while nice, can make it harder to scan an ExerciseBlock when most sets are completed — the green rows dominate
+Mobile Friction (Score: 4)
+Touch targets meet 44px minimum consistently
+Safe area insets are handled
+The double-footer during active workout (workout footer + bottom nav) wastes ~100px of vertical space on a mobile screen where every pixel matters
+Horizontal scrolling chips on Today lack scroll snap — they can stop at awkward half-positions
+No pull-to-refresh on any screen
 9. Interaction Latency / Speed Audit
+Perceived performance is generally good, due to:
 
-What feels fast:
+Skeleton loading states that mirror actual content shapes
+60-second stale time on React Query preventing unnecessary refetches
+useAnimatedPresence giving modals enter/exit animations (feels responsive even if data loading)
+Page crossfade transitions masking content loading
+Areas where speed could feel better:
 
+Exercise search modal delays focus by 100ms after opening:
 
+ExerciseSearchModal.tsx
+Lines 44-49
+  useEffect(() => {
+    if (open) {
+      const timer = setTimeout(() => inputRef.current?.focus(), 100);
+      return () => clearTimeout(timer);
+    }
+  }, [open]);
+This is likely to wait for the slide-up animation, but 100ms of not being able to type after the modal appears is noticeable. It should focus immediately or use onAnimationEnd.
 
+Workout timer updates every 30 seconds:
 
+WorkoutActive.tsx
+Lines 33-34
+    const id = setInterval(update, 30000);
+During an active workout, seeing "12m" for 30 seconds before it ticks to "13m" can feel stale, especially for short workouts. A 60-second update for 1h+ workouts is fine, but for sub-30-minute workouts, this feels sluggish.
 
-Page transitions with page-in animation provide immediate visual feedback.
+No optimistic updates visible for set completion. When a user taps the check button, the mutation fires but there's no immediate local state toggle — the UI relies on React Query cache updates from the onMutate callback (if implemented in the query hooks). If the query hook doesn't have optimistic updates, there could be a visible delay before the green highlight appears.
 
-
-
-React Query with 60s staleTime means returning to visited pages is instant from cache.
-
-
-
-Bottom sheets animate in at 250ms — snappy and appropriate.
-
-
-
-Set completion updates are presumably optimistic (via React Query mutations).
-
-What may feel slow:
-
-
-
-
-
-No optimistic creation for workouts. createWorkout.mutateAsync must resolve before navigation to /workout/active. The button shows no intermediate state between click and navigation.
-
-
-
-The exercise search modal debounces at 250ms then waits for a network response. During typing, there's a "Searching..." text but no skeleton or progressive loading.
-
-
-
-PR detection happens during handleFinish in WorkoutActive — detectAndInsertPRs runs before finishWorkout. If the PR detection takes time, the user waits at a dismissed confirmation dialog with no visible progress.
-
-
-
-The "Loading..." text on HistoryDetail and ProtectedRoute provides no visual structure — the content area is blank except for small text. This is the worst type of loading state for perceived performance.
-
-Where optimistic UI should be applied:
-
-
-
-
-
-Adding a set to an exercise (show immediately, reconcile on response)
-
-
-
-Completing a set (already may be optimistic, but should verify)
-
-
-
-Adding an exercise to a workout (show the block immediately)
-
-
-
-Toggling units in Profile settings
-
-
+Template creation (handleCreateRoutine in Routines) uses mutateAsync with an await, which means the UI blocks until the server round-trip completes. For a simple name save, this should be optimistic.
 
 10. Component & Design System Audit
-
-Token system quality: Good
-The [theme.css](src/styles/theme.css) file defines a comprehensive set of tokens covering colors (17), spacing (9 + 4 aliases), radius (6), typography (7), shadows (4), transitions (5), and sizing (3). This is a solid foundation.
-
-Button system: Good but incomplete
-Three button variants (btn-primary, btn-secondary, btn-ghost) cover the main cases. However:
-
-
-
-
-
-There's no "danger" button variant — destructive actions in ConfirmDialog use inline style overrides: style={destructive ? { background: 'var(--color-danger)' } : undefined}.
-
-
-
-There's no "icon-only" button variant, leading to inconsistent icon button implementations across components.
-
-
-
-The login button duplicates btn-primary styles instead of using the class.
-
-Card pattern: Inconsistent
-Multiple card patterns exist across the app:
-
-
-
-
-
-today-week-card, today-recent-card, today-empty-card (Today)
-
-
-
-history-card, history-empty-card (History)
-
-
-
-hd-summary, hd-block (HistoryDetail)
-
-
-
-pg-pr-card, pg-chart-card, pg-empty-card (Progress)
-
-
-
-profile-stat-card, profile-card (Profile)
-
-
-
-workout-start-option (WorkoutStart)
-
-All share the same base pattern: background: white; border-radius: var(--radius-card); box-shadow: var(--shadow-sm). But each page re-implements this independently. There's no shared .card base class.
-
-List/row pattern: Duplicated
-Similar list items appear in:
-
-
-
-
-
-today-list-item (Today recent list)
-
-
-
-esm-item (ExerciseSearchModal)
-
-
-
-history-card (History — cards, not rows)
-
-
-
-hd-set (HistoryDetail set rows)
-
-
-
-set-row (ExerciseBlock active set rows)
-
-
-
-profile-routine-item (Profile routine list)
-
-Each has subtly different padding, border, and alignment. A shared list-item component would reduce CSS by ~30%.
-
-Chip/tag pattern: Duplicated
-
-
-
-
-
-today-routine-chip (Today)
-
-
-
-history-chip / pg-pill (History filters / Progress exercise pills) — nearly identical but separate implementations
-
-
-
-history-tag / hd-muscle-tag / pg-pr-badge — tag variants with different styling
-
-What should become standardized components:
-
-
-
-
-
-Card — a base .card class used everywhere
-
-
-
-ListItem — a shared row component for all list-like patterns
-
-
-
-Chip/Pill — a single filter chip component
-
-
-
-Tag/Badge — a small label component
-
-
-
-DangerButton — a dedicated destructive button variant
-
-
-
-IconButton — a consistent icon-only button
-
-
-
-EmptyState — a shared empty state component with optional illustration
-
-
-
+Inconsistencies
+CSS class naming conventions are fragmented:
+
+Full name: workout-active-, today-, exercise-block-, history-
+Abbreviated: hd- (HistoryDetail), pg- (Progress), esm- (ExerciseSearchModal)
+There's no single convention. A real design system would use one pattern.
+
+Input elements have no shared base class. Five different input definitions with varying heights:
+
+login-input: 48px
+routines-input: 44px (--touch-min)
+profile-name-input: 36px
+esm-search-input: 40px
+esm-create-input: 44px
+set-row-input: 36px
+These should be a single .input base with .input--sm, .input--md, .input--lg variants.
+
+Back navigation has no shared component. Both HistoryDetail and Routines use <Link className="... btn-ghost">← ...</Link> with nearly identical CSS. This should be a <BackLink> component.
+
+The meta class is used as a utility in combination with other classes (e.g., className="today-context meta", className="history-card-date meta"). It sets font-size: var(--font-meta) and color: var(--color-text-secondary). This is fine as a composition pattern, but it means secondary text styles are applied via a class name that doesn't describe its semantic purpose. This is a maintainability risk — a developer must remember to add meta to get secondary text styling.
+
+What should be standardized
+Input component with size variants and shared focus/border/placeholder styles
+BackLink component with consistent left-arrow treatment
+Section header pattern (title + optional right-side action) — used identically in Today, History, and Routines
+Stat display pattern — used in HistoryDetail (hd-stat), WorkoutActive summary (workout-summary-stat), and Profile (profile-stat-card) with slight variations that should be unified
+Tag/badge pattern — used as history-tag, hd-muscle-tag, routines-badge, pg-pr-badge — all slightly different implementations of the same concept
 11. Mobile-First Audit
+What works well on mobile:
 
-Touch targets: Compliant. The 44px minimum is consistently applied via --touch-min. Navigation links have correct sizing. Set row elements meet the threshold.
+Content max-width of 640px means layouts are always mobile-optimized
+Touch targets consistently ≥44px
+Safe area insets properly handled
+Horizontal chip scroll with mask fade on Today
+Bottom sheet pattern for modals (not centered dialogs)
+inputMode attributes on number inputs for appropriate mobile keyboards
+What needs improvement:
 
-Safe areas: Handled. Both the nav bar and WorkoutActive footer account for env(safe-area-inset-bottom).
+Double footer during active workout — The bottom nav (52px) + workout footer (~60px + safe area) consumes over 110px of vertical space on a 667px iPhone SE screen. That's 16% of the screen dedicated to chrome, leaving barely 4 exercise set rows visible before scrolling.
 
-Scroll behavior: No explicit scroll management. Pages don't scroll-to-top on navigation (React Router default). Long exercise lists on WorkoutActive will have the fixed footer potentially obscuring the last exercise block — the padding-bottom: 120px on .workout-active attempts to compensate but may not be enough with many exercises.
+No swipe gestures anywhere. Modern mobile fitness apps use:
 
-Density on small screens: The set row grid 28px 1fr 1fr 80px allocates 80px to the action column (copy + delete + check). On a 320px screen with 40px of page padding, that leaves 320 - 40 - 28 - 80 - 16(gaps) = 156px for two value columns, or 78px each. The 36px-height input/value buttons at 78px width will show roughly 4-5 characters — sufficient for weights up to 999.
+Swipe to delete sets (instead of tiny × button)
+Swipe back for navigation (instead of text back links)
+Pull-to-refresh on list views
+The set actions column (80px) is tight. When copy + delete + check are all visible, three interactive targets in 80px horizontal space means ~26px per target — well below the 44px touch target guideline for the horizontal axis.
 
-Thumb zone optimization: The bottom nav is in the natural thumb zone. The WorkoutActive footer buttons are also at the bottom. However, the exercise block headers (for expand/collapse) are at the top of each card, requiring upward thumb reach on long lists. The move up/down arrows are in the top-right corner of each exercise — the hardest spot to reach.
+No landscape consideration. The app will work in landscape but the 640px max-width means huge dead zones on either side of a landscape phone.
 
-Orientation: No landscape-specific handling. Landscape mode on a phone will show very little content above the fold due to the fixed nav and footer eating vertical space on WorkoutActive.
+The exercise search modal at 90dvh is good, but it has no handle indicator (the thin drag bar common in iOS sheets). Users may not realize they can tap the backdrop to dismiss.
 
-
+Only one responsive breakpoint for small screens (359px). There's no handling for the 375px iPhone SE sweet spot where some layouts are tighter than on a 390px+ phone.
 
 12. High-Impact Improvements
+1. Remove WorkoutStart as a separate page — merge into Today or a sheet
+Issue: Two competing entry points to start a workout. WorkoutStart is a low-content page that adds a navigation step.
 
-1. Add exit animations to sheets and modals
+Why it matters: Every extra screen between "intent" and "action" reduces completion rate. The user already sees "Start workout" and "Repeat last" on Today. Making them navigate to another page to see the same options plus templates is friction.
 
+Fix: Remove /workout as a page. Make "Start workout" on Today either (a) directly start an empty workout, or (b) open a bottom sheet with the options currently on WorkoutStart. The quick-start chips on Today already handle the template case.
 
+Impact: Reduces primary workflow from 3 screens to 1-2. Eliminates conceptual confusion.
 
+2. Hide the bottom nav during active workout
+Issue: The bottom nav competes with the workout footer for attention and screen space.
 
+Why it matters: The active workout is the single most important screen. It should feel immersive and focused, like recording in a DAW or editing in Figma.
 
-Issue: All sheets, modals, and the exercise search modal appear with animation but disappear instantly.
+Fix: Detect when the route is /workout/active and hide the bottom nav. Add a "back to home" affordance within the workout header if needed. This recovers ~52px of vertical space and eliminates the double-footer problem.
 
+Impact: Significant improvement to focus, density, and premium feel of the core workflow.
 
+3. Unify input styles into a single shared primitive
+Issue: 5+ different input definitions with inconsistent heights and styles.
 
-Why it matters: Exit animations are 50% of perceived interaction quality. Their absence makes every dismissal feel janky.
+Fix: Define .input, .input--sm (36px), .input--md (44px), .input--lg (48px) in theme.css with shared border, radius, focus, placeholder, and dark mode styles. Replace all per-component input styles.
 
+Impact: Immediate consistency improvement. Reduces CSS by ~60 lines. Makes future input usage frictionless.
 
+4. Fix the duplicate --color-accent-soft variable
+Issue: Defined twice with different values in :root. The first definition (#64748B) is a solid slate blue; the second (rgba(28, 25, 23, 0.06)) is a near-transparent warm black. The second overwrites the first.
 
-Fix: Add CSS exit animations (fade-out + slide-down for sheets, fade-out for backdrops). Use a small delay before removing the element from DOM, or use the animationend event. Consider the Web Animations API or simply toggle a .closing class.
+Fix: Remove the dead first definition. Audit all usages of --color-accent-soft to ensure the transparent value is intentional everywhere.
 
+Impact: Low effort, high signal that the design system is maintained.
 
+5. Add a handle indicator to bottom sheets
+Issue: Bottom sheets (Sheet, ExerciseSearchModal) have no visual handle indicator — the thin rounded bar that iOS uses to signal "you can pull this down."
 
-Impact: High — this is the single change most likely to make the app feel "premium."
+Fix: Add a 36x5px rounded ::before pseudo-element to .sheet-panel and .esm-panel. Centered, --color-border-strong, border-radius: 2.5px.
 
-2. Refactor Profile into sub-screens or sections
+Impact: Small change that immediately signals "this is a dismissable sheet" on mobile. Standard iOS/Android convention.
 
+6. Replace the × text character with an icon for set deletion
+Issue: The delete button in ExerciseBlock uses a literal × character, while every other interactive element uses SVG icons from Icons.tsx.
 
+Fix: Create a small XIcon or TrashIcon component in Icons.tsx. Use it in the set deletion button.
 
+Impact: Eliminates the most visible "developer shortcut" in the core workflow.
 
+7. Redesign the exercise reorder UI
+Issue: GripVerticalIcon suggests drag-and-drop but only offers button-based reorder. The 24x24px move buttons are small and the affordance is confusing.
 
-Issue: Profile.tsx manages 12 state variables and 4 distinct concerns, with inline styles in the exercise picker.
+Fix: Either (a) implement actual drag-and-drop reorder (complex but correct), or (b) remove the grip icon and replace with a simple "Move up / Move down" text buttons in a ··· menu, or (c) use a long-press to enter reorder mode. The current hybrid is the worst of both worlds.
 
+Impact: Removes the most confusing affordance mismatch in the app.
 
+8. Promote Routines to a top-level concept
+Issue: Routines are buried under Profile → Routines, but they power two of the three workout entry paths.
 
-Why it matters: The page feels cluttered, is hard to maintain, and the inline-styled sheet is inconsistent with the rest of the app.
+Fix: Add a "Routines" section directly on Today or make it a tab/section within the workout start flow. At minimum, add a shortcut to Routines from the Today page Quick Start section header.
 
+Impact: Makes a core feature discoverable without navigation archaeology.
 
+9. Style charts to match the design language
+Issue: Recharts defaults break the warm aesthetic. Tooltip shadows use hardcoded values that don't adapt to dark mode.
 
-Fix: Extract routine management into a dedicated route or sheet flow. Move the exercise picker to use ExerciseSearchModal or a dedicated CSS-classed component. Consider a settings-style grouped list layout instead of cards.
+Fix: Use design tokens for all chart styling. Give the area chart a warmer gradient. Use --shadow-md for tooltips. Format axis ticks with the same --font-micro sizing. Add --color-chart-axis usage consistently (it exists but isn't used everywhere).
 
+Impact: Charts currently feel imported from a different app. Aligning them with the design language unifies the entire Progress page.
 
+10. Add scroll snap to horizontal chip scrollers
+Issue: The Quick Start routine chips on Today scroll freely — they can stop at half-positions.
 
-Impact: High — simplifies the most complex screen and improves consistency.
+Fix: Add scroll-snap-type: x mandatory to .today-routines and scroll-snap-align: start to .today-routine-chip.
 
-3. Create a shared Card component and base class
-
-
-
-
-
-Issue: The same background/radius/shadow pattern is reimplemented 10+ times across the app.
-
-
-
-Why it matters: Inconsistency in padding, shadow, and radius across card instances. Any future surface change requires editing every file.
-
-
-
-Fix: Create a .card base class in theme.css or a Card component. All existing card classes extend from this base.
-
-
-
-Impact: Medium-high — improves consistency and reduces CSS duplication.
-
-4. Redesign empty states with illustrations and CTAs
-
-
-
-
-
-Issue: All empty states are gray text in a white box. No visual personality.
-
-
-
-Why it matters: Empty states are the first thing new users see. They set the emotional tone.
-
-
-
-Fix: Add simple SVG illustrations (a dumbbell, a chart growing, etc.), a motivational message, and a direct CTA button. Example: "Ready for your first workout?" with a "Start now" button.
-
-
-
-Impact: High — dramatically improves new-user experience and perceived quality.
-
-5. Unify the chip/pill/filter component
-
-
-
-
-
-Issue: history-chip, pg-pill, and today-routine-chip are three separate implementations of the same UI pattern.
-
-
-
-Why it matters: Visual inconsistency between pages. Maintenance burden.
-
-
-
-Fix: Create a single Chip component with variants (selectable, action) and consistent sizing/styling.
-
-
-
-Impact: Medium — improves system coherence.
-
-6. Fix chart styling and make it intentional
-
-
-
-
-
-Issue: Recharts uses hardcoded colors, default tooltips, and minimal customization. Bar chart opacity is 0.7, dots are always visible, frequency chart is too short.
-
-
-
-Why it matters: Charts are the centerpiece of the Progress page. Generic charts make the whole page feel template-driven.
-
-
-
-Fix: Use CSS variables for all chart colors. Hide dots except on hover. Increase frequency chart height to 140-160px. Style tooltips to match the app's visual language. Remove grid lines. Consider a subtle gradient fill under the line chart.
-
-
-
-Impact: Medium-high — Progress page goes from "developer demo" to "designed."
-
-7. Add desktop layout awareness
-
-
-
-
-
-Issue: The app is a narrow column on desktop with no adaptation.
-
-
-
-Why it matters: As a PWA that can install on desktop, this is a significant gap.
-
-
-
-Fix: At minimum, add a subtle sidebar or card-like container for the content column on wide screens. Consider a max-width container with a soft shadow or border to frame the content. For more ambitious: a sidebar nav on desktop replacing the bottom bar.
-
-
-
-Impact: Medium — dramatically improves desktop impression.
-
-8. Add a btn-danger variant and remove inline style overrides
-
-
-
-
-
-Issue: Destructive actions use inline style={{ background: 'var(--color-danger)' }} and !important overrides for danger coloring.
-
-
-
-Why it matters: These are hacks that indicate the design system has gaps. !important is always a smell.
-
-
-
-Fix: Add btn-danger to theme.css alongside btn-primary. Remove all !important usage and inline style overrides.
-
-
-
-Impact: Medium — improves system integrity.
-
-9. Improve the WorkoutActive footer hierarchy
-
-
-
-
-
-Issue: "Add exercise" (secondary) and "Finish workout" (primary) share equal flex space and nearly equal visual weight.
-
-
-
-Why it matters: "Add exercise" is an ongoing action; "Finish workout" is terminal. They should have clearly different visual weights. Currently, the accidental tap on "Finish" (which triggers a confirmation dialog, mitigating but not eliminating the issue) is too easy.
-
-
-
-Fix: Make "Add exercise" a ghost or text button, or reduce its visual prominence. "Finish workout" should remain the sole primary button. Alternatively, move "Add exercise" inline (e.g., a floating action button or at the bottom of the exercise list).
-
-
-
-Impact: Medium — reduces workflow friction during the most-used screen.
-
-10. Fix the CSS defects
-
-
-
-
-
-Issue: Dead CSS class (.today-time-actions), broken selector (.h focus-block-info), hardcoded color in WorkoutActive footer, and login button duplicating btn-primary styles.
-
-
-
-Why it matters: These are small issues individually but they accumulate into a codebase that doesn't feel maintained at a premium level.
-
-
-
-Fix: Remove dead CSS, fix the typo, use CSS variables for all colors, apply btn-primary class to the login button.
-
-
-
-Impact: Low individually, medium cumulatively — code hygiene affects maintainability and signals quality.
-
-
+Impact: Subtle but immediately feels more intentional. Standard in premium mobile apps.
 
 13. What To Remove
-
-
-
-
-
-"Choose how to begin." subtitle on WorkoutStart — the options are self-evident. This is a "tell, don't show" anti-pattern.
-
-
-
-The --space-micro and --space-component and --space-section aliases in theme.css — these are labeled "legacy aliases" and should be removed if they're not adding semantic value. They're just pointers to scale values.
-
-
-
-The .today-time-actions dead CSS class in Today.css.
-
-
-
-The PR card left-border accent (border-left: 3px solid var(--color-pr)) — replace with a subtler indicator (background tint, dot, or just the "NEW" badge alone).
-
-
-
-Move up/down buttons on exercise blocks — on mobile, these are hard to tap and rarely used. Consider a long-press drag-to-reorder pattern instead, or move reordering to a dedicated edit mode.
-
-
-
-The "Cancel" button text on the sheet close button — for sheets that are opened by direct user action, a simple "×" icon or drag-to-dismiss is sufficient. "Cancel" implies abandoning an in-progress action, which isn't always the case.
-
-
-
-Routine management from the Profile page — this is complex enough to warrant its own route (e.g., /routines or /profile/routines).
-
-
-
-The !important declarations in Profile CSS (3 instances) — fix the specificity properly.
-
-
-
+Element	Reason	Action
+WorkoutStart page	Redundant with Today CTAs + quick start chips	Merge into a sheet or eliminate
+First --color-accent-soft definition	Dead code (overwritten by second definition)	Delete line 12 of theme.css
+GripVerticalIcon in ExerciseBlock	Suggests drag but doesn't enable it	Remove unless implementing drag-and-drop
+The × text character	Inconsistent with SVG icon system	Replace with icon
+workout-active-footer nav-height padding	Won't be needed if nav is hidden during workout	Remove after hiding nav
+today-empty class	Defined in Today.css but never used in Today.tsx (EmptyState handles it)	Delete
+history-empty class	Same — defined but unused	Delete
+pg-empty class	Same pattern	Delete
+exercise-block-ref class	Defined in ExerciseBlock.css but never used in ExerciseBlock.tsx	Delete
+.btn-secondary:active:not(:disabled) scale transform	Same as primary and danger — all three do scale(0.98). Consider if secondary needs this aggressive feedback	Evaluate
 14. Premium Polish Recommendations
-
-Spacing:
-
-
-
-
-
-Audit all 2px and gap: 2px values and decide if they should be --space-1 (4px) or if 2px is intentional (in which case, add a --space-half token at 2px).
-
-
-
-Standardize section margins across all pages to use --space-6 consistently.
-
-
-
-The 0.5px borders are good — keep them. They read as clean hairlines on retina screens.
-
-Typography:
-
-
-
-
-
-The Progress page section titles use --font-card (16px) while semantic section-title class uses --font-section (20px). Use the semantic class consistently, or create a smaller section-title variant.
-
-
-
-Add a --font-weight-bold: 700 and --font-weight-semibold: 600 and --font-weight-medium: 500 token set. Currently weights are hardcoded per-rule.
-
-Motion:
-
-
-
-
-
-Exit animations for all sheets, modals, and toasts (most critical recommendation).
-
-
-
-Page transitions should coordinate with route changes — consider crossfade between pages rather than each page individually animating in.
-
-
-
-The check-pop animation on set completion is delightful. Add similarly subtle animations for: adding a set (slide-in), removing a set (slide-out), and completing a workout (confetti or checkmark).
-
-
-
-Toast exit should slide up and fade out, not just disappear.
-
-Surfaces:
-
-
-
-
-
-Consider adding a very subtle paper-like texture or grain to the background to differentiate from generic flat white. Even 1% noise at low opacity can add perceived depth.
-
-
-
-Cards could have a very subtle border (0.5px var(--color-border)) in addition to the shadow, for a cleaner edge.
-
-States:
-
-
-
-
-
-Add a proper loading skeleton for the Today page initial load.
-
-
-
-Add a proper loading skeleton for HistoryDetail.
-
-
-
-When a set is saved (value updated), provide brief visual confirmation (subtle flash or highlight).
-
-
-
-When a workout is being created (from Today page buttons), show a loading state on the button (spinner or text change).
-
-Copy:
-
-
-
-
-
-Empty states should be encouraging: "Let's get started" > "Your history will appear here."
-
-
-
-The word "workout" is used everywhere — consider "session" or "training" occasionally for variety.
-
-
-
-"Send magic link" on Login is clear and modern. Good.
-
-Charts:
-
-
-
-
-
-Line chart: hide dots, show only on hover. Add a subtle area fill with gradient (accent color at 5-10% opacity).
-
-
-
-Bar chart: increase height, use solid accent color (not 0.7 opacity), add subtle rounded corners on bars (already have radius: [4,4,0,0]).
-
-
-
-Add a custom tooltip component styled to match the app's visual language.
-
-
-
-Remove all hardcoded color strings and use CSS variable references.
-
-Transitions:
-
-
-
-
-
-Input focus transitions should be smoother — currently border-color jumps to accent with duration-fast (150ms). Consider 200ms with an ease-out.
-
-
-
-Page-in animations could be slightly more subtle (4px translateY instead of 8px).
-
-Empty states:
-
-
-
-
-
-Create 3-4 simple SVG illustrations that match the warm tone of the app.
-
-
-
-Each empty state should have: illustration + message + optional CTA button.
-
-
-
-These should feel warm and encouraging, not clinical.
-
-Visual restraint:
-
-
-
-
-
-Replace the uppercase/letter-spacing section labels ("THIS WEEK", "RECENT") with sentence-case labels at --font-meta size. The uppercase treatment adds visual noise and reads as "categories in an admin panel."
-
-
-
-Or: keep uppercase but use a lighter weight (400) and more subtle color.
-
-
-
+Spacing
+Introduce section-level spacing variation: use --space-8 (32px) before major content sections and --space-4 (16px) between closely related elements, instead of uniform --space-6 everywhere. This creates breathing hierarchy.
+The 640px --content-max could increase to 680px or 720px to give cards more breathing room on larger phones.
+Typography
+Add letter-spacing to the meta class (letter-spacing: 0.01em) to improve readability at 13px
+The .today-routine-chip-name at --font-meta (13px) is slightly small for an actionable element that launches an entire workout. Consider --font-body (15px).
+Add a font-smoothing reset for dark mode (already present globally — good)
+Motion
+Add spring-based easing to the check-pop animation. The current cubic-bezier goes 1 → 1.2 → 1 linearly. A spring cubic-bezier(0.34, 1.56, 0.64, 1) would feel more alive.
+Add a subtle scale pulse when a set row is completed (not just the check icon)
+The page crossfade could add a slight translateY(4px) → 0 for a more Apple-like reveal
+Add will-change: transform to elements with scale transforms for compositing optimization
+Surfaces
+Cards could benefit from a very subtle inner glow on hover in dark mode: box-shadow: var(--shadow-md), inset 0 1px 0 rgba(255,255,255,0.03)
+The summary card on HistoryDetail (hd-summary) could use a slightly different surface — perhaps a very subtle gradient background to distinguish it as a "hero" card
+States
+Add disabled state styling to chips — currently chips have no :disabled treatment
+Add a selected state to history cards (subtle left border or background tint) for keyboard navigation
+The exercise search results should show a loading shimmer per item during search, not just the "Searching..." text
+Copy
+"Send magic link" on Login is clear but could be warmer: "Sign in with email" is more standard
+"A minimal training journal" tagline is good — understated and honest
+"Ready for your first workout? Your training history will show up here." — slightly long. Consider: "Your training history will appear here."
+Confirm dialog messages could be shorter. "Complete "Workout" with 3 of 5 sets done?" — the quote marks around the workout name add visual noise
+Charts
+Area chart should use animationDuration={800} with animationEasing="ease-out" for a smoother reveal
+Bar chart bars should have a hover state (slight opacity change)
+Consider adding value labels to bar chart bars for the frequency view
+Transitions
+Sheet and ExerciseSearchModal closing animations (150ms) are slightly too fast. 200ms would feel more natural.
+The workout-active--completing animation (scale up → fade/scale down) is a nice celebratory touch. Consider adding a subtle background flash.
+Empty States
+The SVG illustrations are tasteful but could be slightly larger (56px instead of 48px) for more visual weight
+Consider adding a subtle animation (gentle float or pulse) to empty state icons
 15. Priority Roadmap
-
-Immediate Fixes (1-2 days)
-
-
-
-
-
-Fix CSS typo .h focus-block-info → .hd-block-info in HistoryDetail.css
-
-
-
-Remove dead .today-time-actions class from Today.css
-
-
-
-Replace hardcoded rgba(248, 248, 246, 0.85) in WorkoutActive footer with a CSS variable
-
-
-
-Replace hardcoded chart colors ('#A8A29E') with CSS variable references
-
-
-
-Add btn-danger variant to theme.css; remove all !important and inline style overrides
-
-
-
-Apply btn-primary class to the login button; remove duplicated styles
-
-
-
-Extract inline styles from ConfirmDialog into CSS classes
-
-
-
-Fix section title inconsistency on Progress page (use section-title class or --font-section)
-
-Next-Level Refinements (1-2 weeks)
-
-
-
-
-
-Add exit animations to Sheet, ExerciseSearchModal, ConfirmDialog, and Toast
-
-
-
-Create shared Card base class/component
-
-
-
-Create shared Chip/Pill component (unify filter chips and routine chips)
-
-
-
-Redesign empty states with illustrations and CTAs
-
-
-
-Restyle charts with custom tooltips, hidden dots, area fills, proper colors
-
-
-
-Improve loading states (skeleton for Today, HistoryDetail)
-
-
-
-Extract Profile page exercise picker into CSS-styled component (remove all inline styles)
-
-
-
-Add visual save confirmation for set editing (subtle highlight flash)
-
-
-
-Differentiate WorkoutActive footer button hierarchy
-
-
-
-Replace PlusIcon on "copy previous set" with an appropriate copy/duplicate icon
-
-Final Polish Pass (1 week)
-
-
-
-
-
-Add desktop layout awareness (container framing, optional sidebar nav at wide breakpoints)
-
-
-
-Split Profile page routine management into dedicated sub-route
-
-
-
-Add page transition coordination (crossfade between routes)
-
-
-
-Add subtle animations: set addition/removal, workout completion
-
-
-
-Audit all spacing values; formalize the 2px micro-spacing decision
-
-
-
-Add scroll-to-top behavior on route changes
-
-
-
-Add --font-weight-* tokens and apply consistently
-
-
-
-Consider dark mode token set (all colors are already CSS variables, so this is mechanical)
-
-
-
-Replace move up/down arrows with a drag handle or long-press reorder
-
-
-
-Test on 320px viewport and verify all grid layouts compress gracefully
-
+Immediate Fixes (1–2 days, high impact, low risk)
+Fix duplicate --color-accent-soft CSS variable
+Replace × text character with proper icon in ExerciseBlock
+Remove unused CSS classes (today-empty, history-empty, pg-empty, exercise-block-ref)
+Add handle indicator to bottom sheets
+Add scroll snap to routine chip scroller
+Standardize CSS class naming convention (document whether to use abbreviations or not)
+Next-Level Refinements (1–2 weeks, significant quality jump)
+Hide bottom nav during active workout — recovers screen space and creates focus
+Merge WorkoutStart into Today — eliminate the intermediate page, reduce workflow friction
+Unify input styles into shared primitives in theme.css
+Restyle charts to use design tokens and match the warm aesthetic
+Create shared BackLink component to replace ad-hoc back navigation
+Unify tag/badge pattern across History, HistoryDetail, Routines, Progress
+Redesign exercise reorder — remove misleading grip icon, commit to either drag-and-drop or menu-based reorder
+Promote Routines — make them accessible from Today, not just from Profile
+Add optimistic updates to set completion and template creation for instant feedback
+Final Polish Pass (1 week, moves from "good" to "premium")
+Introduce spacing variation between major/minor sections
+Refine animation easings (spring curves, page reveal with translateY)
+Add subtle hover states to cards and charts in dark mode
+Improve chart tooltip styling for dark mode compatibility
+Add loading shimmer to search results in ExerciseSearchModal
+Review all copy for consistency and brevity
+Add empty state micro-animations
+Consider adding haptic feedback hints (navigator.vibrate) for check completion on mobile
+Audit all hardcoded color values (e.g., #fff in .set-row-check--done, #0C0A09 for dark mode desktop body) and move to CSS variables
+Add prefers-reduced-motion media query to disable animations for accessibility
+Bottom line: This app has a strong foundation — better than 90% of developer-built products I've seen. The palette, token system, and core workout interaction are genuinely good. But the inconsistencies in the design system (inputs, naming, back navigation), the workflow confusion (double entry point for workouts), and the unfinished details (chart styling, reorder UX, × character) hold it back from the tier of apps like Linear or Apple Health. The path from 7/10 to 9/10 is about discipline and finishing — not about adding features.

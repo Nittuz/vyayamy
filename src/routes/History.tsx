@@ -121,7 +121,7 @@ export function History() {
       ) : (
         <EmptyState
           icon={<CalendarIllustration />}
-          message="Your training journal will appear here after your first session."
+          message="Your training history will appear here."
           actionLabel="Start workout"
           actionTo="/"
         />

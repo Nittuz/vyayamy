@@ -1,16 +1,16 @@
 .sheet-backdrop {
   position: fixed;
   inset: 0;
-  background: rgba(0, 0, 0, 0.3);
+  background: var(--color-overlay);
   z-index: 1000;
   display: flex;
   align-items: flex-end;
   justify-content: center;
-  animation: sheet-fade-in var(--duration-fast) ease;
+  animation: sheet-fade-in var(--duration-fast) var(--ease-out);
 }
 
 .sheet-backdrop--closing {
-  animation: sheet-fade-out var(--duration-fast) ease forwards;
+  animation: sheet-fade-out var(--duration-fast) var(--ease-out) forwards;
 }
 
 @keyframes sheet-fade-in {

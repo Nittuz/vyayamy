@@ -145,14 +145,14 @@ export function Profile() {
         </div>
       </section>
 
-      {/* Routines link */}
-      <Link to="/profile/routines" className="card profile-card profile-routines-link">
+      {/* Training Plan link */}
+      <Link to="/profile/plan" className="card profile-card profile-routines-link">
         <div className="profile-routines-link-content">
-          <h2 className="profile-card-title">Routines</h2>
+          <h2 className="profile-card-title">Training Plan</h2>
           <span className="meta">
             {routineCount > 0
-              ? `${routineCount} routine${routineCount !== 1 ? 's' : ''}`
-              : 'Create workout templates'}
+              ? `${routineCount} template${routineCount !== 1 ? 's' : ''}`
+              : 'Schedule your workouts'}
           </span>
         </div>
         <ChevronRightIcon size={18} className="profile-routines-chevron" />
@@ -172,7 +172,7 @@ export function Profile() {
       <ConfirmDialog
         open={confirmSignOut}
         title="Sign out"
-        message="Are you sure you want to sign out?"
+        message="Sign out of your account?"
         confirmLabel="Sign out"
         onConfirm={() => { setConfirmSignOut(false); signOut(); }}
         onCancel={() => setConfirmSignOut(false)}

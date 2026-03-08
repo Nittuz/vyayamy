@@ -210,7 +210,7 @@ export function Progress() {
         ) : (
           <EmptyState
             icon={<TrophyIllustration />}
-            message="Finish workouts to see your personal records here."
+            message="Personal records will appear after your first workout."
             actionLabel="Start workout"
             actionTo="/"
           />
@@ -285,7 +285,7 @@ export function Progress() {
         ) : (
           <EmptyState
             icon={<ChartIllustration />}
-            message="Log workouts to see exercise trends."
+            message="Exercise trends will appear here."
           />
         )}
       </section>
@@ -334,7 +334,7 @@ export function Progress() {
         ) : (
           <EmptyState
             icon={<DumbbellIllustration />}
-            message="Your weekly frequency will appear here."
+            message="Weekly frequency will appear here."
           />
         )}
       </section>
