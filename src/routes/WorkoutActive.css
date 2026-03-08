@@ -1,0 +1,56 @@
+.workout-active {
+  padding-bottom: 120px;
+  animation: page-in var(--duration-normal) var(--ease-out);
+}
+
+.workout-active-header {
+  margin-bottom: var(--space-6);
+}
+
+.workout-active-title {
+  font-size: var(--font-title);
+  font-weight: 700;
+  letter-spacing: -0.02em;
+  margin: 0 0 var(--space-1);
+}
+
+.workout-active-stats {
+  display: flex;
+  gap: var(--space-4);
+}
+
+.workout-active-stat {
+  font-size: var(--font-meta);
+}
+
+.workout-active-blocks {
+  margin-bottom: var(--space-6);
+}
+
+.workout-active-empty {
+  padding: var(--space-10) 0;
+  text-align: center;
+}
+
+/* Sticky footer */
+.workout-active-footer {
+  position: fixed;
+  bottom: 0;
+  left: 50%;
+  transform: translateX(-50%);
+  width: 100%;
+  max-width: var(--content-max);
+  padding: var(--space-3) var(--padding-page);
+  padding-bottom: calc(var(--space-3) + env(safe-area-inset-bottom, 0px) + var(--nav-height));
+  display: flex;
+  gap: var(--space-3);
+  background: var(--color-bg-frosted);
+  backdrop-filter: saturate(180%) blur(20px);
+  -webkit-backdrop-filter: saturate(180%) blur(20px);
+  border-top: 0.5px solid var(--color-border);
+  z-index: 50;
+}
+
+.workout-active-footer-btn {
+  flex: 1;
+}

@@ -1,0 +1,85 @@
+---
+description: TanStack React Query conventions for data-fetching hooks
+globs: src/lib/queries/*.ts
+alwaysApply: false
+---
+
+# TanStack Query Patterns
+
+## File Organization
+
+One query module per domain under `src/lib/queries/`:
+
+| Module          | Domain                          |
+|-----------------|---------------------------------|
+| `workouts.ts`   | Workout CRUD, active/recent     |
+| `exercises.ts`  | Exercise search, create, attach |
+| `sets.ts`       | Set CRUD, reorder, finish       |
+| `history.ts`    | Past workouts with date filters |
+| `records.ts`    | PRs, exercise history, frequency|
+| `profile.ts`    | User profile read/update        |
+| `templates.ts`  | Routine template CRUD           |
+
+Add new domains as separate files. Do not merge unrelated queries into one file.
+
+## Query Keys
+
+Define a top-level constant and build keys as arrays with stable segments:
+
+```ts
+const WORKOUTS_KEY = ['workouts'] as const;
+
+// Specific queries extend the base key
+queryKey: [...WORKOUTS_KEY, 'active', userId ?? '']
+queryKey: [...WORKOUTS_KEY, 'detail', workoutId ?? '']
+```
+
+Export a helper for cross-module invalidation:
+
+```ts
+export function workoutsQueryKey() {
+  return [...WORKOUTS_KEY] as const;
+}
+```
+
+Use `userId ?? ''` (not `undefined`) to keep keys stable and serializable.
+
+## Hook Conventions
+
+- Export named functions: `export function useXxx(...)`
+- Queries return `useQuery({ queryKey, queryFn, enabled })`
+- Mutations return `useMutation({ mutationFn, onSuccess/onMutate/onError/onSettled })`
+- Always gate queries with `enabled: !!userId` (or similar) to prevent firing before auth is ready
+- Type `queryFn` return explicitly: `async (): Promise<Workout[]> =>`
+
+## Cache Invalidation
+
+- Simple mutations: invalidate on `onSuccess`
+- Cross-domain side effects: invalidate multiple keys (e.g., deleting a workout invalidates both `workoutsQueryKey()` and `['history']`)
+- Use scoped keys when only one entity changed: `detailKey(workoutId)`
+
+## Optimistic Updates
+
+Use optimistic updates only for high-frequency interactions (set updates, set deletes). Pattern:
+
+1. `onMutate`: cancel in-flight queries, snapshot previous data, apply optimistic change
+2. `onError`: rollback from snapshot
+3. `onSettled`: invalidate to refetch canonical data
+
+Do not use optimistic updates for create or structural mutations (add exercise, finish workout).
+
+## Supabase Queries
+
+Build queries with the Supabase JS client — no raw SQL from the frontend:
+
+```ts
+const { data, error } = await supabase
+  .from('workouts')
+  .select('*')
+  .eq('user_id', userId)
+  .order('started_at', { ascending: false });
+if (error) throw error;
+return (data ?? []) as Workout[];
+```
+
+Always `throw error` so React Query can surface it. Cast results with `as Type` since the Supabase client is typed via `Database`.

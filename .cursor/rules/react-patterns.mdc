@@ -1,0 +1,78 @@
+---
+description: React component conventions and patterns for Vyayamy
+globs: "**/*.tsx"
+alwaysApply: false
+---
+
+# React Component Patterns
+
+## Component Structure
+
+Every component follows this order:
+
+1. Imports (see import order in project-conventions)
+2. Props `type` definition (if the component accepts props)
+3. Named `export function` — no default exports, no arrow-function components
+4. CSS import as last import line
+
+```tsx
+import { useState } from 'react';
+import type { Workout } from '../types/database';
+import './MyComponent.css';
+
+type MyComponentProps = {
+  workout: Workout;
+  onDelete: (id: string) => void;
+};
+
+export function MyComponent({ workout, onDelete }: MyComponentProps) {
+  const [open, setOpen] = useState(false);
+  // ...
+}
+```
+
+## State Management Rules
+
+- **Server state** → TanStack React Query hooks from `src/lib/queries/`
+- **Auth state** → `useAuth()` from `src/lib/useAuth.ts`
+- **Toast notifications** → `useToast()` from `src/lib/useToast.ts`
+- **Local UI state** (modals, form inputs, toggles) → `useState` / `useReducer`
+- Never introduce global state stores. If data comes from the server, it belongs in a query hook.
+
+## Route Components (`src/routes/`)
+
+- Accept no props — they read params via `useParams()`, `useLocation()`, `useNavigate()`
+- Handle their own loading states (use `Skeleton` or conditional rendering on `isPending`)
+- Handle auth checks via the parent `ProtectedRoute` wrapper — do not re-check auth in route components
+
+## Shared Components (`src/components/`)
+
+- Presentational: receive data and callbacks via props
+- No direct Supabase calls — all data fetching lives in query hooks called by the parent route
+- Use `aria-*` attributes and `role` where appropriate for accessibility
+- Favor progressive disclosure: show the primary action by default, reveal secondary actions on interaction (expand, long-press, or a "more" affordance)
+
+## Event Handlers
+
+- Name handlers `handleXxx` or `onXxx` for callbacks passed as props
+- Use `e.stopPropagation()` when nested clickable elements overlap (e.g., buttons inside a clickable card)
+- Always set `type="button"` on `<button>` elements that are not form submit buttons
+
+## UI Clarity
+
+- Every interactive element must have a clear, unambiguous label — icon-only buttons require `aria-label` and `title`
+- Actions must be predictable: a tap should do what the user expects based on the label and context
+- Avoid modal overload — prefer inline expansion, bottom sheets, or navigation over stacking modals
+- Empty states should be helpful, not just blank — tell the user what this screen is for and how to populate it
+
+## Error & Loading States
+
+- Mutations: show errors via `useToast()` — do not use `window.alert`
+- Forms: use local `error` state for inline validation messages
+- Queries: check `isPending` / `isError` from the query hook; use `SkeletonList` or the `Skeleton` component for loading placeholders
+- Skeleton placeholders should match the approximate shape of the real content to prevent layout shift
+
+## Redirects
+
+- Use `<Navigate to={...} replace />` for declarative redirects in render
+- Use `navigate()` in `useEffect` or event handlers for imperative redirects

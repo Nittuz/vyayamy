@@ -1,0 +1,156 @@
+.history {
+  animation: page-in var(--duration-normal) var(--ease-out);
+  padding-bottom: var(--space-10);
+}
+
+/* ── Header ── */
+.history-header {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+}
+
+.history-total {
+  font-variant-numeric: tabular-nums;
+}
+
+/* ── Filter chips ── */
+.history-filters {
+  display: flex;
+  gap: var(--space-2);
+  margin-top: var(--space-4);
+  margin-bottom: var(--space-6);
+}
+
+.history-chip {
+  padding: var(--space-2) var(--space-4);
+  font-size: var(--font-meta);
+  font-weight: 500;
+  color: var(--color-text-secondary);
+  background: transparent;
+  border: 1.5px solid var(--color-border-strong);
+  border-radius: var(--radius-full);
+  cursor: pointer;
+  transition: all var(--duration-fast) ease;
+}
+
+.history-chip:hover {
+  color: var(--color-text);
+  border-color: var(--color-text-secondary);
+}
+
+.history-chip--active {
+  color: var(--color-surface);
+  background: var(--color-accent);
+  border-color: var(--color-accent);
+}
+
+/* ── Groups ── */
+.history-groups {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-6);
+}
+
+.history-group-label {
+  font-size: var(--font-micro);
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  color: var(--color-text-tertiary);
+  margin: 0 0 var(--space-3);
+}
+
+.history-group-cards {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-3);
+}
+
+/* ── Workout card ── */
+.history-card {
+  display: flex;
+  flex-direction: column;
+  padding: var(--space-4);
+  text-decoration: none;
+  color: var(--color-text);
+  transition: box-shadow var(--duration-fast) ease, transform var(--duration-fast) ease;
+}
+
+.history-card:active {
+  transform: scale(0.99);
+}
+
+.history-card:hover {
+  box-shadow: var(--shadow-md);
+}
+
+.history-card-top {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: var(--space-3);
+}
+
+.history-card-main {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  min-width: 0;
+}
+
+.history-card-title {
+  font-size: var(--font-body);
+  font-weight: 600;
+  line-height: 1.3;
+}
+
+.history-card-date {
+  font-size: var(--font-meta);
+}
+
+.history-card-chevron {
+  flex-shrink: 0;
+  color: var(--color-text-tertiary);
+  margin-top: 2px;
+}
+
+.history-card-bottom {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-top: var(--space-3);
+  gap: var(--space-3);
+}
+
+.history-card-tags {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-1);
+  min-width: 0;
+}
+
+.history-tag {
+  font-size: var(--font-micro);
+  font-weight: 500;
+  color: var(--color-accent-muted);
+  background: var(--color-bg);
+  padding: 2px var(--space-2);
+  border-radius: var(--radius-full);
+  white-space: nowrap;
+}
+
+.history-tag--neutral {
+  color: var(--color-text-tertiary);
+}
+
+.history-card-duration {
+  flex-shrink: 0;
+  font-size: var(--font-meta);
+  color: var(--color-text-secondary);
+}
+
+/* ── Empty state ── */
+.history-empty {
+  margin: 0;
+}

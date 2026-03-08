@@ -1,0 +1,70 @@
+---
+description: Core project architecture, structure, and stack guardrails for Vyayamy
+alwaysApply: true
+---
+
+# Vyayamy — Project Conventions
+
+## Architecture
+
+Vyayamy is a **client-heavy, serverless** PWA. There is no custom backend — Supabase handles all persistence, auth, and authorization. Do not introduce API servers, ORMs, server-side rendering, or middleware layers.
+
+## Stack Guardrails
+
+Do NOT replace, remove, or migrate away from any of the following without explicit approval and a documented reason:
+
+- **React 19** with functional components (no class components)
+- **TypeScript** with strict mode
+- **Vite** for build/dev
+- **React Router v7** for routing (layout-based, nested)
+- **TanStack React Query 5** for all server state
+- **Supabase JS client** talking directly to PostgREST and GoTrue — no wrapper API
+- **Recharts** for data visualization
+- **vite-plugin-pwa** (Workbox) for service worker / installability
+- **Vanilla CSS** with custom properties — no CSS-in-JS, no Tailwind, no utility frameworks
+- **Vitest** for testing
+
+Do not add state management libraries (Redux, Zustand, Jotai, etc.). UI state uses `useState`/`useReducer`; server state belongs in React Query.
+
+## Directory Structure
+
+```
+src/
+  components/    — shared UI components (PascalCase.tsx + PascalCase.css)
+  contexts/      — React context providers
+  lib/
+    queries/     — TanStack Query hooks, one file per domain (camelCase.ts)
+    *.ts         — utility modules and shared hooks
+  routes/        — page-level route components (PascalCase.tsx + PascalCase.css)
+  styles/        — design tokens (theme.css)
+  types/         — TypeScript type definitions (database.ts)
+supabase/
+  migrations/    — numbered SQL migration files
+  seed.sql       — global exercise library seed data
+```
+
+Preserve this layout. New features should fit into the existing directories. Do not restructure, flatten, or introduce barrel files (`index.ts` re-exports).
+
+## File Naming
+
+| Kind               | Convention  | Example                    |
+|--------------------|-------------|----------------------------|
+| Components/routes  | PascalCase  | `ExerciseBlock.tsx`        |
+| Co-located CSS     | Match `.tsx`| `ExerciseBlock.css`        |
+| Query modules      | camelCase   | `workouts.ts`, `sets.ts`   |
+| Lib/utility files  | camelCase   | `format.ts`, `hooks.ts`    |
+| Type files         | camelCase   | `database.ts`              |
+
+## Import Order
+
+1. React / React hooks
+2. Third-party packages (router, TanStack Query, Recharts, Supabase)
+3. Internal modules (`../lib/`, `../contexts/`, `./components/`)
+4. Type-only imports use `import type { ... }`
+5. CSS import **last**
+
+## Provider Tree (do not reorder)
+
+```
+StrictMode → ErrorBoundary → QueryClientProvider → BrowserRouter → AuthProvider → ToastProvider → App
+```

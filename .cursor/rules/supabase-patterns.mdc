@@ -1,0 +1,50 @@
+---
+description: Supabase client usage, RLS awareness, and migration conventions
+globs: "supabase/**,src/lib/supabase.ts,src/types/database.ts"
+alwaysApply: false
+---
+
+# Supabase Patterns
+
+## Client Singleton
+
+The Supabase client lives at `src/lib/supabase.ts` and is typed with `Database` from `src/types/database.ts`. Import from there — never create additional client instances.
+
+```ts
+import { supabase } from '../supabase';
+```
+
+## Auth Model
+
+- **Magic-link (OTP) only** — do not add password auth, social auth, or third-party providers without explicit approval
+- Auth state is managed by `AuthProvider` (`src/contexts/AuthContext.tsx`)
+- The Supabase client auto-attaches the JWT — never manually pass tokens to queries
+
+## Row Level Security
+
+Every table has RLS enabled. All data is scoped to `auth.uid()`. When writing queries:
+
+- Always filter by `user_id` for user-owned tables (workouts, templates, personal_records)
+- Never bypass RLS with service-role keys from the frontend
+- The `exercises` table has shared rows (`user_id IS NULL`) — query both global and user-owned with `.or('user_id.is.null,user_id.eq.${userId}')`
+
+## Database Types
+
+`src/types/database.ts` defines the full Supabase schema. When the schema changes:
+
+1. Add a new numbered migration in `supabase/migrations/` (e.g., `00003_add_feature.sql`)
+2. Update `database.ts` Row/Insert/Update types to match
+3. Export convenience type aliases at the bottom: `export type Foo = Database['public']['Tables']['foo']['Row']`
+
+Do not use Supabase CLI codegen (`supabase gen types`) unless explicitly asked — the types are maintained manually.
+
+## Migrations
+
+- Files are numbered sequentially: `00001_`, `00002_`, etc.
+- Each migration is idempotent-friendly: use `IF NOT EXISTS` for creates, check before alter
+- Always include RLS policies for new tables
+- Include relevant indexes for query patterns (user lookups, date ordering)
+
+## Personal Records
+
+PR detection runs **client-side** in `src/lib/pr-detection.ts` after finishing a workout. Upserts use the unique constraint `(user_id, exercise_id, type)`. Do not move this to a Postgres function or edge function unless explicitly discussed.

@@ -1,0 +1,89 @@
+---
+description: Design system, visual identity, and CSS conventions for Vyayamy
+globs: "**/*.css"
+alwaysApply: false
+---
+
+# Design System & Visual Identity
+
+## Design Philosophy
+
+Vyayamy is a **calm, minimal workout journal**. Every design decision follows this priority order — never invert it:
+
+1. **Clarity** — the user should instantly understand what they're looking at
+2. **Usability** — every interaction should feel obvious and forgiving
+3. **Speed** — perceived and actual; no layout jank, no unnecessary loading states
+4. **Consistency** — identical patterns for identical actions, everywhere
+5. **Delight** — subtle motion and refined details, earned only after the above are satisfied
+
+### Foundational Principles
+
+**Dieter Rams — remove everything unnecessary.** Fewer buttons, fewer visual elements, more whitespace, cleaner screens. If an element doesn't directly serve the user's current task, it shouldn't be on screen.
+
+**Don Norman — match human mental models.** Behavior must be predictable. Labels must be clear. Actions must be obvious. Never make the user guess what a tap will do.
+
+**Alan Kay — powerful systems should still be understandable.** Complexity is introduced progressively. Patterns are modular and consistent. A new user and a power user should both feel at home.
+
+**Alan Dye / Matias Duarte — motion and visual systems create personality.** Smooth transitions, a cohesive design token system, and refined micro-details give the app its character.
+
+### Visual Direction
+
+Lean toward **Apple Health / Apple Fitness** aesthetics — not typical fitness app design. The inspiration stack is Apple Health, Apple Fitness, Whoop, Strava, Strong, and Hevy, but the visual execution stays closer to Apple: restrained, typographic, spacious.
+
+### Non-negotiables
+
+- **Single-column layout**, max-width 640px, centered — this is a phone-first app
+- **Warm neutral palette** — stone/amber tones (`#F8F8F6` bg, `#1C1917` text). No saturated brand colors, no dark mode (unless explicitly requested)
+- **System font stack** (`-apple-system`, `SF Pro`, `system-ui`) — native feel, zero web-font overhead
+- **44px minimum touch targets** on all interactive elements (`--touch-min`)
+- **Generous whitespace** — when in doubt, add more breathing room, not less
+- **Subtle, purposeful animation** — page-in fades (`translateY(8px)`), sheet slides, scale-on-press (`scale(0.98)`). No bouncy/spring physics, no particle effects, no gratuitous motion
+- **Progressive disclosure** — show the essential action first; reveal advanced options only when the user reaches for them
+
+## CSS Custom Properties
+
+All values come from `src/styles/theme.css`. Never hard-code colors, spacing, radii, shadows, or font sizes — always reference tokens:
+
+```css
+/* Correct */
+padding: var(--space-4);
+color: var(--color-text-secondary);
+border-radius: var(--radius-md);
+
+/* Wrong */
+padding: 16px;
+color: #78716C;
+border-radius: 12px;
+```
+
+## CSS Architecture
+
+- **One CSS file per component**, co-located: `ComponentName.tsx` + `ComponentName.css`
+- **No CSS modules, no CSS-in-JS, no utility classes** — plain `.css` files imported in the component
+- Global utility classes (`.btn-primary`, `.btn-secondary`, `.btn-ghost`, `.page-title`, `.section-title`, `.card-title`, `.meta`, `.tabular`) live in `theme.css` — reuse them
+
+## Class Naming
+
+BEM-inspired flat naming:
+
+| Pattern                | Example                          |
+|------------------------|----------------------------------|
+| Block                  | `.exercise-block`                |
+| Block + element        | `.exercise-block-head`           |
+| Block + element + part | `.exercise-block-head-text`      |
+| Modifier               | `.set-row--done`, `.toast--info` |
+
+Never nest selectors deeper than two levels. Keep specificity low.
+
+## Animations
+
+Scope `@keyframes` to the component CSS file. Use theme transition tokens:
+
+```css
+transition: opacity var(--duration-fast) ease;
+animation: page-in var(--duration-normal) var(--ease-out);
+```
+
+## Responsive
+
+The only breakpoint is `768px` for minor desktop padding/font adjustments. Do not add complex responsive layouts — the app is single-column by design.

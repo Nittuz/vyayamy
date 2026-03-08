@@ -1,0 +1,27 @@
+.empty-state {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: var(--space-3);
+}
+
+.empty-state-icon {
+  color: var(--color-text-tertiary);
+  opacity: 0.6;
+  margin-bottom: var(--space-1);
+}
+
+.empty-state-message {
+  font-size: var(--font-body);
+  color: var(--color-text-secondary);
+  text-align: center;
+  margin: 0;
+  max-width: 260px;
+  line-height: 1.5;
+}
+
+.empty-state-action {
+  width: auto;
+  min-width: 160px;
+  margin-top: var(--space-2);
+}

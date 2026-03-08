@@ -1,0 +1,156 @@
+.progress {
+  animation: page-in var(--duration-normal) var(--ease-out);
+  padding-bottom: var(--space-10);
+}
+
+/* ── Sections ── */
+.pg-section {
+  margin-top: var(--space-6);
+}
+
+.pg-section-title {
+  font-size: var(--font-card);
+  font-weight: 600;
+  margin: 0 0 var(--space-3);
+}
+
+/* ── PR groups ── */
+.pg-pr-groups {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-3);
+}
+
+.pg-pr-card {
+  padding: var(--space-4);
+}
+
+.pg-pr-card--new {
+  border-left: 3px solid var(--color-pr);
+}
+
+.pg-pr-card-header {
+  display: flex;
+  align-items: baseline;
+  gap: var(--space-2);
+  margin-bottom: var(--space-3);
+}
+
+.pg-pr-exercise {
+  font-size: var(--font-body);
+  font-weight: 600;
+}
+
+.pg-pr-muscle {
+  font-size: var(--font-micro);
+  font-weight: 500;
+  color: var(--color-text-tertiary);
+}
+
+.pg-pr-rows {
+  display: flex;
+  flex-direction: column;
+  gap: 0;
+}
+
+.pg-pr-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: var(--space-2) 0;
+  border-bottom: 0.5px solid var(--color-border);
+}
+
+.pg-pr-row:last-child {
+  border-bottom: none;
+}
+
+.pg-pr-row-left {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+}
+
+.pg-pr-type-label {
+  font-size: var(--font-meta);
+  font-weight: 500;
+  color: var(--color-text-secondary);
+}
+
+.pg-pr-badge {
+  font-size: 9px;
+  font-weight: 700;
+  color: var(--color-pr);
+  background: var(--color-pr-soft);
+  padding: 1px 5px;
+  border-radius: var(--radius-full);
+  letter-spacing: 0.05em;
+  text-transform: uppercase;
+}
+
+.pg-pr-value {
+  font-size: var(--font-body);
+  font-weight: 700;
+  color: var(--color-text);
+}
+
+.pg-pr-date {
+  display: block;
+  margin-top: var(--space-2);
+  font-size: var(--font-micro);
+}
+
+/* ── Exercise pills ── */
+.pg-pills {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-2);
+  margin-bottom: var(--space-4);
+}
+
+.pg-pill {
+  padding: var(--space-2) var(--space-3);
+  font-size: var(--font-meta);
+  font-weight: 500;
+  color: var(--color-text-secondary);
+  background: transparent;
+  border: 1.5px solid var(--color-border-strong);
+  border-radius: var(--radius-full);
+  cursor: pointer;
+  transition: all var(--duration-fast) ease;
+  white-space: nowrap;
+}
+
+.pg-pill:hover {
+  border-color: var(--color-text-secondary);
+}
+
+.pg-pill--active {
+  color: var(--color-surface);
+  background: var(--color-accent);
+  border-color: var(--color-accent);
+}
+
+/* ── Chart cards ── */
+.pg-chart-card {
+  padding: var(--space-4);
+}
+
+.pg-chart {
+  margin-top: var(--space-1);
+}
+
+.pg-chart-empty {
+  text-align: center;
+  padding: var(--space-6) 0 var(--space-2);
+  margin: 0;
+}
+
+.pg-freq {
+  margin-top: var(--space-1);
+}
+
+/* ── Empty state ── */
+.pg-empty {
+  margin: 0;
+}
