@@ -6,7 +6,7 @@ import { useTemplates } from '../lib/queries/templates';
 import { useActivePlan, useWeekCompletions, getTodaySlot, isSlotCompletedOnDate, getUpcomingSlots } from '../lib/queries/plans';
 import { useWeeklyFrequency } from '../lib/queries/records';
 import { formatRelativeDate, formatDuration, getGreeting } from '../lib/format';
-import { ChevronRightIcon, RepeatIcon } from '../components/Icons';
+import { ChevronRightIcon, RepeatIcon, PlusIcon } from '../components/Icons';
 import { TodayHero } from '../components/TodayHero';
 import { WeekStrip } from '../components/WeekStrip';
 import { EmptyState, DumbbellIllustration } from '../components/EmptyState';
@@ -45,7 +45,7 @@ export function Today() {
   const greeting = firstName ? `${getGreeting()}, ${firstName}` : getGreeting();
 
   const displayWorkouts = recentWorkouts?.slice(0, 3) ?? [];
-  const displayTemplates = templates?.filter((t) => t.id !== plannedTemplate?.id).slice(0, 4) ?? [];
+  const displayTemplates = templates?.filter((t) => t.id !== plannedTemplate?.id) ?? [];
 
   async function handleStartEmpty() {
     const w = await createWorkout.mutateAsync({ title: 'Workout' });
@@ -133,6 +133,15 @@ export function Today() {
           <h2 className="today-section-label">Train something else</h2>
         </div>
         <div className="today-alt-actions">
+          <button
+            type="button"
+            className="today-alt-chip today-alt-chip--custom"
+            onClick={handleStartEmpty}
+            disabled={createWorkout.isPending}
+          >
+            <PlusIcon size={14} />
+            <span>Custom workout</span>
+          </button>
           {lastWorkout && !activeWorkout && (
             <button
               type="button"
@@ -153,21 +162,8 @@ export function Today() {
               disabled={createWorkout.isPending}
             >
               <span>{t.name}</span>
-              {t.exercise_order.length > 0 && (
-                <span className="today-alt-chip-count">{t.exercise_order.length}</span>
-              )}
             </button>
           ))}
-          {!activeWorkout && (
-            <button
-              type="button"
-              className="today-alt-chip today-alt-chip--empty"
-              onClick={handleStartEmpty}
-              disabled={createWorkout.isPending}
-            >
-              <span>Empty workout</span>
-            </button>
-          )}
         </div>
       </section>
 

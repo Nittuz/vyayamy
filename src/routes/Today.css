@@ -137,22 +137,9 @@
   cursor: not-allowed;
 }
 
-.today-alt-chip--empty {
-  border-style: dashed;
+.today-alt-chip--custom {
   color: var(--color-text-secondary);
-}
-
-.today-alt-chip-count {
-  font-size: var(--font-micro);
-  font-weight: var(--font-weight-semibold);
-  color: var(--color-text-tertiary);
-  background: var(--color-bg);
-  min-width: 18px;
-  height: 18px;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  border-radius: var(--radius-full);
+  border-color: var(--color-border);
 }
 
 /* ── Recent list (no card wrapper — lighter) ── */
