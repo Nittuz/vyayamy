@@ -1,5 +1,6 @@
 import { Navigate, useLocation } from 'react-router-dom';
 import { useAuth } from '../lib/useAuth';
+import { TodaySkeleton } from './Skeleton';
 
 export function ProtectedRoute({ children }: { children: React.ReactNode }) {
   const { user, loading } = useAuth();
@@ -7,8 +8,8 @@ export function ProtectedRoute({ children }: { children: React.ReactNode }) {
 
   if (loading) {
     return (
-      <div className="layout-main" style={{ padding: 24 }}>
-        <p className="meta">Loading…</p>
+      <div className="layout-main">
+        <TodaySkeleton />
       </div>
     );
   }

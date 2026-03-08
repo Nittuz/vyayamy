@@ -221,8 +221,8 @@ export function Progress() {
                   key={e.id}
                   type="button"
                   className={
-                    'pg-pill' +
-                    (selectedExerciseId === e.id ? ' pg-pill--active' : '')
+                    'chip' +
+                    (selectedExerciseId === e.id ? ' chip--active' : '')
                   }
                   onClick={() => setSelectedExerciseId(e.id)}
                 >
@@ -233,18 +233,24 @@ export function Progress() {
             {chartData.length > 0 ? (
               <div className="pg-chart">
                 <ResponsiveContainer width="100%" height={180}>
-                  <LineChart
+                  <AreaChart
                     data={chartData}
                     margin={{ top: 8, right: 4, left: -20, bottom: 0 }}
                   >
+                    <defs>
+                      <linearGradient id="chartGradient" x1="0" y1="0" x2="0" y2="1">
+                        <stop offset="0%" stopColor="var(--color-accent)" stopOpacity={0.08} />
+                        <stop offset="100%" stopColor="var(--color-accent)" stopOpacity={0} />
+                      </linearGradient>
+                    </defs>
                     <XAxis
                       dataKey="date"
-                      tick={{ fontSize: 11, fill: '#A8A29E' }}
+                      tick={{ fontSize: 11, fill: 'var(--color-chart-axis)' }}
                       stroke="none"
                       tickLine={false}
                     />
                     <YAxis
-                      tick={{ fontSize: 11, fill: '#A8A29E' }}
+                      tick={{ fontSize: 11, fill: 'var(--color-chart-axis)' }}
                       stroke="none"
                       tickLine={false}
                       axisLine={false}
@@ -253,21 +259,24 @@ export function Progress() {
                       contentStyle={{
                         background: 'var(--color-surface)',
                         border: 'none',
-                        borderRadius: 'var(--radius-sm)',
-                        boxShadow: 'var(--shadow-md)',
-                        fontSize: 'var(--font-meta)',
+                        borderRadius: '8px',
+                        boxShadow: '0 2px 8px rgba(0,0,0,0.06)',
+                        fontSize: '13px',
+                        padding: '8px 12px',
                       }}
-                      labelStyle={{ color: 'var(--color-text-secondary)' }}
+                      labelStyle={{ color: 'var(--color-text-secondary)', marginBottom: 2 }}
+                      cursor={{ stroke: 'var(--color-border-strong)', strokeWidth: 1 }}
                     />
-                    <Line
+                    <Area
                       type="monotone"
                       dataKey="weight"
                       stroke="var(--color-accent)"
                       strokeWidth={1.5}
-                      dot={{ r: 2.5, fill: 'var(--color-accent)' }}
-                      activeDot={{ r: 4 }}
+                      fill="url(#chartGradient)"
+                      dot={false}
+                      activeDot={{ r: 3.5, fill: 'var(--color-accent)', strokeWidth: 0 }}
                     />
-                  </LineChart>
+                  </AreaChart>
                 </ResponsiveContainer>
               </div>
             ) : (
@@ -290,7 +299,7 @@ export function Progress() {
         {weeklyFreq != null && weeklyFreq.length > 0 ? (
           <div className="card pg-chart-card">
             <div className="pg-freq">
-              <ResponsiveContainer width="100%" height={100}>
+              <ResponsiveContainer width="100%" height={140}>
                 <BarChart
                   data={weeklyFreq}
                   margin={{ top: 4, right: 4, left: -20, bottom: 0 }}
@@ -303,23 +312,24 @@ export function Progress() {
                         day: 'numeric',
                       })
                     }
-                    tick={{ fontSize: 11, fill: '#A8A29E' }}
+                    tick={{ fontSize: 11, fill: 'var(--color-chart-axis)' }}
                     stroke="none"
                     tickLine={false}
                   />
                   <YAxis
                     allowDecimals={false}
-                    tick={{ fontSize: 11, fill: '#A8A29E' }}
+                    tick={{ fontSize: 11, fill: 'var(--color-chart-axis)' }}
                     stroke="none"
                     tickLine={false}
                     axisLine={false}
                     width={24}
                   />
-                  <Bar dataKey="count" radius={[4, 4, 0, 0]} maxBarSize={32}>
-                    {weeklyFreq.map((_, i) => (
-                      <Cell key={i} fill="var(--color-accent)" opacity={0.7} />
-                    ))}
-                  </Bar>
+                  <Bar
+                    dataKey="count"
+                    radius={[4, 4, 0, 0]}
+                    maxBarSize={32}
+                    fill="var(--color-accent)"
+                  />
                 </BarChart>
               </ResponsiveContainer>
             </div>

@@ -362,25 +362,15 @@ export function Profile() {
         title={editingTemplate ? `${editingTemplate.name} — Exercises` : 'Exercises'}
       >
         {routineExercises.data && routineExercises.data.length > 0 && (
-          <div style={{ marginBottom: 'var(--space-4)' }}>
-            <p className="meta" style={{ marginBottom: 'var(--space-2)' }}>Current exercises</p>
-            <ul style={{ listStyle: 'none', padding: 0, margin: 0 }}>
+          <div className="profile-picker-section">
+            <p className="meta profile-picker-label">Current exercises</p>
+            <ul className="profile-picker-list">
               {routineExercises.data.map((e) => (
-                <li
-                  key={e.id}
-                  style={{
-                    display: 'flex',
-                    justifyContent: 'space-between',
-                    alignItems: 'center',
-                    padding: 'var(--space-2) 0',
-                    borderBottom: '0.5px solid var(--color-border)',
-                  }}
-                >
+                <li key={e.id} className="profile-picker-item">
                   <span className="card-title">{e.name}</span>
                   <button
                     type="button"
-                    className="btn-ghost"
-                    style={{ color: 'var(--color-danger)' }}
+                    className="btn-ghost btn-ghost--danger"
                     onClick={() => handleRemoveExerciseFromRoutine(e.id)}
                   >
                     Remove
@@ -390,24 +380,13 @@ export function Profile() {
             </ul>
           </div>
         )}
-        <p className="meta" style={{ marginBottom: 'var(--space-2)' }}>Add exercises</p>
-        <ul style={{ listStyle: 'none', padding: 0, margin: 0 }}>
+        <p className="meta profile-picker-label">Add exercises</p>
+        <ul className="profile-picker-list">
           {availableExercises.map((e) => (
             <li key={e.id}>
               <button
                 type="button"
-                style={{
-                  display: 'flex',
-                  justifyContent: 'space-between',
-                  alignItems: 'center',
-                  width: '100%',
-                  padding: 'var(--space-2) 0',
-                  background: 'none',
-                  border: 'none',
-                  borderBottom: '0.5px solid var(--color-border)',
-                  cursor: 'pointer',
-                  textAlign: 'left',
-                }}
+                className="profile-picker-add-btn"
                 onClick={() => handleAddExerciseToRoutine(e.id)}
               >
                 <span className="card-title">{e.name}</span>

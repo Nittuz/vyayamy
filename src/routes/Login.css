@@ -5,6 +5,7 @@
   justify-content: center;
   padding: var(--padding-page);
   animation: login-in var(--duration-slow) var(--ease-out);
+  background: var(--color-bg);
 }
 
 @keyframes login-in {

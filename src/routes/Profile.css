@@ -291,6 +291,47 @@
   flex: 1;
 }
 
+/* ── Exercise Picker ── */
+.profile-picker-section {
+  margin-bottom: var(--space-4);
+}
+
+.profile-picker-label {
+  margin-bottom: var(--space-2);
+}
+
+.profile-picker-list {
+  list-style: none;
+  padding: 0;
+  margin: 0;
+}
+
+.profile-picker-item {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: var(--space-2) 0;
+  border-bottom: 0.5px solid var(--color-border);
+}
+
+.profile-picker-add-btn {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  width: 100%;
+  padding: var(--space-2) 0;
+  background: none;
+  border: none;
+  border-bottom: 0.5px solid var(--color-border);
+  cursor: pointer;
+  text-align: left;
+  transition: color var(--duration-fast) ease;
+}
+
+.profile-picker-add-btn:hover {
+  color: var(--color-accent-muted);
+}
+
 /* ── Sign out ── */
 .profile-signout {
   margin-top: var(--space-8);

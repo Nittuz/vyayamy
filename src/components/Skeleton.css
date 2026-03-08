@@ -22,3 +22,35 @@
   flex-direction: column;
   gap: var(--space-2);
 }
+
+.skeleton-today {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-5);
+}
+
+.skeleton-today-header {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-2);
+}
+
+.skeleton-week-strip {
+  display: flex;
+  justify-content: space-between;
+  margin-top: var(--space-2);
+}
+
+.skeleton-detail {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-4);
+}
+
+.skeleton-stats-row {
+  display: flex;
+  justify-content: space-around;
+  margin-top: var(--space-3);
+  padding-top: var(--space-3);
+  border-top: 0.5px solid var(--color-border);
+}

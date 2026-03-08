@@ -22,28 +22,6 @@
   margin-bottom: var(--space-6);
 }
 
-.history-chip {
-  padding: var(--space-2) var(--space-4);
-  font-size: var(--font-meta);
-  font-weight: 500;
-  color: var(--color-text-secondary);
-  background: transparent;
-  border: 1.5px solid var(--color-border-strong);
-  border-radius: var(--radius-full);
-  cursor: pointer;
-  transition: all var(--duration-fast) ease;
-}
-
-.history-chip:hover {
-  color: var(--color-text);
-  border-color: var(--color-text-secondary);
-}
-
-.history-chip--active {
-  color: var(--color-surface);
-  background: var(--color-accent);
-  border-color: var(--color-accent);
-}
 
 /* ── Groups ── */
 .history-groups {

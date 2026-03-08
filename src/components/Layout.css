@@ -63,3 +63,9 @@
   font-weight: 500;
   letter-spacing: 0.01em;
 }
+
+@media (min-width: 768px) {
+  .layout-nav {
+    border-radius: 0 0 var(--radius-lg) var(--radius-lg);
+  }
+}

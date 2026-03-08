@@ -9,8 +9,9 @@
 }
 
 .pg-section-title {
-  font-size: var(--font-card);
+  font-size: var(--font-section);
   font-weight: 600;
+  letter-spacing: -0.01em;
   margin: 0 0 var(--space-3);
 }
 
@@ -26,7 +27,7 @@
 }
 
 .pg-pr-card--new {
-  border-left: 3px solid var(--color-pr);
+  background: linear-gradient(135deg, var(--color-pr-soft) 0%, var(--color-surface) 60%);
 }
 
 .pg-pr-card-header {
@@ -108,28 +109,6 @@
   margin-bottom: var(--space-4);
 }
 
-.pg-pill {
-  padding: var(--space-2) var(--space-3);
-  font-size: var(--font-meta);
-  font-weight: 500;
-  color: var(--color-text-secondary);
-  background: transparent;
-  border: 1.5px solid var(--color-border-strong);
-  border-radius: var(--radius-full);
-  cursor: pointer;
-  transition: all var(--duration-fast) ease;
-  white-space: nowrap;
-}
-
-.pg-pill:hover {
-  border-color: var(--color-text-secondary);
-}
-
-.pg-pill--active {
-  color: var(--color-surface);
-  background: var(--color-accent);
-  border-color: var(--color-accent);
-}
 
 /* ── Chart cards ── */
 .pg-chart-card {

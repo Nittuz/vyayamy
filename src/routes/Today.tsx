@@ -7,6 +7,7 @@ import { useWeeklyFrequency } from '../lib/queries/records';
 import { formatRelativeDate, formatDuration, getGreeting } from '../lib/format';
 import { PlayIcon, RepeatIcon, ChevronRightIcon } from '../components/Icons';
 import { EmptyState, DumbbellIllustration } from '../components/EmptyState';
+import { TodaySkeleton } from '../components/Skeleton';
 import './Today.css';
 
 const DAY_LABELS = ['M', 'T', 'W', 'T', 'F', 'S', 'S'];
@@ -31,10 +32,10 @@ function dateKey(d: Date): string {
 export function Today() {
   const navigate = useNavigate();
   const { user } = useAuth();
-  const { data: profile } = useProfile(user?.id);
+  const { data: profile, isLoading: profileLoading } = useProfile(user?.id);
   const { data: activeWorkout } = useActiveWorkout(user?.id);
   const { data: lastWorkout } = useLastWorkout(user?.id);
-  const { data: recentWorkouts } = useRecentWorkouts(user?.id, 10);
+  const { data: recentWorkouts, isLoading: recentsLoading } = useRecentWorkouts(user?.id, 10);
   const { data: templates } = useTemplates(user?.id);
   const createWorkout = useCreateWorkout(user?.id);
   const { data: weeklyFreq } = useWeeklyFrequency(user?.id, 1);
@@ -54,6 +55,7 @@ export function Today() {
     (recentWorkouts ?? []).map((w) => dateKey(new Date(w.started_at))),
   );
 
+  const isInitialLoad = profileLoading && recentsLoading;
   const displayWorkouts = recentWorkouts?.slice(0, 5) ?? [];
   const displayTemplates = templates?.slice(0, 4) ?? [];
 
@@ -73,6 +75,14 @@ export function Today() {
       exerciseIds: template.exercise_order,
     });
     navigate('/workout/active');
+  }
+
+  if (isInitialLoad) {
+    return (
+      <div className="today">
+        <TodaySkeleton />
+      </div>
+    );
   }
 
   return (

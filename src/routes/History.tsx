@@ -62,7 +62,7 @@ export function History() {
             key={p.id}
             type="button"
             className={
-              'history-chip' + (period === p.id ? ' history-chip--active' : '')
+              'chip' + (period === p.id ? ' chip--active' : '')
             }
             onClick={() => setPeriod(p.id)}
           >

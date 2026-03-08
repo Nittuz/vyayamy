@@ -8,6 +8,7 @@ import { useProfile } from '../lib/queries/profile';
 import { formatDuration } from '../lib/format';
 import { RepeatIcon } from '../components/Icons';
 import { ConfirmDialog } from '../components/ConfirmDialog';
+import { DetailSkeleton } from '../components/Skeleton';
 import { useToast } from '../lib/useToast';
 import './HistoryDetail.css';
 
@@ -86,7 +87,7 @@ export function HistoryDetail() {
     return (
       <div className="hd">
         <Link to="/history" className="hd-back btn-ghost">← History</Link>
-        <p className="meta">Loading...</p>
+        <DetailSkeleton />
       </div>
     );
   }

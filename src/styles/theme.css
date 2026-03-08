@@ -249,6 +249,31 @@ body {
   opacity: 0.75;
 }
 
+/* Chip / Pill */
+.chip {
+  padding: var(--space-2) var(--space-4);
+  font-size: var(--font-meta);
+  font-weight: 500;
+  color: var(--color-text-secondary);
+  background: transparent;
+  border: 1.5px solid var(--color-border-strong);
+  border-radius: var(--radius-full);
+  cursor: pointer;
+  white-space: nowrap;
+  transition: all var(--duration-fast) ease;
+}
+
+.chip:hover {
+  color: var(--color-text);
+  border-color: var(--color-text-secondary);
+}
+
+.chip--active {
+  color: var(--color-surface);
+  background: var(--color-accent);
+  border-color: var(--color-accent);
+}
+
 /* Card base */
 .card {
   background: var(--color-surface);
@@ -279,5 +304,25 @@ select:focus-visible {
   :root {
     --padding-page: 32px;
     --font-display: 38px;
+  }
+
+  #root {
+    margin-top: var(--space-6);
+    margin-bottom: var(--space-6);
+    border: 0.5px solid var(--color-border);
+    border-radius: var(--radius-lg);
+    box-shadow: var(--shadow-lg);
+    overflow: hidden;
+    min-height: calc(100dvh - var(--space-12));
+  }
+
+  body {
+    background: #EEECEA;
+  }
+}
+
+@media (min-width: 1024px) {
+  :root {
+    --padding-page: 40px;
   }
 }
