@@ -1,22 +1,11 @@
 import { useState } from 'react';
+import { Link } from 'react-router-dom';
 import { useAuth } from '../lib/useAuth';
 import { useProfile, useUpdateProfile, useProfileStats } from '../lib/queries/profile';
-import {
-  useTemplates,
-  useCreateTemplate,
-  useUpdateTemplate,
-  useDeleteTemplate,
-} from '../lib/queries/templates';
-import {
-  useExercisesByIds,
-  useGlobalExercises,
-  useRecentExerciseIds,
-} from '../lib/queries/exercises';
+import { useTemplates } from '../lib/queries/templates';
 import { ConfirmDialog } from '../components/ConfirmDialog';
-import { Sheet } from '../components/Sheet';
-import { useToast } from '../lib/useToast';
 import { formatMemberSince, getInitials } from '../lib/format';
-import type { Exercise } from '../types/database';
+import { ChevronRightIcon } from '../components/Icons';
 import './Profile.css';
 
 export function Profile() {
@@ -25,84 +14,15 @@ export function Profile() {
   const updateProfile = useUpdateProfile(user?.id);
   const { data: stats } = useProfileStats(user?.id);
   const { data: templates } = useTemplates(user?.id);
-  const createTemplate = useCreateTemplate(user?.id);
-  const updateTemplate = useUpdateTemplate(user?.id);
-  const deleteTemplate = useDeleteTemplate(user?.id);
-  const { toast } = useToast();
 
-  const [newRoutineName, setNewRoutineName] = useState('');
-  const [editingId, setEditingId] = useState<string | null>(null);
-  const [editingName, setEditingName] = useState('');
-  const [deleteId, setDeleteId] = useState<string | null>(null);
   const [confirmSignOut, setConfirmSignOut] = useState(false);
-  const [exercisePickerForId, setExercisePickerForId] = useState<string | null>(null);
-  const [showNewRoutine, setShowNewRoutine] = useState(false);
   const [editingDisplayName, setEditingDisplayName] = useState(false);
   const [displayNameDraft, setDisplayNameDraft] = useState('');
 
-  const editingTemplate = templates?.find((t) => t.id === exercisePickerForId);
-  const routineExerciseIds = editingTemplate?.exercise_order ?? [];
-  const routineExercises = useExercisesByIds(routineExerciseIds);
-  const recentIds = useRecentExerciseIds(user?.id, 10);
-  const recentExercises = useExercisesByIds(recentIds.data ?? []);
-  const globalExercises = useGlobalExercises(20);
-
-  const availableExercises: Exercise[] = [];
-  const seen = new Set(routineExerciseIds);
-  for (const e of [...(recentExercises.data ?? []), ...(globalExercises.data ?? [])]) {
-    if (!seen.has(e.id)) {
-      seen.add(e.id);
-      availableExercises.push(e);
-    }
-  }
-
   const initials = getInitials(profile?.display_name, user?.email);
-
-  const handleCreateRoutine = async () => {
-    const name = newRoutineName.trim();
-    if (!name) return;
-    await createTemplate.mutateAsync({ name, exercise_order: [] });
-    setNewRoutineName('');
-    setShowNewRoutine(false);
-  };
-
-  const handleSaveEdit = async () => {
-    if (!editingId || !editingName.trim()) return;
-    await updateTemplate.mutateAsync({
-      id: editingId,
-      name: editingName.trim(),
-    });
-    setEditingId(null);
-    setEditingName('');
-  };
 
   const handleUnitsChange = (units: 'kg' | 'lb') => {
     updateProfile.mutate({ units });
-  };
-
-  const handleDeleteRoutine = () => {
-    if (!deleteId) return;
-    deleteTemplate.mutate(deleteId, {
-      onSuccess: () => toast('Routine deleted', 'success'),
-      onError: () => toast('Failed to delete routine', 'error'),
-    });
-    setDeleteId(null);
-  };
-
-  const handleAddExerciseToRoutine = (exerciseId: string) => {
-    if (!exercisePickerForId || !editingTemplate) return;
-    updateTemplate.mutate({
-      id: exercisePickerForId,
-      exercise_order: [...routineExerciseIds, exerciseId],
-    });
-  };
-
-  const handleRemoveExerciseFromRoutine = (exerciseId: string) => {
-    if (!exercisePickerForId || !editingTemplate) return;
-    updateTemplate.mutate({
-      id: exercisePickerForId,
-      exercise_order: routineExerciseIds.filter((id) => id !== exerciseId),
-    });
   };
 
   const handleStartEditDisplayName = () => {
@@ -117,6 +37,8 @@ export function Profile() {
       { onSuccess: () => setEditingDisplayName(false) },
     );
   };
+
+  const routineCount = templates?.length ?? 0;
 
   return (
     <div className="profile">
@@ -223,127 +145,18 @@ export function Profile() {
         </div>
       </section>
 
-      {/* Routines */}
-      <section className="card profile-card">
-        <div className="profile-card-header">
-          <div>
-            <h2 className="profile-card-title">Routines</h2>
-            <p className="meta profile-card-desc">
-              Workout templates for quick starts.
-            </p>
-          </div>
-          <button
-            type="button"
-            className="btn-ghost profile-add-routine-toggle"
-            onClick={() => setShowNewRoutine((v) => !v)}
-          >
-            {showNewRoutine ? 'Cancel' : '+ New'}
-          </button>
+      {/* Routines link */}
+      <Link to="/profile/routines" className="card profile-card profile-routines-link">
+        <div className="profile-routines-link-content">
+          <h2 className="profile-card-title">Routines</h2>
+          <span className="meta">
+            {routineCount > 0
+              ? `${routineCount} routine${routineCount !== 1 ? 's' : ''}`
+              : 'Create workout templates'}
+          </span>
         </div>
-        {showNewRoutine && (
-          <div className="profile-routine-new">
-            <input
-              type="text"
-              placeholder="e.g. Push Day, Upper Body..."
-              value={newRoutineName}
-              onChange={(e) => setNewRoutineName(e.target.value)}
-              className="profile-input"
-              autoFocus
-              onKeyDown={(e) => {
-                if (e.key === 'Enter') handleCreateRoutine();
-                if (e.key === 'Escape') {
-                  setShowNewRoutine(false);
-                  setNewRoutineName('');
-                }
-              }}
-            />
-            <button
-              type="button"
-              className="btn-primary"
-              onClick={() => handleCreateRoutine()}
-              disabled={!newRoutineName.trim() || createTemplate.isPending}
-            >
-              {createTemplate.isPending ? 'Adding...' : 'Create routine'}
-            </button>
-          </div>
-        )}
-        {templates != null && templates.length > 0 && (
-          <ul className="profile-routine-list">
-            {templates.map((t) => (
-              <li key={t.id} className="profile-routine-item">
-                {editingId === t.id ? (
-                  <div className="profile-routine-edit">
-                    <input
-                      type="text"
-                      value={editingName}
-                      onChange={(e) => setEditingName(e.target.value)}
-                      className="profile-input"
-                      autoFocus
-                      onKeyDown={(e) => {
-                        if (e.key === 'Enter') handleSaveEdit();
-                        if (e.key === 'Escape') setEditingId(null);
-                      }}
-                    />
-                    <button
-                      type="button"
-                      className="btn-ghost"
-                      onClick={() => handleSaveEdit()}
-                      disabled={updateTemplate.isPending}
-                    >
-                      Save
-                    </button>
-                    <button
-                      type="button"
-                      className="btn-ghost"
-                      onClick={() => setEditingId(null)}
-                    >
-                      Cancel
-                    </button>
-                  </div>
-                ) : (
-                  <>
-                    <div className="profile-routine-info">
-                      <span className="profile-routine-name">{t.name}</span>
-                      {t.exercise_order.length > 0 && (
-                        <span className="profile-routine-badge">
-                          {t.exercise_order.length} exercise{t.exercise_order.length !== 1 ? 's' : ''}
-                        </span>
-                      )}
-                    </div>
-                    <div className="profile-routine-actions">
-                      <button
-                        type="button"
-                        className="btn-ghost"
-                        onClick={() => setExercisePickerForId(t.id)}
-                      >
-                        Exercises
-                      </button>
-                      <button
-                        type="button"
-                        className="btn-ghost"
-                        onClick={() => {
-                          setEditingId(t.id);
-                          setEditingName(t.name);
-                        }}
-                      >
-                        Edit
-                      </button>
-                      <button
-                        type="button"
-                        className="btn-ghost btn-ghost--danger"
-                        onClick={() => setDeleteId(t.id)}
-                        disabled={deleteTemplate.isPending}
-                      >
-                        Delete
-                      </button>
-                    </div>
-                  </>
-                )}
-              </li>
-            ))}
-          </ul>
-        )}
-      </section>
+        <ChevronRightIcon size={18} className="profile-routines-chevron" />
+      </Link>
 
       {/* Sign out */}
       <div className="profile-signout">
@@ -355,57 +168,6 @@ export function Profile() {
           Sign out
         </button>
       </div>
-
-      <Sheet
-        open={exercisePickerForId !== null}
-        onClose={() => setExercisePickerForId(null)}
-        title={editingTemplate ? `${editingTemplate.name} — Exercises` : 'Exercises'}
-      >
-        {routineExercises.data && routineExercises.data.length > 0 && (
-          <div className="profile-picker-section">
-            <p className="meta profile-picker-label">Current exercises</p>
-            <ul className="profile-picker-list">
-              {routineExercises.data.map((e) => (
-                <li key={e.id} className="profile-picker-item">
-                  <span className="card-title">{e.name}</span>
-                  <button
-                    type="button"
-                    className="btn-ghost btn-ghost--danger"
-                    onClick={() => handleRemoveExerciseFromRoutine(e.id)}
-                  >
-                    Remove
-                  </button>
-                </li>
-              ))}
-            </ul>
-          </div>
-        )}
-        <p className="meta profile-picker-label">Add exercises</p>
-        <ul className="profile-picker-list">
-          {availableExercises.map((e) => (
-            <li key={e.id}>
-              <button
-                type="button"
-                className="profile-picker-add-btn"
-                onClick={() => handleAddExerciseToRoutine(e.id)}
-              >
-                <span className="card-title">{e.name}</span>
-                {e.muscle_group && <span className="meta">{e.muscle_group}</span>}
-              </button>
-            </li>
-          ))}
-        </ul>
-      </Sheet>
-
-      <ConfirmDialog
-        open={deleteId !== null}
-        title="Delete routine"
-        message="Are you sure you want to delete this routine? This cannot be undone."
-        confirmLabel="Delete"
-        destructive
-        onConfirm={handleDeleteRoutine}
-        onCancel={() => setDeleteId(null)}
-      />
 
       <ConfirmDialog
         open={confirmSignOut}

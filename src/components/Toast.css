@@ -17,7 +17,7 @@
   padding: var(--space-3) var(--space-4);
   border-radius: var(--radius-sm);
   font-size: var(--font-meta);
-  font-weight: 500;
+  font-weight: var(--font-weight-medium);
   box-shadow: var(--shadow-md);
   animation: toast-in var(--duration-normal) var(--ease-out);
   pointer-events: auto;

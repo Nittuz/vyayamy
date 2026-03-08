@@ -1,11 +1,5 @@
 .today {
-  animation: page-in var(--duration-normal) var(--ease-out);
   padding-bottom: var(--space-10);
-}
-
-@keyframes page-in {
-  from { opacity: 0; transform: translateY(8px); }
-  to { opacity: 1; transform: translateY(0); }
 }
 
 /* ── Header ── */
@@ -50,7 +44,7 @@
 
 .today-week-title {
   font-size: var(--font-meta);
-  font-weight: 600;
+  font-weight: var(--font-weight-semibold);
   text-transform: uppercase;
   letter-spacing: 0.04em;
   color: var(--color-text-secondary);
@@ -76,13 +70,13 @@
 
 .today-day-label {
   font-size: var(--font-micro);
-  font-weight: 500;
+  font-weight: var(--font-weight-medium);
   color: var(--color-text-tertiary);
 }
 
 .today-day--today .today-day-label {
   color: var(--color-text);
-  font-weight: 700;
+  font-weight: var(--font-weight-bold);
 }
 
 .today-day-dot {
@@ -145,13 +139,13 @@
 
 .today-routine-chip-name {
   font-size: var(--font-meta);
-  font-weight: 600;
+  font-weight: var(--font-weight-semibold);
   color: var(--color-text);
 }
 
 .today-routine-chip-count {
   font-size: var(--font-micro);
-  font-weight: 600;
+  font-weight: var(--font-weight-semibold);
   color: var(--color-text-tertiary);
   background: var(--color-bg);
   min-width: 20px;
@@ -185,7 +179,7 @@
 .today-see-all {
   display: flex;
   align-items: center;
-  gap: 2px;
+  gap: var(--space-half);
   text-decoration: none;
   color: var(--color-text-secondary);
   transition: color var(--duration-fast) ease;
@@ -243,4 +237,15 @@
 /* ── Empty state ── */
 .today-empty {
   margin: 0;
+}
+
+@media (max-width: 359px) {
+  .today-day-dot {
+    width: 24px;
+    height: 24px;
+  }
+
+  .today-routine-chip {
+    padding: var(--space-1) var(--space-3);
+  }
 }

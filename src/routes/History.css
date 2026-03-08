@@ -1,5 +1,4 @@
 .history {
-  animation: page-in var(--duration-normal) var(--ease-out);
   padding-bottom: var(--space-10);
 }
 
@@ -32,7 +31,7 @@
 
 .history-group-label {
   font-size: var(--font-micro);
-  font-weight: 600;
+  font-weight: var(--font-weight-semibold);
   text-transform: uppercase;
   letter-spacing: 0.06em;
   color: var(--color-text-tertiary);
@@ -73,13 +72,13 @@
 .history-card-main {
   display: flex;
   flex-direction: column;
-  gap: 2px;
+  gap: var(--space-half);
   min-width: 0;
 }
 
 .history-card-title {
   font-size: var(--font-body);
-  font-weight: 600;
+  font-weight: var(--font-weight-semibold);
   line-height: 1.3;
 }
 
@@ -90,7 +89,7 @@
 .history-card-chevron {
   flex-shrink: 0;
   color: var(--color-text-tertiary);
-  margin-top: 2px;
+  margin-top: var(--space-half);
 }
 
 .history-card-bottom {
@@ -110,10 +109,10 @@
 
 .history-tag {
   font-size: var(--font-micro);
-  font-weight: 500;
+  font-weight: var(--font-weight-medium);
   color: var(--color-accent-muted);
   background: var(--color-bg);
-  padding: 2px var(--space-2);
+  padding: var(--space-half) var(--space-2);
   border-radius: var(--radius-full);
   white-space: nowrap;
 }

@@ -1,6 +1,5 @@
 .workout-active {
   padding-bottom: 120px;
-  animation: page-in var(--duration-normal) var(--ease-out);
 }
 
 .workout-active-header {
@@ -9,7 +8,7 @@
 
 .workout-active-title {
   font-size: var(--font-title);
-  font-weight: 700;
+  font-weight: var(--font-weight-bold);
   letter-spacing: -0.02em;
   margin: 0 0 var(--space-1);
 }
@@ -51,6 +50,40 @@
   z-index: 50;
 }
 
-.workout-active-footer-btn {
+.workout-active-add-btn {
+  padding: var(--space-2) var(--space-4);
+  font-size: var(--font-meta);
+  font-weight: var(--font-weight-medium);
+  color: var(--color-accent-muted);
+  background: none;
+  border: none;
+  cursor: pointer;
+  transition: color var(--duration-fast) ease;
+}
+
+.workout-active-add-btn:hover {
+  color: var(--color-text);
+}
+
+.workout-active-finish-btn {
   flex: 1;
+}
+
+/* Completion celebration */
+.workout-active--completing {
+  animation: workout-complete 500ms var(--ease-out) forwards;
+}
+
+@keyframes workout-complete {
+  0% { opacity: 1; transform: scale(1); }
+  40% { opacity: 1; transform: scale(1.02); }
+  100% { opacity: 0; transform: scale(0.97); }
+}
+
+@media (max-width: 359px) {
+  .workout-active-footer {
+    flex-direction: column;
+    align-items: stretch;
+    gap: var(--space-2);
+  }
 }

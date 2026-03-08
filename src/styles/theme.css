@@ -22,6 +22,7 @@
   --color-bg-frosted: rgba(248, 248, 246, 0.85);
 
   /* Spacing scale (4px base) */
+  --space-half: 2px;
   --space-1: 4px;
   --space-2: 8px;
   --space-3: 12px;
@@ -47,6 +48,9 @@
   --radius-button: var(--radius-sm);
 
   /* Typography */
+  --font-weight-bold: 700;
+  --font-weight-semibold: 600;
+  --font-weight-medium: 500;
   --font-display: 34px;
   --font-title: 28px;
   --font-section: 20px;
@@ -99,7 +103,7 @@ body {
 /* Typography system */
 .page-title {
   font-size: var(--font-display);
-  font-weight: 700;
+  font-weight: var(--font-weight-bold);
   letter-spacing: -0.025em;
   line-height: 1.15;
   margin: 0;
@@ -107,7 +111,7 @@ body {
 
 .section-title {
   font-size: var(--font-section);
-  font-weight: 600;
+  font-weight: var(--font-weight-semibold);
   letter-spacing: -0.01em;
   color: var(--color-text);
   margin: 0;
@@ -115,7 +119,7 @@ body {
 
 .card-title {
   font-size: var(--font-card);
-  font-weight: 500;
+  font-weight: var(--font-weight-medium);
   margin: 0;
 }
 
@@ -137,7 +141,7 @@ body {
   min-height: var(--touch-min);
   padding: var(--space-3) var(--space-6);
   font-size: var(--font-card);
-  font-weight: 600;
+  font-weight: var(--font-weight-semibold);
   color: var(--color-surface);
   background: var(--color-text);
   border: none;
@@ -169,7 +173,7 @@ body {
   min-height: var(--touch-min);
   padding: var(--space-3) var(--space-6);
   font-size: var(--font-card);
-  font-weight: 600;
+  font-weight: var(--font-weight-semibold);
   color: var(--color-text);
   background: var(--color-surface);
   border: 1px solid var(--color-border-strong);
@@ -201,7 +205,7 @@ body {
   min-height: var(--touch-min);
   padding: var(--space-3) var(--space-6);
   font-size: var(--font-card);
-  font-weight: 600;
+  font-weight: var(--font-weight-semibold);
   color: var(--color-surface);
   background: var(--color-danger);
   border: none;
@@ -228,7 +232,7 @@ body {
 .btn-ghost {
   padding: var(--space-2) var(--space-3);
   font-size: var(--font-meta);
-  font-weight: 500;
+  font-weight: var(--font-weight-medium);
   color: var(--color-accent-muted);
   background: none;
   border: none;
@@ -253,7 +257,7 @@ body {
 .chip {
   padding: var(--space-2) var(--space-4);
   font-size: var(--font-meta);
-  font-weight: 500;
+  font-weight: var(--font-weight-medium);
   color: var(--color-text-secondary);
   background: transparent;
   border: 1.5px solid var(--color-border-strong);
@@ -324,5 +328,64 @@ select:focus-visible {
 @media (min-width: 1024px) {
   :root {
     --padding-page: 40px;
+  }
+}
+
+/* Dark mode */
+@media (prefers-color-scheme: dark) {
+  :root {
+    --color-bg: #1C1917;
+    --color-surface: #292524;
+    --color-text: #F5F5F4;
+    --color-text-secondary: #A8A29E;
+    --color-text-tertiary: #78716C;
+    --color-border: #44403C;
+    --color-border-strong: #57534E;
+    --color-accent: #F5F5F4;
+    --color-accent-muted: #A8A29E;
+    --color-accent-soft: rgba(245, 245, 244, 0.08);
+    --color-success: #22C55E;
+    --color-success-soft: rgba(34, 197, 94, 0.12);
+    --color-danger: #EF4444;
+    --color-pr: #FBBF24;
+    --color-pr-soft: rgba(251, 191, 36, 0.12);
+    --color-hover: rgba(255, 255, 255, 0.05);
+    --color-chart-axis: #78716C;
+    --color-surface-frosted: rgba(41, 37, 36, 0.85);
+    --color-bg-frosted: rgba(28, 25, 23, 0.88);
+    --shadow-sm: 0 1px 2px rgba(0, 0, 0, 0.2);
+    --shadow-md: 0 2px 8px rgba(0, 0, 0, 0.3);
+    --shadow-lg: 0 4px 20px rgba(0, 0, 0, 0.4);
+    --shadow-sheet: 0 -4px 24px rgba(0, 0, 0, 0.5);
+  }
+
+  .btn-primary {
+    color: var(--color-bg);
+    background: var(--color-text);
+  }
+
+  .btn-secondary {
+    color: var(--color-text);
+    background: var(--color-surface);
+    border-color: var(--color-border-strong);
+  }
+
+  .btn-danger {
+    color: #fff;
+  }
+}
+
+@media (prefers-color-scheme: dark) and (min-width: 768px) {
+  body {
+    background: #0C0A09;
+  }
+}
+
+/* Small viewport adjustments */
+@media (max-width: 359px) {
+  :root {
+    --padding-page: var(--space-4);
+    --font-display: 28px;
+    --font-title: 24px;
   }
 }

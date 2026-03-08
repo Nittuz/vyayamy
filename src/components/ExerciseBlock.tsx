@@ -1,7 +1,7 @@
 import { useState, useRef, useEffect } from 'react';
 import type { Set } from '../types/database';
 import type { WorkoutExerciseWithMeta } from '../lib/queries/workouts';
-import { PlusIcon, CheckIcon } from './Icons';
+import { CopyIcon, CheckIcon, GripVerticalIcon, ChevronUpIcon, ChevronDownIcon } from './Icons';
 import './ExerciseBlock.css';
 
 type ExerciseBlockProps = {
@@ -34,8 +34,17 @@ export function ExerciseBlock({
     field: 'weight' | 'reps';
   } | null>(null);
   const [editValue, setEditValue] = useState('');
+  const [flashField, setFlashField] = useState<{ setId: string; field: 'weight' | 'reps' } | null>(null);
+  const [removingSetId, setRemovingSetId] = useState<string | null>(null);
   const inputRef = useRef<HTMLInputElement>(null);
   const skipBlurRef = useRef(false);
+  const flashTimerRef = useRef<ReturnType<typeof setTimeout>>();
+
+  const triggerFlash = (setId: string, field: 'weight' | 'reps') => {
+    clearTimeout(flashTimerRef.current);
+    setFlashField({ setId, field });
+    flashTimerRef.current = setTimeout(() => setFlashField(null), 400);
+  };
 
   useEffect(() => {
     if (editingField && inputRef.current) {
@@ -62,6 +71,7 @@ export function ExerciseBlock({
       return;
     }
     onUpdateSet(editingField.setId, { [editingField.field]: value });
+    triggerFlash(editingField.setId, editingField.field);
     setEditingField(null);
   };
 
@@ -71,6 +81,7 @@ export function ExerciseBlock({
     const value = raw === '' ? null : Number(raw);
     if (value !== null && !Number.isNaN(value)) {
       onUpdateSet(editingField.setId, { [editingField.field]: value });
+      triggerFlash(editingField.setId, editingField.field);
     }
     if (editingField.field === 'weight') {
       skipBlurRef.current = true;
@@ -82,6 +93,15 @@ export function ExerciseBlock({
   };
 
   const cancelEdit = () => setEditingField(null);
+
+  const handleDeleteSet = (setId: string) => {
+    if (!onDeleteSet) return;
+    setRemovingSetId(setId);
+    setTimeout(() => {
+      onDeleteSet(setId);
+      setRemovingSetId(null);
+    }, 200);
+  };
 
   const handleCopyPrevious = (index: number) => {
     if (index === 0) return;
@@ -107,15 +127,20 @@ export function ExerciseBlock({
           )}
         </div>
         <div className="exercise-block-head-meta">
-          {onMoveUp && !isFirst && (
-            <button type="button" className="btn-ghost exercise-block-move" onClick={(e) => { e.stopPropagation(); onMoveUp(); }} aria-label="Move up">
-              ↑
-            </button>
-          )}
-          {onMoveDown && !isLast && (
-            <button type="button" className="btn-ghost exercise-block-move" onClick={(e) => { e.stopPropagation(); onMoveDown(); }} aria-label="Move down">
-              ↓
-            </button>
+          {(onMoveUp || onMoveDown) && (!isFirst || !isLast) && (
+            <div className="exercise-block-reorder" onClick={(e) => e.stopPropagation()}>
+              <GripVerticalIcon size={14} className="exercise-block-grip" />
+              {onMoveUp && !isFirst && (
+                <button type="button" className="exercise-block-move" onClick={onMoveUp} aria-label="Move up">
+                  <ChevronUpIcon size={14} strokeWidth={2.5} />
+                </button>
+              )}
+              {onMoveDown && !isLast && (
+                <button type="button" className="exercise-block-move" onClick={onMoveDown} aria-label="Move down">
+                  <ChevronDownIcon size={14} strokeWidth={2.5} />
+                </button>
+              )}
+            </div>
           )}
           <span className="meta tabular">{we.sets.length} sets</span>
         </div>
@@ -143,7 +168,9 @@ export function ExerciseBlock({
                 <div
                   key={s.id}
                   className={
-                    'set-row' + (s.completed ? ' set-row--done' : '')
+                    'set-row' +
+                    (s.completed ? ' set-row--done' : '') +
+                    (removingSetId === s.id ? ' set-row--removing' : '')
                   }
                 >
                   <span className="set-col-idx meta tabular">{i + 1}</span>
@@ -172,7 +199,7 @@ export function ExerciseBlock({
                     ) : (
                       <button
                         type="button"
-                        className="set-row-value tabular"
+                        className={'set-row-value tabular' + (flashField?.setId === s.id && flashField.field === 'weight' ? ' set-row-value--flash' : '')}
                         onClick={() => startEdit(s, 'weight')}
                       >
                         {s.weight != null ? s.weight : '—'}
@@ -204,7 +231,7 @@ export function ExerciseBlock({
                     ) : (
                       <button
                         type="button"
-                        className="set-row-value tabular"
+                        className={'set-row-value tabular' + (flashField?.setId === s.id && flashField.field === 'reps' ? ' set-row-value--flash' : '')}
                         onClick={() => startEdit(s, 'reps')}
                       >
                         {s.reps != null ? s.reps : '—'}
@@ -221,14 +248,14 @@ export function ExerciseBlock({
                         title="Copy previous set"
                         aria-label="Copy previous set"
                       >
-                        <PlusIcon size={14} strokeWidth={2} />
+                        <CopyIcon size={14} strokeWidth={2} />
                       </button>
                     )}
                     {onDeleteSet && we.sets.length > 1 && (
                       <button
                         type="button"
                         className="set-row-delete"
-                        onClick={() => onDeleteSet(s.id)}
+                        onClick={() => handleDeleteSet(s.id)}
                         title="Delete set"
                         aria-label="Delete set"
                       >

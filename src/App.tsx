@@ -9,6 +9,7 @@ import { History } from './routes/History';
 import { HistoryDetail } from './routes/HistoryDetail';
 import { Progress } from './routes/Progress';
 import { Profile } from './routes/Profile';
+import { Routines } from './routes/Routines';
 
 function App() {
   return (
@@ -29,6 +30,7 @@ function App() {
         <Route path="history/:id" element={<HistoryDetail />} />
         <Route path="progress" element={<Progress />} />
         <Route path="profile" element={<Profile />} />
+        <Route path="profile/routines" element={<Routines />} />
       </Route>
       <Route path="*" element={<Navigate to="/" replace />} />
     </Routes>

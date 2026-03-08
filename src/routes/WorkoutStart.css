@@ -1,14 +1,6 @@
-.workout-start {
-  animation: page-in var(--duration-normal) var(--ease-out);
-}
-
-.workout-start-subtitle {
-  margin-top: var(--space-2);
-  margin-bottom: var(--space-8);
-}
-
 /* Option cards */
 .workout-start-options {
+  margin-top: var(--space-6);
   display: flex;
   flex-direction: column;
   gap: var(--space-3);
@@ -45,7 +37,7 @@
 
 .workout-start-option-title {
   font-size: var(--font-card);
-  font-weight: 600;
+  font-weight: var(--font-weight-semibold);
 }
 
 .workout-start-option-desc {
@@ -74,7 +66,7 @@
   min-height: var(--touch-min);
   padding: var(--space-3) var(--space-5);
   font-size: var(--font-body);
-  font-weight: 500;
+  font-weight: var(--font-weight-medium);
   text-align: left;
   color: var(--color-text);
   border: none;

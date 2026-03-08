@@ -47,6 +47,7 @@ export function WorkoutActive() {
   const reorderExercise = useReorderExercise(activeWorkout?.id);
   const [addExerciseOpen, setAddExerciseOpen] = useState(false);
   const [confirmFinish, setConfirmFinish] = useState(false);
+  const [completing, setCompleting] = useState(false);
   const { toast } = useToast();
 
   const elapsed = useElapsedTime(detail?.workout.started_at);
@@ -113,8 +114,9 @@ export function WorkoutActive() {
     try {
       await finishWorkout.mutateAsync(activeWorkout.id);
       queryClient.invalidateQueries({ queryKey: ['records'] });
+      setCompleting(true);
       toast('Workout saved', 'success');
-      navigate('/');
+      setTimeout(() => navigate('/'), 500);
     } catch {
       toast('Failed to save workout', 'error');
     }
@@ -129,7 +131,7 @@ export function WorkoutActive() {
     detail?.workoutExercises.reduce((sum, we) => sum + we.sets.length, 0) ?? 0;
 
   return (
-    <div className="workout-active">
+    <div className={'workout-active' + (completing ? ' workout-active--completing' : '')}>
       <header className="workout-active-header">
         <h1 className="workout-active-title">
           {detail?.workout.title ?? 'Workout'}
@@ -168,14 +170,14 @@ export function WorkoutActive() {
       <footer className="workout-active-footer">
         <button
           type="button"
-          className="btn-secondary workout-active-footer-btn"
+          className="workout-active-add-btn"
           onClick={() => setAddExerciseOpen(true)}
         >
-          Add exercise
+          + Add exercise
         </button>
         <button
           type="button"
-          className="btn-primary workout-active-footer-btn"
+          className="btn-primary workout-active-finish-btn"
           onClick={() => setConfirmFinish(true)}
           disabled={finishWorkout.isPending}
         >

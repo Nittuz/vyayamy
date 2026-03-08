@@ -1,5 +1,4 @@
 .profile {
-  animation: page-in var(--duration-normal) var(--ease-out);
   padding-bottom: var(--space-10);
 }
 
@@ -19,7 +18,7 @@
   background: var(--color-accent);
   color: var(--color-surface);
   font-size: var(--font-section);
-  font-weight: 700;
+  font-weight: var(--font-weight-bold);
   display: flex;
   align-items: center;
   justify-content: center;
@@ -30,7 +29,7 @@
 .profile-identity {
   display: flex;
   flex-direction: column;
-  gap: 2px;
+  gap: var(--space-half);
   min-width: 0;
 }
 
@@ -47,7 +46,7 @@
 
 .profile-display-name {
   font-size: var(--font-section);
-  font-weight: 600;
+  font-weight: var(--font-weight-semibold);
   letter-spacing: -0.01em;
   color: var(--color-text);
   line-height: 1.3;
@@ -78,7 +77,7 @@
   height: 36px;
   padding: 0 var(--space-3);
   font-size: var(--font-body);
-  font-weight: 600;
+  font-weight: var(--font-weight-semibold);
   color: var(--color-text);
   background: var(--color-surface);
   border: 1px solid var(--color-border-strong);
@@ -114,13 +113,13 @@
   display: flex;
   flex-direction: column;
   align-items: center;
-  gap: 2px;
+  gap: var(--space-half);
   padding: var(--space-4) var(--space-3);
 }
 
 .profile-stat-value {
   font-size: var(--font-title);
-  font-weight: 700;
+  font-weight: var(--font-weight-bold);
   letter-spacing: -0.02em;
   color: var(--color-text);
   font-variant-numeric: tabular-nums;
@@ -129,7 +128,7 @@
 
 .profile-stat-label {
   font-size: var(--font-micro);
-  font-weight: 500;
+  font-weight: var(--font-weight-medium);
   color: var(--color-text-tertiary);
   text-transform: uppercase;
   letter-spacing: 0.04em;
@@ -143,25 +142,8 @@
 
 .profile-card-title {
   font-size: var(--font-card);
-  font-weight: 600;
+  font-weight: var(--font-weight-semibold);
   margin: 0 0 var(--space-1);
-}
-
-.profile-card-desc {
-  margin-top: 2px;
-  margin-bottom: 0;
-}
-
-.profile-card-header {
-  display: flex;
-  align-items: flex-start;
-  justify-content: space-between;
-  margin-bottom: var(--space-3);
-}
-
-.profile-add-routine-toggle {
-  flex-shrink: 0;
-  font-weight: 600;
 }
 
 /* ── Settings ── */
@@ -174,14 +156,14 @@
 
 .profile-setting-label {
   font-size: var(--font-body);
-  font-weight: 500;
+  font-weight: var(--font-weight-medium);
 }
 
 .profile-units-toggle {
   display: flex;
   background: var(--color-bg);
   border-radius: var(--radius-sm);
-  padding: 2px;
+  padding: var(--space-half);
 }
 
 .profile-unit {
@@ -189,7 +171,7 @@
   min-width: 48px;
   padding: 0 var(--space-4);
   font-size: var(--font-meta);
-  font-weight: 600;
+  font-weight: var(--font-weight-semibold);
   color: var(--color-text-secondary);
   background: transparent;
   border: none;
@@ -204,132 +186,32 @@
   box-shadow: var(--shadow-sm);
 }
 
-/* ── Routines ── */
-.profile-routine-new {
+/* ── Routines link ── */
+.profile-routines-link {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  text-decoration: none;
+  color: var(--color-text);
+  transition: box-shadow var(--duration-fast) ease;
+}
+
+.profile-routines-link:hover {
+  box-shadow: var(--shadow-md);
+}
+
+.profile-routines-link .profile-card-title {
+  margin-bottom: var(--space-half);
+}
+
+.profile-routines-link-content {
   display: flex;
   flex-direction: column;
-  gap: var(--space-3);
-  padding: var(--space-4);
-  background: var(--color-bg);
-  border-radius: var(--radius-sm);
-  margin-bottom: var(--space-3);
-  animation: page-in var(--duration-fast) var(--ease-out);
 }
 
-.profile-input {
-  width: 100%;
-  height: var(--touch-min);
-  padding: 0 var(--space-4);
-  font-size: var(--font-body);
-  color: var(--color-text);
-  background: var(--color-surface);
-  border: 1px solid var(--color-border-strong);
-  border-radius: var(--radius-sm);
-}
-
-.profile-input:focus {
-  outline: none;
-  border-color: var(--color-accent);
-}
-
-.profile-routine-list {
-  list-style: none;
-  margin: var(--space-4) 0 0;
-  padding: 0;
-}
-
-.profile-routine-item {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  min-height: var(--touch-min);
-  padding: var(--space-3) 0;
-  border-bottom: 0.5px solid var(--color-border);
-}
-
-.profile-routine-item:last-child {
-  border-bottom: none;
-  padding-bottom: 0;
-}
-
-.profile-routine-info {
-  display: flex;
-  align-items: baseline;
-  gap: var(--space-2);
-  min-width: 0;
-}
-
-.profile-routine-name {
-  font-size: var(--font-body);
-  font-weight: 500;
-}
-
-.profile-routine-badge {
-  font-size: var(--font-micro);
-  font-weight: 500;
-  color: var(--color-text-tertiary);
-  background: var(--color-bg);
-  padding: 2px var(--space-2);
-  border-radius: var(--radius-full);
-  white-space: nowrap;
-}
-
-.profile-routine-actions {
-  display: flex;
-  gap: var(--space-1);
+.profile-routines-chevron {
   flex-shrink: 0;
-}
-
-.profile-routine-edit {
-  display: flex;
-  align-items: center;
-  gap: var(--space-3);
-  width: 100%;
-}
-
-.profile-routine-edit .profile-input {
-  flex: 1;
-}
-
-/* ── Exercise Picker ── */
-.profile-picker-section {
-  margin-bottom: var(--space-4);
-}
-
-.profile-picker-label {
-  margin-bottom: var(--space-2);
-}
-
-.profile-picker-list {
-  list-style: none;
-  padding: 0;
-  margin: 0;
-}
-
-.profile-picker-item {
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-  padding: var(--space-2) 0;
-  border-bottom: 0.5px solid var(--color-border);
-}
-
-.profile-picker-add-btn {
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-  width: 100%;
-  padding: var(--space-2) 0;
-  background: none;
-  border: none;
-  border-bottom: 0.5px solid var(--color-border);
-  cursor: pointer;
-  text-align: left;
-  transition: color var(--duration-fast) ease;
-}
-
-.profile-picker-add-btn:hover {
-  color: var(--color-accent-muted);
+  color: var(--color-text-tertiary);
 }
 
 /* ── Sign out ── */
@@ -342,4 +224,14 @@
 
 .profile-signout-btn {
   font-size: var(--font-body);
+}
+
+@media (max-width: 359px) {
+  .profile-stat-card {
+    padding: var(--space-3) var(--space-2);
+  }
+
+  .profile-stat-value {
+    font-size: var(--font-section);
+  }
 }

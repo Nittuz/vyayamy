@@ -38,7 +38,6 @@ export function WorkoutStart() {
   return (
     <div className="workout-start">
       <h1 className="page-title">Start workout</h1>
-      <p className="workout-start-subtitle meta">Choose how to begin.</p>
 
       <div className="workout-start-options">
         <button

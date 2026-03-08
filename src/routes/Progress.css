@@ -1,5 +1,4 @@
 .progress {
-  animation: page-in var(--duration-normal) var(--ease-out);
   padding-bottom: var(--space-10);
 }
 
@@ -10,7 +9,7 @@
 
 .pg-section-title {
   font-size: var(--font-section);
-  font-weight: 600;
+  font-weight: var(--font-weight-semibold);
   letter-spacing: -0.01em;
   margin: 0 0 var(--space-3);
 }
@@ -39,12 +38,12 @@
 
 .pg-pr-exercise {
   font-size: var(--font-body);
-  font-weight: 600;
+  font-weight: var(--font-weight-semibold);
 }
 
 .pg-pr-muscle {
   font-size: var(--font-micro);
-  font-weight: 500;
+  font-weight: var(--font-weight-medium);
   color: var(--color-text-tertiary);
 }
 
@@ -74,13 +73,13 @@
 
 .pg-pr-type-label {
   font-size: var(--font-meta);
-  font-weight: 500;
+  font-weight: var(--font-weight-medium);
   color: var(--color-text-secondary);
 }
 
 .pg-pr-badge {
   font-size: 9px;
-  font-weight: 700;
+  font-weight: var(--font-weight-bold);
   color: var(--color-pr);
   background: var(--color-pr-soft);
   padding: 1px 5px;
@@ -91,7 +90,7 @@
 
 .pg-pr-value {
   font-size: var(--font-body);
-  font-weight: 700;
+  font-weight: var(--font-weight-bold);
   color: var(--color-text);
 }
 

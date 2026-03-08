@@ -101,7 +101,7 @@
 
 .esm-section-title {
   font-size: var(--font-micro);
-  font-weight: 600;
+  font-weight: var(--font-weight-semibold);
   text-transform: uppercase;
   letter-spacing: 0.06em;
   color: var(--color-text-tertiary);
@@ -150,7 +150,7 @@
 
 .esm-item-name {
   font-size: var(--font-body);
-  font-weight: 500;
+  font-weight: var(--font-weight-medium);
 }
 
 .esm-item-muscle {

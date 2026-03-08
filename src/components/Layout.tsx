@@ -1,4 +1,5 @@
-import { Outlet, NavLink } from 'react-router-dom';
+import { useEffect } from 'react';
+import { Outlet, NavLink, useLocation } from 'react-router-dom';
 import { SunIcon, BookIcon, ActivityIcon, UserIcon } from './Icons';
 import './Layout.css';
 
@@ -9,11 +10,23 @@ const navItems = [
   { to: '/profile', label: 'Profile', icon: <UserIcon /> },
 ] as const;
 
+function ScrollToTop() {
+  const { pathname } = useLocation();
+  useEffect(() => {
+    window.scrollTo(0, 0);
+  }, [pathname]);
+  return null;
+}
+
 export function Layout() {
+  const location = useLocation();
   return (
     <div className="layout">
+      <ScrollToTop />
       <main className="layout-main">
-        <Outlet />
+        <div key={location.pathname} className="page-transition">
+          <Outlet />
+        </div>
       </main>
       <nav className="layout-nav" aria-label="Primary">
         {navItems.map(({ to, label, icon }) => (

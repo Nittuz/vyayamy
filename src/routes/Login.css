@@ -20,7 +20,7 @@
 
 .login-title {
   font-size: var(--font-display);
-  font-weight: 700;
+  font-weight: var(--font-weight-bold);
   letter-spacing: -0.03em;
   margin: 0;
 }
@@ -39,7 +39,7 @@
 
 .login-label {
   font-size: var(--font-meta);
-  font-weight: 500;
+  font-weight: var(--font-weight-medium);
   color: var(--color-text-secondary);
 }
 
@@ -85,6 +85,6 @@
 
 .login-sent-text {
   font-size: var(--font-body);
-  font-weight: 500;
+  font-weight: var(--font-weight-medium);
   margin: 0 0 var(--space-2);
 }
