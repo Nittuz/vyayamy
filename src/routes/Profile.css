@@ -131,12 +131,12 @@
   font-weight: var(--font-weight-medium);
   color: var(--color-text-tertiary);
   text-transform: uppercase;
-  letter-spacing: 0.04em;
+  letter-spacing: 0.06em;
 }
 
 /* ── Card sections ── */
 .profile-card {
-  margin-top: var(--space-5);
+  margin-top: var(--space-6);
   padding: var(--space-5);
 }
 

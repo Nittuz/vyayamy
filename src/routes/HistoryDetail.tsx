@@ -230,7 +230,7 @@ export function HistoryDetail() {
       <ConfirmDialog
         open={confirmDelete}
         title="Delete workout"
-        message="This will permanently delete this workout and all its data. This cannot be undone."
+        message={`This will permanently delete "${workout.title}" and all its data. This cannot be undone.`}
         confirmLabel="Delete"
         destructive
         onConfirm={handleDelete}

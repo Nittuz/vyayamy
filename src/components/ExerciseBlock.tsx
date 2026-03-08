@@ -16,6 +16,7 @@ type ExerciseBlockProps = {
   onMoveDown?: () => void;
   isFirst?: boolean;
   isLast?: boolean;
+  hiddenSetIds?: ReadonlySet<string>;
 };
 
 export function ExerciseBlock({
@@ -27,6 +28,7 @@ export function ExerciseBlock({
   onMoveDown,
   isFirst,
   isLast,
+  hiddenSetIds,
 }: ExerciseBlockProps) {
   const [expanded, setExpanded] = useState(true);
   const [editingField, setEditingField] = useState<{
@@ -105,10 +107,14 @@ export function ExerciseBlock({
 
   const handleCopyPrevious = (index: number) => {
     if (index === 0) return;
-    const prev = we.sets[index - 1];
-    const current = we.sets[index];
+    const prev = visibleSets[index - 1];
+    const current = visibleSets[index];
     onUpdateSet(current.id, { weight: prev.weight, reps: prev.reps });
   };
+
+  const visibleSets = hiddenSetIds
+    ? we.sets.filter((s) => !hiddenSetIds.has(s.id))
+    : we.sets;
 
   return (
     <div className="card exercise-block">
@@ -142,7 +148,7 @@ export function ExerciseBlock({
               )}
             </div>
           )}
-          <span className="meta tabular">{we.sets.length} sets</span>
+          <span className="meta tabular">{visibleSets.length} sets</span>
         </div>
       </button>
 
@@ -156,13 +162,13 @@ export function ExerciseBlock({
           </div>
 
           <div className="exercise-block-sets">
-            {we.sets.map((s, i) => {
+            {visibleSets.map((s, i) => {
               const isEditing = editingField?.setId === s.id;
               const canCopy =
                 i > 0 &&
                 s.weight == null &&
                 s.reps == null &&
-                (we.sets[i - 1].weight != null || we.sets[i - 1].reps != null);
+                (visibleSets[i - 1].weight != null || visibleSets[i - 1].reps != null);
 
               return (
                 <div
@@ -251,7 +257,7 @@ export function ExerciseBlock({
                         <CopyIcon size={14} strokeWidth={2} />
                       </button>
                     )}
-                    {onDeleteSet && we.sets.length > 1 && (
+                    {onDeleteSet && visibleSets.length > 1 && (
                       <button
                         type="button"
                         className="set-row-delete"
@@ -290,7 +296,7 @@ export function ExerciseBlock({
           <button
             type="button"
             className="exercise-block-add-set"
-            onClick={() => onAddSet(we.id, we.sets.length)}
+            onClick={() => onAddSet(we.id, visibleSets.length)}
           >
             + Add set
           </button>

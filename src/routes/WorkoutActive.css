@@ -80,6 +80,57 @@
   100% { opacity: 0; transform: scale(0.97); }
 }
 
+/* Workout summary */
+.workout-summary {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: var(--space-6);
+  padding: var(--space-4) 0;
+}
+
+.workout-summary-icon {
+  color: var(--color-pr);
+}
+
+.workout-summary-icon svg {
+  width: 48px;
+  height: 48px;
+}
+
+.workout-summary-stats {
+  display: flex;
+  justify-content: center;
+  gap: var(--space-6);
+  width: 100%;
+}
+
+.workout-summary-stat {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 1px;
+}
+
+.workout-summary-stat-value {
+  font-size: var(--font-section);
+  font-weight: var(--font-weight-bold);
+  color: var(--color-text);
+  line-height: 1.2;
+}
+
+.workout-summary-stat-value--pr {
+  color: var(--color-pr);
+}
+
+.workout-summary-stat-label {
+  font-size: var(--font-micro);
+  font-weight: var(--font-weight-medium);
+  color: var(--color-text-tertiary);
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+}
+
 @media (max-width: 359px) {
   .workout-active-footer {
     flex-direction: column;

@@ -14,7 +14,7 @@
 /* ── Summary card ── */
 .hd-summary {
   padding: var(--space-5);
-  margin-bottom: var(--space-5);
+  margin-bottom: var(--space-6);
 }
 
 .hd-title {
@@ -58,7 +58,7 @@
   font-weight: var(--font-weight-medium);
   color: var(--color-text-tertiary);
   text-transform: uppercase;
-  letter-spacing: 0.03em;
+  letter-spacing: 0.06em;
 }
 
 .hd-stat-divider {

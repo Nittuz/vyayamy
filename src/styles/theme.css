@@ -33,10 +33,6 @@
   --space-10: 40px;
   --space-12: 48px;
 
-  /* Legacy aliases */
-  --space-micro: var(--space-2);
-  --space-component: var(--space-4);
-  --space-section: var(--space-6);
   --padding-page: var(--space-5);
 
   /* Radius */
@@ -281,6 +277,7 @@ body {
 /* Card base */
 .card {
   background: var(--color-surface);
+  border: 0.5px solid var(--color-border);
   border-radius: var(--radius-card);
   box-shadow: var(--shadow-sm);
 }

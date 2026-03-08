@@ -28,7 +28,8 @@ export async function detectAndInsertPRs(
   userId: string,
   workoutId: string,
   workoutExercises: WorkoutExerciseRow[]
-): Promise<void> {
+): Promise<number> {
+  let prCount = 0;
   for (const we of workoutExercises) {
     const completedSets = we.sets.filter((s) => s.completed && (s.weight != null || s.reps != null));
     if (completedSets.length === 0) continue;
@@ -60,12 +61,14 @@ export async function detectAndInsertPRs(
       const prev = existingByType.get('heaviest_weight') as number | undefined;
       if (prev == null || bestWeight > prev) {
         await upsertPR(userId, we.exercise_id, 'heaviest_weight', bestWeight, achievedAt, workoutId);
+        prCount++;
       }
     }
     if (bestVolume > 0) {
       const prev = existingByType.get('best_volume') as number | undefined;
       if (prev == null || bestVolume > prev) {
         await upsertPR(userId, we.exercise_id, 'best_volume', bestVolume, achievedAt, workoutId);
+        prCount++;
       }
     }
     if (bestRepsAtWeight != null) {
@@ -76,7 +79,9 @@ export async function detectAndInsertPRs(
         (bestRepsAtWeight.reps === prev.reps && bestRepsAtWeight.weight > prev.weight);
       if (isBetter) {
         await upsertPR(userId, we.exercise_id, 'most_reps_at_weight', bestRepsAtWeight, achievedAt, workoutId);
+        prCount++;
       }
     }
   }
+  return prCount;
 }
