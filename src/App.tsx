@@ -11,7 +11,7 @@ import { Profile } from './routes/Profile';
 import { TrainingPlan } from './routes/TrainingPlan';
 import { PlanSetup } from './routes/PlanSetup';
 
-function App() {
+export function App() {
   return (
     <Routes>
       <Route path="/login" element={<Login />} />
@@ -36,5 +36,3 @@ function App() {
     </Routes>
   );
 }
-
-export default App;

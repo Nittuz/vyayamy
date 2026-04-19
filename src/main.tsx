@@ -5,7 +5,7 @@ import { BrowserRouter } from 'react-router-dom';
 import { AuthProvider } from './contexts/AuthContext';
 import { ErrorBoundary } from './components/ErrorBoundary';
 import { ToastProvider } from './components/Toast';
-import App from './App';
+import { App } from './App';
 import './index.css';
 
 const queryClient = new QueryClient({

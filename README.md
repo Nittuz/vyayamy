@@ -97,8 +97,12 @@ vyayamy/
 │   │   ├── 00001_initial_schema.sql
 │   │   ├── 00002_constraints_and_improvements.sql
 │   │   └── 00003_training_plans.sql
+│   ├── templates/              # Auth email templates (local Supabase only)
+│   │   ├── confirmation.html
+│   │   └── magic_link.html
 │   └── seed.sql                # Default exercise library
 ├── .env.example                # Required env vars template
+├── ARCHITECTURE.md             # Design + solution architecture
 ├── vite.config.ts              # Vite + PWA config
 └── package.json
 ```
@@ -116,6 +120,7 @@ vyayamy/
 | `/profile`          | Profile        | Settings, routines, plan link      |
 | `/profile/plan`     | TrainingPlan   | View/edit active training plan     |
 | `/profile/plan/setup` | PlanSetup    | Create or edit plan (wizard)        |
+| `*`                 | Redirect       | Catch-all → redirects to `/`       |
 
 ## Getting Started
 
@@ -185,6 +190,20 @@ npx supabase start
 ```
 
 This uses the settings in `supabase/config.toml` (API on port 54321, DB on 54322, Studio on 54323). Update your `.env` to point to the local instance.
+
+Local Supabase captures auth emails in [Inbucket](http://localhost:54324) instead of sending real emails. Custom email templates for magic-link and confirmation flows live in `supabase/templates/` and are referenced from `supabase/config.toml`. These templates only apply locally — cloud Supabase email templates must be configured separately in the Supabase dashboard.
+
+## Testing
+
+Tests run via Vitest with `environment: 'node'`. The existing test suite covers pure-function unit tests only (`src/lib/__tests__/format.test.ts`, `src/lib/__tests__/pr-detection.test.ts`). Component or integration tests would require adding `jsdom` or `happy-dom` as a Vitest environment.
+
+## PWA
+
+The app is configured as an installable PWA via `vite-plugin-pwa`. The `public/` directory does not currently include app icons beyond the default `vite.svg`. Browsers may require properly sized icons in the web manifest before showing an install prompt — add `icons` entries to the PWA manifest in `vite.config.ts` and matching files to `public/` if installability is needed.
+
+## CI/CD & Deployment
+
+There is currently no CI pipeline or deployment configuration in this repository. The app builds to static assets (`npm run build` → `dist/`) and can be deployed to any static hosting provider (Vercel, Netlify, Cloudflare Pages, etc.). No server-side runtime is required.
 
 ## Architecture
 

@@ -102,15 +102,16 @@ All authenticated routes are nested under a `ProtectedRoute` + `Layout` wrapper.
 
 | Path               | Component          | Description                       |
 | ------------------ | ------------------ | --------------------------------- |
-| `/login`           | `Login`            | Magic-link email sign-in          |
-| `/`                | `Today`            | Dashboard — active/recent workouts |
-| `/workout`         | `WorkoutStart`     | Choose how to start a workout     |
-| `/workout/active`  | `WorkoutActive`    | Live session — exercises + sets   |
-| `/history`         | `History`          | Past workouts by date             |
-| `/history/:id`     | `HistoryDetail`    | Single workout detail view        |
-| `/progress`        | `Progress`         | PRs, trend charts, frequency      |
-| `/profile`         | `Profile`          | Settings, routines, sign out      |
-| `*`                | Redirect → `/`     | Catch-all                         |
+| `/login`             | `Login`            | Magic-link email sign-in          |
+| `/`                  | `Today`            | Dashboard — active/recent workouts |
+| `/workout/active`    | `WorkoutActive`    | Live session — exercises + sets   |
+| `/history`           | `History`          | Past workouts by date             |
+| `/history/:id`       | `HistoryDetail`    | Single workout detail view        |
+| `/progress`          | `Progress`         | PRs, trend charts, frequency      |
+| `/profile`           | `Profile`          | Settings, routines, sign out      |
+| `/profile/plan`      | `TrainingPlan`     | View/edit active training plan    |
+| `/profile/plan/setup`| `PlanSetup`        | Create or edit plan (wizard)      |
+| `*`                  | Redirect → `/`     | Catch-all                         |
 
 ### Component Hierarchy
 
@@ -120,10 +121,6 @@ Layout
 ├── Today
 │   ├── ActiveWorkoutCard → links to /workout/active
 │   └── RecentWorkoutsList
-├── WorkoutStart
-│   ├── Empty workout
-│   ├── Repeat last workout
-│   └── From routine (template)
 ├── WorkoutActive
 │   ├── ExerciseBlock (per exercise)
 │   │   ├── SetsTable (weight, reps, complete toggle)
@@ -145,11 +142,16 @@ Layout
 │   ├── PersonalRecordsList
 │   ├── ExerciseTrendChart (Recharts)
 │   └── WeeklyFrequencyChart
-└── Profile
-    ├── DisplayName / Units
-    ├── RoutinesList
-    │   └── Sheet (exercise list per routine)
-    └── SignOutButton
+├── Profile
+│   ├── DisplayName / Units
+│   ├── RoutinesList
+│   │   └── Sheet (exercise list per routine)
+│   └── SignOutButton
+├── TrainingPlan
+│   ├── WeekStrip (day selector)
+│   └── Slot list (template per day/cycle position)
+└── PlanSetup
+    └── Plan creation/edit wizard
 ```
 
 ---
@@ -169,6 +171,7 @@ All server-state management uses TanStack React Query. Data access is organized 
 | `records.ts`    | `usePersonalRecords`, `useExerciseHistory`, `useWeeklyFrequency` |
 | `profile.ts`    | `useProfile`, `useUpdateProfile`                                 |
 | `templates.ts`  | `useTemplates`, `useCreateTemplate`, `useUpdateTemplate`, `useDeleteTemplate` |
+| `plans.ts`      | `useActivePlan`, `useCreatePlan`, `useUpdatePlan`, `useDeletePlan`, `useUpsertSlot` |
 
 Each module exports custom hooks that encapsulate:
 - Supabase query construction
@@ -264,6 +267,19 @@ Postgres + RLS policies         ← Supabase platform
                        │ set_id           │
                        │ created_at       │
                        └──────────────────┘
+
+┌───────────────────┐       ┌──────────────────────┐
+│  training_plans   │       │ training_plan_slots   │
+│───────────────────│       │──────────────────────│
+│ id (PK)           │◄──────│ plan_id (FK)         │
+│ user_id (FK)      │       │ id (PK)              │
+│ name              │       │ template_id (FK?)    │───►templates
+│ plan_type         │       │ day_of_week          │
+│ is_active         │       │ cycle_position       │
+│ cycle_cursor      │       │ is_rest_day          │
+│ created_at        │       │ label                │
+│ updated_at        │       │ created_at           │
+└───────────────────┘       └──────────────────────┘
 ```
 
 ### Table Descriptions
@@ -277,6 +293,8 @@ Postgres + RLS policies         ← Supabase platform
 | `workout_exercises`  | Junction table linking workouts to exercises with ordering      |
 | `sets`               | Individual sets within a workout-exercise pairing              |
 | `personal_records`   | Best-ever lifts per exercise, per record type (JSONB value)    |
+| `training_plans`     | Weekly or cycle-based training schedule owned by a user        |
+| `training_plan_slots`| Maps each day (or cycle position) in a plan to a template     |
 
 ### Indexes
 
@@ -287,6 +305,9 @@ Postgres + RLS policies         ← Supabase platform
 - `idx_personal_records_user_exercise` — PR lookups by user and exercise
 - `idx_personal_records_unique` — unique constraint enabling upsert on `(user_id, exercise_id, type)`
 - `idx_exercises_user` / `idx_templates_user` — user-scoped lookups
+- `idx_training_plans_user` / `idx_training_plans_active` — user-scoped plan lookups (active plans use a partial index)
+- `idx_training_plan_slots_plan` — slots retrieval by plan
+- `idx_plan_slots_weekly_unique` / `idx_plan_slots_cycle_unique` — unique constraints for one slot per weekday or cycle position per plan
 
 ### Triggers
 
@@ -295,6 +316,7 @@ Postgres + RLS policies         ← Supabase platform
 | `on_auth_user_created`  | `auth.users` INSERT      | Creates a `profiles` row with default `kg`  |
 | `profiles_updated_at`   | `profiles` UPDATE        | Sets `updated_at = now()`                   |
 | `templates_updated_at`  | `templates` UPDATE       | Sets `updated_at = now()`                   |
+| `training_plans_updated_at` | `training_plans` UPDATE | Sets `updated_at = now()`              |
 
 ---
 
@@ -385,6 +407,8 @@ Every table has RLS enabled. Policies enforce that users can only access their o
 | `sets`               | ALL via subquery — joins through `workout_exercises` → `workouts`     |
 | `personal_records`   | ALL operations scoped to `user_id = auth.uid()`                       |
 | `templates`          | ALL operations scoped to `user_id = auth.uid()`                       |
+| `training_plans`     | ALL operations scoped to `user_id = auth.uid()`                       |
+| `training_plan_slots`| ALL via subquery — plan must belong to user                           |
 
 ### Auth Token Handling
 

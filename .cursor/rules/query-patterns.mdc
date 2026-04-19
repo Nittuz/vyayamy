@@ -19,6 +19,7 @@ One query module per domain under `src/lib/queries/`:
 | `records.ts`    | PRs, exercise history, frequency|
 | `profile.ts`    | User profile read/update        |
 | `templates.ts`  | Routine template CRUD           |
+| `plans.ts`      | Training plans + slots           |
 
 Add new domains as separate files. Do not merge unrelated queries into one file.
 
