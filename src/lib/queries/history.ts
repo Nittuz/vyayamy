@@ -6,7 +6,7 @@ const HISTORY_KEY = ['history'] as const;
 
 type HistoryFilters = {
   period?: 'all' | 'month' | '3months' | 'year';
-  routineId?: string | null;
+  templateId?: string | null;
   exerciseId?: string | null;
 };
 
@@ -35,7 +35,7 @@ type NestedRow = Workout & {
 
 export function useHistoryWorkouts(userId: string | undefined, filters: HistoryFilters = {}) {
   return useQuery({
-    queryKey: [...HISTORY_KEY, userId ?? '', filters.period ?? 'all', filters.routineId ?? '', filters.exerciseId ?? ''],
+    queryKey: [...HISTORY_KEY, userId ?? '', filters.period ?? 'all', filters.templateId ?? '', filters.exerciseId ?? ''],
     queryFn: async (): Promise<HistoryWorkout[]> => {
       if (!userId) return [];
       let workoutIds: string[] | null = null;
@@ -56,7 +56,7 @@ export function useHistoryWorkouts(userId: string | undefined, filters: HistoryF
         const { from } = periodToRange(filters.period);
         builder = builder.gte('started_at', from);
       }
-      if (filters.routineId) builder = builder.eq('template_id', filters.routineId);
+      if (filters.templateId) builder = builder.eq('template_id', filters.templateId);
       if (workoutIds) builder = builder.in('id', workoutIds);
       const { data, error } = await builder
         .order('started_at', { ascending: false })

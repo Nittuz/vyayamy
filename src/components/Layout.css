@@ -31,7 +31,7 @@
   backdrop-filter: saturate(180%) blur(20px);
   -webkit-backdrop-filter: saturate(180%) blur(20px);
   border-top: 0.5px solid var(--color-border);
-  z-index: 100;
+  z-index: var(--z-nav);
 }
 
 .layout-nav-link {

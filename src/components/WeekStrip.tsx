@@ -30,6 +30,7 @@ function dateKey(d: Date): string {
   return `${d.getFullYear()}-${d.getMonth()}-${d.getDate()}`;
 }
 
+// TODO Phase 3: support cycle plan day states (requires mapping cycle cursor to calendar days)
 function computeDayState(
   day: Date,
   dayIndex: number,

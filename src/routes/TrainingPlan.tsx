@@ -10,9 +10,10 @@ import {
   getTodaySlot,
   getUpcomingSlots,
   isSlotCompletedOnDate,
+  getMissedWeeklySlots,
   dayOfWeekName,
 } from '../lib/queries/plans';
-import type { PlanWithSlots } from '../lib/queries/plans';
+import type { PlanWithSlots, MissedSlotInfo } from '../lib/queries/plans';
 import {
   useTemplates,
   useCreateTemplate,
@@ -25,11 +26,12 @@ import {
   useRecentExerciseIds,
 } from '../lib/queries/exercises';
 import { useCreateWorkout } from '../lib/queries/workouts';
-import { BackLink } from '../components/BackLink';
 import { Sheet } from '../components/Sheet';
 import { ConfirmDialog } from '../components/ConfirmDialog';
-import { EmptyState, CalendarIllustration } from '../components/EmptyState';
+import { EmptyState, CalendarIllustration, DumbbellIllustration } from '../components/EmptyState';
 import { PlayIcon, CheckIcon, ChevronRightIcon } from '../components/Icons';
+import { STARTER_PRESETS, resolveExerciseIds } from '../lib/starterTemplates';
+import { track } from '../lib/analytics';
 import type { Exercise, Workout, TrainingPlanSlot, Template } from '../types/database';
 import './TrainingPlan.css';
 
@@ -58,14 +60,14 @@ export function TrainingPlan() {
   const [deleteTemplateId, setDeleteTemplateId] = useState<string | null>(null);
 
   const editingTemplate = templates?.find((t) => t.id === exercisePickerForId);
-  const routineExerciseIds = editingTemplate?.exercise_order ?? [];
-  const routineExercises = useExercisesByIds(routineExerciseIds);
+  const templateExerciseIds = editingTemplate?.exercise_order ?? [];
+  const templateExercises = useExercisesByIds(templateExerciseIds);
   const recentIds = useRecentExerciseIds(user?.id, 10);
   const recentExercises = useExercisesByIds(recentIds.data ?? []);
   const globalExercises = useGlobalExercises(20);
 
   const availableExercises: Exercise[] = [];
-  const seen = new Set(routineExerciseIds);
+  const seen = new Set(templateExerciseIds);
   for (const e of [...(recentExercises.data ?? []), ...(globalExercises.data ?? [])]) {
     if (!seen.has(e.id)) {
       seen.add(e.id);
@@ -78,6 +80,7 @@ export function TrainingPlan() {
   const todayCompleted = todaySlot && weekWorkouts
     ? isSlotCompletedOnDate(todaySlot, weekWorkouts, new Date())
     : false;
+  const missedSlots = plan && weekWorkouts ? getMissedWeeklySlots(plan, weekWorkouts) : [];
 
   const templateMap = new Map<string, Template>();
   templates?.forEach((t) => templateMap.set(t.id, t));
@@ -94,9 +97,9 @@ export function TrainingPlan() {
     return templateMap.get(slot.template_id)?.exercise_order.length ?? 0;
   }
 
-  async function handleStartTodayWorkout() {
-    if (!todaySlot?.template_id) return;
-    const template = templateMap.get(todaySlot.template_id);
+  async function handleStartSlotWorkout(slot: TrainingPlanSlot) {
+    if (!slot.template_id) return;
+    const template = templateMap.get(slot.template_id);
     if (!template) return;
     await createWorkout.mutateAsync({
       title: template.name,
@@ -104,6 +107,11 @@ export function TrainingPlan() {
       exerciseIds: template.exercise_order,
     });
     navigate('/workout/active');
+  }
+
+  async function handleStartTodayWorkout() {
+    if (!todaySlot) return;
+    await handleStartSlotWorkout(todaySlot);
   }
 
   async function handleSkipRestDay() {
@@ -125,8 +133,25 @@ export function TrainingPlan() {
     const name = newTemplateName.trim();
     if (!name) return;
     await createTemplate.mutateAsync({ name, exercise_order: [] });
+    track({ name: 'template_created' });
     setNewTemplateName('');
     setShowNewTemplate(false);
+  }
+
+  async function handleUsePreset(presetId: string) {
+    const preset = STARTER_PRESETS.find((p) => p.id === presetId);
+    if (!preset) return;
+    const globals = globalExercises.data ?? [];
+    try {
+      for (const tpl of preset.templates) {
+        const ids = resolveExerciseIds(tpl.exerciseNames, globals);
+        await createTemplate.mutateAsync({ name: tpl.name, exercise_order: ids });
+      }
+      track({ name: 'starter_template_used', properties: { preset_id: presetId } });
+      toast(`${preset.label} templates created`, 'success');
+    } catch {
+      toast('Failed to create templates. Please try again.', 'error');
+    }
   }
 
   async function handleSaveTemplateEdit() {
@@ -149,7 +174,7 @@ export function TrainingPlan() {
     if (!exercisePickerForId || !editingTemplate) return;
     updateTemplate.mutate({
       id: exercisePickerForId,
-      exercise_order: [...routineExerciseIds, exerciseId],
+      exercise_order: [...templateExerciseIds, exerciseId],
     });
   }
 
@@ -157,15 +182,14 @@ export function TrainingPlan() {
     if (!exercisePickerForId || !editingTemplate) return;
     updateTemplate.mutate({
       id: exercisePickerForId,
-      exercise_order: routineExerciseIds.filter((id) => id !== exerciseId),
+      exercise_order: templateExerciseIds.filter((id) => id !== exerciseId),
     });
   }
 
   if (planLoading) {
     return (
       <div className="tp">
-        <BackLink to="/profile" label="Profile" />
-        <div className="tp-loading">
+        <div className="tp-loading" aria-hidden="true">
           <div className="tp-loading-shimmer" />
           <div className="tp-loading-shimmer tp-loading-shimmer--short" />
         </div>
@@ -175,8 +199,6 @@ export function TrainingPlan() {
 
   return (
     <div className="tp">
-      <BackLink to="/profile" label="Profile" />
-
       <header className="tp-header">
         <h1 className="page-title">Training Plan</h1>
         {plan && (
@@ -189,8 +211,9 @@ export function TrainingPlan() {
         <EmptyState
           icon={<CalendarIllustration />}
           message="Create a training plan to schedule your workouts."
+          secondaryMessage="Plans help you stay consistent. You can also train without one."
           actionLabel="Create plan"
-          actionTo="/profile/plan/setup"
+          actionTo="/plan/setup"
         />
       )}
 
@@ -269,6 +292,9 @@ export function TrainingPlan() {
           plan={plan}
           weekWorkouts={weekWorkouts ?? []}
           templateMap={templateMap}
+          missedSlots={missedSlots}
+          onStartMissed={handleStartSlotWorkout}
+          isStarting={createWorkout.isPending}
         />
       )}
 
@@ -309,7 +335,7 @@ export function TrainingPlan() {
       {/* Plan actions */}
       {plan && (
         <section className="tp-section tp-plan-actions">
-          <Link to="/profile/plan/setup" className="btn-secondary tp-edit-btn">
+          <Link to="/plan/setup" className="btn-secondary tp-edit-btn">
             Edit plan
           </Link>
           <button
@@ -429,11 +455,42 @@ export function TrainingPlan() {
         )}
 
         {templates != null && templates.length === 0 && !showNewTemplate && (
-          <div className="card card--empty tp-templates-empty">
-            <p className="meta">No templates yet. Create one to get started.</p>
-          </div>
+          <EmptyState
+            icon={<DumbbellIllustration />}
+            message="Templates are reusable workout structures."
+            secondaryMessage="Create one to build your training plan, or use a quick-start preset below."
+            actionLabel="Create template"
+            onAction={() => setShowNewTemplate(true)}
+          />
         )}
       </section>
+
+      {/* Quick-start presets (shown when no templates exist) */}
+      {templates != null && templates.length === 0 && (
+        <section className="tp-section">
+          <h2 className="section-title">Quick start</h2>
+          <p className="meta tp-section-desc">
+            Common training structures to get you started. You can customize them later.
+          </p>
+          <div className="tp-presets">
+            {STARTER_PRESETS.map((preset) => (
+              <button
+                key={preset.id}
+                type="button"
+                className="card tp-preset-card"
+                onClick={() => handleUsePreset(preset.id)}
+                disabled={createTemplate.isPending}
+              >
+                <span className="tp-preset-label">{preset.label}</span>
+                <span className="meta">{preset.description}</span>
+              </button>
+            ))}
+          </div>
+          <p className="meta tp-preset-hint">
+            Switching from another app? Start with a preset and adjust exercises to match your routine.
+          </p>
+        </section>
+      )}
 
       {/* Exercise picker sheet */}
       <Sheet
@@ -441,11 +498,11 @@ export function TrainingPlan() {
         onClose={() => setExercisePickerForId(null)}
         title={editingTemplate ? `${editingTemplate.name} — Exercises` : 'Exercises'}
       >
-        {routineExercises.data && routineExercises.data.length > 0 && (
+        {templateExercises.data && templateExercises.data.length > 0 && (
           <div className="tp-picker-section">
             <p className="meta tp-picker-label">Current exercises</p>
             <ul className="tp-picker-list">
-              {routineExercises.data.map((e) => (
+              {templateExercises.data.map((e) => (
                 <li key={e.id} className="tp-picker-item">
                   <span className="card-title">{e.name}</span>
                   <button
@@ -507,10 +564,16 @@ function WeeklyScheduleView({
   plan,
   weekWorkouts,
   templateMap,
+  missedSlots,
+  onStartMissed,
+  isStarting,
 }: {
   plan: PlanWithSlots;
   weekWorkouts: Workout[];
   templateMap: Map<string, Template>;
+  missedSlots: MissedSlotInfo[];
+  onStartMissed: (slot: TrainingPlanSlot) => void;
+  isStarting: boolean;
 }) {
   const now = new Date();
   const todayDow = (now.getDay() + 6) % 7;
@@ -559,6 +622,36 @@ function WeeklyScheduleView({
           );
         })}
       </div>
+      {missedSlots.length > 0 && (
+        <div className="tp-missed-section">
+          <span className="tp-missed-label">Missed</span>
+          <ul className="tp-missed-list">
+            {missedSlots.map(({ slot, dayOfWeek }) => {
+              const name = slot.template_id
+                ? (templateMap.get(slot.template_id)?.name ?? 'Workout')
+                : 'Workout';
+              return (
+                <li key={slot.id} className="tp-missed-item">
+                  <div className="tp-missed-info">
+                    <span className="tp-missed-day">{dayOfWeekName(dayOfWeek, true)}</span>
+                    <span className="tp-missed-name">{name}</span>
+                  </div>
+                  {slot.template_id && (
+                    <button
+                      type="button"
+                      className="btn-ghost tp-missed-action"
+                      onClick={() => onStartMissed(slot)}
+                      disabled={isStarting}
+                    >
+                      Do now
+                    </button>
+                  )}
+                </li>
+              );
+            })}
+          </ul>
+        </div>
+      )}
     </section>
   );
 }

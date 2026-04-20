@@ -1,3 +1,4 @@
+import { useCallback, useId } from 'react';
 import { Sheet } from './Sheet';
 import './ConfirmDialog.css';
 
@@ -22,13 +23,29 @@ export function ConfirmDialog({
   onConfirm,
   onCancel,
 }: ConfirmDialogProps) {
+  const descId = useId();
+
+  const cancelRef = useCallback(
+    (node: HTMLButtonElement | null) => {
+      if (node && destructive) {
+        requestAnimationFrame(() => node.focus());
+      }
+    },
+    [destructive],
+  );
+
   return (
-    <Sheet open={open} onClose={onCancel} title={title}>
-      <p className="meta confirm-dialog-message">
+    <Sheet open={open} onClose={onCancel} title={title} role="alertdialog" aria-describedby={descId}>
+      <p id={descId} className="meta confirm-dialog-message">
         {message}
       </p>
       <div className="confirm-dialog-actions">
-        <button type="button" className="btn-secondary" onClick={onCancel}>
+        <button
+          ref={cancelRef}
+          type="button"
+          className="btn-secondary"
+          onClick={onCancel}
+        >
           {cancelLabel}
         </button>
         <button

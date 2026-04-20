@@ -2,23 +2,16 @@ import { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useAuth } from '../lib/useAuth';
 import { useToast } from '../lib/useToast';
+import { track } from '../lib/analytics';
 import { useActivePlan, useCreatePlan, useUpdatePlan, dayOfWeekName } from '../lib/queries/plans';
-import { useTemplates } from '../lib/queries/templates';
+import { useTemplates, useCreateTemplate } from '../lib/queries/templates';
+import type { SlotDraft } from '../lib/domain';
 import { BackLink } from '../components/BackLink';
 import { PlusIcon, XIcon } from '../components/Icons';
 import type { Template } from '../types/database';
 import './PlanSetup.css';
 
 type PlanType = 'weekly' | 'cycle';
-
-type SlotDraft = {
-  key: string;
-  templateId: string | null;
-  isRestDay: boolean;
-  label: string;
-  dayOfWeek?: number;
-  cyclePosition?: number;
-};
 
 function makeWeeklySlots(templates: Template[], existing?: SlotDraft[]): SlotDraft[] {
   return Array.from({ length: 7 }, (_, dow) => {
@@ -46,8 +39,10 @@ export function PlanSetup() {
   const { data: templates } = useTemplates(user?.id);
   const createPlan = useCreatePlan(user?.id);
   const updatePlan = useUpdatePlan(user?.id);
+  const createTemplate = useCreateTemplate(user?.id);
 
   const isEditing = activePlan != null;
+  const [quickTemplateName, setQuickTemplateName] = useState('');
 
   const [step, setStep] = useState<'type' | 'schedule'>(isEditing ? 'schedule' : 'type');
   const [planName, setPlanName] = useState(activePlan?.name ?? '');
@@ -146,19 +141,27 @@ export function PlanSetup() {
           plan_type: planType,
           slots: slotInputs,
         });
+        track({ name: 'plan_created', properties: { plan_type: planType } });
         toast('Plan created', 'success');
       }
-      navigate('/profile/plan');
+      navigate('/plan');
     } catch {
       toast('Failed to save plan', 'error');
     }
+  }
+
+  async function handleQuickCreateTemplate() {
+    const name = quickTemplateName.trim();
+    if (!name) return;
+    await createTemplate.mutateAsync({ name, exercise_order: [] });
+    setQuickTemplateName('');
   }
 
   const isSaving = createPlan.isPending || updatePlan.isPending;
 
   return (
     <div className="ps">
-      <BackLink to="/profile/plan" label="Training Plan" />
+      <BackLink to="/plan" label="Plan" />
 
       <h1 className="page-title ps-title">
         {isEditing ? 'Edit Plan' : 'New Plan'}
@@ -219,7 +222,9 @@ export function PlanSetup() {
           )}
 
           <div className="ps-name-row">
+            <label className="ps-field-label" htmlFor="ps-plan-name">Plan name</label>
             <input
+              id="ps-plan-name"
               type="text"
               className="input input--md"
               placeholder={planType === 'weekly' ? 'e.g. PPL Split' : 'e.g. Upper/Lower Cycle'}
@@ -233,6 +238,12 @@ export function PlanSetup() {
               {planType === 'weekly' ? 'Weekly Schedule' : 'Rotating Cycle'}
             </span>
           </div>
+
+          <p className="meta ps-slot-hint">
+            {planType === 'weekly'
+              ? 'Assign a template or rest day to each day of the week.'
+              : 'Add workouts in the order you\'ll cycle through them.'}
+          </p>
 
           {planType === 'weekly' && (
             <div className="ps-slots">
@@ -271,9 +282,30 @@ export function PlanSetup() {
           )}
 
           {templates != null && templates.length === 0 && (
-            <p className="meta ps-no-templates">
-              No templates yet. Create templates on the Training Plan page first, then assign them here.
-            </p>
+            <div className="ps-no-templates">
+              <p className="meta">No templates yet. Create one to assign it to your schedule.</p>
+              <div className="ps-quick-template">
+                <input
+                  type="text"
+                  className="input input--sm"
+                  placeholder="e.g. Push Day, Upper Body..."
+                  value={quickTemplateName}
+                  onChange={(e) => setQuickTemplateName(e.target.value)}
+                  onKeyDown={(e) => {
+                    if (e.key === 'Enter') handleQuickCreateTemplate();
+                  }}
+                />
+                <button
+                  type="button"
+                  className="btn-primary"
+                  onClick={handleQuickCreateTemplate}
+                  disabled={!quickTemplateName.trim() || createTemplate.isPending}
+                >
+                  <PlusIcon size={14} />
+                  {createTemplate.isPending ? 'Adding...' : 'Create template'}
+                </button>
+              </div>
+            </div>
           )}
 
           <button

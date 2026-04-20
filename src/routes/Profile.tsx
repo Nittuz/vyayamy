@@ -3,9 +3,11 @@ import { Link } from 'react-router-dom';
 import { useAuth } from '../lib/useAuth';
 import { useProfile, useUpdateProfile, useProfileStats } from '../lib/queries/profile';
 import { useTemplates } from '../lib/queries/templates';
+import { track } from '../lib/analytics';
 import { ConfirmDialog } from '../components/ConfirmDialog';
 import { formatMemberSince, getInitials } from '../lib/format';
 import { ChevronRightIcon } from '../components/Icons';
+import { usePWAInstall } from '../lib/usePWAInstall';
 import './Profile.css';
 
 export function Profile() {
@@ -14,6 +16,8 @@ export function Profile() {
   const updateProfile = useUpdateProfile(user?.id);
   const { data: stats } = useProfileStats(user?.id);
   const { data: templates } = useTemplates(user?.id);
+
+  const { canInstall, promptInstall } = usePWAInstall();
 
   const [confirmSignOut, setConfirmSignOut] = useState(false);
   const [editingDisplayName, setEditingDisplayName] = useState(false);
@@ -38,7 +42,17 @@ export function Profile() {
     );
   };
 
-  const routineCount = templates?.length ?? 0;
+  const templateCount = templates?.length ?? 0;
+
+  function handleSendFeedback() {
+    const platform = navigator.userAgent.includes('Mobile') ? 'Mobile' : 'Desktop';
+    const subject = encodeURIComponent('Vyayamy Beta Feedback');
+    const body = encodeURIComponent(
+      `\n\n---\nApp version: ${__APP_VERSION__}\nPlatform: ${platform}\nDate: ${new Date().toLocaleDateString()}\n`,
+    );
+    window.open(`mailto:feedback@vyayamy.app?subject=${subject}&body=${body}`, '_self');
+    track({ name: 'feedback_sent' });
+  }
 
   return (
     <div className="profile">
@@ -146,17 +160,56 @@ export function Profile() {
       </section>
 
       {/* Training Plan link */}
-      <Link to="/profile/plan" className="card profile-card profile-routines-link">
-        <div className="profile-routines-link-content">
+      <Link to="/plan" className="card profile-card profile-plan-link">
+        <div className="profile-plan-link-content">
           <h2 className="profile-card-title">Training Plan</h2>
           <span className="meta">
-            {routineCount > 0
-              ? `${routineCount} template${routineCount !== 1 ? 's' : ''}`
+            {templateCount > 0
+              ? `${templateCount} template${templateCount !== 1 ? 's' : ''}`
               : 'Schedule your workouts'}
           </span>
         </div>
-        <ChevronRightIcon size={18} className="profile-routines-chevron" />
+        <ChevronRightIcon size={18} className="profile-plan-chevron" />
       </Link>
+
+      {/* Privacy & Data link */}
+      <Link to="/privacy" className="card profile-card profile-plan-link">
+        <div className="profile-plan-link-content">
+          <h2 className="profile-card-title">Privacy & Data</h2>
+          <span className="meta">Export, deletion, and how your data is stored</span>
+        </div>
+        <ChevronRightIcon size={18} className="profile-plan-chevron" />
+      </Link>
+
+      {/* Install app */}
+      {canInstall && (
+        <button
+          type="button"
+          className="card profile-card profile-install-card"
+          onClick={promptInstall}
+        >
+          <div className="profile-plan-link-content">
+            <h2 className="profile-card-title">Install app</h2>
+            <span className="meta">Faster access and offline support</span>
+          </div>
+        </button>
+      )}
+
+      {/* Feedback */}
+      <button
+        type="button"
+        className="card profile-card profile-feedback-card"
+        onClick={handleSendFeedback}
+      >
+        <div className="profile-plan-link-content">
+          <h2 className="profile-card-title">Send feedback</h2>
+          <span className="meta">Report an issue or share a suggestion</span>
+        </div>
+        <ChevronRightIcon size={18} className="profile-plan-chevron" />
+      </button>
+
+      {/* App version */}
+      <p className="profile-version meta">Vyayamy v{__APP_VERSION__}</p>
 
       {/* Sign out */}
       <div className="profile-signout">
@@ -172,8 +225,9 @@ export function Profile() {
       <ConfirmDialog
         open={confirmSignOut}
         title="Sign out"
-        message="Sign out of your account?"
+        message="Sign out of your account? You can sign back in anytime with your email."
         confirmLabel="Sign out"
+        destructive
         onConfirm={() => { setConfirmSignOut(false); signOut(); }}
         onCancel={() => setConfirmSignOut(false)}
       />

@@ -59,12 +59,26 @@
   margin-bottom: var(--space-4);
 }
 
+.ps-field-label {
+  display: block;
+  font-size: var(--font-micro);
+  font-weight: var(--font-weight-semibold);
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  color: var(--color-text-secondary);
+  margin-bottom: var(--space-2);
+}
+
 .ps-name-row {
   margin-bottom: var(--space-4);
 }
 
 .ps-type-badge {
-  margin-bottom: var(--space-5);
+  margin-bottom: var(--space-2);
+}
+
+.ps-slot-hint {
+  margin: 0 0 var(--space-4);
 }
 
 /* ── Slot rows ── */
@@ -153,6 +167,23 @@
   padding: var(--space-4);
   background: var(--color-accent-soft);
   border-radius: var(--radius-sm);
+}
+
+.ps-no-templates .meta {
+  margin-bottom: var(--space-3);
+}
+
+.ps-quick-template {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-2);
+}
+
+.ps-quick-template .btn-primary {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: var(--space-1);
 }
 
 .ps-save-btn {

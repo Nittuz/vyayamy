@@ -3,7 +3,7 @@
   top: env(safe-area-inset-top, 12px);
   left: 50%;
   transform: translateX(-50%);
-  z-index: 9999;
+  z-index: var(--z-toast);
   display: flex;
   flex-direction: column;
   gap: var(--space-2);
@@ -39,7 +39,7 @@
   cursor: pointer;
   text-decoration: underline;
   text-underline-offset: 2px;
-  transition: background var(--duration-fast) ease;
+  transition: background var(--duration-fast) var(--ease-out);
 }
 
 .toast-action:hover {
@@ -47,7 +47,7 @@
 }
 
 .toast--leaving {
-  animation: toast-out 200ms var(--ease-in-out) forwards;
+  animation: toast-out var(--duration-fast) var(--ease-in-out) forwards;
 }
 
 .toast--info {

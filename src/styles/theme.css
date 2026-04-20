@@ -72,6 +72,13 @@
   --duration-normal: 250ms;
   --duration-slow: 350ms;
 
+  /* Z-index scale */
+  --z-sticky: 50;
+  --z-nav: 100;
+  --z-overlay: 500;
+  --z-sheet: 1000;
+  --z-toast: 9999;
+
   /* Sizing */
   --touch-min: 44px;
   --nav-height: 56px;
@@ -230,6 +237,9 @@ body {
 
 /* Ghost / text button */
 .btn-ghost {
+  display: inline-flex;
+  align-items: center;
+  min-height: var(--touch-min);
   padding: var(--space-2) var(--space-3);
   font-size: var(--font-meta);
   font-weight: var(--font-weight-medium);
@@ -255,6 +265,9 @@ body {
 
 /* Chip / Pill */
 .chip {
+  display: inline-flex;
+  align-items: center;
+  min-height: var(--touch-min);
   padding: var(--space-2) var(--space-4);
   font-size: var(--font-meta);
   font-weight: var(--font-weight-medium);
@@ -451,5 +464,19 @@ select:focus-visible {
     animation-iteration-count: 1 !important;
     transition-duration: 0.01ms !important;
     scroll-behavior: auto !important;
+  }
+
+  /* Fully suppress infinite decorative animations */
+  .empty-state-icon,
+  .sync-status-dot,
+  .skeleton,
+  .tp-loading-shimmer,
+  .set-row-check--done::after {
+    animation: none !important;
+  }
+
+  .skeleton,
+  .tp-loading-shimmer {
+    opacity: 0.25;
   }
 }

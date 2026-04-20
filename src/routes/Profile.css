@@ -155,7 +155,7 @@
 }
 
 .profile-unit {
-  min-height: 36px;
+  min-height: var(--touch-min);
   min-width: 48px;
   padding: 0 var(--space-4);
   font-size: var(--font-meta);
@@ -163,7 +163,7 @@
   color: var(--color-text-secondary);
   background: transparent;
   border: none;
-  border-radius: 6px;
+  border-radius: var(--radius-sm);
   cursor: pointer;
   transition: all var(--duration-fast) ease;
 }
@@ -174,8 +174,8 @@
   box-shadow: var(--shadow-sm);
 }
 
-/* ── Routines link ── */
-.profile-routines-link {
+/* ── Plan link ── */
+.profile-plan-link {
   display: flex;
   align-items: center;
   justify-content: space-between;
@@ -184,27 +184,65 @@
   transition: box-shadow var(--duration-fast) ease;
 }
 
-.profile-routines-link:hover {
+.profile-plan-link:hover {
   box-shadow: var(--shadow-md);
 }
 
-.profile-routines-link .profile-card-title {
+.profile-plan-link .profile-card-title {
   margin-bottom: var(--space-half);
 }
 
-.profile-routines-link-content {
+.profile-plan-link-content {
   display: flex;
   flex-direction: column;
 }
 
-.profile-routines-chevron {
+.profile-plan-chevron {
   flex-shrink: 0;
+  color: var(--color-text-tertiary);
+}
+
+/* ── Install card ── */
+.profile-install-card {
+  display: flex;
+  align-items: center;
+  justify-content: flex-start;
+  width: 100%;
+  text-align: left;
+  cursor: pointer;
+  color: var(--color-text);
+  transition: box-shadow var(--duration-fast) ease;
+}
+
+.profile-install-card:hover {
+  box-shadow: var(--shadow-md);
+}
+
+/* ── Feedback ── */
+.profile-feedback-card {
+  display: flex;
+  align-items: center;
+  cursor: pointer;
+  border: none;
+  text-align: left;
+  width: 100%;
+  color: var(--color-text);
+  transition: box-shadow var(--duration-fast) ease;
+}
+
+.profile-feedback-card:hover {
+  box-shadow: var(--shadow-md);
+}
+
+.profile-version {
+  text-align: center;
+  margin: var(--space-3) 0 0;
   color: var(--color-text-tertiary);
 }
 
 /* ── Sign out ── */
 .profile-signout {
-  margin-top: var(--space-8);
+  margin-top: var(--space-4);
   display: flex;
   justify-content: center;
   padding-bottom: var(--space-4);

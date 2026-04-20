@@ -2,7 +2,7 @@
   position: fixed;
   inset: 0;
   background: var(--color-overlay);
-  z-index: 1000;
+  z-index: var(--z-sheet);
   display: flex;
   align-items: flex-end;
   justify-content: center;
@@ -30,7 +30,7 @@
   background: var(--color-surface);
   border-radius: var(--radius-lg) var(--radius-lg) 0 0;
   box-shadow: var(--shadow-sheet);
-  animation: sheet-slide-in var(--duration-normal) var(--ease-out);
+  animation: sheet-slide-in var(--duration-fast) var(--ease-out);
   display: flex;
   flex-direction: column;
 }
@@ -76,5 +76,6 @@
 
 .sheet-body {
   padding: var(--space-6) var(--padding-page);
+  padding-bottom: calc(var(--space-6) + env(safe-area-inset-bottom, 0px));
   overflow: auto;
 }

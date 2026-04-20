@@ -1,0 +1,32 @@
+.offline-banner {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: var(--space-2);
+  padding: var(--space-2) var(--padding-page);
+  font-size: var(--font-micro);
+  font-weight: var(--font-weight-medium);
+  color: var(--color-text-secondary);
+  background: var(--color-bg);
+  border-bottom: 0.5px solid var(--color-border);
+  animation: offline-slide-in var(--duration-normal) var(--ease-out);
+}
+
+.offline-banner-dot {
+  width: 6px;
+  height: 6px;
+  border-radius: var(--radius-full);
+  background: var(--color-text-tertiary);
+  flex-shrink: 0;
+}
+
+@keyframes offline-slide-in {
+  from {
+    opacity: 0;
+    transform: translateY(-100%);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}

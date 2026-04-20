@@ -85,12 +85,12 @@ export function useCreatePlan(userId: string | undefined) {
     mutationFn: async (input: CreatePlanInput): Promise<TrainingPlan> => {
       if (!userId) throw new Error('Not authenticated');
 
-      // Deactivate existing active plans
-      await supabase
+      const { error: deactivateError } = await supabase
         .from('training_plans')
         .update({ is_active: false })
         .eq('user_id', userId)
         .eq('is_active', true);
+      if (deactivateError) throw deactivateError;
 
       const { data: plan, error: planError } = await supabase
         .from('training_plans')
@@ -287,6 +287,39 @@ export function isSlotCompletedOnDate(
     const d = new Date(w.started_at);
     return `${d.getFullYear()}-${d.getMonth()}-${d.getDate()}` === dateStr;
   });
+}
+
+// TODO Phase 3: compute streak length and surface in plan overview
+
+export type MissedSlotInfo = {
+  slot: TrainingPlanSlot;
+  date: Date;
+  dayOfWeek: number;
+};
+
+export function getMissedWeeklySlots(
+  plan: PlanWithSlots,
+  weekWorkouts: Workout[],
+): MissedSlotInfo[] {
+  if (plan.plan_type !== 'weekly') return [];
+  const now = new Date();
+  const todayDow = (now.getDay() + 6) % 7;
+  const monday = new Date(now);
+  monday.setDate(now.getDate() - ((todayDow + 6) % 7 + 1 - 1));
+  monday.setDate(now.getDate() - todayDow);
+  monday.setHours(0, 0, 0, 0);
+
+  const missed: MissedSlotInfo[] = [];
+  for (let dow = 0; dow < todayDow; dow++) {
+    const slot = plan.slots.find((s) => s.day_of_week === dow);
+    if (!slot || slot.is_rest_day || !slot.template_id) continue;
+    const dayDate = new Date(monday);
+    dayDate.setDate(monday.getDate() + dow);
+    if (!isSlotCompletedOnDate(slot, weekWorkouts, dayDate)) {
+      missed.push({ slot, date: dayDate, dayOfWeek: dow });
+    }
+  }
+  return missed;
 }
 
 const DAY_NAMES = ['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday', 'Sunday'];

@@ -1,8 +1,11 @@
+/* TODO(phase-1): This file duplicates the backdrop + panel + drag-handle + animation
+   pattern from Sheet.css. Unify into a shared sheet primitive with props for
+   maxHeight and header variant. */
 .esm-backdrop {
   position: fixed;
   inset: 0;
   background: var(--color-overlay);
-  z-index: 1000;
+  z-index: var(--z-sheet);
   display: flex;
   align-items: flex-end;
   justify-content: center;
@@ -30,7 +33,7 @@
   background: var(--color-surface);
   border-radius: var(--radius-lg) var(--radius-lg) 0 0;
   box-shadow: var(--shadow-sheet);
-  animation: esm-slide-up var(--duration-normal) var(--ease-out);
+  animation: esm-slide-up var(--duration-fast) var(--ease-out);
   display: flex;
   flex-direction: column;
 }

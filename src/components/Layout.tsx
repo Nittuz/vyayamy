@@ -1,14 +1,8 @@
 import { useEffect } from 'react';
 import { Outlet, NavLink, useLocation } from 'react-router-dom';
-import { SunIcon, BookIcon, ActivityIcon, UserIcon } from './Icons';
+import { NAV_ITEMS } from '../lib/routes';
+import { OfflineBanner } from './OfflineBanner';
 import './Layout.css';
-
-const navItems = [
-  { to: '/', label: 'Today', icon: <SunIcon /> },
-  { to: '/history', label: 'History', icon: <BookIcon /> },
-  { to: '/progress', label: 'Progress', icon: <ActivityIcon /> },
-  { to: '/profile', label: 'Profile', icon: <UserIcon /> },
-] as const;
 
 function ScrollToTop() {
   const { pathname } = useLocation();
@@ -23,6 +17,7 @@ export function Layout() {
   const hideNav = location.pathname.startsWith('/workout');
   return (
     <div className="layout">
+      <OfflineBanner />
       <ScrollToTop />
       <main className={'layout-main' + (hideNav ? ' layout-main--full' : '')}>
         <div key={location.pathname} className="page-transition">
@@ -31,14 +26,14 @@ export function Layout() {
       </main>
       {!hideNav && (
         <nav className="layout-nav" aria-label="Primary">
-          {navItems.map(({ to, label, icon }) => (
+          {NAV_ITEMS.map(({ to, label, icon, end }) => (
             <NavLink
               key={to}
               to={to}
               className={({ isActive }) =>
                 'layout-nav-link' + (isActive ? ' layout-nav-link--active' : '')
               }
-              end={to === '/'}
+              end={end}
             >
               <span className="layout-nav-icon">{icon}</span>
               <span className="layout-nav-label">{label}</span>

@@ -35,7 +35,7 @@ export function ExerciseSearchModal({
   const [customName, setCustomName] = useState('');
   const inputRef = useRef<HTMLInputElement>(null);
 
-  const { visible, closing } = useAnimatedPresence(open, 250);
+  const { visible, closing } = useAnimatedPresence(open, 150);
   const searchResults = useExercisesSearch(userId, debouncedQuery);
   const recentIds = useRecentExerciseIds(userId, 8);
   const recentExercises = useExercisesByIds(recentIds.data ?? []);

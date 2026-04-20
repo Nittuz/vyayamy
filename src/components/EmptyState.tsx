@@ -5,18 +5,22 @@ import './EmptyState.css';
 type EmptyStateProps = {
   icon: ReactNode;
   message: string;
+  secondaryMessage?: string;
   actionLabel?: string;
   actionTo?: string;
   onAction?: () => void;
 };
 
-export function EmptyState({ icon, message, actionLabel, actionTo, onAction }: EmptyStateProps) {
+export function EmptyState({ icon, message, secondaryMessage, actionLabel, actionTo, onAction }: EmptyStateProps) {
   return (
     <div className="card card--empty empty-state">
       <div className="empty-state-icon" aria-hidden="true">
         {icon}
       </div>
       <p className="empty-state-message">{message}</p>
+      {secondaryMessage && (
+        <p className="empty-state-secondary">{secondaryMessage}</p>
+      )}
       {actionLabel && actionTo && (
         <Link to={actionTo} className="btn-primary empty-state-action">
           {actionLabel}

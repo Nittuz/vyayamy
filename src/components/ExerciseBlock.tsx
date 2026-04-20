@@ -5,6 +5,8 @@ import { CopyIcon, CheckIcon, XIcon, ChevronUpIcon, ChevronDownIcon, PlusIcon } 
 import { hapticTap } from '../lib/haptics';
 import './ExerciseBlock.css';
 
+type PreviousSet = { weight: number | null; reps: number | null };
+
 type ExerciseBlockProps = {
   we: WorkoutExerciseWithMeta;
   units?: 'kg' | 'lb';
@@ -19,6 +21,7 @@ type ExerciseBlockProps = {
   isFirst?: boolean;
   isLast?: boolean;
   hiddenSetIds?: ReadonlySet<string>;
+  previousSets?: PreviousSet[];
 };
 
 export function ExerciseBlock({
@@ -32,6 +35,7 @@ export function ExerciseBlock({
   isFirst,
   isLast,
   hiddenSetIds,
+  previousSets,
 }: ExerciseBlockProps) {
   const [expanded, setExpanded] = useState(true);
   const [editingField, setEditingField] = useState<{
@@ -58,13 +62,20 @@ export function ExerciseBlock({
     }
   }, [editingField]);
 
+  const getGhost = (setIndex: number, field: 'weight' | 'reps'): number | null => {
+    const prev = previousSets?.[setIndex];
+    return prev ? (field === 'weight' ? prev.weight : prev.reps) : null;
+  };
+
   const startEdit = (s: Set, field: 'weight' | 'reps') => {
     setEditingField({ setId: s.id, field });
-    setEditValue(
-      field === 'weight'
-        ? (s.weight?.toString() ?? '')
-        : (s.reps?.toString() ?? '')
-    );
+    const current = field === 'weight' ? s.weight : s.reps;
+    if (current != null) {
+      setEditValue(current.toString());
+    } else {
+      const ghost = getGhost(visibleSets.indexOf(s), field);
+      setEditValue(ghost?.toString() ?? '');
+    }
   };
 
   const saveEdit = () => {
@@ -91,7 +102,13 @@ export function ExerciseBlock({
     if (editingField.field === 'weight') {
       skipBlurRef.current = true;
       setEditingField({ setId: s.id, field: 'reps' });
-      setEditValue(s.reps?.toString() ?? '');
+      const repsVal = s.reps?.toString() ?? '';
+      if (repsVal === '') {
+        const ghost = getGhost(visibleSets.indexOf(s), 'reps');
+        setEditValue(ghost?.toString() ?? '');
+      } else {
+        setEditValue(repsVal);
+      }
     } else {
       setEditingField(null);
     }
@@ -115,11 +132,30 @@ export function ExerciseBlock({
     onUpdateSet(current.id, { weight: prev.weight, reps: prev.reps });
   };
 
+  const handleFillFromLast = () => {
+    if (!previousSets) return;
+    for (let i = 0; i < visibleSets.length; i++) {
+      const s = visibleSets[i];
+      const prev = previousSets[i];
+      if (!prev) continue;
+      const updates: { weight?: number | null; reps?: number | null } = {};
+      if (s.weight == null && prev.weight != null) updates.weight = prev.weight;
+      if (s.reps == null && prev.reps != null) updates.reps = prev.reps;
+      if (Object.keys(updates).length > 0) onUpdateSet(s.id, updates);
+    }
+  };
+
   const visibleSets = hiddenSetIds
     ? we.sets.filter((s) => !hiddenSetIds.has(s.id))
     : we.sets;
 
   const allDone = visibleSets.length > 0 && visibleSets.every((s) => s.completed);
+
+  const hasFillable = previousSets && previousSets.length > 0 &&
+    visibleSets.some((s, i) => {
+      const prev = previousSets[i];
+      return prev && (s.weight == null || s.reps == null) && (prev.weight != null || prev.reps != null);
+    });
 
   return (
     <div className={'card exercise-block' + (allDone ? ' exercise-block--done' : '')}>
@@ -138,6 +174,15 @@ export function ExerciseBlock({
           )}
         </div>
         <div className="exercise-block-head-meta">
+          {hasFillable && (
+            <button
+              type="button"
+              className="exercise-block-fill"
+              onClick={(e) => { e.stopPropagation(); handleFillFromLast(); }}
+            >
+              Use last
+            </button>
+          )}
           {(onMoveUp || onMoveDown) && (!isFirst || !isLast) && (
             <div className="exercise-block-reorder" onClick={(e) => e.stopPropagation()}>
               {onMoveUp && !isFirst && (
@@ -176,6 +221,8 @@ export function ExerciseBlock({
                 s.weight == null &&
                 s.reps == null &&
                 (visibleSets[i - 1].weight != null || visibleSets[i - 1].reps != null);
+              const ghostW = s.weight == null ? getGhost(i, 'weight') : null;
+              const ghostR = s.reps == null ? getGhost(i, 'reps') : null;
 
               return (
                 <div
@@ -219,6 +266,8 @@ export function ExerciseBlock({
                       >
                         {s.weight != null ? (
                           <>{s.weight}<span className="set-row-unit">{units}</span></>
+                        ) : ghostW != null ? (
+                          <span className="set-row-ghost">{ghostW}<span className="set-row-unit">{units}</span></span>
                         ) : (
                           <span className="set-row-placeholder">&mdash;</span>
                         )}
@@ -255,6 +304,8 @@ export function ExerciseBlock({
                       >
                         {s.reps != null ? (
                           <>{s.reps}<span className="set-row-unit">reps</span></>
+                        ) : ghostR != null ? (
+                          <span className="set-row-ghost">{ghostR}<span className="set-row-unit">reps</span></span>
                         ) : (
                           <span className="set-row-placeholder">&mdash;</span>
                         )}

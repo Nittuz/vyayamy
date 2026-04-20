@@ -2,16 +2,21 @@ import { useState, useEffect, useRef, useCallback, useMemo } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useQueryClient } from '@tanstack/react-query';
 import { useAuth } from '../lib/useAuth';
-import { useActiveWorkout, useWorkoutWithExercises } from '../lib/queries/workouts';
+import { useActiveWorkout, useWorkoutWithExercises, useLastPerformedSets } from '../lib/queries/workouts';
 import { useProfile } from '../lib/queries/profile';
-import { useAddSet, useUpdateSet, useDeleteSet, useFinishWorkout, useReorderExercise } from '../lib/queries/sets';
+import { useAddSet, useUpdateSet, useDeleteSet, useDeleteWorkout, useFinishWorkout, useReorderExercise } from '../lib/queries/sets';
 import { useActivePlan, useAdvanceCycle, getTodaySlot } from '../lib/queries/plans';
 import { detectAndInsertPRs } from '../lib/pr-detection';
+import { computeVolume, computeSetCounts, formatVolume, computeElapsedDisplay, buildFinishSummary } from '../lib/workoutLogic';
+import { combineMutationFlags } from '../lib/syncHelpers';
+import { track } from '../lib/analytics';
+import type { WorkoutSummary } from '../lib/domain';
 import { ExerciseBlock } from '../components/ExerciseBlock';
-import { PlusIcon, CheckIcon } from '../components/Icons';
+import { PlusIcon, CheckIcon, XIcon } from '../components/Icons';
 import { ExerciseSearchModal } from '../components/ExerciseSearchModal';
 import { Sheet } from '../components/Sheet';
 import { useToast } from '../lib/useToast';
+import { SyncStatus } from '../components/SyncStatus';
 import { TrophyIllustration } from '../components/EmptyState';
 import './WorkoutActive.css';
 
@@ -19,18 +24,7 @@ function useElapsedTime(startedAt: string | undefined) {
   const [elapsed, setElapsed] = useState('0m');
   useEffect(() => {
     if (!startedAt) return;
-    const update = () => {
-      const mins = Math.floor(
-        (Date.now() - new Date(startedAt).getTime()) / 60000
-      );
-      if (mins < 60) {
-        setElapsed(`${mins}m`);
-      } else {
-        const h = Math.floor(mins / 60);
-        const m = mins % 60;
-        setElapsed(m ? `${h}h ${m}m` : `${h}h`);
-      }
-    };
+    const update = () => setElapsed(computeElapsedDisplay(startedAt));
     update();
     const id = setInterval(update, 30000);
     return () => clearInterval(id);
@@ -44,37 +38,54 @@ export function WorkoutActive() {
   const { user } = useAuth();
   const { data: profile } = useProfile(user?.id);
   const units = profile?.units ?? 'kg';
-  const { data: activeWorkout } = useActiveWorkout(user?.id);
-  const { data: detail, isLoading } = useWorkoutWithExercises(activeWorkout?.id);
+  const { data: activeWorkout, isLoading: activeLoading } = useActiveWorkout(user?.id);
+  const { data: detail, isError: detailError } = useWorkoutWithExercises(activeWorkout?.id);
   const addSet = useAddSet(activeWorkout?.id);
   const updateSet = useUpdateSet(activeWorkout?.id);
   const deleteSet = useDeleteSet(activeWorkout?.id);
   const finishWorkout = useFinishWorkout(user?.id);
   const reorderExercise = useReorderExercise(activeWorkout?.id);
+  const deleteWorkout = useDeleteWorkout(user?.id);
   const { data: activePlan } = useActivePlan(user?.id);
   const advanceCycle = useAdvanceCycle(user?.id);
+
+  const exerciseIds = useMemo(
+    () => detail?.workoutExercises.map((we) => we.exercise_id) ?? [],
+    [detail]
+  );
+  const { data: lastPerformed } = useLastPerformedSets(user?.id, exerciseIds);
+
   const [addExerciseOpen, setAddExerciseOpen] = useState(false);
   const [confirmFinish, setConfirmFinish] = useState(false);
+  const [confirmDiscard, setConfirmDiscard] = useState(false);
   const [completing, setCompleting] = useState(false);
   const [hiddenSetIds, setHiddenSetIds] = useState<Set<string>>(new Set());
-  const [summary, setSummary] = useState<{
-    sets: number;
-    total: number;
-    volume: number;
-    prs: number;
-    duration: string;
-  } | null>(null);
+  const [summary, setSummary] = useState<WorkoutSummary | null>(null);
   const pendingDeleteTimers = useRef<Map<string, ReturnType<typeof setTimeout>>>(new Map());
   const { toast } = useToast();
 
   const elapsed = useElapsedTime(detail?.workout.started_at);
-  const shouldRedirect = activeWorkout == null && !isLoading;
+  const shouldRedirect = activeWorkout == null && !activeLoading;
 
   useEffect(() => {
     if (shouldRedirect) navigate('/');
   }, [shouldRedirect, navigate]);
 
   if (shouldRedirect) return null;
+
+  if (detailError) {
+    return (
+      <div className="workout-active">
+        <div className="workout-active-error">
+          <p className="section-title">Failed to load workout</p>
+          <p className="meta">Check your connection and try again.</p>
+          <button type="button" className="btn-primary" onClick={() => window.location.reload()}>
+            Reload
+          </button>
+        </div>
+      </div>
+    );
+  }
 
   const handleAddSet = (workoutExerciseId: string, orderIndex: number) => {
     addSet.mutate(
@@ -142,12 +153,10 @@ export function WorkoutActive() {
     const targetIndex = currentIndex + direction;
     if (targetIndex < 0 || targetIndex >= exercises.length) return;
     const targetWe = exercises[targetIndex];
-    reorderExercise.mutate({
-      sourceId: weId,
-      targetId: targetWe.id,
-      sourceIndex: currentIndex,
-      targetIndex,
-    });
+    reorderExercise.mutate(
+      { sourceId: weId, targetId: targetWe.id, sourceIndex: currentIndex, targetIndex },
+      { onError: () => toast('Failed to reorder exercise', 'error') },
+    );
   };
 
   const handleFinish = async () => {
@@ -182,22 +191,12 @@ export function WorkoutActive() {
         }
       }
 
-      let volume = 0;
-      for (const we of detail.workoutExercises) {
-        for (const s of we.sets) {
-          if (s.completed && s.weight != null && s.reps != null) {
-            volume += s.weight * s.reps;
-          }
-        }
-      }
-
-      setSummary({
-        sets: completedSets,
-        total: totalSets,
-        volume,
-        prs: prCount,
-        duration: elapsed,
-      });
+      const exerciseCount = detail.workoutExercises.length;
+      const setCount = detail.workoutExercises.reduce((sum, we) => sum + we.sets.length, 0);
+      const startTime = new Date(detail.workout.started_at).getTime();
+      const durationS = Math.round((Date.now() - startTime) / 1000);
+      track({ name: 'workout_completed', properties: { duration_s: durationS, exercise_count: exerciseCount, set_count: setCount } });
+      setSummary(buildFinishSummary(detail.workoutExercises, prCount, elapsed));
     } catch {
       toast('Failed to save workout', 'error');
     }
@@ -209,41 +208,50 @@ export function WorkoutActive() {
     setTimeout(() => navigate('/'), 500);
   };
 
-  const completedSets =
-    detail?.workoutExercises.reduce(
-      (sum, we) => sum + we.sets.filter((s) => s.completed && !hiddenSetIds.has(s.id)).length,
-      0
-    ) ?? 0;
-  const totalSets =
-    detail?.workoutExercises.reduce(
-      (sum, we) => sum + we.sets.filter((s) => !hiddenSetIds.has(s.id)).length,
-      0
-    ) ?? 0;
-
-  const liveVolume = useMemo(() => {
-    if (!detail) return 0;
-    let vol = 0;
-    for (const we of detail.workoutExercises) {
-      for (const s of we.sets) {
-        if (s.completed && s.weight != null && s.reps != null && !hiddenSetIds.has(s.id)) {
-          vol += s.weight * s.reps;
-        }
-      }
+  const handleDiscard = async () => {
+    if (!activeWorkout?.id) return;
+    setConfirmDiscard(false);
+    try {
+      await deleteWorkout.mutateAsync(activeWorkout.id);
+      track({ name: 'workout_discarded' });
+      navigate('/');
+    } catch {
+      toast('Failed to discard workout', 'error');
     }
-    return vol;
-  }, [detail, hiddenSetIds]);
+  };
+
+  const { completed: completedSets, total: totalSets } = useMemo(
+    () => detail ? computeSetCounts(detail.workoutExercises, hiddenSetIds) : { completed: 0, total: 0 },
+    [detail, hiddenSetIds],
+  );
+
+  const liveVolume = useMemo(
+    () => detail ? computeVolume(detail.workoutExercises, hiddenSetIds) : 0,
+    [detail, hiddenSetIds],
+  );
 
   const progressPct = totalSets > 0 ? (completedSets / totalSets) * 100 : 0;
 
-  const formatVolume = (v: number) =>
-    v >= 1000 ? `${(v / 1000).toFixed(1).replace(/\.0$/, '')}k` : String(v);
+  const { isPending: anySaving, isError: anyError } = combineMutationFlags(
+    addSet, updateSet, deleteSet, reorderExercise,
+  );
 
   return (
     <div className={'workout-active' + (completing ? ' workout-active--completing' : '')}>
       <header className="workout-active-header">
-        <h1 className="workout-active-title">
-          {detail?.workout.title ?? 'Workout'}
-        </h1>
+        <div className="workout-active-header-row">
+          <h1 className="workout-active-title">
+            {detail?.workout.title ?? 'Workout'}
+          </h1>
+          <button
+            type="button"
+            className="workout-active-close"
+            onClick={() => setConfirmDiscard(true)}
+            aria-label="Discard workout"
+          >
+            <XIcon size={20} />
+          </button>
+        </div>
         {totalSets > 0 && (
           <div className="workout-active-progress">
             <div
@@ -272,6 +280,9 @@ export function WorkoutActive() {
             </>
           )}
         </div>
+        <div className="workout-active-sync">
+          <SyncStatus isPending={anySaving} isError={anyError} />
+        </div>
       </header>
 
       <div className="workout-active-blocks">
@@ -288,6 +299,7 @@ export function WorkoutActive() {
             isFirst={i === 0}
             isLast={i === (detail?.workoutExercises.length ?? 1) - 1}
             hiddenSetIds={hiddenSetIds}
+            previousSets={lastPerformed?.[we.exercise_id]}
           />
         ))}
         {detail != null && detail.workoutExercises.length === 0 && (
@@ -372,6 +384,33 @@ export function WorkoutActive() {
         </div>
       </Sheet>
 
+      <Sheet open={confirmDiscard} onClose={() => setConfirmDiscard(false)}>
+        <div className="workout-finish-confirm">
+          <div className="workout-discard-icon">
+            <XIcon size={28} strokeWidth={2.5} />
+          </div>
+          <h3 className="workout-finish-confirm-title">Discard workout?</h3>
+          <p className="workout-finish-confirm-warning meta">
+            This will permanently delete this session and all logged sets.
+          </p>
+          <button
+            type="button"
+            className="btn-danger workout-finish-confirm-btn"
+            onClick={handleDiscard}
+            disabled={deleteWorkout.isPending}
+          >
+            Discard workout
+          </button>
+          <button
+            type="button"
+            className="btn-ghost workout-finish-confirm-back"
+            onClick={() => setConfirmDiscard(false)}
+          >
+            Keep going
+          </button>
+        </div>
+      </Sheet>
+
       <Sheet open={summary != null} onClose={handleDismissSummary} title="Workout complete">
         {summary && (
           <div className="workout-summary">
@@ -384,22 +423,20 @@ export function WorkoutActive() {
                 <span className="workout-summary-stat-label">Duration</span>
               </div>
               <div className="workout-summary-stat">
-                <span className="workout-summary-stat-value tabular">{summary.sets}/{summary.total}</span>
+                <span className="workout-summary-stat-value tabular">{summary.completedSets}/{summary.totalSets}</span>
                 <span className="workout-summary-stat-label">Sets</span>
               </div>
               {summary.volume > 0 && (
                 <div className="workout-summary-stat">
                   <span className="workout-summary-stat-value tabular">
-                    {summary.volume >= 1000
-                      ? `${(summary.volume / 1000).toFixed(1).replace(/\.0$/, '')}k`
-                      : summary.volume}
+                    {formatVolume(summary.volume)}
                   </span>
                   <span className="workout-summary-stat-label">Volume</span>
                 </div>
               )}
-              {summary.prs > 0 && (
+              {summary.prCount > 0 && (
                 <div className="workout-summary-stat">
-                  <span className="workout-summary-stat-value workout-summary-stat-value--pr tabular">{summary.prs}</span>
+                  <span className="workout-summary-stat-value workout-summary-stat-value--pr tabular">{summary.prCount}</span>
                   <span className="workout-summary-stat-label">PRs</span>
                 </div>
               )}

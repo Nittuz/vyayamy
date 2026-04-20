@@ -1,9 +1,30 @@
 .workout-active {
-  padding-bottom: 120px;
+  padding-bottom: calc(var(--space-6) + 88px + env(safe-area-inset-bottom, 0px));
+}
+
+.workout-active-error {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: var(--space-3);
+  text-align: center;
+  margin-top: 80px;
+}
+
+.workout-active-error .btn-primary {
+  width: auto;
+  min-width: 160px;
 }
 
 .workout-active-header {
   margin-bottom: var(--space-6);
+}
+
+.workout-active-header-row {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: var(--space-3);
 }
 
 .workout-active-title {
@@ -11,6 +32,29 @@
   font-weight: var(--font-weight-bold);
   letter-spacing: -0.02em;
   margin: 0 0 var(--space-3);
+  flex: 1;
+  min-width: 0;
+}
+
+.workout-active-close {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: var(--touch-min);
+  height: var(--touch-min);
+  padding: 0;
+  flex-shrink: 0;
+  background: none;
+  border: none;
+  color: var(--color-text-tertiary);
+  cursor: pointer;
+  border-radius: var(--radius-full);
+  transition: color var(--duration-fast) ease, background var(--duration-fast) ease;
+}
+
+.workout-active-close:hover {
+  color: var(--color-text-secondary);
+  background: var(--color-hover);
 }
 
 /* Progress bar */
@@ -67,6 +111,14 @@
   flex-shrink: 0;
 }
 
+/* Sync status */
+.workout-active-sync {
+  display: flex;
+  justify-content: center;
+  min-height: 18px;
+  margin-top: var(--space-2);
+}
+
 .workout-active-blocks {
   margin-bottom: var(--space-6);
 }
@@ -92,7 +144,7 @@
   backdrop-filter: saturate(180%) blur(20px);
   -webkit-backdrop-filter: saturate(180%) blur(20px);
   border-top: 0.5px solid var(--color-border);
-  z-index: 50;
+  z-index: var(--z-sticky);
 }
 
 .workout-active-add-btn {
@@ -240,6 +292,17 @@
   font-size: var(--font-body);
   color: var(--color-text-secondary);
   padding: var(--space-2) var(--space-4);
+}
+
+.workout-discard-icon {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 56px;
+  height: 56px;
+  border-radius: var(--radius-full);
+  background: rgba(220, 38, 38, 0.08);
+  color: var(--color-danger);
 }
 
 @media (max-width: 359px) {

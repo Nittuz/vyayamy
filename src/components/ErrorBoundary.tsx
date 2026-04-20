@@ -1,17 +1,25 @@
 import { Component, type ReactNode } from 'react';
 
 type Props = { children: ReactNode };
-type State = { hasError: boolean; error: Error | null };
+type State = { hasError: boolean; error: Error | null; retried: boolean };
 
 export class ErrorBoundary extends Component<Props, State> {
-  state: State = { hasError: false, error: null };
+  state: State = { hasError: false, error: null, retried: false };
 
-  static getDerivedStateFromError(error: Error): State {
+  static getDerivedStateFromError(error: Error): Partial<State> {
     return { hasError: true, error };
   }
 
   handleReset = () => {
-    this.setState({ hasError: false, error: null });
+    if (this.state.retried) {
+      window.location.reload();
+      return;
+    }
+    this.setState({ hasError: false, error: null, retried: true });
+  };
+
+  handleReload = () => {
+    window.location.reload();
   };
 
   render() {
@@ -25,6 +33,11 @@ export class ErrorBoundary extends Component<Props, State> {
           <button type="button" className="btn-primary" style={{ maxWidth: 200, margin: '0 auto' }} onClick={this.handleReset}>
             Try again
           </button>
+          <div style={{ marginTop: 12 }}>
+            <button type="button" className="btn-ghost" onClick={this.handleReload}>
+              Reload app
+            </button>
+          </div>
         </div>
       );
     }

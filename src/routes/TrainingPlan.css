@@ -23,18 +23,18 @@
 .tp-loading-shimmer {
   height: 120px;
   border-radius: var(--radius-card);
-  background: linear-gradient(90deg, var(--color-surface) 25%, var(--color-bg) 50%, var(--color-surface) 75%);
-  background-size: 200% 100%;
-  animation: shimmer 1.5s infinite;
+  background: var(--color-border-strong);
+  opacity: 0.3;
+  animation: tp-pulse 1.5s ease-in-out infinite;
 }
 
 .tp-loading-shimmer--short {
   height: 64px;
 }
 
-@keyframes shimmer {
-  0% { background-position: 200% 0; }
-  100% { background-position: -200% 0; }
+@keyframes tp-pulse {
+  0%, 100% { opacity: 0.4; }
+  50% { opacity: 0.15; }
 }
 
 /* ── Today hero card ── */
@@ -193,6 +193,66 @@
 
 .tp-week-day--rest .tp-week-day-name {
   font-style: italic;
+}
+
+/* ── Missed sessions ── */
+.tp-missed-section {
+  margin-top: var(--space-4);
+  padding-top: var(--space-3);
+  border-top: 0.5px solid var(--color-border);
+}
+
+.tp-missed-label {
+  font-size: var(--font-micro);
+  font-weight: var(--font-weight-semibold);
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  color: var(--color-text-tertiary);
+}
+
+.tp-missed-list {
+  list-style: none;
+  margin: var(--space-2) 0 0;
+  padding: 0;
+}
+
+.tp-missed-item {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: var(--space-2) 0;
+  border-bottom: 0.5px solid var(--color-border);
+}
+
+.tp-missed-item:last-child {
+  border-bottom: none;
+}
+
+.tp-missed-info {
+  display: flex;
+  align-items: baseline;
+  gap: var(--space-2);
+  min-width: 0;
+}
+
+.tp-missed-day {
+  font-size: var(--font-micro);
+  font-weight: var(--font-weight-semibold);
+  color: var(--color-text-tertiary);
+  min-width: 28px;
+}
+
+.tp-missed-name {
+  font-size: var(--font-meta);
+  font-weight: var(--font-weight-medium);
+  color: var(--color-text-secondary);
+}
+
+.tp-missed-action {
+  font-size: var(--font-micro);
+  font-weight: var(--font-weight-semibold);
+  color: var(--color-accent-muted);
+  flex-shrink: 0;
 }
 
 /* ── Cycle track ── */
@@ -423,6 +483,45 @@
 
 .tp-picker-add-btn:hover {
   color: var(--color-accent-muted);
+}
+
+/* ── Quick-start presets ── */
+.tp-presets {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-2);
+  margin-bottom: var(--space-3);
+}
+
+.tp-preset-card {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  padding: var(--space-4) var(--space-5);
+  text-align: left;
+  cursor: pointer;
+  border: 1px solid var(--color-border-strong);
+  transition: box-shadow var(--duration-fast) ease, border-color var(--duration-fast) ease;
+}
+
+.tp-preset-card:hover:not(:disabled) {
+  border-color: var(--color-accent-muted);
+  box-shadow: var(--shadow-sm);
+}
+
+.tp-preset-card:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+.tp-preset-label {
+  font-size: var(--font-card);
+  font-weight: var(--font-weight-medium);
+}
+
+.tp-preset-hint {
+  margin-top: var(--space-2);
+  font-style: italic;
 }
 
 /* ── Responsive ── */

@@ -1,3 +1,6 @@
+// TODO(phase-1): This file owns set CRUD plus useFinishWorkout, useDeleteWorkout,
+// and exercise reorder — broader than the filename suggests. Consider extracting
+// workout-lifecycle mutations into workouts.ts or a dedicated workoutActions.ts.
 import { useMutation, useQueryClient } from '@tanstack/react-query';
 import { supabase } from '../supabase';
 import type { Set } from '../../types/database';

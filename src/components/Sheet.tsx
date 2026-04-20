@@ -6,11 +6,13 @@ type SheetProps = {
   open: boolean;
   onClose: () => void;
   title?: string;
+  role?: 'dialog' | 'alertdialog';
+  'aria-describedby'?: string;
   children: React.ReactNode;
 };
 
-export function Sheet({ open, onClose, title, children }: SheetProps) {
-  const { visible, closing } = useAnimatedPresence(open, 250);
+export function Sheet({ open, onClose, title, role: roleProp, 'aria-describedby': ariaDescribedBy, children }: SheetProps) {
+  const { visible, closing } = useAnimatedPresence(open, 150);
 
   useEffect(() => {
     if (visible) {
@@ -35,9 +37,10 @@ export function Sheet({ open, onClose, title, children }: SheetProps) {
       <div
         className={'sheet-panel' + (closing ? ' sheet-panel--closing' : '')}
         onClick={(e) => e.stopPropagation()}
-        role="dialog"
+        role={roleProp ?? 'dialog'}
         aria-modal="true"
         aria-label={title ?? 'Panel'}
+        aria-describedby={ariaDescribedBy}
       >
         {title != null && (
           <div className="sheet-header">

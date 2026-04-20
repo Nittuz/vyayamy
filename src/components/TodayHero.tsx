@@ -24,6 +24,7 @@ function elapsedSince(iso: string): string {
   return m ? `${h}h ${m}m elapsed` : `${h}h elapsed`;
 }
 
+// TODO Phase 3: show plan adherence rate or streak badge in hero
 export function TodayHero({
   activeWorkout,
   plan,
@@ -58,7 +59,7 @@ export function TodayHero({
           <span className="hero-overline">Today</span>
           <h2 className="hero-title">Rest day</h2>
           <p className="hero-meta">
-            {todaySlot.label || 'Recover and come back stronger'}
+            {todaySlot.label || 'No workout scheduled.'}
           </p>
         </section>
       );
@@ -81,7 +82,7 @@ export function TodayHero({
             onClick={onStartEmpty}
             disabled={isPending}
           >
-            Train more
+            Start another
           </button>
         </section>
       );
@@ -110,13 +111,28 @@ export function TodayHero({
         </section>
       );
     }
+
+    // Slot exists but has no template assigned
+    return (
+      <section className="hero hero--empty">
+        <span className="hero-overline">Today</span>
+        <h2 className="hero-title">{todaySlot.label || 'Workout scheduled'}</h2>
+        <p className="hero-meta">This slot needs a template assigned.</p>
+        <Link to="/plan/setup" className="btn-secondary hero-cta">
+          Edit plan
+        </Link>
+      </section>
+    );
   }
 
+  // No plan, or plan with no slot for today
   return (
     <section className="hero hero--empty">
       <span className="hero-overline">Today</span>
       <h2 className="hero-title">Ready to train?</h2>
-      <p className="hero-meta">Start a free workout or set up a plan.</p>
+      <p className="hero-meta">
+        {plan ? 'No workout scheduled today.' : 'Start a workout or set up a plan.'}
+      </p>
       <button
         type="button"
         className="btn-primary hero-cta"
@@ -127,7 +143,7 @@ export function TodayHero({
         Start workout
       </button>
       {!plan && (
-        <Link to="/profile/plan" className="hero-plan-nudge">
+        <Link to="/plan" className="hero-plan-nudge">
           Set up a training plan
         </Link>
       )}
