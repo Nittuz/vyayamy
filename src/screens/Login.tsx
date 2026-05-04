@@ -20,7 +20,9 @@ import { theme } from '@/ui/theme';
 export default function LoginScreen() {
   const { session, loading } = useAuth();
   const [email, setEmail] = useState('');
+  const [password, setPassword] = useState('');
   const [sending, setSending] = useState(false);
+  const [signingIn, setSigningIn] = useState(false);
   const [sent, setSent] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
@@ -64,6 +66,17 @@ export default function LoginScreen() {
     setSent(true);
   }
 
+  async function handlePasswordSignIn() {
+    setError(null);
+    setSigningIn(true);
+    const { error: err } = await supabase.auth.signInWithPassword({
+      email: email.trim(),
+      password,
+    });
+    setSigningIn(false);
+    if (err) setError(err.message);
+  }
+
   return (
     <SafeAreaView style={styles.container}>
       <KeyboardAvoidingView
@@ -104,23 +117,54 @@ export default function LoginScreen() {
                 editable={!sending}
                 style={styles.input}
               />
+              <Text style={styles.label}>Password</Text>
+              <TextInput
+                value={password}
+                onChangeText={setPassword}
+                placeholder="Optional — for direct sign-in"
+                placeholderTextColor={theme.color.textTertiary}
+                secureTextEntry
+                autoCapitalize="none"
+                autoCorrect={false}
+                textContentType="password"
+                editable={!sending && !signingIn}
+                style={styles.input}
+              />
               {error ? <Text style={styles.error}>{error}</Text> : null}
+              <Pressable
+                onPress={handlePasswordSignIn}
+                disabled={signingIn || email.trim().length === 0 || password.length === 0}
+                style={({ pressed }) => [
+                  styles.button,
+                  (signingIn || email.trim().length === 0 || password.length === 0) &&
+                    styles.buttonDisabled,
+                  pressed && styles.buttonPressed,
+                ]}
+              >
+                {signingIn ? (
+                  <ActivityIndicator color={theme.color.onAccent} />
+                ) : (
+                  <Text style={styles.buttonText}>Sign in</Text>
+                )}
+              </Pressable>
               <Pressable
                 onPress={handleSubmit}
                 disabled={sending || email.trim().length === 0}
                 style={({ pressed }) => [
-                  styles.button,
+                  styles.buttonSecondary,
                   (sending || email.trim().length === 0) && styles.buttonDisabled,
                   pressed && styles.buttonPressed,
                 ]}
               >
                 {sending ? (
-                  <ActivityIndicator color={theme.color.onAccent} />
+                  <ActivityIndicator color={theme.color.text} />
                 ) : (
-                  <Text style={styles.buttonText}>Send magic link</Text>
+                  <Text style={styles.buttonSecondaryText}>Send magic link instead</Text>
                 )}
               </Pressable>
-              <Text style={styles.hint}>We&apos;ll email you a secure sign-in link.</Text>
+              <Text style={styles.hint}>
+                Use your password, or get a one-time email sign-in link.
+              </Text>
             </View>
           )}
         </View>
@@ -187,12 +231,26 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     marginTop: theme.space.s2,
   },
+  buttonSecondary: {
+    height: 48,
+    borderRadius: theme.radius.sm,
+    backgroundColor: 'transparent',
+    borderWidth: 1,
+    borderColor: theme.color.borderStrong,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
   buttonDisabled: { opacity: 0.4 },
   buttonPressed: { opacity: 0.85 },
   buttonText: {
     color: theme.color.onAccent,
     fontSize: theme.font.card,
     fontWeight: theme.font.weight.semibold,
+  },
+  buttonSecondaryText: {
+    color: theme.color.text,
+    fontSize: theme.font.card,
+    fontWeight: theme.font.weight.medium,
   },
   hint: {
     fontSize: theme.font.micro,

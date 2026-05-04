@@ -2,6 +2,7 @@ import 'react-native-url-polyfill/auto';
 
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { Stack } from 'expo-router';
+import * as SplashScreen from 'expo-splash-screen';
 import { StatusBar } from 'expo-status-bar';
 import { useEffect, useRef, useState } from 'react';
 import { ActivityIndicator, StyleSheet, Text, View } from 'react-native';
@@ -16,6 +17,9 @@ import { ToastProvider } from '@/ui/ToastContext';
 import { theme } from '@/ui/theme';
 
 initErrorReporting();
+void SplashScreen.preventAutoHideAsync();
+
+const INIT_TIMEOUT_MS = 5_000;
 
 const queryClient = new QueryClient({
   defaultOptions: {
@@ -49,14 +53,25 @@ export default function RootLayout() {
     if (started.current) return;
     started.current = true;
 
-    initDb()
-      .then(() => {
+    (async () => {
+      try {
+        await Promise.race([
+          initDb(),
+          new Promise<never>((_, reject) =>
+            setTimeout(
+              () => reject(new Error(`Database init exceeded ${INIT_TIMEOUT_MS}ms`)),
+              INIT_TIMEOUT_MS,
+            ),
+          ),
+        ]);
         setReady(true);
         startSyncEngine(queryClient);
-      })
-      .catch((e) => {
+      } catch (e) {
         setBootError(e instanceof Error ? e.message : String(e));
-      });
+      } finally {
+        void SplashScreen.hideAsync();
+      }
+    })();
 
     return () => {
       stopSyncEngine();
