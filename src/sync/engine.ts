@@ -12,6 +12,8 @@
 import type { QueryClient } from '@tanstack/react-query';
 import NetInfo, { type NetInfoSubscription } from '@react-native-community/netinfo';
 
+import { syncInvalidationRoots } from '@/queries/keys';
+
 import { pullOnce } from './pull';
 import { pushOutbox } from './push';
 import { getSyncState, setSyncState } from './state';
@@ -38,13 +40,20 @@ export function stopSyncEngine() {
   client = null;
 }
 
+function invalidateAfterSync(): void {
+  if (!client) return;
+  for (const prefix of syncInvalidationRoots) {
+    void client.invalidateQueries({ queryKey: [...prefix] });
+  }
+}
+
 export async function triggerPush(): Promise<void> {
   if (!getSyncState().online) return;
   if (pushInFlight) return;
   pushInFlight = true;
   try {
     await pushOutbox();
-    if (client) client.invalidateQueries();
+    invalidateAfterSync();
   } catch (err) {
     setSyncState({ lastError: errorMessage(err) });
   } finally {
@@ -58,7 +67,7 @@ export async function triggerPull(): Promise<void> {
   pullInFlight = true;
   try {
     await pullOnce();
-    if (client) client.invalidateQueries();
+    invalidateAfterSync();
   } catch (err) {
     setSyncState({ lastError: errorMessage(err) });
   } finally {

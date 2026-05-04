@@ -1,5 +1,5 @@
 import { router } from 'expo-router';
-import { useEffect, useMemo, useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import {
   ActivityIndicator,
   Pressable,
@@ -12,8 +12,8 @@ import {
 } from 'react-native';
 
 import { useAuth } from '@/auth/useAuth';
-import { useActivePlan, useSaveActivePlan, useTemplates } from '@/queries/plans';
 import type { SlotDraft } from '@/core/domain';
+import { type ActivePlan, useActivePlan, useSaveActivePlan, useTemplates } from '@/queries/plans';
 import { theme } from '@/ui/theme';
 
 const DAY_LABELS = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
@@ -29,9 +29,17 @@ export default function PlanSetupScreen() {
   const [planType, setPlanType] = useState<'weekly' | 'cycle'>('weekly');
   const [slots, setSlots] = useState<SlotDraft[]>(() => buildWeeklyDraft());
 
+  const lastHydratedKeyRef = useRef<string | null>(null);
+
   useEffect(() => {
     const p = existing.data;
-    if (!p) return;
+    if (!p) {
+      lastHydratedKeyRef.current = null;
+      return;
+    }
+    const key = activePlanHydrationKey(p);
+    if (lastHydratedKeyRef.current === key) return;
+    lastHydratedKeyRef.current = key;
     setName(p.plan.name);
     setPlanType(p.plan.plan_type);
     setSlots(
@@ -215,6 +223,17 @@ export default function PlanSetupScreen() {
       </ScrollView>
     </SafeAreaView>
   );
+}
+
+/** Stable fingerprint for plan + slots so refetches with new object identity do not re-hydrate. */
+function activePlanHydrationKey(p: NonNullable<ActivePlan>): string {
+  const slotPart = p.slots
+    .map(
+      (s) =>
+        `${s.id}:${s.template_id ?? ''}:${s.day_of_week ?? ''}:${s.cycle_position ?? ''}:${s.is_rest_day ? 1 : 0}:${s.label ?? ''}`,
+    )
+    .join('|');
+  return `${p.plan.id}:${p.plan.name}:${p.plan.plan_type}:${slotPart}`;
 }
 
 function buildWeeklyDraft(): SlotDraft[] {

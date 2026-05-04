@@ -10,3 +10,7 @@ jest.mock('@react-native-async-storage/async-storage', () => ({
   setItem: jest.fn(async () => undefined),
   removeItem: jest.fn(async () => undefined),
 }));
+
+jest.mock('react-native', () => ({
+  Platform: { OS: 'ios', Version: 26, select: (spec) => spec.ios },
+}));

@@ -4,7 +4,8 @@ import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { Stack } from 'expo-router';
 import { StatusBar } from 'expo-status-bar';
 import { useEffect, useState } from 'react';
-import { SafeAreaProvider } from 'react-native-safe-area-context';
+import { StyleSheet, Text } from 'react-native';
+import { SafeAreaProvider, SafeAreaView } from 'react-native-safe-area-context';
 
 import { AuthProvider } from '@/auth/AuthContext';
 import { initDb } from '@/db/client';
@@ -28,20 +29,38 @@ const queryClient = new QueryClient({
 
 export default function RootLayout() {
   const [ready, setReady] = useState(false);
+  const [bootError, setBootError] = useState<string | null>(null);
 
   useEffect(() => {
     let cancelled = false;
     (async () => {
-      await initDb();
-      if (cancelled) return;
-      setReady(true);
-      startSyncEngine(queryClient);
+      try {
+        await initDb();
+        if (cancelled) return;
+        setReady(true);
+        startSyncEngine(queryClient);
+      } catch (e) {
+        if (!cancelled) {
+          setBootError(e instanceof Error ? e.message : String(e));
+        }
+      }
     })();
     return () => {
       cancelled = true;
       stopSyncEngine();
     };
   }, []);
+
+  if (bootError) {
+    return (
+      <SafeAreaProvider>
+        <SafeAreaView style={bootStyles.screen} edges={['top', 'bottom', 'left', 'right']}>
+          <Text style={bootStyles.title}>Cannot start here</Text>
+          <Text style={bootStyles.body}>{bootError}</Text>
+        </SafeAreaView>
+      </SafeAreaProvider>
+    );
+  }
 
   if (!ready) return null;
 
@@ -73,3 +92,23 @@ export default function RootLayout() {
     </ErrorBoundary>
   );
 }
+
+const bootStyles = StyleSheet.create({
+  screen: {
+    flex: 1,
+    justifyContent: 'center',
+    padding: theme.space.page,
+    backgroundColor: theme.color.bg,
+  },
+  title: {
+    fontSize: theme.font.title,
+    fontWeight: '600',
+    color: theme.color.text,
+    marginBottom: theme.space.s4,
+  },
+  body: {
+    fontSize: theme.font.body,
+    color: theme.color.textSecondary,
+    lineHeight: 22,
+  },
+});
