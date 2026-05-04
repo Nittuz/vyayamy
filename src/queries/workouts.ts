@@ -90,18 +90,20 @@ export async function deleteWorkoutLocal(workoutId: string): Promise<void> {
   void triggerPush();
 }
 
-export function useCreateWorkout() {
+export function useCreateWorkout(onError?: (msg: string) => void) {
   const qc = useQueryClient();
   return useMutation({
     mutationFn: createWorkout,
     onSuccess: () => qc.invalidateQueries({ queryKey: queryKeys.workouts.all }),
+    onError: (err) => onError?.(err instanceof Error ? err.message : 'Failed to create workout'),
   });
 }
 
-export function useFinishWorkout() {
+export function useFinishWorkout(onError?: (msg: string) => void) {
   const qc = useQueryClient();
   return useMutation({
     mutationFn: finishWorkout,
     onSuccess: () => qc.invalidateQueries({ queryKey: queryKeys.workouts.all }),
+    onError: (err) => onError?.(err instanceof Error ? err.message : 'Failed to finish workout'),
   });
 }

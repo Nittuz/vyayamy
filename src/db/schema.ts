@@ -138,7 +138,8 @@ CREATE INDEX IF NOT EXISTS idx_outbox_created ON outbox(created_at);
 
 CREATE TABLE IF NOT EXISTS sync_meta (
   table_name TEXT PRIMARY KEY NOT NULL,
-  last_pulled_at TEXT
+  last_pulled_at TEXT,
+  last_pulled_id TEXT
 );
 `;
 

@@ -1,6 +1,6 @@
 import * as Haptics from 'expo-haptics';
 import { useState } from 'react';
-import { Pressable, StyleSheet, Text, TextInput, View } from 'react-native';
+import { Alert, Pressable, StyleSheet, Text, TextInput, View } from 'react-native';
 
 import type { Set as SetRow } from '@/db/types';
 import { theme } from '@/ui/theme';
@@ -77,7 +77,10 @@ function SetRowView({
 
   const onLongPress = () => {
     void Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Heavy).catch(() => {});
-    onDeleteSet(set.id);
+    Alert.alert('Delete set', `Remove set ${index + 1}?`, [
+      { text: 'Cancel', style: 'cancel' },
+      { text: 'Delete', style: 'destructive', onPress: () => onDeleteSet(set.id) },
+    ]);
   };
 
   return (

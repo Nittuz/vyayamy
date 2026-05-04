@@ -3,7 +3,9 @@
  *
  * Drains the outbox FIFO, applying each mutation against Supabase via
  * the PostgREST surface. On success the outbox row is deleted; on
- * failure its attempts/last_error are incremented and the loop pauses.
+ * failure its attempts/last_error are incremented. Failed rows beyond
+ * MAX_ATTEMPTS are quarantined (skipped) so they don't block the queue.
+ * Exponential backoff is applied per-row based on attempt count.
  */
 import { supabase } from '@/auth/supabase';
 import { getDb } from '@/db/client';
@@ -12,8 +14,6 @@ import { setSyncState } from './state';
 
 type AnyTable = ReturnType<typeof supabase.from>;
 function fromDynamic(table: string): AnyTable {
-  // Bypass the typed-Database table-name constraint for sync code
-  // that operates on a runtime-supplied table list.
   return (supabase as unknown as { from: (t: string) => AnyTable }).from(table);
 }
 
@@ -27,17 +27,27 @@ interface OutboxRow {
 }
 
 const MAX_ATTEMPTS = 5;
+const BATCH_LIMIT = 50;
+
+function backoffMs(attempts: number): number {
+  return Math.min(1000 * Math.pow(2, attempts), 30_000);
+}
 
 export async function pushOutbox(): Promise<void> {
   const db = await getDb();
   setSyncState({ pushInFlight: true });
   try {
-    while (true) {
-      const row = await db.getFirstAsync<OutboxRow>(
-        'SELECT * FROM outbox WHERE attempts < ? ORDER BY id ASC LIMIT 1',
-        [MAX_ATTEMPTS],
-      );
-      if (!row) break;
+    const rows = await db.getAllAsync<OutboxRow>(
+      'SELECT * FROM outbox WHERE attempts < ? ORDER BY id ASC LIMIT ?',
+      [MAX_ATTEMPTS, BATCH_LIMIT],
+    );
+
+    for (const row of rows) {
+      if (row.attempts > 0) {
+        const waitMs = backoffMs(row.attempts);
+        await new Promise((r) => setTimeout(r, waitMs));
+      }
+
       const payload = JSON.parse(row.payload_json) as Record<string, unknown>;
 
       try {
@@ -65,7 +75,6 @@ export async function pushOutbox(): Promise<void> {
           'UPDATE outbox SET attempts = attempts + 1, last_error = ? WHERE id = ?',
           [msg, row.id],
         );
-        break;
       }
     }
 
@@ -73,8 +82,13 @@ export async function pushOutbox(): Promise<void> {
       'SELECT COUNT(*) AS c FROM outbox WHERE attempts < ?',
       [MAX_ATTEMPTS],
     );
+    const quarantined = await db.getFirstAsync<{ c: number }>(
+      'SELECT COUNT(*) AS c FROM outbox WHERE attempts >= ?',
+      [MAX_ATTEMPTS],
+    );
     setSyncState({
       pendingOutbox: pending?.c ?? 0,
+      quarantinedOutbox: quarantined?.c ?? 0,
       lastPushedAt: new Date().toISOString(),
     });
   } finally {

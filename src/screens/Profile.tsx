@@ -1,5 +1,5 @@
 import { router } from 'expo-router';
-import { useEffect, useState } from 'react';
+import { useCallback, useEffect, useState } from 'react';
 import {
   ActivityIndicator,
   Pressable,
@@ -16,18 +16,31 @@ import { useAuth } from '@/auth/useAuth';
 import { formatMemberSince, getInitials } from '@/core/format';
 import { useProfile, useUpdateProfile } from '@/queries/profile';
 import { SyncIndicator } from '@/ui/SyncIndicator';
+import { useToast } from '@/ui/ToastContext';
 import { theme } from '@/ui/theme';
 
 export default function ProfileScreen() {
   const { user } = useAuth();
   const userId = user?.id;
+  const { showToast } = useToast();
   const profileQuery = useProfile(userId);
-  const updateProfile = useUpdateProfile(userId);
+  const toastError = useCallback((msg: string) => showToast(msg, 'error'), [showToast]);
+  const updateProfile = useUpdateProfile(userId, toastError);
 
   const [displayName, setDisplayName] = useState('');
+  const [signingOut, setSigningOut] = useState(false);
   useEffect(() => {
     setDisplayName(profileQuery.data?.display_name ?? '');
   }, [profileQuery.data?.display_name]);
+
+  const handleSignOut = useCallback(async () => {
+    setSigningOut(true);
+    try {
+      await supabase.auth.signOut();
+    } finally {
+      setSigningOut(false);
+    }
+  }, []);
 
   if (!userId) return null;
 
@@ -104,12 +117,10 @@ export default function ProfileScreen() {
         </Pressable>
 
         <Pressable
-          onPress={async () => {
-            await supabase.auth.signOut();
-          }}
+          onPress={handleSignOut}
           style={({ pressed }) => [styles.signOut, pressed && { opacity: 0.85 }]}
         >
-          {updateProfile.isPending ? (
+          {signingOut ? (
             <ActivityIndicator color={theme.color.danger} />
           ) : (
             <Text style={styles.signOutText}>Sign out</Text>

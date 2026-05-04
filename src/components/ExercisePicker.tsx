@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import {
   ActivityIndicator,
   FlatList,
@@ -20,9 +20,19 @@ interface Props {
   onPick: (exerciseId: string) => void;
 }
 
+function useDebouncedValue(value: string, delayMs: number): string {
+  const [debounced, setDebounced] = useState(value);
+  useEffect(() => {
+    const timer = setTimeout(() => setDebounced(value), delayMs);
+    return () => clearTimeout(timer);
+  }, [value, delayMs]);
+  return debounced;
+}
+
 export function ExercisePicker({ userId, visible, onClose, onPick }: Props) {
   const [query, setQuery] = useState('');
-  const { data, isLoading } = useExercisesSearch(userId, query);
+  const debouncedQuery = useDebouncedValue(query, 300);
+  const { data, isLoading } = useExercisesSearch(userId, debouncedQuery);
 
   return (
     <Modal

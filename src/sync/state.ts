@@ -7,6 +7,7 @@ export interface SyncState {
   pushInFlight: boolean;
   pullInFlight: boolean;
   pendingOutbox: number;
+  quarantinedOutbox: number;
   lastPushedAt: string | null;
   lastPulledAt: string | null;
   lastError: string | null;
@@ -19,6 +20,7 @@ let state: SyncState = {
   pushInFlight: false,
   pullInFlight: false,
   pendingOutbox: 0,
+  quarantinedOutbox: 0,
   lastPushedAt: null,
   lastPulledAt: null,
   lastError: null,

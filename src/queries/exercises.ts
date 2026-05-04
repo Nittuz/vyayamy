@@ -60,12 +60,13 @@ export async function addExerciseToWorkout(args: {
   exerciseId: string;
 }): Promise<string> {
   const db = await getDb();
-  const rows = await db.getAllAsync<{ order_index: number }>(
-    'SELECT order_index FROM workout_exercises WHERE workout_id = ? AND deleted_at IS NULL',
+  const id = uuidv4();
+  const result = await db.getFirstAsync<{ next_order: number }>(
+    `SELECT COALESCE(MAX(order_index), -1) + 1 AS next_order
+       FROM workout_exercises WHERE workout_id = ? AND deleted_at IS NULL`,
     [args.workoutId],
   );
-  const nextOrder = rows.reduce((m, r) => Math.max(m, r.order_index), -1) + 1;
-  const id = uuidv4();
+  const nextOrder = result?.next_order ?? 0;
   await enqueueMutation({
     table: 'workout_exercises',
     op: 'insert',
@@ -80,19 +81,21 @@ export async function addExerciseToWorkout(args: {
   return id;
 }
 
-export function useCreateCustomExercise() {
+export function useCreateCustomExercise(onError?: (msg: string) => void) {
   const qc = useQueryClient();
   return useMutation({
     mutationFn: createCustomExercise,
     onSuccess: () => qc.invalidateQueries({ queryKey: queryKeys.exercises.all }),
+    onError: (err) => onError?.(err instanceof Error ? err.message : 'Failed to create exercise'),
   });
 }
 
-export function useAddExerciseToWorkout() {
+export function useAddExerciseToWorkout(onError?: (msg: string) => void) {
   const qc = useQueryClient();
   return useMutation({
     mutationFn: addExerciseToWorkout,
     onSuccess: (_id, vars) =>
       qc.invalidateQueries({ queryKey: queryKeys.workouts.withExercises(vars.workoutId) }),
+    onError: (err) => onError?.(err instanceof Error ? err.message : 'Failed to add exercise'),
   });
 }

@@ -53,6 +53,7 @@ export async function triggerPush(): Promise<void> {
   pushInFlight = true;
   try {
     await pushOutbox();
+    setSyncState({ lastError: null });
     invalidateAfterSync();
   } catch (err) {
     setSyncState({ lastError: errorMessage(err) });
@@ -67,6 +68,7 @@ export async function triggerPull(): Promise<void> {
   pullInFlight = true;
   try {
     await pullOnce();
+    setSyncState({ lastError: null });
     invalidateAfterSync();
   } catch (err) {
     setSyncState({ lastError: errorMessage(err) });

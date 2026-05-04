@@ -1,14 +1,16 @@
-import { useMemo, useState } from 'react';
+import { useState } from 'react';
 import {
   ActivityIndicator,
-  Dimensions,
   Pressable,
   SafeAreaView,
   ScrollView,
   StyleSheet,
   Text,
+  useWindowDimensions,
   View,
 } from 'react-native';
+
+import { useQuery } from '@tanstack/react-query';
 
 import { useAuth } from '@/auth/useAuth';
 import { formatRelativeDate } from '@/core/format';
@@ -32,22 +34,18 @@ export default function ProgressScreen() {
   const active = selectedExercise ?? prs?.[0]?.exerciseId ?? null;
   const activeName = prs?.find((p) => p.exerciseId === active)?.exerciseName ?? '';
 
-  const [series, setSeries] = useState<{ x: number; y: number }[]>([]);
-  const screenW = Dimensions.get('window').width - theme.space.page * 2;
+  const { width: windowWidth } = useWindowDimensions();
+  const screenW = windowWidth - theme.space.page * 2;
 
-  useMemo(() => {
-    let cancelled = false;
-    (async () => {
-      if (!userId || !active) return;
+  const { data: series = [] } = useQuery({
+    queryKey: ['weight-history', userId, active],
+    queryFn: async () => {
+      if (!userId || !active) return [];
       const rows = await getHeaviestWeightHistory(userId, active);
-      if (!cancelled) {
-        setSeries(rows.map((r) => ({ x: new Date(r.achievedAt).getTime(), y: r.weight })));
-      }
-    })();
-    return () => {
-      cancelled = true;
-    };
-  }, [userId, active]);
+      return rows.map((r) => ({ x: new Date(r.achievedAt).getTime(), y: r.weight }));
+    },
+    enabled: !!userId && !!active,
+  });
 
   if (!userId) return null;
 

@@ -1,5 +1,5 @@
 import { router, Stack } from 'expo-router';
-import { useCallback, useState } from 'react';
+import { useCallback, useMemo, useState } from 'react';
 import {
   ActivityIndicator,
   Pressable,
@@ -19,19 +19,22 @@ import { useActiveWorkout, useFinishWorkout } from '@/queries/workouts';
 import { useWorkoutDetail } from '@/queries/workoutDetail';
 import { formatTimer, useRestTimer } from '@/ui/hooks/useRestTimer';
 import { SyncIndicator } from '@/ui/SyncIndicator';
+import { useToast } from '@/ui/ToastContext';
 import { theme } from '@/ui/theme';
 
 export default function WorkoutActiveScreen() {
   const { user } = useAuth();
   const userId = user?.id;
+  const { showToast } = useToast();
   const activeQuery = useActiveWorkout(userId);
   const detail = useWorkoutDetail(activeQuery.data?.id);
 
-  const addExercise = useAddExerciseToWorkout();
-  const addSet = useAddSet();
-  const updateSet = useUpdateSet();
-  const deleteSet = useDeleteSet();
-  const finishWorkout = useFinishWorkout();
+  const toastError = useCallback((msg: string) => showToast(msg, 'error'), [showToast]);
+  const addExercise = useAddExerciseToWorkout(toastError);
+  const addSet = useAddSet(toastError);
+  const updateSet = useUpdateSet(toastError);
+  const deleteSet = useDeleteSet(toastError);
+  const finishWorkout = useFinishWorkout(toastError);
 
   const [pickerOpen, setPickerOpen] = useState(false);
   const timer = useRestTimer({ targetSeconds: 90 });
@@ -96,14 +99,14 @@ export default function WorkoutActiveScreen() {
   const workout = detail.data.workout;
   const exercises = detail.data.exercises;
 
+  const screenOptions = useMemo(
+    () => ({ title: workout.title, headerRight: () => <SyncIndicator /> }),
+    [workout.title],
+  );
+
   return (
     <SafeAreaView style={styles.container}>
-      <Stack.Screen
-        options={{
-          title: workout.title,
-          headerRight: () => <SyncIndicator />,
-        }}
-      />
+      <Stack.Screen options={screenOptions} />
       <ScrollView contentContainerStyle={styles.scroll}>
         {timer.running ? (
           <View style={styles.timerCard}>
