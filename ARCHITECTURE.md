@@ -1,6 +1,6 @@
 # Architecture
 
-This document describes the design and solution architecture of Vyayamy — a minimal, mobile-first workout journal built as a Progressive Web App.
+Vyayamy is a mobile-only, **local-first** strength-training journal. The client owns the data during a session: every user action commits to SQLite synchronously, and the sync engine propagates those writes to Supabase in the background. The network is never in the critical path of logging a set.
 
 ---
 
@@ -8,197 +8,233 @@ This document describes the design and solution architecture of Vyayamy — a mi
 
 1. [System Overview](#system-overview)
 2. [High-Level Architecture](#high-level-architecture)
-3. [Frontend Architecture](#frontend-architecture)
+3. [Provider Tree and Navigation](#provider-tree-and-navigation)
 4. [Data Layer](#data-layer)
-5. [Database Design](#database-design)
-6. [Authentication](#authentication)
-7. [Personal Record Detection](#personal-record-detection)
-8. [PWA Strategy](#pwa-strategy)
-9. [Security Model](#security-model)
-10. [Design System](#design-system)
-11. [Key Design Decisions](#key-design-decisions)
+5. [Sync Engine](#sync-engine)
+6. [Database Design](#database-design)
+7. [Authentication](#authentication)
+8. [Personal Record Detection](#personal-record-detection)
+9. [Rest Timer and Notifications](#rest-timer-and-notifications)
+10. [Error Reporting](#error-reporting)
+11. [Design System](#design-system)
+12. [Native Health Boundary](#native-health-boundary)
+13. [Security Model](#security-model)
+14. [Key Design Decisions](#key-design-decisions)
 
 ---
 
 ## System Overview
 
-Vyayamy is a single-page application that runs entirely in the browser. There is no custom backend server — all data persistence, authentication, and authorization are handled by Supabase (managed Postgres + Auth + REST API). The app is deployed as static assets and installable as a PWA.
+The app runs entirely on the user's phone. SQLite, not Supabase, is the source of truth during a session. Supabase is a durable mirror reached only by the sync engine.
 
+```mermaid
+flowchart LR
+  subgraph Device [On device]
+    UI[Expo RN UI]
+    RQ[React Query cache]
+    SQLite[("SQLite<br/>source of truth")]
+    Outbox[(outbox table)]
+    SyncMeta[(sync_meta)]
+    Sync[Sync Engine]
+  end
+
+  subgraph Cloud [Supabase]
+    Auth[GoTrue<br/>OTP + PKCE]
+    PG[("Postgres<br/>+ RLS")]
+    REST[PostgREST]
+  end
+
+  UI -->|read| RQ
+  RQ -->|query| SQLite
+  UI -->|write| SQLite
+  UI -->|enqueue| Outbox
+  Sync -->|drain| Outbox
+  Sync -->|push| REST
+  Sync -->|"pull updated_at > cursor"| REST
+  Sync -->|upsert| SQLite
+  Sync -->|advance| SyncMeta
+  REST --> PG
+  UI -.->|sign in| Auth
+  Auth -.-> PG
 ```
-┌─────────────────────────────────────────────────────┐
-│                     Client (Browser)                 │
-│                                                     │
-│  React 19 + TypeScript                              │
-│  ┌──────────┐  ┌──────────────┐  ┌──────────────┐  │
-│  │  Routes   │  │  Components  │  │  Contexts    │  │
-│  │  (pages)  │──│  (shared UI) │  │  (Auth,Toast)│  │
-│  └────┬─────┘  └──────┬───────┘  └──────┬───────┘  │
-│       │               │                 │           │
-│       └───────┬───────┘                 │           │
-│               │                         │           │
-│        ┌──────▼───────┐                 │           │
-│        │ TanStack     │                 │           │
-│        │ React Query  │                 │           │
-│        │ (hooks)      │                 │           │
-│        └──────┬───────┘                 │           │
-│               │                         │           │
-│        ┌──────▼───────┐          ┌──────▼───────┐   │
-│        │  Supabase    │          │  Supabase    │   │
-│        │  Client      │──────────│  Auth        │   │
-│        │  (REST)      │          │  (OTP)       │   │
-│        └──────┬───────┘          └──────┬───────┘   │
-└───────────────┼─────────────────────────┼───────────┘
-                │          HTTPS          │
-        ┌───────▼─────────────────────────▼───────┐
-        │            Supabase Platform            │
-        │  ┌──────────┐  ┌────────┐  ┌────────┐  │
-        │  │ Postgres  │  │  Auth  │  │  RLS   │  │
-        │  │ (data)    │  │ (JWT)  │  │(policy)│  │
-        │  └──────────┘  └────────┘  └────────┘  │
-        └─────────────────────────────────────────┘
-```
+
+Key properties:
+
+- No custom API server
+- Writes never block on the network
+- Last-write-wins is sufficient — single user, often single device
+- Every mutable table carries `updated_at` and `deleted_at`; hard deletes are never issued
 
 ---
 
 ## High-Level Architecture
 
-The application follows a **client-heavy, serverless** pattern:
+| Concern             | Solution                                                                |
+| ------------------- | ----------------------------------------------------------------------- |
+| UI rendering        | React Native (Expo SDK 51), React 18 functional components              |
+| Navigation          | Expo Router (file-based under [app/](app/), typed routes)               |
+| Local state         | `useState` / `useReducer` inside components                             |
+| Server state        | TanStack React Query 5, backed by SQLite reads                          |
+| Local persistence   | `expo-sqlite` ([src/db/](src/db/))                                      |
+| Sync                | In-house outbox + incremental pull ([src/sync/](src/sync/))             |
+| Auth                | Supabase GoTrue, OTP + PKCE, `expo-linking` deep link exchange          |
+| Remote persistence  | Supabase Postgres + PostgREST, reached only by the sync engine          |
+| Authorization       | Row Level Security in Postgres                                          |
+| Styling             | `StyleSheet.create` + tokens in [src/ui/theme.ts](src/ui/theme.ts)      |
+| Charts              | `react-native-svg` via [src/ui/LineChart.tsx](src/ui/LineChart.tsx)     |
+| Haptics             | `expo-haptics`                                                          |
+| Timers              | `setInterval` foreground, `expo-notifications` for background rest cue  |
+| Error reporting     | `@sentry/react-native` gated by DSN                                     |
+| Native integrations | HealthKit / Health Connect adapter interface ([src/native/health/](src/native/health/)) |
+| Testing             | Jest + `ts-jest`, `better-sqlite3` in-memory mock of `expo-sqlite`      |
+| Build / distribution | EAS Build, EAS Submit                                                  |
 
-| Concern             | Solution                                      |
-| ------------------- | --------------------------------------------- |
-| UI rendering        | React 19 with functional components           |
-| Routing             | React Router v7 (nested, layout-based)        |
-| Server state        | TanStack React Query 5 (cache, mutations)     |
-| Local/UI state      | React `useState` / `useReducer` in components |
-| Auth state          | React Context (`AuthProvider`)                |
-| Backend + DB        | Supabase (Postgres 15, PostgREST, GoTrue)     |
-| Authorization       | Row Level Security policies in Postgres       |
-| Build + bundling    | Vite 7                                        |
-| Offline / install   | Service Worker via vite-plugin-pwa (Workbox)  |
-
-There is no API server layer, no ORM, and no server-side rendering. The Supabase JS client talks directly to PostgREST and GoTrue over HTTPS.
+There is no server-side rendering, no ORM, no middleware, and no custom HTTP layer. UI code does not call `supabase.from()` directly — only the sync engine does.
 
 ---
 
-## Frontend Architecture
+## Provider Tree and Navigation
 
 ### Provider Tree
 
-The app bootstraps through a layered provider tree in `main.tsx`:
+Defined in [app/_layout.tsx](app/_layout.tsx). Order matters:
 
 ```
-StrictMode
-  └─ ErrorBoundary
-       └─ QueryClientProvider        ← TanStack Query cache
-            └─ BrowserRouter          ← React Router
-                 └─ AuthProvider       ← Auth state + session
-                      └─ ToastProvider ← Toast notifications
-                           └─ App     ← Route definitions
+ErrorBoundary
+  └─ SafeAreaProvider
+       └─ QueryClientProvider       ← TanStack Query cache
+            └─ AuthProvider          ← Supabase session + user
+                 └─ ToastProvider    ← transient notifications
+                      └─ Expo Router <Stack>
 ```
 
-### Routing
+`RootLayout` also initializes the local database (`initDb()`) and starts the sync engine (`startSyncEngine(queryClient)`) once. Sentry init runs at module load via `initErrorReporting()` and is a no-op if no DSN is configured.
 
-All authenticated routes are nested under a `ProtectedRoute` + `Layout` wrapper. The layout provides the persistent bottom navigation bar (Today, History, Progress, Profile).
+### Navigation
 
-| Path               | Component          | Description                       |
-| ------------------ | ------------------ | --------------------------------- |
-| `/login`             | `Login`            | Magic-link email sign-in          |
-| `/`                  | `Today`            | Dashboard — active/recent workouts |
-| `/workout/active`    | `WorkoutActive`    | Live session — exercises + sets   |
-| `/history`           | `History`          | Past workouts by date             |
-| `/history/:id`       | `HistoryDetail`    | Single workout detail view        |
-| `/progress`          | `Progress`         | PRs, trend charts, frequency      |
-| `/profile`           | `Profile`          | Settings, routines, sign out      |
-| `/profile/plan`      | `TrainingPlan`     | View/edit active training plan    |
-| `/profile/plan/setup`| `PlanSetup`        | Create or edit plan (wizard)      |
-| `*`                  | Redirect → `/`     | Catch-all                         |
+Expo Router maps the filesystem under [app/](app/) to routes:
 
-### Component Hierarchy
+| Route                   | File                                                       | Notes                       |
+| ----------------------- | ---------------------------------------------------------- | --------------------------- |
+| `/(tabs)/today`         | [app/(tabs)/today.tsx](app/(tabs)/today.tsx)               | Dashboard                   |
+| `/(tabs)/history`       | [app/(tabs)/history.tsx](app/(tabs)/history.tsx)           | Past workouts               |
+| `/(tabs)/progress`      | [app/(tabs)/progress.tsx](app/(tabs)/progress.tsx)         | PRs + charts                |
+| `/(tabs)/profile`       | [app/(tabs)/profile.tsx](app/(tabs)/profile.tsx)           | Settings                    |
+| `/workout/active`       | [app/workout/active.tsx](app/workout/active.tsx)           | Live session                |
+| `/history/[id]`         | [app/history/[id].tsx](app/history/[id].tsx)               | Dynamic detail route        |
+| `/profile/plan`         | [app/profile/plan/index.tsx](app/profile/plan/index.tsx)   | Training plan               |
+| `/profile/plan/setup`   | [app/profile/plan/setup.tsx](app/profile/plan/setup.tsx)   | Plan setup wizard           |
+| `/login`                | [app/login.tsx](app/login.tsx)                             | OTP sign-in                 |
+| `*`                     | [app/+not-found.tsx](app/+not-found.tsx)                   | Catch-all                   |
 
-```
-Layout
-├── BottomNav (Today | History | Progress | Profile)
-├── Today
-│   ├── ActiveWorkoutCard → links to /workout/active
-│   └── RecentWorkoutsList
-├── WorkoutActive
-│   ├── ExerciseBlock (per exercise)
-│   │   ├── SetsTable (weight, reps, complete toggle)
-│   │   └── AddSetButton
-│   ├── ExerciseSearchModal
-│   │   ├── SearchInput (debounced)
-│   │   ├── RecentExercises
-│   │   ├── GlobalExercises
-│   │   └── CreateCustomExercise
-│   └── FinishWorkoutButton → triggers PR detection
-├── History
-│   ├── PeriodFilter
-│   └── WorkoutCard (grouped by date)
-├── HistoryDetail
-│   ├── ExerciseBlock (read-only)
-│   ├── RepeatButton
-│   └── DeleteButton → ConfirmDialog
-├── Progress
-│   ├── PersonalRecordsList
-│   ├── ExerciseTrendChart (Recharts)
-│   └── WeeklyFrequencyChart
-├── Profile
-│   ├── DisplayName / Units
-│   ├── RoutinesList
-│   │   └── Sheet (exercise list per routine)
-│   └── SignOutButton
-├── TrainingPlan
-│   ├── WeekStrip (day selector)
-│   └── Slot list (template per day/cycle position)
-└── PlanSetup
-    └── Plan creation/edit wizard
-```
+Route files are thin; the real screens live in [src/screens/](src/screens/) and are imported by the route file. This keeps routing declarative and lets screens stay portable across navigation choices.
 
 ---
 
 ## Data Layer
 
-### Query Architecture
+### Write path
 
-All server-state management uses TanStack React Query. Data access is organized into **domain-specific query modules** under `src/lib/queries/`:
+Every user action that touches data calls `enqueueMutation()` in [src/db/mutations.ts](src/db/mutations.ts). Both the local write and the outbox row happen in a single SQLite transaction:
 
-| Module          | Key hooks                                                        |
-| --------------- | ---------------------------------------------------------------- |
-| `workouts.ts`   | `useActiveWorkout`, `useRecentWorkouts`, `useCreateWorkout`, `useWorkoutWithExercises` |
-| `exercises.ts`  | `useExercisesSearch`, `useRecentExerciseIds`, `useGlobalExercises`, `useCreateExercise`, `useAddExerciseToWorkout` |
-| `sets.ts`       | `useAddSet`, `useUpdateSet`, `useDeleteSet`, `useFinishWorkout`, `useReorderExercise`, `useDeleteWorkout` |
-| `history.ts`    | `useHistoryWorkouts` (with date range / period filters)          |
-| `records.ts`    | `usePersonalRecords`, `useExerciseHistory`, `useWeeklyFrequency` |
-| `profile.ts`    | `useProfile`, `useUpdateProfile`                                 |
-| `templates.ts`  | `useTemplates`, `useCreateTemplate`, `useUpdateTemplate`, `useDeleteTemplate` |
-| `plans.ts`      | `useActivePlan`, `useCreatePlan`, `useUpdatePlan`, `useDeletePlan`, `useUpsertSlot` |
-
-Each module exports custom hooks that encapsulate:
-- Supabase query construction
-- Query key management
-- Mutation logic with cache invalidation
-
-### Caching Strategy
-
-- **Default stale time**: 60 seconds (configured on the `QueryClient`)
-- **Invalidation**: mutations use `queryClient.invalidateQueries` to refetch affected data on success
-- **Optimistic updates**: `useUpdateSet` and `useDeleteSet` apply changes to the cache immediately via `onMutate`, with rollback in `onError`
-
-### Data Flow
-
+```ts
+await db.withTransactionAsync(async () => {
+  // 1. Apply the change to the local table (insert/upsert/update/soft-delete)
+  // 2. Append one row to the outbox describing the server-side effect
+});
 ```
-Component (UI)
-    │
-    ▼
-useXxxQuery / useXxxMutation   ← TanStack Query hook
-    │
-    ▼
-supabase.from('table')...      ← Supabase JS client
-    │
-    ▼ HTTPS (PostgREST)
-    │
-Postgres + RLS policies         ← Supabase platform
+
+There is no optimistic/rollback branching in UI code — by the time the function returns, the write is durable locally. The sync engine picks up the outbox asynchronously.
+
+### Read path
+
+Screens consume React Query hooks in [src/queries/](src/queries/). Each hook's `queryFn` reads SQLite via `getDb()` instead of hitting the network:
+
+```ts
+return useQuery({
+  queryKey: [...WORKOUTS_KEY, 'recent', userId ?? ''],
+  queryFn: async () => {
+    const db = await getDb();
+    return db.getAllAsync<Workout>(
+      `SELECT * FROM workouts
+         WHERE user_id = ? AND deleted_at IS NULL
+         ORDER BY started_at DESC LIMIT 20`,
+      [userId],
+    );
+  },
+  enabled: !!userId,
+});
 ```
+
+React Query still earns its keep: cache, dedup, and hook ergonomics across the screen tree. All reads filter `deleted_at IS NULL`; tombstones are visible only to the sync engine.
+
+### Mutations
+
+Mutations wrap `enqueueMutation` and invalidate query keys on success. They never call `supabase.from()` directly — that boundary is enforced by convention and by the lint rule that only [src/sync/](src/sync/) imports from [src/auth/supabase.ts](src/auth/supabase.ts) (outside of auth itself).
+
+---
+
+## Sync Engine
+
+The engine ([src/sync/engine.ts](src/sync/engine.ts)) owns lifecycle:
+
+- Subscribes to `@react-native-community/netinfo` for connectivity
+- Triggers a sync cycle on startup, network regain, and auth change
+- Coalesces concurrent push/pull runs with in-flight flags
+- Publishes state via a lightweight pub/sub in [src/sync/state.ts](src/sync/state.ts) consumed by [src/ui/SyncIndicator.tsx](src/ui/SyncIndicator.tsx)
+
+```mermaid
+flowchart TD
+  Start([app start]) --> InitDB[initDb]
+  InitDB --> StartEngine[startSyncEngine]
+  StartEngine --> NetSub[NetInfo subscription]
+  NetSub -->|online| Cycle[runSyncCycle]
+  Cycle --> Push[pushOutbox]
+  Push --> Pull[pullOnce]
+  UserAction([user writes data]) --> Enqueue[enqueueMutation]
+  Enqueue --> Cycle
+```
+
+### Push ([src/sync/push.ts](src/sync/push.ts))
+
+FIFO drain of the outbox. Each row is applied to Supabase via PostgREST:
+
+- `insert` / `upsert` — `tbl.upsert(payload)` or `tbl.insert(payload)`
+- `update` — `tbl.update(payload).eq('id', row_id)`
+- `delete` — `tbl.update({ deleted_at: now }).eq('id', row_id)` (soft delete only)
+
+On success the outbox row is deleted. On failure `attempts++` and `last_error` are recorded; after `MAX_ATTEMPTS = 5` the row is considered poisoned and surfaced to the UI sync indicator. The loop breaks on the first failure to preserve ordering.
+
+### Pull ([src/sync/pull.ts](src/sync/pull.ts))
+
+For each table in `SYNCED_TABLES` (declared in [src/db/schema.ts](src/db/schema.ts)):
+
+1. Read the high-water mark from `sync_meta`
+2. `SELECT * WHERE updated_at > :cursor ORDER BY updated_at LIMIT 500`
+3. Upsert each row into local SQLite, **skipping rows that have a pending outbox entry** (local wins until push succeeds)
+4. Advance the checkpoint to the max `updated_at` seen
+
+Tombstones (`deleted_at IS NOT NULL`) are pulled too, so deletions propagate across devices without hard-deleting rows.
+
+### Conflict rule
+
+Single-user, last-write-wins by `updated_at`. If a local row has a pending outbox entry, the server version is discarded on pull; the next successful push overwrites the server with the local value.
+
+### Sync state
+
+```ts
+interface SyncState {
+  online: boolean;
+  pushInFlight: boolean;
+  pullInFlight: boolean;
+  pendingOutbox: number;
+  lastPushedAt: string | null;
+  lastPulledAt: string | null;
+  lastError: string | null;
+}
+```
+
+`deriveSyncState()` in [src/core/syncHelpers.ts](src/core/syncHelpers.ts) reduces this to a single enum (`idle` / `saving` / `saved` / `error` / `offline`) that the UI renders.
 
 ---
 
@@ -206,271 +242,213 @@ Postgres + RLS policies         ← Supabase platform
 
 ### Entity-Relationship Model
 
-```
-┌──────────────┐       ┌──────────────────┐
-│   profiles   │       │    exercises      │
-│──────────────│       │──────────────────│
-│ id (PK, FK)  │       │ id (PK)          │
-│ display_name │       │ name             │
-│ units        │       │ muscle_group     │
-│ created_at   │       │ user_id (FK?)    │ ← NULL = global
-│ updated_at   │       │ created_at       │
-└──────────────┘       └────────┬─────────┘
-                                │
-┌──────────────┐                │
-│  templates   │                │
-│──────────────│                │
-│ id (PK)      │                │
-│ user_id (FK) │                │
-│ name         │                │
-│ exercise_order│ ← UUID[]     │
-│ created_at   │                │
-│ updated_at   │                │
-└──────┬───────┘                │
-       │ (optional)             │
-       ▼                        │
-┌──────────────┐       ┌───────▼──────────┐
-│   workouts   │       │workout_exercises │
-│──────────────│       │──────────────────│
-│ id (PK)      │◄──────│ workout_id (FK)  │
-│ user_id (FK) │       │ exercise_id (FK) │───►exercises
-│ started_at   │       │ order_index      │
-│ ended_at     │       │ created_at       │
-│ title        │       └────────┬─────────┘
-│ template_id  │───►templates           │
-│ created_at   │                │
-└──────┬───────┘                │
-       │                        │
-       │               ┌────────▼─────────┐
-       │               │      sets        │
-       │               │──────────────────│
-       │               │ id (PK)          │
-       │               │ workout_exercise_id│
-       │               │ order_index      │
-       │               │ weight           │
-       │               │ reps             │
-       │               │ completed        │
-       │               │ completed_at     │
-       │               │ created_at       │
-       │               └──────────────────┘
-       │
-       │               ┌──────────────────┐
-       └──────────────►│ personal_records │
-                       │──────────────────│
-                       │ id (PK)          │
-                       │ user_id (FK)     │
-                       │ exercise_id (FK) │───►exercises
-                       │ type             │
-                       │ value (JSONB)    │
-                       │ achieved_at      │
-                       │ workout_id (FK?) │
-                       │ set_id           │
-                       │ created_at       │
-                       └──────────────────┘
+The schema is shared between Postgres (authoritative, in [supabase/migrations/](supabase/migrations/)) and SQLite (mirrored in [src/db/schema.ts](src/db/schema.ts)). Table names and columns match 1:1; UUIDs are `TEXT` locally, timestamps are ISO-8601 `TEXT`.
 
-┌───────────────────┐       ┌──────────────────────┐
-│  training_plans   │       │ training_plan_slots   │
-│───────────────────│       │──────────────────────│
-│ id (PK)           │◄──────│ plan_id (FK)         │
-│ user_id (FK)      │       │ id (PK)              │
-│ name              │       │ template_id (FK?)    │───►templates
-│ plan_type         │       │ day_of_week          │
-│ is_active         │       │ cycle_position       │
-│ cycle_cursor      │       │ is_rest_day          │
-│ created_at        │       │ label                │
-│ updated_at        │       │ created_at           │
-└───────────────────┘       └──────────────────────┘
+```mermaid
+erDiagram
+  profiles ||--o{ workouts : owns
+  profiles ||--o{ exercises : "creates custom"
+  profiles ||--o{ templates : owns
+  profiles ||--o{ training_plans : owns
+  profiles ||--o{ personal_records : owns
+  templates ||--o{ training_plan_slots : "referenced by"
+  training_plans ||--o{ training_plan_slots : contains
+  workouts ||--o{ workout_exercises : contains
+  exercises ||--o{ workout_exercises : "used in"
+  workout_exercises ||--o{ sets : contains
+  exercises ||--o{ personal_records : "tracked per"
+  workouts ||--o{ personal_records : "achieved during"
 ```
 
-### Table Descriptions
+### Table descriptions
 
-| Table                | Purpose                                                        |
-| -------------------- | -------------------------------------------------------------- |
-| `profiles`           | Extends `auth.users` with display name and unit preference     |
-| `exercises`          | Exercise catalog; `user_id = NULL` for global, otherwise user-created |
-| `workouts`           | A training session with start/end timestamps and optional template link |
-| `templates`          | Reusable routines storing an ordered array of exercise UUIDs   |
-| `workout_exercises`  | Junction table linking workouts to exercises with ordering      |
-| `sets`               | Individual sets within a workout-exercise pairing              |
-| `personal_records`   | Best-ever lifts per exercise, per record type (JSONB value)    |
-| `training_plans`     | Weekly or cycle-based training schedule owned by a user        |
-| `training_plan_slots`| Maps each day (or cycle position) in a plan to a template     |
+| Table                | Purpose                                                                 |
+| -------------------- | ----------------------------------------------------------------------- |
+| `profiles`           | Extends `auth.users`; display name + units preference                   |
+| `exercises`          | Catalog; `user_id IS NULL` for global seeded rows, otherwise user-created |
+| `workouts`           | Training session with start/end timestamps and optional template link   |
+| `workout_exercises`  | Junction: workout ↔ exercise with ordering                              |
+| `sets`               | Individual sets (weight, reps, completion)                              |
+| `personal_records`   | Best-ever lifts per `(user_id, exercise_id, type)` — unique constraint  |
+| `templates`          | Reusable routines (ordered UUID array)                                  |
+| `training_plans`     | Weekly or rotating-cycle schedule                                       |
+| `training_plan_slots`| Maps each day / cycle position in a plan to a template or rest day      |
 
-### Indexes
+### Sync-support columns
 
-- `idx_workouts_user_started` — fast lookup of a user's workouts by date
-- `idx_workouts_ended` — partial index for finding active (unfinished) workouts
-- `idx_workout_exercises_workout` — sets retrieval by workout
-- `idx_sets_workout_exercise` — sets retrieval by workout-exercise
-- `idx_personal_records_user_exercise` — PR lookups by user and exercise
-- `idx_personal_records_unique` — unique constraint enabling upsert on `(user_id, exercise_id, type)`
-- `idx_exercises_user` / `idx_templates_user` — user-scoped lookups
-- `idx_training_plans_user` / `idx_training_plans_active` — user-scoped plan lookups (active plans use a partial index)
-- `idx_training_plan_slots_plan` — slots retrieval by plan
-- `idx_plan_slots_weekly_unique` / `idx_plan_slots_cycle_unique` — unique constraints for one slot per weekday or cycle position per plan
+Added by `supabase/migrations/00004_sync_support.sql` on every mutable table:
 
-### Triggers
+| Column        | Purpose                                                         |
+| ------------- | --------------------------------------------------------------- |
+| `updated_at`  | Set by a BEFORE UPDATE trigger; used as the pull high-water mark |
+| `deleted_at`  | Soft-delete tombstone; application reads filter `IS NULL`       |
 
-| Trigger                 | Fires on                 | Action                                      |
-| ----------------------- | ------------------------ | ------------------------------------------- |
-| `on_auth_user_created`  | `auth.users` INSERT      | Creates a `profiles` row with default `kg`  |
-| `profiles_updated_at`   | `profiles` UPDATE        | Sets `updated_at = now()`                   |
-| `templates_updated_at`  | `templates` UPDATE       | Sets `updated_at = now()`                   |
-| `training_plans_updated_at` | `training_plans` UPDATE | Sets `updated_at = now()`              |
+Every table also has an `idx_<table>_updated_at` index; incremental pull always queries `WHERE updated_at > :cursor ORDER BY updated_at`.
+
+### Client-only tables
+
+| Table       | Columns                                                                                                  |
+| ----------- | -------------------------------------------------------------------------------------------------------- |
+| `outbox`    | `id`, `table_name`, `op`, `row_id`, `payload_json`, `created_at`, `attempts`, `last_error`               |
+| `sync_meta` | `table_name` (PK), `last_pulled_at`                                                                      |
 
 ---
 
 ## Authentication
 
-Vyayamy uses **passwordless email authentication** (magic links) via Supabase GoTrue.
+Passwordless email OTP via Supabase GoTrue with PKCE flow. Session tokens persist in `AsyncStorage`; deep link callbacks are handled by `expo-linking`.
 
-### Flow
-
-```
- User                    App                     Supabase Auth
-  │                       │                           │
-  │  enters email         │                           │
-  │──────────────────────►│                           │
-  │                       │  signInWithOtp(email)     │
-  │                       │──────────────────────────►│
-  │                       │                           │  sends email
-  │  clicks magic link    │                           │◄─────────────
-  │──────────────────────►│                           │
-  │                       │  onAuthStateChange fires  │
-  │                       │◄──────────────────────────│
-  │                       │                           │
-  │  session established  │  JWT stored in memory     │
-  │◄──────────────────────│                           │
+```mermaid
+sequenceDiagram
+  participant U as User
+  participant App
+  participant SB as Supabase Auth
+  U->>App: enters email
+  App->>SB: signInWithOtp(email, emailRedirectTo=vyayamy://auth-callback)
+  SB-->>U: magic-link email
+  U->>App: taps link
+  App->>App: expo-linking parses URL
+  App->>SB: exchangeCodeForSession(code)
+  SB-->>App: session JWT
+  App->>App: AuthProvider.onAuthStateChange → setUser → setReportingUser
 ```
 
-### Implementation
+Supabase client config ([src/auth/supabase.ts](src/auth/supabase.ts)):
 
-- `AuthProvider` (`src/contexts/AuthContext.tsx`) initializes the session on mount via `getSession()` and subscribes to `onAuthStateChange` for real-time session updates.
-- `ProtectedRoute` checks for an authenticated user; unauthenticated visitors are redirected to `/login` with the intended destination preserved in state for post-login redirect.
-- The Supabase client automatically attaches the JWT to all API requests, enabling RLS policies to identify the user via `auth.uid()`.
+- `storage: AsyncStorage`
+- `autoRefreshToken: true`
+- `persistSession: true`
+- `detectSessionInUrl: false` (Expo handles URLs)
+- `flowType: 'pkce'`
+
+The `AuthProvider` ([src/auth/AuthContext.tsx](src/auth/AuthContext.tsx)) subscribes to `onAuthStateChange` and forwards the identity to Sentry via `setUser()` from [src/lib/errorReporting.ts](src/lib/errorReporting.ts).
 
 ---
 
 ## Personal Record Detection
 
-When a workout is finished, the app runs PR detection client-side before closing the session.
+PR logic runs client-side in [src/core/pr-detection.ts](src/core/pr-detection.ts) after a workout finishes. Because writes go through the outbox, the resulting upsert participates in the same sync path as any other mutation.
 
-### Algorithm (`src/lib/pr-detection.ts`)
+Record types:
 
-For each exercise in the workout:
+| Type                  | Value shape                                                    |
+| --------------------- | -------------------------------------------------------------- |
+| `heaviest_weight`     | `number` — max weight in any completed set                     |
+| `best_volume`         | `number` — max single-set volume (weight × reps)               |
+| `most_reps_at_weight` | `{ weight, reps }` — highest reps at any weight (ties → heavier) |
 
-1. **Filter** to completed sets that have at least weight or reps recorded.
-2. **Compute** three candidate records:
-   - `heaviest_weight` — maximum weight lifted
-   - `best_volume` — maximum single-set volume (weight x reps)
-   - `most_reps_at_weight` — highest reps at any weight (ties broken by heavier weight)
-3. **Fetch** existing PRs for the exercise from the database.
-4. **Compare** each candidate against the existing record. If the new value exceeds the previous, **upsert** the record using the unique constraint `(user_id, exercise_id, type)`.
-
-### Record Types
-
-| Type                 | JSONB Value Shape                    | Comparison                    |
-| -------------------- | ------------------------------------ | ----------------------------- |
-| `heaviest_weight`    | `number`                             | Higher weight wins            |
-| `best_volume`        | `number`                             | Higher volume wins            |
-| `most_reps_at_weight`| `{ weight: number, reps: number }`   | Higher reps wins; ties go to heavier weight |
+Upserts use the unique index `(user_id, exercise_id, type)` on the `personal_records` table.
 
 ---
 
-## PWA Strategy
+## Rest Timer and Notifications
 
-The app is configured as an installable PWA via `vite-plugin-pwa` with Workbox.
+The foreground rest timer is a classic `setInterval` in [src/ui/hooks/useRestTimer.ts](src/ui/hooks/useRestTimer.ts) that emits a success haptic when it crosses the configured target.
 
-| Setting           | Value                                            |
-| ----------------- | ------------------------------------------------ |
-| Register type     | `autoUpdate` — new service worker activates immediately |
-| Display mode      | `standalone` — no browser chrome                 |
-| Precached assets  | `**/*.{js,css,html,ico,png,svg}`                 |
-| Theme color       | `#FAFAF9` (warm off-white)                       |
+To survive backgrounding and screen lock, the same hook schedules a local notification via [src/lib/restNotifications.ts](src/lib/restNotifications.ts):
 
-The service worker caches the app shell (HTML, JS, CSS) for offline access to previously loaded pages. Data fetches still require a network connection since Supabase queries go over HTTPS.
+1. `start()` requests permission if needed, schedules a one-shot notification in `targetSeconds`, and records the id
+2. `stop()` / unmount cancels the pending notification
+3. Permission denials, web, and Expo Go fall back to a no-op — the foreground timer is authoritative
 
 ---
 
-## Security Model
+## Error Reporting
 
-### Row Level Security (RLS)
+[src/lib/errorReporting.ts](src/lib/errorReporting.ts) wraps `@sentry/react-native`:
 
-Every table has RLS enabled. Policies enforce that users can only access their own data:
+- `initErrorReporting()` at module load in [app/_layout.tsx](app/_layout.tsx); returns early if `EXPO_PUBLIC_SENTRY_DSN` is not set
+- `captureException(err, extra?)` is called by the root [src/ui/ErrorBoundary.tsx](src/ui/ErrorBoundary.tsx) and by any code path that wants to annotate a failure
+- `setUser(user)` is called on `onAuthStateChange` so crash reports carry identity
 
-| Table                | Policy                                                                 |
-| -------------------- | ---------------------------------------------------------------------- |
-| `profiles`           | SELECT / INSERT / UPDATE own row (`auth.uid() = id`)                  |
-| `exercises`          | SELECT global (`user_id IS NULL`) or own; INSERT / UPDATE own only    |
-| `workouts`           | ALL operations scoped to `user_id = auth.uid()`                       |
-| `workout_exercises`  | ALL via subquery — workout must belong to user                        |
-| `sets`               | ALL via subquery — joins through `workout_exercises` → `workouts`     |
-| `personal_records`   | ALL operations scoped to `user_id = auth.uid()`                       |
-| `templates`          | ALL operations scoped to `user_id = auth.uid()`                       |
-| `training_plans`     | ALL operations scoped to `user_id = auth.uid()`                       |
-| `training_plan_slots`| ALL via subquery — plan must belong to user                           |
-
-### Auth Token Handling
-
-- The Supabase JS client manages JWT storage and refresh automatically.
-- The anon key is safe to expose in client code — it only grants access permitted by RLS policies.
-- No sensitive operations are performed without a valid session JWT.
-
-### Data Isolation
-
-- Cross-user data access is impossible at the database level due to RLS.
-- The only shared data is the global exercise library (`exercises` rows where `user_id IS NULL`), which is read-only to all users.
+EAS production builds upload source maps via the `@sentry/react-native/expo` config plugin when `SENTRY_ORG`, `SENTRY_PROJECT`, and `SENTRY_AUTH_TOKEN` are supplied.
 
 ---
 
 ## Design System
 
-The visual layer is built on CSS custom properties defined in `src/styles/theme.css`.
+All visual tokens live in [src/ui/theme.ts](src/ui/theme.ts) as a plain TypeScript object (color, space, radius, font, touch, duration). Styles are built with `StyleSheet.create`. No CSS files ship in the mobile app.
 
-### Tokens
+```ts
+const styles = StyleSheet.create({
+  card: {
+    backgroundColor: theme.color.surface,
+    borderRadius: theme.radius.md,
+    padding: theme.space.s4,
+    borderWidth: 1,
+    borderColor: theme.color.border,
+  },
+});
+```
 
-| Category    | Examples                                                    |
-| ----------- | ----------------------------------------------------------- |
-| Colors      | `--color-bg`, `--color-surface`, `--color-accent`, `--color-success`, `--color-danger`, `--color-pr` |
-| Spacing     | 4px base scale: `--space-1` (4px) through `--space-12` (48px) |
-| Radius      | `--radius-sm` (8px), `--radius-md` (12px), `--radius-lg` (16px) |
-| Typography  | `--font-display` (34px) down to `--font-micro` (11px)      |
-| Shadows     | `--shadow-sm`, `--shadow-md`, `--shadow-lg`, `--shadow-sheet` |
-| Transitions | `--ease-out`, `--ease-in-out`, `--duration-fast/normal/slow` |
-| Sizing      | `--touch-min` (44px), `--nav-height` (52px), `--content-max` (640px) |
+Rules:
 
-### Layout Principles
+- Single column, phone-first; no tablet-specific layouts yet
+- 44pt minimum touch target (`theme.touch.min`) on everything interactive
+- Warm-neutral palette (stone/amber); dark palette is defined but not toggled yet
+- System font (React Native default → San Francisco on iOS, Roboto on Android)
+- Motion is subtle: 150–350 ms tokens in `theme.duration`
 
-- **Single column**, max-width 640px, centered — optimized for phone screens
-- **44px minimum touch targets** for all interactive elements
-- **System font stack** (`-apple-system`, `SF Pro`, `system-ui`, etc.) for native feel
-- **Warm neutral palette** — stone/amber tones, minimal use of saturated color
-- Component-scoped CSS files (co-located `.css` alongside `.tsx`)
+Charts are in-house SVG — [src/ui/LineChart.tsx](src/ui/LineChart.tsx) renders trend lines with `react-native-svg` primitives. Recharts was not ported (no RN support) and `victory-native` was skipped to avoid React-version conflicts with Expo 51.
+
+See [docs/design-system.md](docs/design-system.md) for the full spec.
+
+---
+
+## Native Health Boundary
+
+[src/native/health/](src/native/health/) defines a platform-agnostic `HealthAdapter` interface ([types.ts](src/native/health/types.ts)) with three implementations:
+
+| Platform     | File                                                     | Status                       |
+| ------------ | -------------------------------------------------------- | ---------------------------- |
+| iOS          | [src/native/health/ios.ts](src/native/health/ios.ts)     | Stub; wires to `react-native-health` when enabled |
+| Android      | [src/native/health/android.ts](src/native/health/android.ts) | Stub; wires to `react-native-health-connect` |
+| Fallback     | [src/native/health/noop.ts](src/native/health/noop.ts)   | Always returns `isAvailable = false` |
+
+`getHealthAdapter()` in [src/native/health/index.ts](src/native/health/index.ts) dispatches by `Platform.OS`. Nothing else in the app imports the native modules directly — the rest of the code treats Health as an optional dependency that may or may not be available.
+
+---
+
+## Security Model
+
+### Row Level Security
+
+Unchanged from the pre-pivot schema. Every table has RLS enabled; policies scope rows to `auth.uid()`. Tombstoned rows remain visible to the owner so the sync engine can propagate deletes; application code adds `WHERE deleted_at IS NULL` for normal reads.
+
+### Token handling
+
+The Supabase JS client manages JWT storage in `AsyncStorage` and handles refresh automatically. The anon key is safe to ship in the client bundle — it only grants access permitted by RLS policies.
+
+### Data isolation
+
+- All tables (except global `exercises` where `user_id IS NULL`) are scoped to the authenticated user
+- The sync engine respects RLS — every PostgREST call carries the user's JWT
+- Local SQLite is per-device and cleared on sign-out (future polish) or app uninstall
 
 ---
 
 ## Key Design Decisions
 
-### Why Supabase instead of a custom backend?
+### Why SQLite as source of truth, not Supabase?
 
-Supabase provides auth, a relational database, and row-level security out of the box. For a single-user journaling app, this eliminates the need for a separate API server, deployment infrastructure, and session management — the entire backend is managed.
+Lifting in a gym is a place where the network is unreliable. A user logging a set should never see a spinner. SQLite writes finish in microseconds and survive app kills; sync becomes a background concern. This is the single most important architectural choice in the app.
 
-### Why TanStack Query instead of Redux / Zustand?
+### Why an outbox instead of CRDTs or a heavier sync library?
 
-The app's state is almost entirely server-derived (workouts, exercises, sets, PRs). TanStack Query is purpose-built for this: it handles caching, background refetching, optimistic updates, and cache invalidation. There is very little pure client state beyond modal/form visibility, which is handled by component-local `useState`.
+The product is effectively single-user, often single-device. Last-write-wins is correct. An outbox of explicit mutations is the smallest abstraction that survives offline, retries, and poisoned writes — and it keeps the server boring (plain PostgREST). WatermelonDB-style frameworks would add dependency weight and opacity without solving a problem we have.
 
-### Why client-side PR detection?
+### Why React Query on top of a local DB?
 
-Computing personal records on the client avoids the need for Postgres functions or edge functions. The logic is straightforward (three comparisons per exercise), runs only when finishing a workout, and the upsert pattern ensures idempotency. If the computation grows more complex, it could move to a Supabase Edge Function without changing the data model.
+It pays for itself even with no HTTP: cache coherence across screens, `invalidateQueries` after a mutation, dedup of repeated reads, and the `useQuery` ergonomic. The alternative (raw `useEffect` + `useState`) reinvents all of this.
 
-### Why CSS custom properties instead of a CSS-in-JS library?
+### Why a custom SVG chart instead of `victory-native`?
 
-Custom properties provide a lightweight design token system with zero runtime cost. They work naturally with component-scoped `.css` files and avoid the bundle-size and complexity overhead of CSS-in-JS solutions. The app's styling needs are modest and well-served by vanilla CSS.
+`victory-native` pins `react@>=19` and conflicts with Expo 51's locked `react@18.2`. The chart surfaces are small (line + points + axis) and render cleanly with ~80 lines of `react-native-svg`. Pinning charts to a big library isn't worth the dependency pain.
 
-### Why magic-link auth instead of passwords?
+### Why `ts-jest` + `better-sqlite3` for tests?
 
-Passwordless auth reduces friction (no password to remember) and eliminates password-related security concerns (storage, reset flows, brute force). For a personal fitness app, the email-based OTP flow is a good balance of security and convenience.
+`jest-expo` tries to load `expo-modules-core`'s ESM web bundle under Node and fails. `ts-jest` runs TypeScript directly with a Node test environment, and a module mock swaps `expo-sqlite` for in-memory `better-sqlite3`. This lets the sync engine be exercised end-to-end without a simulator.
 
-### Why a UUID array for template exercise order?
+### Why defer HealthKit / Health Connect?
 
-Storing `exercise_order UUID[]` directly on the `templates` table avoids a separate junction table and ordering column for templates. Since templates are user-managed lists of 5-15 exercises, the array type is simple, atomic to update, and sufficient for the use case.
+The native health SDKs require a dev client and platform-specific permissions. Scaffolding the adapter now behind a clean interface means flipping them on is localized work — not an architectural change.

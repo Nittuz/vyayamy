@@ -1,0 +1,145 @@
+import { router } from 'expo-router';
+import { useMemo } from 'react';
+import {
+  ActivityIndicator,
+  Pressable,
+  RefreshControl,
+  SafeAreaView,
+  SectionList,
+  StyleSheet,
+  Text,
+  View,
+} from 'react-native';
+
+import { useAuth } from '@/auth/useAuth';
+import { formatDuration, getDateGroup } from '@/core/format';
+import { useHistory, type HistoryRow } from '@/queries/history';
+import { triggerPull } from '@/sync/engine';
+import { SyncIndicator } from '@/ui/SyncIndicator';
+import { theme } from '@/ui/theme';
+
+export default function HistoryScreen() {
+  const { user } = useAuth();
+  const userId = user?.id;
+  const historyQuery = useHistory(userId);
+
+  const sections = useMemo(() => {
+    const rows = historyQuery.data ?? [];
+    const groups = new Map<string, HistoryRow[]>();
+    for (const w of rows) {
+      const key = getDateGroup(w.started_at);
+      const bucket = groups.get(key) ?? [];
+      bucket.push(w);
+      groups.set(key, bucket);
+    }
+    return Array.from(groups.entries()).map(([title, data]) => ({ title, data }));
+  }, [historyQuery.data]);
+
+  if (!userId) return null;
+
+  return (
+    <SafeAreaView style={styles.container}>
+      <SectionList
+        sections={sections}
+        keyExtractor={(item) => item.id}
+        contentContainerStyle={styles.scroll}
+        refreshControl={
+          <RefreshControl
+            refreshing={historyQuery.isRefetching}
+            onRefresh={async () => {
+              await triggerPull();
+              await historyQuery.refetch();
+            }}
+          />
+        }
+        ListHeaderComponent={
+          <View style={styles.headerRow}>
+            <Text style={styles.title}>History</Text>
+            <SyncIndicator />
+          </View>
+        }
+        ListEmptyComponent={
+          historyQuery.isLoading ? (
+            <ActivityIndicator style={{ marginTop: theme.space.s10 }} />
+          ) : (
+            <Text style={styles.empty}>No workouts logged yet.</Text>
+          )
+        }
+        renderSectionHeader={({ section }) => (
+          <Text style={styles.sectionHeader}>{section.title}</Text>
+        )}
+        renderItem={({ item }) => <HistoryItem row={item} />}
+      />
+    </SafeAreaView>
+  );
+}
+
+function HistoryItem({ row }: { row: HistoryRow }) {
+  return (
+    <Pressable
+      onPress={() => router.push(`/history/${row.id}` as never)}
+      style={({ pressed }) => [styles.row, pressed && { opacity: 0.85 }]}
+    >
+      <View style={{ flex: 1 }}>
+        <Text style={styles.rowTitle}>{row.title}</Text>
+        <Text style={styles.rowMeta}>
+          {row.completed_set_count}/{row.set_count} sets · {row.exercise_count} exercises
+          {row.volume > 0 ? ` · ${Math.round(row.volume)} vol` : ''}
+        </Text>
+      </View>
+      <Text style={styles.rowDuration}>{formatDuration(row.started_at, row.ended_at)}</Text>
+    </Pressable>
+  );
+}
+
+const styles = StyleSheet.create({
+  container: { flex: 1, backgroundColor: theme.color.bg },
+  scroll: { padding: theme.space.page, gap: theme.space.s2, paddingBottom: theme.space.s12 },
+  headerRow: {
+    flexDirection: 'row',
+    alignItems: 'flex-end',
+    marginBottom: theme.space.s4,
+  },
+  title: {
+    flex: 1,
+    fontSize: theme.font.display,
+    fontWeight: theme.font.weight.bold,
+    color: theme.color.text,
+    letterSpacing: -0.5,
+  },
+  sectionHeader: {
+    fontSize: theme.font.micro,
+    textTransform: 'uppercase',
+    letterSpacing: 0.6,
+    color: theme.color.textTertiary,
+    fontWeight: theme.font.weight.medium,
+    marginTop: theme.space.s4,
+    marginBottom: theme.space.s2,
+  },
+  row: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: theme.color.surface,
+    borderRadius: theme.radius.md,
+    padding: theme.space.s4,
+    gap: theme.space.s3,
+    borderWidth: 1,
+    borderColor: theme.color.border,
+  },
+  rowTitle: {
+    fontSize: theme.font.body,
+    fontWeight: theme.font.weight.medium,
+    color: theme.color.text,
+  },
+  rowMeta: { fontSize: theme.font.meta, color: theme.color.textSecondary, marginTop: 2 },
+  rowDuration: {
+    fontSize: theme.font.meta,
+    color: theme.color.textSecondary,
+    fontVariant: ['tabular-nums'],
+  },
+  empty: {
+    textAlign: 'center',
+    color: theme.color.textSecondary,
+    marginTop: theme.space.s10,
+  },
+});

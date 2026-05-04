@@ -1,78 +1,130 @@
 ---
-description: React component conventions and patterns for Vyayamy
-globs: "**/*.tsx"
+description: React Native component conventions for Vyayamy
+globs: **/*.tsx
 alwaysApply: false
 ---
 
-# React Component Patterns
+# React Native Component Patterns
 
 ## Component Structure
 
 Every component follows this order:
 
-1. Imports (see import order in project-conventions)
-2. Props `type` definition (if the component accepts props)
-3. Named `export function` — no default exports, no arrow-function components
-4. CSS import as last import line
+1. Imports (see project-conventions)
+2. `type` / `interface` for props
+3. Named `export function` — no default exports (except where Expo Router requires one — route files)
+4. `StyleSheet.create` at the bottom
 
 ```tsx
-import { useState } from 'react';
-import type { Workout } from '../types/database';
-import './MyComponent.css';
+import { Pressable, StyleSheet, Text, View } from 'react-native';
 
-type MyComponentProps = {
+import type { Workout } from '@/db/types';
+import { theme } from '@/ui/theme';
+
+type WorkoutCardProps = {
   workout: Workout;
-  onDelete: (id: string) => void;
+  onPress: (id: string) => void;
 };
 
-export function MyComponent({ workout, onDelete }: MyComponentProps) {
-  const [open, setOpen] = useState(false);
-  // ...
+export function WorkoutCard({ workout, onPress }: WorkoutCardProps) {
+  return (
+    <Pressable onPress={() => onPress(workout.id)} style={styles.card}>
+      <Text style={styles.title}>{workout.title}</Text>
+    </Pressable>
+  );
 }
+
+const styles = StyleSheet.create({
+  card: {
+    padding: theme.space.s4,
+    backgroundColor: theme.color.surface,
+    borderRadius: theme.radius.md,
+  },
+  title: {
+    fontSize: theme.font.card,
+    color: theme.color.text,
+  },
+});
 ```
 
-## State Management Rules
+## Primitives
 
-- **Server state** → TanStack React Query hooks from `src/lib/queries/`
-- **Auth state** → `useAuth()` from `src/lib/useAuth.ts`
-- **Toast notifications** → `useToast()` from `src/lib/useToast.ts`
+Use React Native primitives — never DOM elements:
+
+| Instead of HTML      | Use                                              |
+| -------------------- | ------------------------------------------------ |
+| `<div>`              | `<View>`                                         |
+| `<span>` / `<p>`     | `<Text>`                                         |
+| `<button>`           | `<Pressable>` (or `<TouchableOpacity>` sparingly) |
+| `<input>`            | `<TextInput>`                                    |
+| `<a>`                | `<Pressable>` with `router.push(...)`            |
+| scrollable container | `<ScrollView>` or `<FlatList>`                   |
+| page wrapper         | `<SafeAreaView>`                                 |
+
+No `className`, no CSS imports, no `window`, `document`, `navigator.onLine`, or `localStorage`.
+
+## Route vs. Screen vs. Component
+
+- **Routes** live under `app/` (Expo Router). Each file is thin — it imports a screen and default-exports it. Dynamic segments use `[id].tsx`, groups use `(group)/`.
+- **Screens** live under `src/screens/` and hold the page-level logic: data hooks, local state, layout, navigation calls.
+- **Shared components** live under `src/components/` (feature-specific) and `src/ui/` (theme primitives, charts, error boundary). Shared components are presentational — they receive data and callbacks via props and do not fetch data themselves.
+
+## Navigation
+
+Use Expo Router hooks:
+
+```tsx
+import { router, useLocalSearchParams } from 'expo-router';
+
+const { id } = useLocalSearchParams<{ id: string }>();
+router.push('/workout/active');
+router.back();
+```
+
+Do not import from `react-router`, `@react-navigation/native`, or `expo-router`'s internal Link under a different name. Typed routes are enabled via `experiments.typedRoutes` in `app.config.ts`.
+
+## State Management
+
+- **Server state** → React Query hooks from `src/queries/`
+- **Auth state** → `useAuth()` from `src/auth/useAuth.ts`
+- **Toast** → `useToast()` from `src/ui/ToastContext.tsx`
 - **Local UI state** (modals, form inputs, toggles) → `useState` / `useReducer`
-- Never introduce global state stores. If data comes from the server, it belongs in a query hook.
-
-## Route Components (`src/routes/`)
-
-- Accept no props — they read params via `useParams()`, `useLocation()`, `useNavigate()`
-- Handle their own loading states (use `Skeleton` or conditional rendering on `isPending`)
-- Handle auth checks via the parent `ProtectedRoute` wrapper — do not re-check auth in route components
-
-## Shared Components (`src/components/`)
-
-- Presentational: receive data and callbacks via props
-- No direct Supabase calls — all data fetching lives in query hooks called by the parent route
-- Use `aria-*` attributes and `role` where appropriate for accessibility
-- Favor progressive disclosure: show the primary action by default, reveal secondary actions on interaction (expand, long-press, or a "more" affordance)
+- No global state stores.
 
 ## Event Handlers
 
-- Name handlers `handleXxx` or `onXxx` for callbacks passed as props
-- Use `e.stopPropagation()` when nested clickable elements overlap (e.g., buttons inside a clickable card)
-- Always set `type="button"` on `<button>` elements that are not form submit buttons
+- Name handlers `handleXxx` inside the component; props take `onXxx`
+- Always pass `style` as an array or object — don't spread deeply computed styles each render
+- For `Pressable`, express pressed state via the `style` function signature rather than `useState`
 
 ## UI Clarity
 
-- Every interactive element must have a clear, unambiguous label — icon-only buttons require `aria-label` and `title`
-- Actions must be predictable: a tap should do what the user expects based on the label and context
-- Avoid modal overload — prefer inline expansion, bottom sheets, or navigation over stacking modals
-- Empty states should be helpful, not just blank — tell the user what this screen is for and how to populate it
+- Every interactive element needs a clear label — icon-only buttons require `accessibilityLabel`
+- Use `accessibilityRole` appropriately (`'button'`, `'link'`, `'header'`)
+- Empty states should tell the user what the screen is for and suggest the next action
+- Avoid stacked modals — prefer inline expansion, bottom sheets, or navigation
 
-## Error & Loading States
+## Loading and Errors
 
-- Mutations: show errors via `useToast()` — do not use `window.alert`
-- Forms: use local `error` state for inline validation messages
-- Queries: check `isPending` / `isError` from the query hook; use `SkeletonList` or the `Skeleton` component for loading placeholders
-- Skeleton placeholders should match the approximate shape of the real content to prevent layout shift
+- Queries: check `isPending` / `isError` and render a skeleton or compact state; match the approximate shape of the real content to avoid layout shift
+- Mutations: surface errors through `useToast()` — never `Alert.alert` for toast-grade feedback
+- Forms: local `error` state for inline validation
 
-## Redirects
+## Haptics
 
-- Use `<Navigate to={...} replace />` for declarative redirects in render
-- Use `navigate()` in `useEffect` or event handlers for imperative redirects
+Import `expo-haptics` and call in meaningful moments:
+
+```ts
+import * as Haptics from 'expo-haptics';
+void Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium).catch(() => {});
+```
+
+Always `.catch(() => {})` — haptics are best-effort.
+
+## What NOT to do
+
+- No class components
+- No `default export` of components (except route files Expo Router requires)
+- No inline styles with hard-coded pixel values — use `theme` tokens
+- No direct `supabase.from(...)` calls in a component
+- No DOM APIs, window objects, or PWA concepts

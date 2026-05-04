@@ -1,50 +1,105 @@
 ---
-description: Supabase client usage, RLS awareness, and migration conventions
-globs: "supabase/**,src/lib/supabase.ts,src/types/database.ts"
+description: Supabase usage as a sync target, RLS, and migration conventions for the local-first stack
+globs: supabase/**,src/auth/supabase.ts,src/db/types.ts,src/sync/**
 alwaysApply: false
 ---
 
 # Supabase Patterns
 
+Supabase is the **sync target**, not the primary data store. The UI never calls `supabase.from()`. Only the sync engine in `src/sync/` and auth code in `src/auth/supabase.ts` touch the Supabase client.
+
 ## Client Singleton
 
-The Supabase client lives at `src/lib/supabase.ts` and is typed with `Database` from `src/types/database.ts`. Import from there — never create additional client instances.
+One client, in `src/auth/supabase.ts`, typed with `Database` from `src/db/types.ts`:
 
 ```ts
-import { supabase } from '../supabase';
+import AsyncStorage from '@react-native-async-storage/async-storage';
+import { createClient } from '@supabase/supabase-js';
+import type { Database } from '@/db/types';
+
+export const supabase = createClient<Database>(url, anonKey, {
+  auth: {
+    storage: AsyncStorage,
+    autoRefreshToken: true,
+    persistSession: true,
+    detectSessionInUrl: false,
+    flowType: 'pkce',
+  },
+});
 ```
+
+Do not create additional clients. `detectSessionInUrl: false` is required — deep links are handled by `expo-linking` in the Auth context.
+
+## Where Supabase is Allowed
+
+| File                                | Reason                                    |
+| ----------------------------------- | ----------------------------------------- |
+| `src/auth/supabase.ts`              | Client singleton                          |
+| `src/auth/AuthContext.tsx`          | `signInWithOtp`, `onAuthStateChange`, `exchangeCodeForSession` |
+| `src/sync/push.ts`                  | Drain outbox via PostgREST                |
+| `src/sync/pull.ts`                  | Incremental pull via PostgREST            |
+
+Anywhere else, a `supabase.from()` call is a bug — route the operation through `enqueueMutation` or a read from SQLite instead.
 
 ## Auth Model
 
-- **Magic-link (OTP) only** — do not add password auth, social auth, or third-party providers without explicit approval
-- Auth state is managed by `AuthProvider` (`src/contexts/AuthContext.tsx`)
-- The Supabase client auto-attaches the JWT — never manually pass tokens to queries
+- **Magic-link (OTP) only.** No passwords, no social, no third-party providers.
+- PKCE flow with deep-link callback (`vyayamy://auth-callback`) via `expo-linking`.
+- Auth state lives in `AuthProvider`. The client auto-attaches the JWT — never pass tokens manually.
+- On `onAuthStateChange`, forward user identity to Sentry via `setUser()` from `src/lib/errorReporting.ts`.
 
 ## Row Level Security
 
-Every table has RLS enabled. All data is scoped to `auth.uid()`. When writing queries:
+All tables have RLS enabled. Policies scope rows to `auth.uid()`. Two specifics:
 
-- Always filter by `user_id` for user-owned tables (workouts, templates, personal_records)
-- Never bypass RLS with service-role keys from the frontend
-- The `exercises` table has shared rows (`user_id IS NULL`) — query both global and user-owned with `.or('user_id.is.null,user_id.eq.${userId}')`
+- The `exercises` table has shared rows where `user_id IS NULL` (global seed). Query with `.or('user_id.is.null,user_id.eq.${userId}')` when pulling via the sync engine is insufficient (rare).
+- **Soft-delete is visible to the owner.** Policies return tombstoned rows so the sync engine propagates deletes. Application reads filter `deleted_at IS NULL` at the query layer.
 
-## Database Types
-
-`src/types/database.ts` defines the full Supabase schema. When the schema changes:
-
-1. Add a new numbered migration in `supabase/migrations/` (e.g., `00003_add_feature.sql`)
-2. Update `database.ts` Row/Insert/Update types to match
-3. Export convenience type aliases at the bottom: `export type Foo = Database['public']['Tables']['foo']['Row']`
-
-Do not use Supabase CLI codegen (`supabase gen types`) unless explicitly asked — the types are maintained manually.
+Never bypass RLS with a service-role key from the client. The anon key is the only key shipped in the bundle.
 
 ## Migrations
 
-- Files are numbered sequentially: `00001_`, `00002_`, etc.
-- Each migration is idempotent-friendly: use `IF NOT EXISTS` for creates, check before alter
-- Always include RLS policies for new tables
-- Include relevant indexes for query patterns (user lookups, date ordering)
+Files are numbered sequentially under `supabase/migrations/`: `00001_`, `00002_`, `...`. Each migration is idempotent-friendly (`IF NOT EXISTS`, `DROP TRIGGER IF EXISTS`, etc.).
+
+### Synced-table requirements
+
+Any new table that participates in sync **must** include:
+
+1. `updated_at TIMESTAMPTZ NOT NULL DEFAULT now()` with a `BEFORE UPDATE` trigger calling `public.set_updated_at()`
+2. `deleted_at TIMESTAMPTZ` (nullable; NULL = live row)
+3. An index on `updated_at` (`idx_<table>_updated_at`) — the sync engine always queries `WHERE updated_at > :cursor ORDER BY updated_at`
+4. RLS policies scoped to `auth.uid()`
+
+Model new migrations on `supabase/migrations/00004_sync_support.sql`.
+
+### Client mirror
+
+After adding the table server-side:
+
+1. Mirror the schema in `src/db/schema.ts` (UUIDs as `TEXT`, timestamps as ISO-8601 `TEXT`)
+2. Add the table name to `SYNCED_TABLES`
+3. Add Row / Insert / Update types to `src/db/types.ts`
+
+The push/pull engines are driven by `SYNCED_TABLES` and need no further wiring.
+
+## Types
+
+`src/db/types.ts` is maintained manually — matches the Postgres schema and includes `updated_at` + `deleted_at` on every mutable table. Do not run `supabase gen types` without explicit approval.
+
+Convenience aliases live at the bottom of the file:
+
+```ts
+export type Workout = Database['public']['Tables']['workouts']['Row'];
+```
 
 ## Personal Records
 
-PR detection runs **client-side** in `src/lib/pr-detection.ts` after finishing a workout. Upserts use the unique constraint `(user_id, exercise_id, type)`. Do not move this to a Postgres function or edge function unless explicitly discussed.
+PR detection runs client-side in `src/core/pr-detection.ts` after finishing a workout. Upserts use the unique constraint `(user_id, exercise_id, type)` and go through the outbox like any other mutation. Do not move this to a Postgres function or Edge Function without explicit discussion.
+
+## What NOT to do
+
+- Do not add Edge Functions
+- Do not introduce a custom API server
+- Do not call `supabase.from()` from UI, query hooks, or mutation hooks
+- Do not hard-delete — always use `op: 'delete'` on `enqueueMutation`, which sets `deleted_at`
+- Do not skip RLS policies on new tables

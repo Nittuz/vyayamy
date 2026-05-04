@@ -1,0 +1,80 @@
+export function formatRelativeDate(dateStr: string): string {
+  const date = new Date(dateStr);
+  const now = new Date();
+  const diffMs = now.getTime() - date.getTime();
+  const diffDays = Math.floor(diffMs / (24 * 60 * 60 * 1000));
+  if (diffDays === 0) return 'Today';
+  if (diffDays === 1) return 'Yesterday';
+  if (diffDays < 7) return `${diffDays} days ago`;
+  if (diffDays < 14) return '1 week ago';
+  if (diffDays < 30) return `${Math.floor(diffDays / 7)} weeks ago`;
+  return date.toLocaleDateString();
+}
+
+export function formatDuration(startedAt: string, endedAt: string | null): string {
+  if (!endedAt) return '—';
+  const start = new Date(startedAt).getTime();
+  const end = new Date(endedAt).getTime();
+  const mins = Math.round((end - start) / 60000);
+  if (mins < 60) return `${mins}m`;
+  const h = Math.floor(mins / 60);
+  const m = mins % 60;
+  return m ? `${h}h ${m}m` : `${h}h`;
+}
+
+export function formatShortDate(dateStr: string): string {
+  return new Date(dateStr).toLocaleDateString(undefined, {
+    weekday: 'short',
+    month: 'short',
+    day: 'numeric',
+  });
+}
+
+export function getDateGroup(dateStr: string): string {
+  const date = new Date(dateStr);
+  const now = new Date();
+  const today = new Date(now.getFullYear(), now.getMonth(), now.getDate());
+  const target = new Date(date.getFullYear(), date.getMonth(), date.getDate());
+  const diffDays = Math.round((today.getTime() - target.getTime()) / (24 * 60 * 60 * 1000));
+  if (diffDays === 0) return 'Today';
+  if (diffDays === 1) return 'Yesterday';
+  if (diffDays < 7) return 'This week';
+  if (diffDays < 30) return 'This month';
+  return date.toLocaleDateString(undefined, { month: 'long', year: 'numeric' });
+}
+
+export function getGreeting(): string {
+  const hour = new Date().getHours();
+  if (hour < 12) return 'Good morning';
+  if (hour < 17) return 'Good afternoon';
+  return 'Good evening';
+}
+
+export function formatMemberSince(dateStr: string): string {
+  return new Date(dateStr).toLocaleDateString(undefined, {
+    month: 'short',
+    year: 'numeric',
+  });
+}
+
+export function getInitials(
+  displayName: string | null | undefined,
+  email: string | undefined,
+): string {
+  if (displayName) {
+    const parts = displayName.trim().split(/\s+/).filter(Boolean);
+    if (parts.length >= 2) {
+      const first = parts[0]!;
+      const last = parts[parts.length - 1]!;
+      return (first.charAt(0) + last.charAt(0)).toUpperCase();
+    }
+    if (parts.length === 1) return parts[0]!.substring(0, 2).toUpperCase();
+  }
+  if (email) return email.charAt(0).toUpperCase();
+  return '?';
+}
+
+export function formatWeight(weight: number | null, units: 'kg' | 'lb'): string {
+  if (weight == null) return '—';
+  return `${weight} ${units}`;
+}

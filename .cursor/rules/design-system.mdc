@@ -1,6 +1,6 @@
 ---
-description: Design system, visual identity, and CSS conventions for Vyayamy
-globs: "**/*.css"
+description: Design system, visual identity, and styling conventions for Vyayamy
+globs: src/ui/**/*.ts,src/ui/**/*.tsx,src/components/**/*.tsx,src/screens/**/*.tsx,app/**/*.tsx
 alwaysApply: false
 ---
 
@@ -12,90 +12,111 @@ Vyayamy is a **calm, minimal workout journal**. Every design decision follows th
 
 1. **Clarity** — the user should instantly understand what they're looking at
 2. **Usability** — every interaction should feel obvious and forgiving
-3. **Speed** — perceived and actual; no layout jank, no unnecessary loading states
+3. **Speed** — perceived and actual; no layout jank, no unnecessary spinners
 4. **Consistency** — identical patterns for identical actions, everywhere
 5. **Delight** — subtle motion and refined details, earned only after the above are satisfied
 
 ### Foundational Principles
 
-**Dieter Rams — remove everything unnecessary.** Fewer buttons, fewer visual elements, more whitespace, cleaner screens. If an element doesn't directly serve the user's current task, it shouldn't be on screen.
+**Dieter Rams — remove everything unnecessary.** Fewer buttons, fewer visual elements, more whitespace. If an element doesn't serve the user's current task, it shouldn't be on screen.
 
-**Don Norman — match human mental models.** Behavior must be predictable. Labels must be clear. Actions must be obvious. Never make the user guess what a tap will do.
+**Don Norman — match human mental models.** Behavior must be predictable. Labels must be clear. Actions must be obvious.
 
-**Alan Kay — powerful systems should still be understandable.** Complexity is introduced progressively. Patterns are modular and consistent. A new user and a power user should both feel at home.
-
-**Alan Dye / Matias Duarte — motion and visual systems create personality.** Smooth transitions, a cohesive design token system, and refined micro-details give the app its character.
-
-### Visual Direction
-
-Lean toward **Apple Health / Apple Fitness** aesthetics — not typical fitness app design. The inspiration stack is Apple Health, Apple Fitness, Whoop, Strava, Strong, and Hevy, but the visual execution stays closer to Apple: restrained, typographic, spacious.
+**Apple Health aesthetic.** Restrained, typographic, spacious — not typical fitness-app design. Inspirations: Apple Health, Apple Fitness, Whoop, Strava, Strong, Hevy.
 
 ### Non-negotiables
 
-- **Single-column layout**, max-width 640px, centered — this is a phone-first app
-- **Warm neutral palette** — stone/amber tones (`#F8F8F6` bg, `#1C1917` text). No saturated brand colors, no dark mode (unless explicitly requested)
-- **System font stack** (`-apple-system`, `SF Pro`, `system-ui`) — native feel, zero web-font overhead
-- **44px minimum touch targets** on all interactive elements (`--touch-min`)
-- **Generous whitespace** — when in doubt, add more breathing room, not less
-- **Subtle, purposeful animation** — page-in fades (`translateY(8px)`), sheet slides, scale-on-press (`scale(0.98)`). No bouncy/spring physics, no particle effects, no gratuitous motion
-- **Progressive disclosure** — show the essential action first; reveal advanced options only when the user reaches for them
+- **Single column**, phone-first; no tablet-specific layouts
+- **Warm neutral palette** — stone/amber tones (`#F8F8F6` bg, `#1C1917` text)
+- **System font** (React Native default — San Francisco on iOS, Roboto on Android). No custom fonts.
+- **44pt minimum touch target** (`theme.touch.min`) on every interactive element
+- **Generous whitespace** — when in doubt, add more
+- **Subtle motion** only — 150 / 250 / 350 ms durations (`theme.duration`). No bouncy springs, no particles.
+- **Progressive disclosure** — primary action visible; secondary actions revealed on interaction
 
-## CSS Custom Properties
+## Styling Rules
 
-All values come from `src/styles/theme.css`. Never hard-code colors, spacing, radii, shadows, or font sizes — always reference tokens:
+All tokens live in `src/ui/theme.ts` as a plain TypeScript object. There are **no CSS files in the mobile app**. Styling happens via `StyleSheet.create` at the bottom of the component file.
 
-```css
-/* Correct */
-padding: var(--space-4);
-color: var(--color-text-secondary);
-border-radius: var(--radius-md);
+### Always use tokens
 
-/* Wrong */
-padding: 16px;
-color: #78716C;
-border-radius: 12px;
+```ts
+// Correct
+import { theme } from '@/ui/theme';
+
+const styles = StyleSheet.create({
+  card: {
+    padding: theme.space.s4,
+    backgroundColor: theme.color.surface,
+    borderRadius: theme.radius.md,
+  },
+  title: {
+    fontSize: theme.font.section,
+    fontWeight: theme.font.weight.semibold,
+    color: theme.color.text,
+  },
+});
 ```
 
-## CSS Architecture
-
-- **One CSS file per component**, co-located: `ComponentName.tsx` + `ComponentName.css`
-- **No CSS modules, no CSS-in-JS, no utility classes** — plain `.css` files imported in the component
-- Global utility classes (`.btn-primary`, `.btn-secondary`, `.btn-ghost`, `.page-title`, `.section-title`, `.card-title`, `.meta`, `.tabular`) live in `theme.css` — reuse them
-
-## Class Naming
-
-BEM-inspired flat naming:
-
-| Pattern                | Example                          |
-|------------------------|----------------------------------|
-| Block                  | `.exercise-block`                |
-| Block + element        | `.exercise-block-head`           |
-| Block + element + part | `.exercise-block-head-text`      |
-| Modifier               | `.set-row--done`, `.toast--info` |
-
-Never nest selectors deeper than two levels. Keep specificity low.
-
-### Prefix / Abbreviation Policy
-
-Some existing components use short prefixes instead of full names. These are grandfathered and **should not be renamed**:
-
-| Prefix | Component           |
-|--------|---------------------|
-| `hd-`  | HistoryDetail       |
-| `pg-`  | Progress            |
-| `esm-` | ExerciseSearchModal |
-
-**New components must use full, descriptive block names** (e.g., `history-detail-`, `progress-`, `exercise-search-`). Do not introduce new abbreviations — they hurt discoverability and grep-ability.
-
-## Animations
-
-Scope `@keyframes` to the component CSS file. Use theme transition tokens:
-
-```css
-transition: opacity var(--duration-fast) ease;
-animation: page-in var(--duration-normal) var(--ease-out);
+```ts
+// Wrong — hard-coded values
+const styles = StyleSheet.create({
+  card: { padding: 16, backgroundColor: '#FFFFFF', borderRadius: 12 },
+});
 ```
+
+### Token surface (from `src/ui/theme.ts`)
+
+| Category | Tokens                                                                                                  |
+| -------- | ------------------------------------------------------------------------------------------------------- |
+| Color    | `bg`, `surface`, `text`, `textSecondary`, `textTertiary`, `border`, `borderStrong`, `accent`, `accentMuted`, `success`, `danger`, `pr`, `onAccent`, `overlay` |
+| Space    | `s1` (4) → `s12` (48), `page` (20), `section` (32), `half` (2)                                          |
+| Radius   | `sm` (8), `md` (12), `lg` (16), `full` (9999)                                                           |
+| Font     | `display`, `title`, `section`, `card`, `body`, `meta`, `micro`; `weight.medium/semibold/bold`           |
+| Touch    | `min` (44), `navHeight` (64)                                                                            |
+| Duration | `fast` (150), `normal` (250), `slow` (350)                                                              |
+
+## Components and Interactions
+
+### Pressables
+
+Use `Pressable` for everything interactive. Express pressed state via a function style prop:
+
+```tsx
+<Pressable
+  onPress={onStart}
+  style={({ pressed }) => [styles.cta, pressed && styles.ctaPressed]}
+>
+  <Text style={styles.ctaText}>Start workout</Text>
+</Pressable>
+```
+
+Keep the pressed effect subtle — a lighter background or `opacity: 0.9`. No scale-on-press bounces.
+
+### Feedback
+
+- Haptics via `expo-haptics` for meaningful events: set completed (`ImpactFeedbackStyle.Medium`), PR achieved (`NotificationFeedbackType.Success`), destructive confirmation (`ImpactFeedbackStyle.Heavy`)
+- Background rest cue via the local notification in `src/lib/restNotifications.ts`
+- Toasts via `ToastProvider` (`useToast()`) — do NOT use `Alert.alert` for transient feedback
+
+### Charts
+
+Charts are in-house SVG. Use `src/ui/LineChart.tsx` or extend it — do not add Recharts or `victory-native`. Axes, ticks, and labels use `theme.color.chartAxis` / `textTertiary`.
+
+### Icons
+
+SVG icons via `react-native-svg`, centralized in `src/ui/TabIcon.tsx` and similar components. No icon libraries with per-glyph imports (no `@expo/vector-icons` sprawl).
+
+## Layout Defaults
+
+- Screens: `SafeAreaView` → `ScrollView` with `contentContainerStyle: { padding: theme.space.page, gap: theme.space.s4 }`
+- Cards: `backgroundColor: theme.color.surface`, `borderRadius: theme.radius.md`, `borderWidth: 1`, `borderColor: theme.color.border`, `padding: theme.space.s4`
+- Primary CTA: `backgroundColor: theme.color.accent`, `color: theme.color.onAccent`, `height: 52`, `borderRadius: theme.radius.md`
 
 ## Responsive
 
-The only breakpoint is `768px` for minor desktop padding/font adjustments. Do not add complex responsive layouts — the app is single-column by design.
+Phone-first. No media queries, no `Dimensions`-based layout branching unless strictly needed. Keep everything single-column and let `flex` handle the rest.
+
+## Grandfathered Exceptions
+
+Short prefixes on legacy components (`hd-`, `pg-`, `esm-`) existed only in the old CSS world and do not apply to the RN codebase. Use descriptive component and style names everywhere.

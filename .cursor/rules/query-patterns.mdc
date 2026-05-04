@@ -1,88 +1,126 @@
 ---
-description: TanStack React Query conventions for data-fetching hooks
-globs: src/lib/queries/*.ts
+description: TanStack React Query conventions for hooks that read SQLite and write through the outbox
+globs: src/queries/*.ts
 alwaysApply: false
 ---
 
-# TanStack Query Patterns
+# Query Patterns
+
+Query hooks in Vyayamy read from **local SQLite** (via `expo-sqlite`) and write through the **outbox** (`enqueueMutation`). They never call `supabase.from()`. That boundary is owned by `src/sync/push.ts` and `src/sync/pull.ts`.
 
 ## File Organization
 
-One query module per domain under `src/lib/queries/`:
+One query module per domain under `src/queries/`:
 
-| Module          | Domain                          |
-|-----------------|---------------------------------|
-| `workouts.ts`   | Workout CRUD, active/recent     |
-| `exercises.ts`  | Exercise search, create, attach |
-| `sets.ts`       | Set CRUD, reorder, finish       |
-| `history.ts`    | Past workouts with date filters |
-| `records.ts`    | PRs, exercise history, frequency|
-| `profile.ts`    | User profile read/update        |
-| `templates.ts`  | Routine template CRUD           |
-| `plans.ts`      | Training plans + slots           |
+| Module              | Domain                                   |
+| ------------------- | ---------------------------------------- |
+| `workouts.ts`       | Workout CRUD, active/recent              |
+| `exercises.ts`      | Exercise search, create, attach          |
+| `sets.ts`           | Set CRUD, reorder, finish                |
+| `history.ts`        | Past workouts with date filters          |
+| `personalRecords.ts`| PRs grouped by exercise                  |
+| `profile.ts`        | User profile read/update                 |
+| `plans.ts`          | Training plans + slots                   |
+| `workoutDetail.ts`  | Single workout + exercises + sets        |
 
-Add new domains as separate files. Do not merge unrelated queries into one file.
+Add new domains as separate files. Do not merge unrelated queries into one file. Query keys are centralized in `src/queries/keys.ts`.
 
 ## Query Keys
 
-Define a top-level constant and build keys as arrays with stable segments:
+Build keys as arrays with stable segments. Use `userId ?? ''` (not `undefined`) to keep keys serializable.
 
 ```ts
-const WORKOUTS_KEY = ['workouts'] as const;
+import { keys } from './keys';
 
-// Specific queries extend the base key
-queryKey: [...WORKOUTS_KEY, 'active', userId ?? '']
-queryKey: [...WORKOUTS_KEY, 'detail', workoutId ?? '']
+queryKey: [...keys.workouts, 'active', userId ?? ''];
+queryKey: [...keys.workouts, 'detail', workoutId];
 ```
 
-Export a helper for cross-module invalidation:
+## Reads
+
+Queries fetch from SQLite via `getDb()`:
 
 ```ts
-export function workoutsQueryKey() {
-  return [...WORKOUTS_KEY] as const;
+export function useRecentWorkouts(userId: string | undefined) {
+  return useQuery({
+    queryKey: [...keys.workouts, 'recent', userId ?? ''],
+    enabled: !!userId,
+    queryFn: async (): Promise<Workout[]> => {
+      const db = await getDb();
+      return db.getAllAsync<Workout>(
+        `SELECT * FROM workouts
+           WHERE user_id = ? AND deleted_at IS NULL
+           ORDER BY started_at DESC
+           LIMIT 20`,
+        [userId],
+      );
+    },
+  });
 }
 ```
 
-Use `userId ?? ''` (not `undefined`) to keep keys stable and serializable.
+Rules:
 
-## Hook Conventions
+- Always `WHERE deleted_at IS NULL` on reads — tombstones are for the sync engine, not the UI
+- Gate with `enabled: !!userId` (or equivalent) so queries don't fire before auth is ready
+- Type the `queryFn` return explicitly
+- Use parameterized queries (`?` placeholders) — never string-concatenate user input
 
-- Export named functions: `export function useXxx(...)`
-- Queries return `useQuery({ queryKey, queryFn, enabled })`
-- Mutations return `useMutation({ mutationFn, onSuccess/onMutate/onError/onSettled })`
-- Always gate queries with `enabled: !!userId` (or similar) to prevent firing before auth is ready
-- Type `queryFn` return explicitly: `async (): Promise<Workout[]> =>`
+## Writes
 
-## Cache Invalidation
+Mutations wrap `enqueueMutation` from `src/db/mutations.ts`:
 
-- Simple mutations: invalidate on `onSuccess`
-- Cross-domain side effects: invalidate multiple keys (e.g., deleting a workout invalidates both `workoutsQueryKey()` and `['history']`)
-- Use scoped keys when only one entity changed: `detailKey(workoutId)`
+```ts
+export function useAddSet() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: async (input: AddSetInput): Promise<void> => {
+      const id = uuidv4();
+      await enqueueMutation({
+        table: 'sets',
+        op: 'insert',
+        rowId: id,
+        payload: {
+          workout_exercise_id: input.workoutExerciseId,
+          order_index: input.orderIndex,
+          weight: input.weight,
+          reps: input.reps,
+          completed: input.completed ? 1 : 0,
+        },
+      });
+    },
+    onSuccess: (_r, input) => {
+      qc.invalidateQueries({ queryKey: [...keys.workoutDetail, input.workoutId] });
+    },
+  });
+}
+```
+
+Rules:
+
+- **Never call `supabase.from()` here.** If you find yourself writing it, stop — use `enqueueMutation`.
+- Generate client-side UUIDs via `uuidv4()` from `src/db/uuid.ts`
+- Supported ops: `'insert'`, `'upsert'`, `'update'`, `'delete'` (soft-delete is automatic for `delete`)
+- Invalidate affected query keys in `onSuccess` / `onSettled`
 
 ## Optimistic Updates
 
-Use optimistic updates for high-frequency interactions (set updates, set deletes) and for creates where instant feedback matters (add set, create template). Pattern:
+SQLite writes are already synchronous and local — there is no network round trip to mask. The classic `onMutate` + rollback pattern is not needed. React Query will refetch from the updated SQLite immediately after invalidation.
 
-1. `onMutate`: cancel in-flight queries, snapshot previous data, apply optimistic change
-2. `onError`: rollback from snapshot
-3. `onSettled`: invalidate to refetch canonical data
+If you want instant UI feedback for an ultra-high-frequency interaction (set toggle, reorder), prefer `setQueryData` on success over `onMutate`. Keep rollback logic out — the local write cannot fail silently.
 
-Optimistic creates require a temporary ID (`temp-${crypto.randomUUID()}`) that gets replaced when `onSettled` refetches the real data.
+## Cross-domain Invalidation
 
-Do not use optimistic updates for structural mutations that navigate away (add exercise, finish workout).
+Some mutations touch multiple domains:
 
-## Supabase Queries
+- Deleting a workout → invalidate `keys.workouts` and `keys.history`
+- Finishing a workout → invalidate `keys.workouts`, `keys.history`, `keys.personalRecords`, and the detail key
 
-Build queries with the Supabase JS client — no raw SQL from the frontend:
+Use `qc.invalidateQueries({ queryKey: [...keys.domain] })` with scoped keys.
 
-```ts
-const { data, error } = await supabase
-  .from('workouts')
-  .select('*')
-  .eq('user_id', userId)
-  .order('started_at', { ascending: false });
-if (error) throw error;
-return (data ?? []) as Workout[];
-```
+## What NOT to do here
 
-Always `throw error` so React Query can surface it. Cast results with `as Type` since the Supabase client is typed via `Database`.
+- Do not import the Supabase client
+- Do not write raw SQL inline in a component — wrap it in a hook
+- Do not introduce a new state store — React Query plus `useState` is sufficient
+- Do not use `Alert.alert` for errors — surface via `useToast()`
