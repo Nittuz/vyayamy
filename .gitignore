@@ -33,6 +33,10 @@ android
 .env.local
 .env.*.local
 
+# Tooling caches
+.claude/worktrees
+supabase/.temp
+
 # Editor directories and files
 .vscode/*
 !.vscode/extensions.json
