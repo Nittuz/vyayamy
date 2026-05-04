@@ -36,7 +36,7 @@ export async function updateProfile(
   void triggerPush();
 }
 
-export function useUpdateProfile(userId: string | undefined) {
+export function useUpdateProfile(userId: string | undefined, onError?: (msg: string) => void) {
   const qc = useQueryClient();
   return useMutation({
     mutationFn: (patch: Partial<Pick<Profile, 'display_name' | 'units'>>) => {
@@ -46,5 +46,6 @@ export function useUpdateProfile(userId: string | undefined) {
     onSuccess: () => {
       if (userId) qc.invalidateQueries({ queryKey: queryKeys.profile(userId) });
     },
+    onError: (err) => onError?.(err instanceof Error ? err.message : 'Failed to update profile'),
   });
 }

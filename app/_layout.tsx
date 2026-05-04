@@ -3,8 +3,8 @@ import 'react-native-url-polyfill/auto';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { Stack } from 'expo-router';
 import { StatusBar } from 'expo-status-bar';
-import { useEffect, useState } from 'react';
-import { StyleSheet, Text } from 'react-native';
+import { useEffect, useRef, useState } from 'react';
+import { ActivityIndicator, StyleSheet, Text, View } from 'react-native';
 import { SafeAreaProvider, SafeAreaView } from 'react-native-safe-area-context';
 
 import { AuthProvider } from '@/auth/AuthContext';
@@ -27,65 +27,72 @@ const queryClient = new QueryClient({
   },
 });
 
+const stackScreenOptions = {
+  headerStyle: { backgroundColor: theme.color.bg },
+  headerTitleStyle: { fontWeight: '600' as const },
+  contentStyle: { backgroundColor: theme.color.bg },
+};
+
+const tabsScreenOpts = { headerShown: false };
+const loginScreenOpts = { headerShown: false };
+const workoutActiveOpts = { title: 'Workout' };
+const historyDetailOpts = { title: 'Workout' };
+const planIndexOpts = { title: 'Training plan' };
+const planSetupOpts = { title: 'Plan setup' };
+
 export default function RootLayout() {
   const [ready, setReady] = useState(false);
   const [bootError, setBootError] = useState<string | null>(null);
+  const started = useRef(false);
 
   useEffect(() => {
-    let cancelled = false;
-    (async () => {
-      try {
-        await initDb();
-        if (cancelled) return;
+    if (started.current) return;
+    started.current = true;
+
+    initDb()
+      .then(() => {
         setReady(true);
         startSyncEngine(queryClient);
-      } catch (e) {
-        if (!cancelled) {
-          setBootError(e instanceof Error ? e.message : String(e));
-        }
-      }
-    })();
+      })
+      .catch((e) => {
+        setBootError(e instanceof Error ? e.message : String(e));
+      });
+
     return () => {
-      cancelled = true;
       stopSyncEngine();
     };
   }, []);
 
-  if (bootError) {
-    return (
-      <SafeAreaProvider>
-        <SafeAreaView style={bootStyles.screen} edges={['top', 'bottom', 'left', 'right']}>
-          <Text style={bootStyles.title}>Cannot start here</Text>
-          <Text style={bootStyles.body}>{bootError}</Text>
-        </SafeAreaView>
-      </SafeAreaProvider>
-    );
-  }
-
-  if (!ready) return null;
-
+  // Always render the Stack so expo-router has a navigator from the start.
+  // Loading/error states are shown as overlays rather than replacing the navigator,
+  // which prevents the "no navigator in root layout" +not-found redirect.
   return (
     <ErrorBoundary>
       <SafeAreaProvider>
         <QueryClientProvider client={queryClient}>
-        <AuthProvider>
-          <ToastProvider>
-            <StatusBar style="dark" />
-            <Stack
-              screenOptions={{
-                headerStyle: { backgroundColor: theme.color.bg },
-                headerTitleStyle: { fontWeight: '600' },
-                contentStyle: { backgroundColor: theme.color.bg },
-              }}
-            >
-              <Stack.Screen name="(tabs)" options={{ headerShown: false }} />
-              <Stack.Screen name="login" options={{ headerShown: false }} />
-              <Stack.Screen name="workout/active" options={{ title: 'Workout' }} />
-              <Stack.Screen name="history/[id]" options={{ title: 'Workout' }} />
-              <Stack.Screen name="profile/plan/index" options={{ title: 'Training plan' }} />
-              <Stack.Screen name="profile/plan/setup" options={{ title: 'Plan setup' }} />
-            </Stack>
-          </ToastProvider>
+          <AuthProvider>
+            <ToastProvider>
+              <StatusBar style="dark" />
+              <Stack screenOptions={stackScreenOptions}>
+                <Stack.Screen name="(tabs)" options={tabsScreenOpts} />
+                <Stack.Screen name="login" options={loginScreenOpts} />
+                <Stack.Screen name="workout/active" options={workoutActiveOpts} />
+                <Stack.Screen name="history/[id]" options={historyDetailOpts} />
+                <Stack.Screen name="profile/plan/index" options={planIndexOpts} />
+                <Stack.Screen name="profile/plan/setup" options={planSetupOpts} />
+              </Stack>
+              {!ready && !bootError && (
+                <View style={bootStyles.overlay}>
+                  <ActivityIndicator color={theme.color.accent} />
+                </View>
+              )}
+              {bootError && (
+                <SafeAreaView style={bootStyles.overlay} edges={['top', 'bottom', 'left', 'right']}>
+                  <Text style={bootStyles.title}>Cannot start</Text>
+                  <Text style={bootStyles.body}>{bootError}</Text>
+                </SafeAreaView>
+              )}
+            </ToastProvider>
           </AuthProvider>
         </QueryClientProvider>
       </SafeAreaProvider>
@@ -94,8 +101,15 @@ export default function RootLayout() {
 }
 
 const bootStyles = StyleSheet.create({
+  overlay: {
+    ...StyleSheet.absoluteFillObject,
+    alignItems: 'center',
+    justifyContent: 'center',
+    backgroundColor: theme.color.bg,
+  },
   screen: {
     flex: 1,
+    alignItems: 'center',
     justifyContent: 'center',
     padding: theme.space.page,
     backgroundColor: theme.color.bg,
@@ -105,10 +119,12 @@ const bootStyles = StyleSheet.create({
     fontWeight: '600',
     color: theme.color.text,
     marginBottom: theme.space.s4,
+    textAlign: 'center',
   },
   body: {
     fontSize: theme.font.body,
     color: theme.color.textSecondary,
     lineHeight: 22,
+    textAlign: 'center',
   },
 });

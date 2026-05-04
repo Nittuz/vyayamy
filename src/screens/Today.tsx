@@ -16,14 +16,17 @@ import { formatDuration, formatRelativeDate, getGreeting } from '@/core/format';
 import { useActiveWorkout, useCreateWorkout, useRecentWorkouts } from '@/queries/workouts';
 import { triggerPull } from '@/sync/engine';
 import { SyncIndicator } from '@/ui/SyncIndicator';
+import { useToast } from '@/ui/ToastContext';
 import { theme } from '@/ui/theme';
 
 export default function TodayScreen() {
   const { user } = useAuth();
   const userId = user?.id;
+  const { showToast } = useToast();
   const activeQuery = useActiveWorkout(userId);
   const recentQuery = useRecentWorkouts(userId, 5);
-  const createWorkout = useCreateWorkout();
+  const toastError = useCallback((msg: string) => showToast(msg, 'error'), [showToast]);
+  const createWorkout = useCreateWorkout(toastError);
 
   const onRefresh = useCallback(async () => {
     await triggerPull();

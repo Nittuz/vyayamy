@@ -24,11 +24,12 @@ export async function listSetsForWorkoutExercise(weId: string): Promise<SetRow[]
 
 export async function addSet(weId: string, args: { weight?: number | null; reps?: number | null } = {}): Promise<string> {
   const db = await getDb();
-  const existing = await db.getAllAsync<{ order_index: number }>(
-    'SELECT order_index FROM sets WHERE workout_exercise_id = ? AND deleted_at IS NULL',
+  const result = await db.getFirstAsync<{ next_order: number }>(
+    `SELECT COALESCE(MAX(order_index), -1) + 1 AS next_order
+       FROM sets WHERE workout_exercise_id = ? AND deleted_at IS NULL`,
     [weId],
   );
-  const nextOrder = existing.reduce((m, r) => Math.max(m, r.order_index), -1) + 1;
+  const nextOrder = result?.next_order ?? 0;
   const id = uuidv4();
   await enqueueMutation({
     table: 'sets',
@@ -60,16 +61,17 @@ export async function deleteSet(setId: string): Promise<void> {
   void triggerPush();
 }
 
-export function useAddSet() {
+export function useAddSet(onError?: (msg: string) => void) {
   const qc = useQueryClient();
   return useMutation({
     mutationFn: (args: { weId: string; weight?: number | null; reps?: number | null }) =>
       addSet(args.weId, args),
     onSuccess: (_id, vars) => qc.invalidateQueries({ queryKey: queryKeys.sets.byWorkoutExercise(vars.weId) }),
+    onError: (err) => onError?.(err instanceof Error ? err.message : 'Failed to add set'),
   });
 }
 
-export function useUpdateSet() {
+export function useUpdateSet(onError?: (msg: string) => void) {
   const qc = useQueryClient();
   return useMutation({
     mutationFn: (args: {
@@ -78,13 +80,15 @@ export function useUpdateSet() {
       patch: Partial<Pick<SetRow, 'weight' | 'reps' | 'completed'>>;
     }) => updateSet(args.setId, args.patch),
     onSuccess: (_r, vars) => qc.invalidateQueries({ queryKey: queryKeys.sets.byWorkoutExercise(vars.weId) }),
+    onError: (err) => onError?.(err instanceof Error ? err.message : 'Failed to update set'),
   });
 }
 
-export function useDeleteSet() {
+export function useDeleteSet(onError?: (msg: string) => void) {
   const qc = useQueryClient();
   return useMutation({
     mutationFn: (args: { setId: string; weId: string }) => deleteSet(args.setId),
     onSuccess: (_r, vars) => qc.invalidateQueries({ queryKey: queryKeys.sets.byWorkoutExercise(vars.weId) }),
+    onError: (err) => onError?.(err instanceof Error ? err.message : 'Failed to delete set'),
   });
 }
