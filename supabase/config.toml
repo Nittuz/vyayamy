@@ -1,5 +1,5 @@
 [project]
-id = "vyayamy"
+id = "flexyug"
 
 [api]
 enabled = true
@@ -27,11 +27,11 @@ double_confirm_changes = false
 enable_confirmations = false
 
 [auth.email.template.confirmation]
-subject = "Welcome to Vyayamy"
+subject = "Welcome to FlexYug"
 content_path = "./supabase/templates/confirmation.html"
 
 [auth.email.template.magic_link]
-subject = "Sign in to Vyayamy"
+subject = "Sign in to FlexYug"
 content_path = "./supabase/templates/magic_link.html"
 
 [auth.external.apple]

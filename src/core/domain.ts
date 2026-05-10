@@ -1,7 +1,6 @@
 /**
- * Domain glossary — canonical names and definitions for Vyayamy's
- * product concepts. Ported verbatim from legacy-web/src/lib/domain.ts
- * but pointed at the mobile-native Database type.
+ * Domain glossary — canonical names and definitions for FlexYug's
+ * product concepts.
  */
 import type {
   Exercise,

@@ -2,11 +2,11 @@
 
 Guidance for AI coding agents and automated tools working in this repo.
 
-## What Vyayamy is
+## What FlexYug is
+
+> The product is **FlexYug**. The repo / working directory is named `vyayamy` (predates the rename); treat occurrences of `vyayamy` you encounter as the repo handle, not the product.
 
 A mobile-only, local-first strength-training journal built with Expo and React Native. SQLite on the device is the source of truth during a session. Supabase is a durable mirror reached only by the sync engine in [src/sync/](src/sync/). The UI must never block on the network.
-
-The pre-pivot React + Vite PWA is frozen under [legacy-web/](legacy-web/) and is not part of the active product. Do not import from it, and do not update it.
 
 ## Stack guardrails
 
@@ -47,7 +47,6 @@ Explicitly forbidden:
 | [src/auth/](src/auth/)                         | Supabase client singleton, `AuthProvider`, `useAuth`                    |
 | [src/core/](src/core/)                         | Pure domain logic (PR detection, formatting, sync helpers)              |
 | [src/lib/](src/lib/)                           | Cross-cutting services (`errorReporting.ts`, `restNotifications.ts`)    |
-| [src/native/health/](src/native/health/)       | HealthKit / Health Connect adapter interface (stubbed)                  |
 | [supabase/migrations/](supabase/migrations/)   | Numbered SQL migrations                                                 |
 
 ## Golden paths

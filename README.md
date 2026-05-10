@@ -1,4 +1,6 @@
-# Vyayamy
+# FlexYug
+
+> **Product name:** FlexYug. **Repo / directory name:** `vyayamy`. The repo predates the product rename; references to `vyayamy` you'll still see (the clone target, this directory) are the repo handle, not the product.
 
 A mobile-only, local-first strength-training journal. Built around one job: **capture strength training reliably, offline, and fast**. SQLite on the device is the source of truth during a session; Supabase is a durable mirror that syncs in the background.
 
@@ -32,7 +34,6 @@ A mobile-only, local-first strength-training journal. Built around one job: **ca
 | Haptics / timers   | `expo-haptics`, `expo-notifications`                 |
 | Error reporting    | `@sentry/react-native` (gated by DSN)                |
 | Testing            | Jest + `ts-jest`, `better-sqlite3` in-memory mock    |
-| Native integrations | HealthKit / Health Connect adapters scaffolded ([src/native/health/](src/native/health/)) |
 | Build / distribution | EAS Build + EAS Submit                             |
 
 There is no custom API server. The mobile client talks to Supabase directly through PostgREST for sync, and every UI write goes through the local outbox.
@@ -61,7 +62,6 @@ vyayamy/
 │   ├── core/                       # Pure domain logic (PR detection, format, sync helpers)
 │   ├── db/                         # SQLite: schema, client, mutations, uuid, types, mocks
 │   ├── lib/                        # Cross-cutting services (errorReporting, restNotifications)
-│   ├── native/health/              # HealthKit + Health Connect adapters (stubbed)
 │   ├── queries/                    # React Query hooks reading SQLite
 │   ├── screens/                    # Large screen components consumed by app/ routes
 │   ├── sync/                       # engine.ts, push.ts, pull.ts, state.ts
@@ -74,7 +74,6 @@ vyayamy/
 │   │   ├── 00003_training_plans.sql
 │   │   └── 00004_sync_support.sql  # Adds updated_at, deleted_at, triggers, indexes
 │   └── seed.sql                    # Global exercise library
-├── legacy-web/                     # Frozen pre-pivot PWA (no CI, kept for reference)
 ├── docs/                           # Architecture + operational docs
 ├── app.config.ts                   # Expo app config (plugins, extra, scheme)
 ├── eas.json                        # EAS Build + Submit profiles
@@ -240,7 +239,3 @@ See [ARCHITECTURE.md](ARCHITECTURE.md) for the full design. Key entry points:
 - **Design system**: [docs/design-system.md](docs/design-system.md)
 - **Build and operations**: [docs/operations.md](docs/operations.md)
 - **Agent guardrails**: [AGENTS.md](AGENTS.md) and [.cursor/rules/](.cursor/rules/)
-
-## Legacy Web
-
-The pre-pivot React + Vite PWA is frozen under [legacy-web/](legacy-web/). It is not built by CI, not maintained, and not imported by anything in the mobile app. It exists only as a reference while the mobile port settles.

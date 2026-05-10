@@ -1,10 +1,7 @@
 /**
  * Workout queries + mutations against local SQLite.
  *
- * Reads return deleted_at IS NULL rows only; writes go through the
- * outbox. The returned hooks match the surface area of the legacy
- * src/lib/queries/workouts.ts as closely as possible so screens can
- * be ported with minimal rework.
+ * Reads return deleted_at IS NULL rows only; writes go through the outbox.
  */
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 

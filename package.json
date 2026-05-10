@@ -1,5 +1,5 @@
 {
-  "name": "vyayamy",
+  "name": "flexyug",
   "version": "0.1.0",
   "private": true,
   "main": "expo-router/entry",
@@ -69,11 +69,7 @@
     "preset": "ts-jest",
     "testEnvironment": "node",
     "testPathIgnorePatterns": [
-      "/node_modules/",
-      "/legacy-web/"
-    ],
-    "modulePathIgnorePatterns": [
-      "<rootDir>/legacy-web/"
+      "/node_modules/"
     ],
     "moduleNameMapper": {
       "^@/(.*)$": "<rootDir>/src/$1",

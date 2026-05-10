@@ -1,6 +1,6 @@
 # Architecture
 
-Vyayamy is a mobile-only, **local-first** strength-training journal. The client owns the data during a session: every user action commits to SQLite synchronously, and the sync engine propagates those writes to Supabase in the background. The network is never in the critical path of logging a set.
+FlexYug (developed in the `vyayamy` repo) is a mobile-only, **local-first** strength-training journal. The client owns the data during a session: every user action commits to SQLite synchronously, and the sync engine propagates those writes to Supabase in the background. The network is never in the critical path of logging a set.
 
 ---
 
@@ -85,7 +85,6 @@ Key properties:
 | Haptics             | `expo-haptics`                                                          |
 | Timers              | `setInterval` foreground, `expo-notifications` for background rest cue  |
 | Error reporting     | `@sentry/react-native` gated by DSN                                     |
-| Native integrations | HealthKit / Health Connect adapter interface ([src/native/health/](src/native/health/)) |
 | Testing             | Jest + `ts-jest`, `better-sqlite3` in-memory mock of `expo-sqlite`      |
 | Build / distribution | EAS Build, EAS Submit                                                  |
 
@@ -304,7 +303,7 @@ sequenceDiagram
   participant App
   participant SB as Supabase Auth
   U->>App: enters email
-  App->>SB: signInWithOtp(email, emailRedirectTo=vyayamy://auth-callback)
+  App->>SB: signInWithOtp(email, emailRedirectTo=flexyug://auth-callback)
   SB-->>U: magic-link email
   U->>App: taps link
   App->>App: expo-linking parses URL
@@ -395,20 +394,6 @@ See [docs/design-system.md](docs/design-system.md) for the full spec.
 
 ---
 
-## Native Health Boundary
-
-[src/native/health/](src/native/health/) defines a platform-agnostic `HealthAdapter` interface ([types.ts](src/native/health/types.ts)) with three implementations:
-
-| Platform     | File                                                     | Status                       |
-| ------------ | -------------------------------------------------------- | ---------------------------- |
-| iOS          | [src/native/health/ios.ts](src/native/health/ios.ts)     | Stub; wires to `react-native-health` when enabled |
-| Android      | [src/native/health/android.ts](src/native/health/android.ts) | Stub; wires to `react-native-health-connect` |
-| Fallback     | [src/native/health/noop.ts](src/native/health/noop.ts)   | Always returns `isAvailable = false` |
-
-`getHealthAdapter()` in [src/native/health/index.ts](src/native/health/index.ts) dispatches by `Platform.OS`. Nothing else in the app imports the native modules directly — the rest of the code treats Health as an optional dependency that may or may not be available.
-
----
-
 ## Security Model
 
 ### Row Level Security
@@ -448,7 +433,3 @@ It pays for itself even with no HTTP: cache coherence across screens, `invalidat
 ### Why `ts-jest` + `better-sqlite3` for tests?
 
 `jest-expo` tries to load `expo-modules-core`'s ESM web bundle under Node and fails. `ts-jest` runs TypeScript directly with a Node test environment, and a module mock swaps `expo-sqlite` for in-memory `better-sqlite3`. This lets the sync engine be exercised end-to-end without a simulator.
-
-### Why defer HealthKit / Health Connect?
-
-The native health SDKs require a dev client and platform-specific permissions. Scaffolding the adapter now behind a clean interface means flipping them on is localized work — not an architectural change.

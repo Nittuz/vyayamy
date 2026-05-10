@@ -1,8 +1,0 @@
-.confirm-dialog-message {
-  margin-bottom: var(--space-6);
-}
-
-.confirm-dialog-actions {
-  display: flex;
-  gap: var(--space-3);
-}

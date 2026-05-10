@@ -1,10 +1,8 @@
 /**
  * Personal-record detection — pure functions only.
  *
- * Ported from legacy-web/src/lib/pr-detection.ts with the Supabase-coupled
- * persistence helper removed. The mobile client calls detectNewPRs(...)
- * against rows already read from SQLite, then enqueues upserts via the
- * outbox like any other mutation.
+ * detectNewPRs(...) runs against rows already read from SQLite; callers
+ * enqueue any resulting upserts through the outbox like any other mutation.
  */
 import type { PRType } from './domain';
 

@@ -1,8 +1,3 @@
-/**
- * Ported from legacy-web/src/lib/__tests__/pr-detection.test.ts.
- * The pure computation surface is unchanged; only the test runner
- * switched from Vitest to Jest.
- */
 import { computeBestMetrics, detectNewPRs } from '@/core/pr-detection';
 
 describe('computeBestMetrics', () => {

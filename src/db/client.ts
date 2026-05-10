@@ -8,7 +8,7 @@ import * as SQLite from 'expo-sqlite';
 
 import { LOCAL_SCHEMA_SQL } from './schema';
 
-const DATABASE_NAME = 'vyayamy.db';
+const DATABASE_NAME = 'flexyug.db';
 
 let dbPromise: Promise<SQLite.SQLiteDatabase> | null = null;
 

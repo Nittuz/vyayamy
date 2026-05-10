@@ -1,7 +1,6 @@
 /**
- * Supabase database typings — copied verbatim from the legacy web app
- * (legacy-web/src/types/database.ts) and extended with the sync-support
- * columns added in migration 00004 (updated_at, deleted_at).
+ * Supabase database typings, including the sync-support columns
+ * (updated_at, deleted_at) added in migration 00004.
  */
 
 export type Json = string | number | boolean | null | { [key: string]: Json | undefined } | Json[];

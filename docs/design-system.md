@@ -1,6 +1,6 @@
 # Design System
 
-Vyayamy is a calm, minimal strength-training journal. The design system exists to make the right choices trivial and the wrong ones impossible.
+FlexYug is a calm, minimal strength-training journal. The design system exists to make the right choices trivial and the wrong ones impossible.
 
 ## Philosophy
 

@@ -11,8 +11,8 @@ for (const name of ['.env', '.env.local', '.env.development', '.env.development.
 
 const config: ExpoConfig = {
   name: 'FlexYug',
-  slug: 'vyayamy',
-  scheme: 'vyayamy',
+  slug: 'flexyug',
+  scheme: 'flexyug',
   version: '0.1.0',
   orientation: 'portrait',
   icon: './assets/icon.png',
@@ -25,14 +25,14 @@ const config: ExpoConfig = {
   assetBundlePatterns: ['**/*'],
   ios: {
     supportsTablet: false,
-    bundleIdentifier: 'com.mokshlabs.vyayamy',
+    bundleIdentifier: 'com.mokshlabs.flexyug',
     infoPlist: {
       ITSAppUsesNonExemptEncryption: false,
       UIBackgroundModes: ['fetch'],
     },
   },
   android: {
-    package: 'com.mokshlabs.vyayamy',
+    package: 'com.mokshlabs.flexyug',
     adaptiveIcon: {
       foregroundImage: './assets/adaptive-icon.png',
       backgroundColor: '#F8F6F3',

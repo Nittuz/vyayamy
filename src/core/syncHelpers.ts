@@ -1,7 +1,5 @@
 /**
- * Sync UI-state helpers. Pure, no React / no DOM. Ported from
- * legacy-web/src/lib/syncHelpers.ts and extended to model the
- * outbox-pending state that the mobile sync engine surfaces.
+ * Sync UI-state helpers. Pure, no React / no DOM.
  */
 import type { SyncState } from './domain';
 

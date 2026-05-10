@@ -2,7 +2,7 @@
 
 ## Positioning
 
-Vyayamy is a **mobile-only, local-first strength-training journal**. The product is organized around one job:
+FlexYug is a **mobile-only, local-first strength-training journal**. The product is organized around one job:
 
 > Capture strength training reliably, offline, and fast.
 
@@ -102,4 +102,4 @@ Instrumentation is currently a no-op vocabulary — connecting a provider is a f
 - Video or image attachments
 - A large seeded exercise library (users add custom exercises as needed)
 - Dark-mode polish beyond the pre-baked palette
-- A web or desktop client — [legacy-web/](../legacy-web/) is frozen and not maintained
+- A web or desktop client

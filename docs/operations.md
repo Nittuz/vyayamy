@@ -1,6 +1,6 @@
 # Operations
 
-Day-to-day commands for building, testing, and shipping the Vyayamy app.
+Day-to-day commands for building, testing, and shipping the FlexYug app.
 
 ## Local Development
 
@@ -168,7 +168,6 @@ Jest config lives under the `"jest"` key in [package.json](../package.json):
 - `preset: ts-jest`
 - `testEnvironment: node`
 - `moduleNameMapper` maps `@/*` and the two `__mocks__` above
-- `testPathIgnorePatterns` excludes [legacy-web/](../legacy-web/)
 
 ## Release checklist
 
