@@ -10,7 +10,7 @@ for (const name of ['.env', '.env.local', '.env.development', '.env.development.
 }
 
 const config: ExpoConfig = {
-  name: 'Vyayamy',
+  name: 'FlexYug',
   slug: 'vyayamy',
   scheme: 'vyayamy',
   version: '0.1.0',
@@ -20,7 +20,7 @@ const config: ExpoConfig = {
   splash: {
     image: './assets/splash.png',
     resizeMode: 'contain',
-    backgroundColor: '#FAFAF9',
+    backgroundColor: '#F8F6F3',
   },
   assetBundlePatterns: ['**/*'],
   ios: {
@@ -35,7 +35,7 @@ const config: ExpoConfig = {
     package: 'com.mokshlabs.vyayamy',
     adaptiveIcon: {
       foregroundImage: './assets/adaptive-icon.png',
-      backgroundColor: '#FAFAF9',
+      backgroundColor: '#F8F6F3',
     },
   },
   plugins: [

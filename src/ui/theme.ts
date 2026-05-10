@@ -1,5 +1,5 @@
 /**
- * Design tokens ported from legacy-web/src/styles/theme.css.
+ * FlexYug design tokens.
  * Kept as a plain TS object so it can be consumed by StyleSheet.create
  * and by computed style helpers.
  *
@@ -7,8 +7,18 @@
  * and can be toggled in a later polish pass via useColorScheme().
  */
 
+export const brand = {
+  name: 'FlexYug',
+  tagline: 'The Strength Era',
+  saffron: '#E05A2C',
+  saffronDark: '#C24B22',
+  saffronLight: '#F0A060',
+  stone: '#1C1917',
+  cream: '#F8F6F3',
+} as const;
+
 export const colors = {
-  bg: '#F8F8F6',
+  bg: '#F8F6F3',
   surface: '#FFFFFF',
   text: '#1C1917',
   textSecondary: '#78716C',
@@ -19,11 +29,15 @@ export const colors = {
   accent: '#1C1917',
   accentMuted: '#57534E',
   accentSoft: 'rgba(28, 25, 23, 0.06)',
+  brand: '#E05A2C',
+  brandMuted: '#C24B22',
+  brandSoft: 'rgba(224, 90, 44, 0.08)',
+  onBrand: '#FFFFFF',
   success: '#16A34A',
   successSoft: 'rgba(22, 163, 74, 0.08)',
   danger: '#DC2626',
-  pr: '#D97706',
-  prSoft: 'rgba(217, 119, 6, 0.08)',
+  pr: '#E05A2C',
+  prSoft: 'rgba(224, 90, 44, 0.08)',
   chartAxis: '#A8A29E',
   onAccent: '#FFFFFF',
   overlay: 'rgba(0, 0, 0, 0.3)',
@@ -41,11 +55,15 @@ export const darkColors = {
   accent: '#F5F5F4',
   accentMuted: '#A8A29E',
   accentSoft: 'rgba(245, 245, 244, 0.08)',
+  brand: '#E8783C',
+  brandMuted: '#E05A2C',
+  brandSoft: 'rgba(232, 120, 60, 0.12)',
+  onBrand: '#FFFFFF',
   success: '#22C55E',
   successSoft: 'rgba(34, 197, 94, 0.12)',
   danger: '#EF4444',
-  pr: '#FBBF24',
-  prSoft: 'rgba(251, 191, 36, 0.12)',
+  pr: '#E8783C',
+  prSoft: 'rgba(232, 120, 60, 0.12)',
   chartAxis: '#78716C',
   onAccent: '#1C1917',
   overlay: 'rgba(0, 0, 0, 0.5)',

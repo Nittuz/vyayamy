@@ -15,7 +15,8 @@ import {
 
 import { supabase } from '@/auth/supabase';
 import { useAuth } from '@/auth/useAuth';
-import { theme } from '@/ui/theme';
+import { DumbbellMark } from '@/ui/Logo';
+import { brand, theme } from '@/ui/theme';
 
 export default function LoginScreen() {
   const { session, loading } = useAuth();
@@ -85,11 +86,9 @@ export default function LoginScreen() {
       >
         <View style={styles.card}>
           <View style={styles.header}>
-            <View style={styles.monogram}>
-              <Text style={styles.monogramText}>V</Text>
-            </View>
-            <Text style={styles.title}>Vyayamy</Text>
-            <Text style={styles.tagline}>Track your training, with less noise.</Text>
+            <DumbbellMark size={36} color={brand.saffron} />
+            <Text style={styles.title}>{brand.name}</Text>
+            <Text style={styles.tagline}>{brand.tagline}</Text>
           </View>
 
           {sent ? (
@@ -183,19 +182,6 @@ const styles = StyleSheet.create({
     gap: theme.space.s6,
   },
   header: { alignItems: 'center', gap: theme.space.s3 },
-  monogram: {
-    width: 56,
-    height: 56,
-    borderRadius: 28,
-    backgroundColor: theme.color.accent,
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  monogramText: {
-    color: theme.color.onAccent,
-    fontSize: 28,
-    fontWeight: theme.font.weight.bold,
-  },
   title: {
     fontSize: theme.font.title,
     fontWeight: theme.font.weight.bold,
