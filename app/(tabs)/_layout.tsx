@@ -20,8 +20,6 @@ const tabsScreenOptions = {
   headerTitleStyle: { fontWeight: '600' as const, fontSize: 17 },
 };
 
-const sceneStyle = { backgroundColor: theme.color.bg };
-
 const todayOptions = {
   title: 'Today',
   tabBarIcon: ({ color, focused }: { color: string; focused: boolean }) => (
@@ -61,7 +59,7 @@ export default function TabsLayout() {
   // and a plain component, triggering the useSyncState render loop in react-navigation.
   // Individual screens already guard with `if (!userId) return null`.
   return (
-    <Tabs screenOptions={tabsScreenOptions} sceneContainerStyle={sceneStyle}>
+    <Tabs screenOptions={tabsScreenOptions}>
       <Tabs.Screen name="today" options={todayOptions} />
       <Tabs.Screen name="history" options={historyOptions} />
       <Tabs.Screen name="progress" options={progressOptions} />

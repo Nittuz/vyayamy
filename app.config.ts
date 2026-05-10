@@ -38,6 +38,11 @@ const config: ExpoConfig = {
       backgroundColor: '#F8F6F3',
     },
   },
+  web: {
+    bundler: 'metro',
+    output: 'single',
+    favicon: './assets/icon.png',
+  },
   plugins: [
     'expo-router',
     [

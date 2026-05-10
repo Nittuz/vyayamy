@@ -20,7 +20,8 @@ async function ensureConfigured(): Promise<boolean> {
     }
     Notifications.setNotificationHandler({
       handleNotification: async () => ({
-        shouldShowAlert: true,
+        shouldShowBanner: true,
+        shouldShowList: true,
         shouldPlaySound: true,
         shouldSetBadge: false,
       }),
@@ -47,7 +48,11 @@ export async function scheduleRestDone(seconds: number): Promise<string | null> 
         body: 'Time for the next set.',
         categoryIdentifier: REST_CATEGORY,
       },
-      trigger: { seconds, repeats: false },
+      trigger: {
+        type: Notifications.SchedulableTriggerInputTypes.TIME_INTERVAL,
+        seconds,
+        repeats: false,
+      },
     });
     return id;
   } catch {

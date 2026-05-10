@@ -75,6 +75,12 @@ export default function WorkoutActiveScreen() {
     router.replace('/today');
   }, [activeQuery.data, finishWorkout, timer]);
 
+  const workoutTitle = detail.data?.workout.title ?? '';
+  const screenOptions = useMemo(
+    () => ({ title: workoutTitle, headerRight: () => <SyncIndicator /> }),
+    [workoutTitle],
+  );
+
   if (!userId) return null;
 
   if (activeQuery.isLoading || detail.isLoading) {
@@ -98,11 +104,6 @@ export default function WorkoutActiveScreen() {
 
   const workout = detail.data.workout;
   const exercises = detail.data.exercises;
-
-  const screenOptions = useMemo(
-    () => ({ title: workout.title, headerRight: () => <SyncIndicator /> }),
-    [workout.title],
-  );
 
   return (
     <SafeAreaView style={styles.container}>

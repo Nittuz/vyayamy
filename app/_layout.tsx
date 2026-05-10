@@ -5,7 +5,7 @@ import { Stack } from 'expo-router';
 import * as SplashScreen from 'expo-splash-screen';
 import { StatusBar } from 'expo-status-bar';
 import { useEffect, useRef, useState } from 'react';
-import { ActivityIndicator, StyleSheet, Text, View } from 'react-native';
+import { ActivityIndicator, Platform, StyleSheet, Text, View } from 'react-native';
 import { SafeAreaProvider, SafeAreaView } from 'react-native-safe-area-context';
 
 import { AuthProvider } from '@/auth/AuthContext';
@@ -19,7 +19,8 @@ import { theme } from '@/ui/theme';
 initErrorReporting();
 void SplashScreen.preventAutoHideAsync();
 
-const INIT_TIMEOUT_MS = 5_000;
+// Web does an extra wasm fetch + worker spin-up, which can be slow on a cold load.
+const INIT_TIMEOUT_MS = Platform.OS === 'web' ? 15_000 : 5_000;
 
 const queryClient = new QueryClient({
   defaultOptions: {
