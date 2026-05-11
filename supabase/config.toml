@@ -1,5 +1,4 @@
-[project]
-id = "flexyug"
+project_id = "flexyug"
 
 [api]
 enabled = true
@@ -10,7 +9,7 @@ max_rows = 1000
 
 [db]
 port = 54322
-major_version = 15
+major_version = 17
 
 [studio]
 enabled = true
@@ -19,7 +18,11 @@ port = 54323
 [auth]
 enabled = true
 site_url = "http://localhost:5173"
-additional_redirect_urls = ["http://localhost:5173"]
+additional_redirect_urls = [
+  "http://localhost:5173",
+  "flexyug://*",
+  "exp://*",
+]
 
 [auth.email]
 enable_signup = true
