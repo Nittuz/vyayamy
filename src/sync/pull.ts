@@ -18,6 +18,9 @@ function fromDynamic(table: string): AnyTable {
 
 const PAGE_SIZE = 500;
 const EPOCH = '1970-01-01T00:00:00.000Z';
+// Sentinel less than any real UUID. Used on the first page when sync_meta
+// has no last_pulled_id yet; sending an empty string trips PostgREST UUID parsing.
+const ZERO_UUID = '00000000-0000-0000-0000-000000000000';
 
 export async function pullOnce(): Promise<void> {
   const db = await getDb();
@@ -37,7 +40,7 @@ export async function pullOnce(): Promise<void> {
       [table],
     );
     let cursorTs = meta?.last_pulled_at ?? EPOCH;
-    let cursorId = meta?.last_pulled_id ?? '';
+    let cursorId = meta?.last_pulled_id ?? ZERO_UUID;
 
     while (true) {
       const { data, error } = await fromDynamic(table)

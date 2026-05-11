@@ -20,6 +20,9 @@ export const queryKeys = {
   plans: {
     active: (userId: string) => ['plans', 'active', userId] as const,
   },
+  planPresets: {
+    list: () => ['plan_presets', 'list'] as const,
+  },
 };
 
 /** Prefixes matching React Query keys for domains touched by sync (see SYNCED_TABLES). */
@@ -31,5 +34,6 @@ export const syncInvalidationRoots = [
   ['personal_records'],
   ['templates'],
   ['plans'],
+  ['plan_presets'],
   ['history'],
 ] as const;

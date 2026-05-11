@@ -124,6 +124,59 @@ CREATE TABLE IF NOT EXISTS training_plan_slots (
 );
 CREATE INDEX IF NOT EXISTS idx_tps_plan ON training_plan_slots(plan_id);
 
+CREATE TABLE IF NOT EXISTS plan_presets (
+  id TEXT PRIMARY KEY NOT NULL,
+  slug TEXT NOT NULL UNIQUE,
+  name TEXT NOT NULL,
+  tier TEXT NOT NULL,
+  blurb TEXT,
+  plan_type TEXT NOT NULL,
+  cycle_length INTEGER,
+  sort_order INTEGER NOT NULL DEFAULT 0,
+  created_at TEXT NOT NULL DEFAULT (strftime('%Y-%m-%dT%H:%M:%fZ','now')),
+  updated_at TEXT NOT NULL DEFAULT (strftime('%Y-%m-%dT%H:%M:%fZ','now')),
+  deleted_at TEXT
+);
+CREATE INDEX IF NOT EXISTS idx_plan_presets_sort ON plan_presets(tier, sort_order);
+
+CREATE TABLE IF NOT EXISTS plan_preset_templates (
+  id TEXT PRIMARY KEY NOT NULL,
+  preset_id TEXT NOT NULL,
+  slug TEXT NOT NULL,
+  name TEXT NOT NULL,
+  sort_order INTEGER NOT NULL DEFAULT 0,
+  created_at TEXT NOT NULL DEFAULT (strftime('%Y-%m-%dT%H:%M:%fZ','now')),
+  updated_at TEXT NOT NULL DEFAULT (strftime('%Y-%m-%dT%H:%M:%fZ','now')),
+  deleted_at TEXT
+);
+CREATE INDEX IF NOT EXISTS idx_ppt_preset ON plan_preset_templates(preset_id);
+
+CREATE TABLE IF NOT EXISTS plan_preset_exercises (
+  id TEXT PRIMARY KEY NOT NULL,
+  preset_template_id TEXT NOT NULL,
+  name TEXT NOT NULL,
+  muscle_group TEXT,
+  order_index INTEGER NOT NULL,
+  created_at TEXT NOT NULL DEFAULT (strftime('%Y-%m-%dT%H:%M:%fZ','now')),
+  updated_at TEXT NOT NULL DEFAULT (strftime('%Y-%m-%dT%H:%M:%fZ','now')),
+  deleted_at TEXT
+);
+CREATE INDEX IF NOT EXISTS idx_ppe_template ON plan_preset_exercises(preset_template_id);
+
+CREATE TABLE IF NOT EXISTS plan_preset_slots (
+  id TEXT PRIMARY KEY NOT NULL,
+  preset_id TEXT NOT NULL,
+  preset_template_id TEXT,
+  day_of_week INTEGER,
+  cycle_position INTEGER,
+  is_rest_day INTEGER NOT NULL DEFAULT 0,
+  label TEXT,
+  created_at TEXT NOT NULL DEFAULT (strftime('%Y-%m-%dT%H:%M:%fZ','now')),
+  updated_at TEXT NOT NULL DEFAULT (strftime('%Y-%m-%dT%H:%M:%fZ','now')),
+  deleted_at TEXT
+);
+CREATE INDEX IF NOT EXISTS idx_pps_preset ON plan_preset_slots(preset_id);
+
 CREATE TABLE IF NOT EXISTS outbox (
   id INTEGER PRIMARY KEY AUTOINCREMENT,
   table_name TEXT NOT NULL,
@@ -153,6 +206,10 @@ export const SYNCED_TABLES = [
   'templates',
   'training_plans',
   'training_plan_slots',
+  'plan_presets',
+  'plan_preset_templates',
+  'plan_preset_exercises',
+  'plan_preset_slots',
 ] as const;
 
 export type SyncedTable = (typeof SYNCED_TABLES)[number];

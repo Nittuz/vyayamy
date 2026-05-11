@@ -12,6 +12,7 @@
 import type { QueryClient } from '@tanstack/react-query';
 import NetInfo, { type NetInfoSubscription } from '@react-native-community/netinfo';
 
+import { supabase } from '@/auth/supabase';
 import { syncInvalidationRoots } from '@/queries/keys';
 
 import { pullOnce } from './pull';
@@ -19,6 +20,7 @@ import { pushOutbox } from './push';
 import { getSyncState, setSyncState } from './state';
 
 let netSub: NetInfoSubscription | null = null;
+let authSub: { unsubscribe: () => void } | null = null;
 let client: QueryClient | null = null;
 let pushInFlight = false;
 let pullInFlight = false;
@@ -32,11 +34,21 @@ export function startSyncEngine(queryClient: QueryClient) {
       void runSyncCycle();
     }
   });
+  // Auth-change trigger: initial pulls fired before sign-in run unauthenticated
+  // and 401. SIGNED_IN re-runs the cycle once a session exists so the user's
+  // first authenticated load is not blank.
+  authSub = supabase.auth.onAuthStateChange((event) => {
+    if (event === 'SIGNED_IN' || event === 'TOKEN_REFRESHED') {
+      void runSyncCycle();
+    }
+  }).data.subscription;
 }
 
 export function stopSyncEngine() {
   netSub?.();
   netSub = null;
+  authSub?.unsubscribe();
+  authSub = null;
   client = null;
 }
 

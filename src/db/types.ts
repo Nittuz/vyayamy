@@ -205,6 +205,96 @@ export interface Database {
         Update: Partial<Database['public']['Tables']['training_plan_slots']['Insert']>;
         Relationships: [];
       };
+      plan_presets: {
+        Row: {
+          id: string;
+          slug: string;
+          name: string;
+          tier: 'generic' | 'program';
+          blurb: string | null;
+          plan_type: 'weekly' | 'cycle';
+          cycle_length: number | null;
+          sort_order: number;
+          created_at: string;
+        } & SyncCols;
+        Insert: {
+          id?: string;
+          slug: string;
+          name: string;
+          tier: 'generic' | 'program';
+          blurb?: string | null;
+          plan_type: 'weekly' | 'cycle';
+          cycle_length?: number | null;
+          sort_order?: number;
+          created_at?: string;
+        } & SyncColsInsert;
+        Update: Partial<Database['public']['Tables']['plan_presets']['Insert']>;
+        Relationships: [];
+      };
+      plan_preset_templates: {
+        Row: {
+          id: string;
+          preset_id: string;
+          slug: string;
+          name: string;
+          sort_order: number;
+          created_at: string;
+        } & SyncCols;
+        Insert: {
+          id?: string;
+          preset_id: string;
+          slug: string;
+          name: string;
+          sort_order?: number;
+          created_at?: string;
+        } & SyncColsInsert;
+        Update: Partial<Database['public']['Tables']['plan_preset_templates']['Insert']>;
+        Relationships: [];
+      };
+      plan_preset_exercises: {
+        Row: {
+          id: string;
+          preset_template_id: string;
+          name: string;
+          muscle_group: string | null;
+          order_index: number;
+          created_at: string;
+        } & SyncCols;
+        Insert: {
+          id?: string;
+          preset_template_id: string;
+          name: string;
+          muscle_group?: string | null;
+          order_index: number;
+          created_at?: string;
+        } & SyncColsInsert;
+        Update: Partial<Database['public']['Tables']['plan_preset_exercises']['Insert']>;
+        Relationships: [];
+      };
+      plan_preset_slots: {
+        Row: {
+          id: string;
+          preset_id: string;
+          preset_template_id: string | null;
+          day_of_week: number | null;
+          cycle_position: number | null;
+          is_rest_day: boolean;
+          label: string | null;
+          created_at: string;
+        } & SyncCols;
+        Insert: {
+          id?: string;
+          preset_id: string;
+          preset_template_id?: string | null;
+          day_of_week?: number | null;
+          cycle_position?: number | null;
+          is_rest_day?: boolean;
+          label?: string | null;
+          created_at?: string;
+        } & SyncColsInsert;
+        Update: Partial<Database['public']['Tables']['plan_preset_slots']['Insert']>;
+        Relationships: [];
+      };
     };
     Views: Record<string, never>;
     Functions: Record<string, never>;
@@ -222,3 +312,7 @@ export type PersonalRecord = Database['public']['Tables']['personal_records']['R
 export type Template = Database['public']['Tables']['templates']['Row'];
 export type TrainingPlan = Database['public']['Tables']['training_plans']['Row'];
 export type TrainingPlanSlot = Database['public']['Tables']['training_plan_slots']['Row'];
+export type PlanPreset = Database['public']['Tables']['plan_presets']['Row'];
+export type PlanPresetTemplate = Database['public']['Tables']['plan_preset_templates']['Row'];
+export type PlanPresetExercise = Database['public']['Tables']['plan_preset_exercises']['Row'];
+export type PlanPresetSlot = Database['public']['Tables']['plan_preset_slots']['Row'];
