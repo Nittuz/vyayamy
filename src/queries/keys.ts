@@ -7,11 +7,17 @@ export const queryKeys = {
   },
   exercises: {
     all: ['exercises'] as const,
-    search: (q: string) => ['exercises', 'search', q] as const,
+    // Search includes userId so two accounts on the same device do not collide
+    // (the underlying SQL filters by user_id and global rows).
+    search: (userId: string, q: string) => ['exercises', 'search', userId, q] as const,
     recent: (userId: string) => ['exercises', 'recent', userId] as const,
   },
   sets: {
     byWorkoutExercise: (weId: string) => ['sets', weId] as const,
+    // Heaviest-weight history is derived from sets, so it lives under the sets
+    // root — that way `syncInvalidationRoots` (['sets']) catches it after pull.
+    weightHistory: (userId: string, exerciseId: string) =>
+      ['sets', 'weight-history', userId, exerciseId] as const,
   },
   profile: (userId: string) => ['profile', userId] as const,
   personalRecords: (userId: string) => ['personal_records', userId] as const,

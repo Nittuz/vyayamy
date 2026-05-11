@@ -11,9 +11,21 @@ interface Row extends PersonalRecord {
   muscle_group: string | null;
 }
 
+/** Postgres ships `value` as JSONB; SQLite stores the JSON as TEXT. Decode here. */
+function decodePRValue(raw: unknown): unknown {
+  if (raw == null) return raw;
+  if (typeof raw !== 'string') return raw;
+  try {
+    return JSON.parse(raw);
+  } catch {
+    return raw;
+  }
+}
+
 function formatDisplay(type: string, value: unknown): string {
-  const parsed = parsePRValue(type, value as never);
-  if (!parsed) return String(value);
+  const decoded = decodePRValue(value);
+  const parsed = parsePRValue(type, decoded as never);
+  if (!parsed) return String(decoded);
   switch (parsed.type) {
     case 'heaviest_weight':
       return `${parsed.value}`;

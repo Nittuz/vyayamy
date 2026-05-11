@@ -1,5 +1,5 @@
 import { router } from 'expo-router';
-import { useMemo } from 'react';
+import { useCallback, useMemo } from 'react';
 import {
   ActivityIndicator,
   Pressable,
@@ -13,7 +13,7 @@ import {
 
 import { useAuth } from '@/auth/useAuth';
 import { formatDuration, getDateGroup } from '@/core/format';
-import { useHistory, type HistoryRow } from '@/queries/history';
+import { useHistoryInfinite, type HistoryRow } from '@/queries/history';
 import { triggerPull } from '@/sync/engine';
 import { SyncIndicator } from '@/ui/SyncIndicator';
 import { theme } from '@/ui/theme';
@@ -21,10 +21,13 @@ import { theme } from '@/ui/theme';
 export default function HistoryScreen() {
   const { user } = useAuth();
   const userId = user?.id;
-  const historyQuery = useHistory(userId);
+  const historyQuery = useHistoryInfinite(userId);
+
+  const rows = useMemo<HistoryRow[]>(() => {
+    return historyQuery.data?.pages.flat() ?? [];
+  }, [historyQuery.data]);
 
   const sections = useMemo(() => {
-    const rows = historyQuery.data ?? [];
     const groups = new Map<string, HistoryRow[]>();
     for (const w of rows) {
       const key = getDateGroup(w.started_at);
@@ -33,7 +36,13 @@ export default function HistoryScreen() {
       groups.set(key, bucket);
     }
     return Array.from(groups.entries()).map(([title, data]) => ({ title, data }));
-  }, [historyQuery.data]);
+  }, [rows]);
+
+  const onEndReached = useCallback(() => {
+    if (historyQuery.hasNextPage && !historyQuery.isFetchingNextPage) {
+      void historyQuery.fetchNextPage();
+    }
+  }, [historyQuery]);
 
   if (!userId) return null;
 
@@ -65,19 +74,30 @@ export default function HistoryScreen() {
             <Text style={styles.empty}>No workouts logged yet.</Text>
           )
         }
+        ListFooterComponent={
+          historyQuery.isFetchingNextPage ? (
+            <ActivityIndicator style={{ marginVertical: theme.space.s4 }} />
+          ) : null
+        }
         renderSectionHeader={({ section }) => (
           <Text style={styles.sectionHeader}>{section.title}</Text>
         )}
-        renderItem={({ item }) => <HistoryItem row={item} />}
+        renderItem={renderItem}
+        onEndReached={onEndReached}
+        onEndReachedThreshold={0.4}
       />
     </SafeAreaView>
   );
 }
 
+const renderItem = ({ item }: { item: HistoryRow }) => <HistoryItem row={item} />;
+
 function HistoryItem({ row }: { row: HistoryRow }) {
   return (
     <Pressable
       onPress={() => router.push(`/history/${row.id}` as never)}
+      accessibilityRole="button"
+      accessibilityLabel={`View workout ${row.title}`}
       style={({ pressed }) => [styles.row, pressed && { opacity: 0.85 }]}
     >
       <View style={{ flex: 1 }}>

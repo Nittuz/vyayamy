@@ -1,5 +1,5 @@
 import * as Haptics from 'expo-haptics';
-import { useState } from 'react';
+import { memo, useCallback, useEffect, useRef, useState } from 'react';
 import { Alert, Pressable, StyleSheet, Text, TextInput, View } from 'react-native';
 
 import type { Set as SetRow } from '@/db/types';
@@ -34,6 +34,8 @@ export function SetsTable({ sets, onChangeSet, onToggleComplete, onAddSet, onDel
       ))}
       <Pressable
         onPress={onAddSet}
+        accessibilityRole="button"
+        accessibilityLabel="Add set"
         style={({ pressed }) => [styles.addRow, pressed && { opacity: 0.7 }]}
       >
         <Text style={styles.addText}>+ Add set</Text>
@@ -42,46 +44,85 @@ export function SetsTable({ sets, onChangeSet, onToggleComplete, onAddSet, onDel
   );
 }
 
-function SetRowView({
-  set,
-  index,
-  onChangeSet,
-  onToggleComplete,
-  onDeleteSet,
-}: {
+interface RowProps {
   set: SetRow;
   index: number;
   onChangeSet: (setId: string, patch: { weight?: number | null; reps?: number | null }) => void;
   onToggleComplete: (setId: string, completed: boolean) => void;
   onDeleteSet: (setId: string) => void;
-}) {
+}
+
+const SetRowView = memo(function SetRowView({
+  set,
+  index,
+  onChangeSet,
+  onToggleComplete,
+  onDeleteSet,
+}: RowProps) {
+  // Local controlled state so taps feel instant. Reconcile with prop changes
+  // (e.g. background sync pull lands a new weight) only while the field isn't
+  // focused, otherwise we'd yank the value out from under the user's typing.
   const [weightStr, setWeightStr] = useState(set.weight != null ? String(set.weight) : '');
   const [repsStr, setRepsStr] = useState(set.reps != null ? String(set.reps) : '');
+  const weightFocusedRef = useRef(false);
+  const repsFocusedRef = useRef(false);
   const completed = Boolean(set.completed);
 
-  const commitWeight = () => {
-    const n = weightStr.trim() === '' ? null : Number(weightStr);
-    if (n === null || Number.isFinite(n)) onChangeSet(set.id, { weight: n });
-  };
-  const commitReps = () => {
-    const n = repsStr.trim() === '' ? null : Number.parseInt(repsStr, 10);
-    if (n === null || Number.isFinite(n)) onChangeSet(set.id, { reps: n });
-  };
+  useEffect(() => {
+    if (!weightFocusedRef.current) {
+      setWeightStr(set.weight != null ? String(set.weight) : '');
+    }
+  }, [set.weight]);
 
-  const onToggle = () => {
+  useEffect(() => {
+    if (!repsFocusedRef.current) {
+      setRepsStr(set.reps != null ? String(set.reps) : '');
+    }
+  }, [set.reps]);
+
+  const commitWeight = useCallback(() => {
+    weightFocusedRef.current = false;
+    if (weightStr.trim() === '') {
+      onChangeSet(set.id, { weight: null });
+      return;
+    }
+    const n = Number(weightStr);
+    if (Number.isFinite(n)) {
+      onChangeSet(set.id, { weight: n });
+    } else {
+      // Invalid — revert the input to whatever the model still says.
+      setWeightStr(set.weight != null ? String(set.weight) : '');
+    }
+  }, [weightStr, set.id, set.weight, onChangeSet]);
+
+  const commitReps = useCallback(() => {
+    repsFocusedRef.current = false;
+    if (repsStr.trim() === '') {
+      onChangeSet(set.id, { reps: null });
+      return;
+    }
+    const n = Number.parseInt(repsStr, 10);
+    if (Number.isFinite(n)) {
+      onChangeSet(set.id, { reps: n });
+    } else {
+      setRepsStr(set.reps != null ? String(set.reps) : '');
+    }
+  }, [repsStr, set.id, set.reps, onChangeSet]);
+
+  const onToggle = useCallback(() => {
     if (!completed) {
       void Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium).catch(() => {});
     }
     onToggleComplete(set.id, !completed);
-  };
+  }, [completed, set.id, onToggleComplete]);
 
-  const onLongPress = () => {
+  const onLongPress = useCallback(() => {
     void Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Heavy).catch(() => {});
     Alert.alert('Delete set', `Remove set ${index + 1}?`, [
       { text: 'Cancel', style: 'cancel' },
       { text: 'Delete', style: 'destructive', onPress: () => onDeleteSet(set.id) },
     ]);
-  };
+  }, [index, set.id, onDeleteSet]);
 
   return (
     <Pressable
@@ -92,6 +133,9 @@ function SetRowView({
       <TextInput
         value={weightStr}
         onChangeText={setWeightStr}
+        onFocus={() => {
+          weightFocusedRef.current = true;
+        }}
         onBlur={commitWeight}
         keyboardType="decimal-pad"
         placeholder="–"
@@ -101,6 +145,9 @@ function SetRowView({
       <TextInput
         value={repsStr}
         onChangeText={setRepsStr}
+        onFocus={() => {
+          repsFocusedRef.current = true;
+        }}
         onBlur={commitReps}
         keyboardType="number-pad"
         placeholder="–"
@@ -110,13 +157,16 @@ function SetRowView({
       <Pressable
         onPress={onToggle}
         hitSlop={8}
+        accessibilityRole="checkbox"
+        accessibilityState={{ checked: completed }}
+        accessibilityLabel={`Mark set ${index + 1} ${completed ? 'incomplete' : 'complete'}`}
         style={[styles.checkbox, completed && styles.checkboxChecked]}
       >
         {completed ? <Text style={styles.checkmark}>✓</Text> : null}
       </Pressable>
     </Pressable>
   );
-}
+});
 
 const styles = StyleSheet.create({
   root: { gap: theme.space.s1 },
@@ -182,6 +232,8 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     borderTopWidth: StyleSheet.hairlineWidth,
     borderColor: theme.color.border,
+    minHeight: theme.touch.min,
+    justifyContent: 'center',
   },
   addText: {
     fontSize: theme.font.meta,

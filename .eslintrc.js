@@ -1,7 +1,7 @@
 module.exports = {
   root: true,
   extends: ['expo'],
-  ignorePatterns: ['legacy-web', 'node_modules', 'dist', '.expo'],
+  ignorePatterns: ['node_modules', 'dist', '.expo'],
   rules: {
     'import/order': [
       'warn',

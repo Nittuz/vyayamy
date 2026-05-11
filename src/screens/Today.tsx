@@ -193,7 +193,7 @@ const styles = StyleSheet.create({
     marginTop: theme.space.s1,
   },
   startArrow: {
-    fontSize: 28,
+    fontSize: theme.font.title,
     color: theme.color.onAccent,
     opacity: 0.9,
   },

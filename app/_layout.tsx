@@ -1,7 +1,8 @@
 import 'react-native-url-polyfill/auto';
 
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
-import { Stack } from 'expo-router';
+import * as Linking from 'expo-linking';
+import { router, Stack } from 'expo-router';
 import * as SplashScreen from 'expo-splash-screen';
 import { StatusBar } from 'expo-status-bar';
 import { useEffect, useRef, useState } from 'react';
@@ -9,6 +10,7 @@ import { ActivityIndicator, Platform, StyleSheet, Text, View } from 'react-nativ
 import { SafeAreaProvider, SafeAreaView } from 'react-native-safe-area-context';
 
 import { AuthProvider } from '@/auth/AuthContext';
+import { supabase } from '@/auth/supabase';
 import { initDb } from '@/db/client';
 import { initErrorReporting } from '@/lib/errorReporting';
 import { startSyncEngine, stopSyncEngine } from '@/sync/engine';
@@ -49,6 +51,7 @@ export default function RootLayout() {
   const [ready, setReady] = useState(false);
   const [bootError, setBootError] = useState<string | null>(null);
   const started = useRef(false);
+  const initialUrlConsumed = useRef(false);
 
   useEffect(() => {
     if (started.current) return;
@@ -77,6 +80,33 @@ export default function RootLayout() {
     return () => {
       stopSyncEngine();
     };
+  }, []);
+
+  // Handle the magic-link deep link at the root so it fires regardless of which
+  // route the OS dropped us into. Previously this lived only in /login, so a
+  // user already on /today would never have their code consumed. The ref guards
+  // React 19 strict-mode's double-mount in dev (otherwise exchangeCodeForSession
+  // runs twice and the second call returns "code already used").
+  useEffect(() => {
+    const handleUrl = async (url: string) => {
+      try {
+        const parsed = Linking.parse(url);
+        const code = (parsed.queryParams?.code as string | undefined) ?? null;
+        if (!code) return;
+        const { error } = await supabase.auth.exchangeCodeForSession(code);
+        if (!error) router.replace('/');
+      } catch {
+        // Swallow — we surface auth errors via the AuthProvider state, not here.
+      }
+    };
+    const sub = Linking.addEventListener('url', ({ url }) => void handleUrl(url));
+    if (!initialUrlConsumed.current) {
+      initialUrlConsumed.current = true;
+      void Linking.getInitialURL().then((url) => {
+        if (url) void handleUrl(url);
+      });
+    }
+    return () => sub.remove();
   }, []);
 
   // Always render the Stack so expo-router has a navigator from the start.

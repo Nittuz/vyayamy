@@ -71,7 +71,7 @@ Key properties:
 
 | Concern             | Solution                                                                |
 | ------------------- | ----------------------------------------------------------------------- |
-| UI rendering        | React Native (Expo SDK 51), React 18 functional components              |
+| UI rendering        | React Native (Expo SDK 55), React 19 functional components              |
 | Navigation          | Expo Router (file-based under [app/](app/), typed routes)               |
 | Local state         | `useState` / `useReducer` inside components                             |
 | Server state        | TanStack React Query 5, backed by SQLite reads                          |
@@ -198,26 +198,31 @@ flowchart TD
 
 FIFO drain of the outbox. Each row is applied to Supabase via PostgREST:
 
-- `insert` / `upsert` — `tbl.upsert(payload)` or `tbl.insert(payload)`
+- `insert` / `upsert` — `tbl.upsert(payload)`. Inserts go through `upsert(by-PK)` so a kill-mid-ack on the client can never produce a 23505 collision on retry. `personal_records` overrides the conflict target to its composite unique index `(user_id, exercise_id, type)` so two devices computing the same PR collapse to a single row.
 - `update` — `tbl.update(payload).eq('id', row_id)`
 - `delete` — `tbl.update({ deleted_at: now }).eq('id', row_id)` (soft delete only)
 
-On success the outbox row is deleted. On failure `attempts++` and `last_error` are recorded; after `MAX_ATTEMPTS = 5` the row is considered poisoned and surfaced to the UI sync indicator. The loop breaks on the first failure to preserve ordering.
+`updated_at` is **never** sent from the client. The server-side `BEFORE INSERT OR UPDATE` trigger (migration `00009_security_hardening.sql`) overwrites it with `now()`, making the high-water mark immune to client clock skew.
+
+On a per-row error: 401/403/network/JWT errors are treated as transient (the row is left alone, the UI surface is updated). All other errors increment `attempts` and set `next_attempt_at` for backoff; after `MAX_ATTEMPTS = 5` the row is quarantined and surfaced to the UI sync indicator. Backoff is skip-and-continue — a row in its backoff window is left behind, the FIFO never blocks on the head row.
 
 ### Pull ([src/sync/pull.ts](src/sync/pull.ts))
 
 For each table in `SYNCED_TABLES` (declared in [src/db/schema.ts](src/db/schema.ts)):
 
 1. Read the high-water mark from `sync_meta`
-2. `SELECT * WHERE updated_at > :cursor ORDER BY updated_at LIMIT 500`
-3. Upsert each row into local SQLite, **skipping rows that have a pending outbox entry** (local wins until push succeeds)
-4. Advance the checkpoint to the max `updated_at` seen
+2. `SELECT * WHERE (updated_at, id) > :cursor ORDER BY updated_at, id LIMIT 500` (compound-key paging)
+3. Bulk-fetch outbox entries for every row id in the page (one query, not N+1)
+4. **Column-merge** each pulled row into local SQLite:
+   - If the outbox holds an `insert`/`upsert`/`delete` for this row → skip (local is authoritative until it drains)
+   - If the outbox holds one or more `update`s → keep local for any column mentioned in any patch; overwrite the rest from the server
+5. Advance the checkpoint to the last (`updated_at`, `id`) seen
 
-Tombstones (`deleted_at IS NOT NULL`) are pulled too, so deletions propagate across devices without hard-deleting rows.
+Tombstones (`deleted_at IS NOT NULL`) are pulled too, so deletions propagate across devices without hard-deleting rows. `enqueueMutation` cascades soft-deletes to FK children locally and writes child outbox rows in the same transaction, so a fresh device's pull never observes orphaned-but-live rows.
 
 ### Conflict rule
 
-Single-user, last-write-wins by `updated_at`. If a local row has a pending outbox entry, the server version is discarded on pull; the next successful push overwrites the server with the local value.
+Single-user, last-write-wins by `updated_at`. The merge-on-pull is column-level rather than row-level so a different device's edit to an unrelated column lands on this device while a local in-flight edit is still queued.
 
 ### Sync state
 
@@ -261,35 +266,39 @@ erDiagram
 
 ### Table descriptions
 
-| Table                | Purpose                                                                 |
-| -------------------- | ----------------------------------------------------------------------- |
-| `profiles`           | Extends `auth.users`; display name + units preference                   |
-| `exercises`          | Catalog; `user_id IS NULL` for global seeded rows, otherwise user-created |
-| `workouts`           | Training session with start/end timestamps and optional template link   |
-| `workout_exercises`  | Junction: workout ↔ exercise with ordering                              |
-| `sets`               | Individual sets (weight, reps, completion)                              |
-| `personal_records`   | Best-ever lifts per `(user_id, exercise_id, type)` — unique constraint  |
-| `templates`          | Reusable routines (ordered UUID array)                                  |
-| `training_plans`     | Weekly or rotating-cycle schedule                                       |
-| `training_plan_slots`| Maps each day / cycle position in a plan to a template or rest day      |
+| Table                    | Purpose                                                                 |
+| ------------------------ | ----------------------------------------------------------------------- |
+| `profiles`               | Extends `auth.users`; display name + units preference                   |
+| `exercises`              | Catalog; `user_id IS NULL` for global seeded rows, otherwise user-created |
+| `workouts`               | Training session with start/end timestamps and optional template link   |
+| `workout_exercises`      | Junction: workout ↔ exercise with ordering                              |
+| `sets`                   | Individual sets (weight, reps, completion)                              |
+| `personal_records`       | Best-ever lifts per `(user_id, exercise_id, type)` — unique constraint  |
+| `templates`              | Reusable routines (ordered UUID array)                                  |
+| `training_plans`         | Weekly or rotating-cycle schedule                                       |
+| `training_plan_slots`    | Maps each day / cycle position in a plan to a template or rest day      |
+| `plan_presets`           | Read-only catalog: preset plans for the Plan Setup wizard               |
+| `plan_preset_templates`  | Templates inside a preset                                               |
+| `plan_preset_exercises`  | Exercises inside a preset template (cloned on apply)                    |
+| `plan_preset_slots`      | Slot schedule for a preset (cloned on apply)                            |
 
 ### Sync-support columns
 
-Added by `supabase/migrations/00004_sync_support.sql` on every mutable table:
+Added by `supabase/migrations/00004_sync_support.sql` and tightened by `00009_security_hardening.sql`:
 
-| Column        | Purpose                                                         |
-| ------------- | --------------------------------------------------------------- |
-| `updated_at`  | Set by a BEFORE UPDATE trigger; used as the pull high-water mark |
-| `deleted_at`  | Soft-delete tombstone; application reads filter `IS NULL`       |
+| Column        | Purpose                                                                                              |
+| ------------- | ---------------------------------------------------------------------------------------------------- |
+| `updated_at`  | Owned by a `BEFORE INSERT OR UPDATE` trigger; the client never sets it — high-water mark is immune to clock skew |
+| `deleted_at`  | Soft-delete tombstone; application reads filter `IS NULL`                                           |
 
-Every table also has an `idx_<table>_updated_at` index; incremental pull always queries `WHERE updated_at > :cursor ORDER BY updated_at`.
+Every table also has an `idx_<table>_updated_at` index; incremental pull always queries `WHERE (updated_at, id) > :cursor ORDER BY updated_at, id`.
 
 ### Client-only tables
 
-| Table       | Columns                                                                                                  |
-| ----------- | -------------------------------------------------------------------------------------------------------- |
-| `outbox`    | `id`, `table_name`, `op`, `row_id`, `payload_json`, `created_at`, `attempts`, `last_error`               |
-| `sync_meta` | `table_name` (PK), `last_pulled_at`                                                                      |
+| Table       | Columns                                                                                                                       |
+| ----------- | ----------------------------------------------------------------------------------------------------------------------------- |
+| `outbox`    | `id`, `table_name`, `op`, `row_id`, `payload_json`, `created_at`, `attempts`, `last_error`, `next_attempt_at`                 |
+| `sync_meta` | `table_name` (PK), `last_pulled_at`, `last_pulled_id`                                                                          |
 
 ---
 
@@ -388,7 +397,7 @@ Rules:
 - System font (React Native default → San Francisco on iOS, Roboto on Android)
 - Motion is subtle: 150–350 ms tokens in `theme.duration`
 
-Charts are in-house SVG — [src/ui/LineChart.tsx](src/ui/LineChart.tsx) renders trend lines with `react-native-svg` primitives. Recharts was not ported (no RN support) and `victory-native` was skipped to avoid React-version conflicts with Expo 51.
+Charts are in-house SVG — [src/ui/LineChart.tsx](src/ui/LineChart.tsx) renders trend lines with `react-native-svg` primitives. Recharts was not ported (no RN support) and `victory-native` was skipped to avoid pulling in a Skia/Reanimated surface we don't otherwise need.
 
 See [docs/design-system.md](docs/design-system.md) for the full spec.
 
@@ -398,7 +407,9 @@ See [docs/design-system.md](docs/design-system.md) for the full spec.
 
 ### Row Level Security
 
-Unchanged from the pre-pivot schema. Every table has RLS enabled; policies scope rows to `auth.uid()`. Tombstoned rows remain visible to the owner so the sync engine can propagate deletes; application code adds `WHERE deleted_at IS NULL` for normal reads.
+Every table has RLS enabled; policies scope rows to `auth.uid()`. Tombstoned rows remain visible to the owner so the sync engine can propagate deletes; application code adds `WHERE deleted_at IS NULL` for normal reads.
+
+`FOR ALL` policies use mirrored `USING ... WITH CHECK ...` clauses. Without `WITH CHECK`, INSERT is unconstrained and UPDATE can transfer ownership to another user; migration `00009_security_hardening.sql` adds the missing `WITH CHECK` to every owner-scoped and parent-scoped policy.
 
 ### Token handling
 
@@ -408,7 +419,7 @@ The Supabase JS client manages JWT storage in `AsyncStorage` and handles refresh
 
 - All tables (except global `exercises` where `user_id IS NULL`) are scoped to the authenticated user
 - The sync engine respects RLS — every PostgREST call carries the user's JWT
-- Local SQLite is per-device and cleared on sign-out (future polish) or app uninstall
+- Local SQLite is dropped on sign-out: `startSyncEngine` listens for `SIGNED_OUT` and calls `resetLocalDb()` + `queryClient.clear()`, so a different user signing in afterwards never sees the previous user's data and never re-pushes their pending mutations under a new identity
 
 ---
 
@@ -428,7 +439,7 @@ It pays for itself even with no HTTP: cache coherence across screens, `invalidat
 
 ### Why a custom SVG chart instead of `victory-native`?
 
-`victory-native` pins `react@>=19` and conflicts with Expo 51's locked `react@18.2`. The chart surfaces are small (line + points + axis) and render cleanly with ~80 lines of `react-native-svg`. Pinning charts to a big library isn't worth the dependency pain.
+The chart surfaces are small (line + points + axis) and render cleanly with ~80 lines of `react-native-svg`. Adding a charting library would pull a transitive `react-native-reanimated`/Skia surface area we don't need.
 
 ### Why `ts-jest` + `better-sqlite3` for tests?
 

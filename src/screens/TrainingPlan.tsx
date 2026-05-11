@@ -106,11 +106,13 @@ const styles = StyleSheet.create({
   planType: { fontSize: theme.font.meta, color: theme.color.textSecondary, marginTop: 2 },
   editBtn: {
     paddingHorizontal: theme.space.s4,
-    paddingVertical: theme.space.s2,
+    paddingVertical: theme.space.s3,
     borderRadius: theme.radius.full,
     backgroundColor: theme.color.surface,
     borderWidth: 1,
     borderColor: theme.color.borderStrong,
+    minHeight: theme.touch.min,
+    justifyContent: 'center',
   },
   editBtnText: {
     fontSize: theme.font.meta,

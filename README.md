@@ -22,7 +22,7 @@ A mobile-only, local-first strength-training journal. Built around one job: **ca
 
 | Layer              | Technology                                           |
 | ------------------ | ---------------------------------------------------- |
-| Runtime            | Expo SDK 51, React Native 0.74, React 18             |
+| Runtime            | Expo SDK 55, React Native 0.83, React 19             |
 | Language           | TypeScript 5 (strict)                                |
 | Navigation         | Expo Router (file-based, typed routes)               |
 | Local DB           | `expo-sqlite` (SQLite on device, source of truth)    |
@@ -68,12 +68,19 @@ vyayamy/
 │   ├── ui/                         # theme.ts + shared native UI (ErrorBoundary, LineChart, SyncIndicator, ...)
 │   └── __tests__/                  # Integration tests (offline workout)
 ├── supabase/
-│   ├── migrations/                 # Numbered SQL migrations
+│   ├── migrations/                 # Numbered SQL migrations (00001 … 00009)
 │   │   ├── 00001_initial_schema.sql
 │   │   ├── 00002_constraints_and_improvements.sql
 │   │   ├── 00003_training_plans.sql
-│   │   └── 00004_sync_support.sql  # Adds updated_at, deleted_at, triggers, indexes
-│   └── seed.sql                    # Global exercise library
+│   │   ├── 00004_sync_support.sql           # Adds updated_at, deleted_at, triggers, indexes
+│   │   ├── 00005_seed_beyond_strength_phase1.sql
+│   │   ├── 00006_plan_presets.sql           # Plan-preset catalog tables (4)
+│   │   ├── 00007_seed_global_exercises.sql
+│   │   ├── 00008_seed_plan_presets.sql
+│   │   └── 00009_security_hardening.sql     # WITH CHECK, server-owned updated_at, search_path
+│   ├── config.toml                 # Local Supabase + auth settings
+│   ├── templates/                  # GoTrue email templates
+│   └── seed.sql                    # Bootstrapping data
 ├── docs/                           # Architecture + operational docs
 ├── app.config.ts                   # Expo app config (plugins, extra, scheme)
 ├── eas.json                        # EAS Build + Submit profiles
@@ -115,7 +122,7 @@ cd vyayamy
 npm install --legacy-peer-deps
 ```
 
-The `--legacy-peer-deps` flag keeps Expo's pinned React 18 happy alongside a few transitive deps that advertise React 19 peer ranges.
+The `--legacy-peer-deps` flag silences a few transitive dependencies whose declared React peer ranges haven't caught up to React 19 yet. Once they do, drop the flag.
 
 ### 2. Configure Supabase
 
@@ -125,8 +132,11 @@ In the Supabase SQL editor (or via the Supabase CLI) run the migrations **in ord
 2. `supabase/migrations/00002_constraints_and_improvements.sql`
 3. `supabase/migrations/00003_training_plans.sql`
 4. `supabase/migrations/00004_sync_support.sql` — **required**; adds `updated_at`, `deleted_at`, triggers, and indexes that the sync engine depends on
-
-Optionally run `supabase/seed.sql` to populate the global exercise library.
+5. `supabase/migrations/00005_seed_beyond_strength_phase1.sql` — seed program for the Beyond Strength preset
+6. `supabase/migrations/00006_plan_presets.sql` — read-only catalog tables for the Plan Setup wizard
+7. `supabase/migrations/00007_seed_global_exercises.sql` — seeds the global exercise library
+8. `supabase/migrations/00008_seed_plan_presets.sql` — seeds the preset catalog
+9. `supabase/migrations/00009_security_hardening.sql` — **required**; adds `WITH CHECK` to RLS policies, server-owned `updated_at` trigger, locks down `handle_new_user`, FK on `personal_records.set_id`
 
 In **Project Settings → API**, copy the project URL and anon key.
 
@@ -218,9 +228,11 @@ Tests run under Node with `ts-jest`. `expo-sqlite` is swapped for an in-memory `
 | File                                                  | What it covers                                                   |
 | ----------------------------------------------------- | ---------------------------------------------------------------- |
 | [src/__tests__/offline-workout.test.ts](src/__tests__/offline-workout.test.ts) | End-to-end offline write → outbox → push on reconnect    |
+| [src/__tests__/pull.test.ts](src/__tests__/pull.test.ts) | Incremental pull — column-merge with pending outbox, cursor advance, tombstones |
+| [src/__tests__/sync-state.test.ts](src/__tests__/sync-state.test.ts) | `deriveSyncState` enum reduction                              |
 | [src/core/__tests__/pr-detection.test.ts](src/core/__tests__/pr-detection.test.ts) | Pure PR computation and comparison logic              |
 
-Run `npm test` to execute both suites.
+Run `npm test` to execute every suite.
 
 ## Local Supabase (optional)
 

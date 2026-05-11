@@ -58,7 +58,7 @@ const styles = StyleSheet.create({
     backgroundColor: theme.color.accentSoft,
   },
   pillOffline: { backgroundColor: theme.color.border },
-  pillError: { backgroundColor: 'rgba(220, 38, 38, 0.08)' },
+  pillError: { backgroundColor: theme.color.dangerSoft },
   dot: {
     width: 6,
     height: 6,

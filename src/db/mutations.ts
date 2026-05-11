@@ -4,12 +4,16 @@
  * Every user action that touches data calls enqueueMutation(). It:
  *   1. Applies the write to SQLite immediately.
  *   2. Appends an outbox row describing the server-side effect.
- * Both happen in a single SQLite transaction, so the UI never observes
- * a state where the local row exists but the sync intent does not.
+ *   3. For deletes on parent tables, also tombstones the FK children in
+ *      the same transaction and enqueues child deletes — without this,
+ *      a fresh device would pull "live" children of a tombstoned parent
+ *      and they'd dangle forever.
  *
- * The push engine picks up outbox rows asynchronously and drains them
- * against Supabase. Failures stay in the outbox and are retried; the
- * UI stays responsive regardless.
+ * All three steps run inside a single SQLite transaction so the UI never
+ * observes a partial state.
+ *
+ * The push engine drains the outbox asynchronously. Failures stay in the
+ * outbox and are retried; the UI stays responsive regardless.
  */
 import { getDb } from './client';
 import type { SyncedTable } from './schema';
@@ -25,12 +29,23 @@ interface EnqueueArgs {
   payload?: Record<string, unknown>;
 }
 
+/** FK relationships used to cascade soft-deletes. table -> [(child, fk)] */
+const SOFT_DELETE_CASCADE: Partial<Record<SyncedTable, { table: SyncedTable; fk: string }[]>> = {
+  workouts: [{ table: 'workout_exercises', fk: 'workout_id' }],
+  workout_exercises: [{ table: 'sets', fk: 'workout_exercise_id' }],
+  training_plans: [{ table: 'training_plan_slots', fk: 'plan_id' }],
+};
+
 export async function enqueueMutation(args: EnqueueArgs): Promise<void> {
   const db = await getDb();
   const now = nowIso();
 
   await db.withTransactionAsync(async () => {
     if (args.op === 'delete') {
+      // Cascade-soft-delete children first so a fresh device's pull never
+      // sees orphaned-yet-live rows. Walk depth-first.
+      await cascadeSoftDelete(args.table, args.rowId, now);
+
       await db.runAsync(
         `UPDATE ${args.table} SET deleted_at = ?, updated_at = ? WHERE id = ?`,
         [now, now, args.rowId],
@@ -64,13 +79,35 @@ export async function enqueueMutation(args: EnqueueArgs): Promise<void> {
 
     const payloadForServer =
       args.op === 'delete'
-        ? { id: args.rowId, deleted_at: now, updated_at: now }
+        ? { id: args.rowId, deleted_at: now }
         : { id: args.rowId, ...(args.payload ?? {}) };
     await db.runAsync(
       `INSERT INTO outbox (table_name, op, row_id, payload_json) VALUES (?, ?, ?, ?)`,
       [args.table, args.op, args.rowId, JSON.stringify(payloadForServer)],
     );
   });
+
+  async function cascadeSoftDelete(parent: SyncedTable, parentId: string, ts: string): Promise<void> {
+    const children = SOFT_DELETE_CASCADE[parent];
+    if (!children) return;
+    for (const { table, fk } of children) {
+      const liveChildren = await db.getAllAsync<{ id: string }>(
+        `SELECT id FROM ${table} WHERE ${fk} = ? AND deleted_at IS NULL`,
+        [parentId],
+      );
+      for (const child of liveChildren) {
+        await cascadeSoftDelete(table, child.id, ts);
+        await db.runAsync(
+          `UPDATE ${table} SET deleted_at = ?, updated_at = ? WHERE id = ?`,
+          [ts, ts, child.id],
+        );
+        await db.runAsync(
+          `INSERT INTO outbox (table_name, op, row_id, payload_json) VALUES (?, ?, ?, ?)`,
+          [table, 'delete', child.id, JSON.stringify({ id: child.id, deleted_at: ts })],
+        );
+      }
+    }
+  }
 }
 
 function toSqlite(v: unknown): string | number | null {

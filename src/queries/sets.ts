@@ -24,25 +24,55 @@ export async function listSetsForWorkoutExercise(weId: string): Promise<SetRow[]
 
 export async function addSet(weId: string, args: { weight?: number | null; reps?: number | null } = {}): Promise<string> {
   const db = await getDb();
-  const result = await db.getFirstAsync<{ next_order: number }>(
-    `SELECT COALESCE(MAX(order_index), -1) + 1 AS next_order
-       FROM sets WHERE workout_exercise_id = ? AND deleted_at IS NULL`,
-    [weId],
-  );
-  const nextOrder = result?.next_order ?? 0;
   const id = uuidv4();
-  await enqueueMutation({
-    table: 'sets',
-    op: 'insert',
-    rowId: id,
-    payload: {
+  // Compute next order_index inside the same transaction as the insert so two
+  // rapid taps cannot both read MAX=N and write duplicate order_index = N+1.
+  await db.withTransactionAsync(async () => {
+    const result = await db.getFirstAsync<{ next_order: number }>(
+      `SELECT COALESCE(MAX(order_index), -1) + 1 AS next_order
+         FROM sets WHERE workout_exercise_id = ? AND deleted_at IS NULL`,
+      [weId],
+    );
+    const nextOrder = result?.next_order ?? 0;
+    const payload = {
+      id,
       workout_exercise_id: weId,
       order_index: nextOrder,
       weight: args.weight ?? null,
       reps: args.reps ?? null,
-      completed: false,
+      completed: 0,
       completed_at: null,
-    },
+      updated_at: nowIso(),
+    };
+    const cols = Object.keys(payload);
+    const placeholders = cols.map(() => '?').join(', ');
+    const updateAssign = cols
+      .filter((c) => c !== 'id')
+      .map((c) => `${c} = excluded.${c}`)
+      .join(', ');
+    const values = cols.map((c) => (payload as Record<string, unknown>)[c] ?? null);
+    await db.runAsync(
+      `INSERT INTO sets (${cols.join(', ')}) VALUES (${placeholders})
+         ON CONFLICT(id) DO UPDATE SET ${updateAssign}`,
+      values as (string | number | null)[],
+    );
+    await db.runAsync(
+      `INSERT INTO outbox (table_name, op, row_id, payload_json) VALUES (?, ?, ?, ?)`,
+      [
+        'sets',
+        'insert',
+        id,
+        JSON.stringify({
+          id,
+          workout_exercise_id: weId,
+          order_index: nextOrder,
+          weight: args.weight ?? null,
+          reps: args.reps ?? null,
+          completed: false,
+          completed_at: null,
+        }),
+      ],
+    );
   });
   void triggerPush();
   return id;
@@ -79,8 +109,32 @@ export function useUpdateSet(onError?: (msg: string) => void) {
       weId: string;
       patch: Partial<Pick<SetRow, 'weight' | 'reps' | 'completed'>>;
     }) => updateSet(args.setId, args.patch),
-    onSuccess: (_r, vars) => qc.invalidateQueries({ queryKey: queryKeys.sets.byWorkoutExercise(vars.weId) }),
-    onError: (err) => onError?.(err instanceof Error ? err.message : 'Failed to update set'),
+    // Optimistic update — toggling a set is the hottest interaction in the app
+    // and round-tripping through invalidate-then-refetch causes a visible
+    // flicker on the row's success-soft background. The local SQLite write is
+    // already synchronous; we mirror it in the React Query cache before the
+    // mutation resolves to keep the UI tear-free.
+    onMutate: async (vars) => {
+      await qc.cancelQueries({ queryKey: queryKeys.sets.byWorkoutExercise(vars.weId) });
+      const prev = qc.getQueryData<SetRow[]>(queryKeys.sets.byWorkoutExercise(vars.weId));
+      if (prev) {
+        const next = prev.map((s) => {
+          if (s.id !== vars.setId) return s;
+          const merged: SetRow = { ...s, ...vars.patch } as SetRow;
+          if (vars.patch.completed === true) merged.completed_at = nowIso();
+          if (vars.patch.completed === false) merged.completed_at = null;
+          return merged;
+        });
+        qc.setQueryData(queryKeys.sets.byWorkoutExercise(vars.weId), next);
+      }
+      return { prev };
+    },
+    onError: (err, vars, ctx) => {
+      if (ctx?.prev) qc.setQueryData(queryKeys.sets.byWorkoutExercise(vars.weId), ctx.prev);
+      onError?.(err instanceof Error ? err.message : 'Failed to update set');
+    },
+    onSettled: (_r, _err, vars) =>
+      qc.invalidateQueries({ queryKey: queryKeys.sets.byWorkoutExercise(vars.weId) }),
   });
 }
 

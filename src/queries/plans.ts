@@ -53,10 +53,24 @@ export function useActivePlan(userId: string | undefined) {
 
 export async function listTemplates(userId: string): Promise<Template[]> {
   const db = await getDb();
-  return db.getAllAsync<Template>(
+  // exercise_order is JSON-encoded TEXT in SQLite (mirroring Postgres's uuid[]);
+  // parse on read so callers see the typed string[] their TypeScript expects.
+  const rows = await db.getAllAsync<Omit<Template, 'exercise_order'> & { exercise_order: string }>(
     'SELECT * FROM templates WHERE user_id = ? AND deleted_at IS NULL ORDER BY name ASC',
     [userId],
   );
+  return rows.map((r) => ({ ...r, exercise_order: parseExerciseOrder(r.exercise_order) }));
+}
+
+function parseExerciseOrder(raw: unknown): string[] {
+  if (Array.isArray(raw)) return raw as string[];
+  if (typeof raw !== 'string') return [];
+  try {
+    const parsed = JSON.parse(raw);
+    return Array.isArray(parsed) ? (parsed as string[]) : [];
+  } catch {
+    return [];
+  }
 }
 
 export function useTemplates(userId: string | undefined) {

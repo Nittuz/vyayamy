@@ -96,11 +96,14 @@ export function useCreateWorkout(onError?: (msg: string) => void) {
   });
 }
 
-export function useFinishWorkout(onError?: (msg: string) => void) {
+export function useFinishWorkout(userId: string | undefined, onError?: (msg: string) => void) {
   const qc = useQueryClient();
   return useMutation({
     mutationFn: finishWorkout,
-    onSuccess: () => qc.invalidateQueries({ queryKey: queryKeys.workouts.all }),
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: queryKeys.workouts.all });
+      if (userId) qc.invalidateQueries({ queryKey: queryKeys.history(userId) });
+    },
     onError: (err) => onError?.(err instanceof Error ? err.message : 'Failed to finish workout'),
   });
 }

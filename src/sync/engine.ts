@@ -1,18 +1,22 @@
 /**
- * Sync engine scaffold.
+ * Sync engine lifecycle.
  *
- * The real push/pull implementations live in src/sync/push.ts and
- * src/sync/pull.ts (Phase 2). This module owns the lifecycle:
+ * Owns:
+ *   - subscription to network and auth state
+ *   - throttled push (after every local mutation, via triggerPush)
+ *   - throttled pull (on connectivity regain, app foreground, sign-in)
+ *   - React Query invalidation after pull/push so screens refresh
+ *   - sign-out cleanup: stop subscriptions, clear React Query, drop SQLite
  *
- *   - subscribe to network and auth state
- *   - run push after every local mutation (via triggerPush)
- *   - run pull on foreground and connectivity regain
- *   - throttle / coalesce concurrent runs
+ * The push/pull primitives themselves live in src/sync/push.ts and
+ * src/sync/pull.ts.
  */
 import type { QueryClient } from '@tanstack/react-query';
 import NetInfo, { type NetInfoSubscription } from '@react-native-community/netinfo';
+import { AppState, type NativeEventSubscription } from 'react-native';
 
 import { supabase } from '@/auth/supabase';
+import { resetLocalDb } from '@/db/client';
 import { syncInvalidationRoots } from '@/queries/keys';
 
 import { pullOnce } from './pull';
@@ -21,6 +25,7 @@ import { getSyncState, setSyncState } from './state';
 
 let netSub: NetInfoSubscription | null = null;
 let authSub: { unsubscribe: () => void } | null = null;
+let appStateSub: NativeEventSubscription | null = null;
 let client: QueryClient | null = null;
 let pushInFlight = false;
 let pullInFlight = false;
@@ -34,12 +39,25 @@ export function startSyncEngine(queryClient: QueryClient) {
       void runSyncCycle();
     }
   });
-  // Auth-change trigger: initial pulls fired before sign-in run unauthenticated
-  // and 401. SIGNED_IN re-runs the cycle once a session exists so the user's
-  // first authenticated load is not blank.
+
+  // Foreground re-pull. Without this, opening the app after hours on stable
+  // wifi (no NetInfo change) would leave the user staring at stale data.
+  appStateSub = AppState.addEventListener('change', (nextState) => {
+    if (nextState === 'active' && getSyncState().online) {
+      void runSyncCycle();
+    }
+  });
+
+  // Auth-change trigger. Initial pulls fired before sign-in run unauthenticated
+  // and 401. SIGNED_IN re-runs the cycle once a session exists. SIGNED_OUT
+  // wipes the local database so a different user signing in afterwards never
+  // sees the previous user's workouts and never re-pushes their pending
+  // mutations under a new identity.
   authSub = supabase.auth.onAuthStateChange((event) => {
     if (event === 'SIGNED_IN' || event === 'TOKEN_REFRESHED') {
       void runSyncCycle();
+    } else if (event === 'SIGNED_OUT') {
+      void handleSignOut();
     }
   }).data.subscription;
 }
@@ -49,7 +67,28 @@ export function stopSyncEngine() {
   netSub = null;
   authSub?.unsubscribe();
   authSub = null;
+  appStateSub?.remove();
+  appStateSub = null;
   client = null;
+}
+
+async function handleSignOut(): Promise<void> {
+  // Cancel any in-flight cycles by zeroing the engine state, drop React Query
+  // caches so screens don't render the previous user's data while we wait, and
+  // delete the on-device SQLite file so a follow-up sign-in starts clean.
+  pushInFlight = false;
+  pullInFlight = false;
+  setSyncState({
+    pushInFlight: false,
+    pullInFlight: false,
+    pendingOutbox: 0,
+    quarantinedOutbox: 0,
+    lastError: null,
+    lastPushedAt: null,
+    lastPulledAt: null,
+  });
+  client?.clear();
+  await resetLocalDb();
 }
 
 function invalidateAfterSync(): void {

@@ -34,7 +34,7 @@ export default function WorkoutActiveScreen() {
   const addSet = useAddSet(toastError);
   const updateSet = useUpdateSet(toastError);
   const deleteSet = useDeleteSet(toastError);
-  const finishWorkout = useFinishWorkout(toastError);
+  const finishWorkout = useFinishWorkout(userId, toastError);
 
   const [pickerOpen, setPickerOpen] = useState(false);
   const timer = useRestTimer({ targetSeconds: 90 });
@@ -120,7 +120,13 @@ export default function WorkoutActiveScreen() {
             >
               {formatTimer(timer.elapsed)}
             </Text>
-            <Pressable onPress={timer.stop} hitSlop={8}>
+            <Pressable
+              onPress={timer.stop}
+              hitSlop={16}
+              accessibilityRole="button"
+              accessibilityLabel="Skip rest"
+              style={styles.timerSkipBtn}
+            >
               <Text style={styles.timerSkip}>Skip</Text>
             </Pressable>
           </View>
@@ -210,6 +216,12 @@ const styles = StyleSheet.create({
     fontVariant: ['tabular-nums'],
   },
   timerValueDone: { color: theme.color.success },
+  timerSkipBtn: {
+    minHeight: theme.touch.min,
+    minWidth: theme.touch.min,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
   timerSkip: {
     color: theme.color.onAccent,
     opacity: 0.85,
@@ -232,7 +244,7 @@ const styles = StyleSheet.create({
   },
   finishButton: {
     marginTop: theme.space.s4,
-    height: 52,
+    height: theme.touch.cta,
     borderRadius: theme.radius.md,
     backgroundColor: theme.color.accent,
     alignItems: 'center',

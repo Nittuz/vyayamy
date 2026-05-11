@@ -39,8 +39,9 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     const { data: subscription } = supabase.auth.onAuthStateChange((_event, nextSession) => {
       setSession(nextSession);
       setLoading(false);
+      // Identify by user id only — email is PII and not needed to triage errors.
       const u = nextSession?.user ?? null;
-      setReportingUser(u ? { id: u.id, ...(u.email ? { email: u.email } : {}) } : null);
+      setReportingUser(u ? { id: u.id } : null);
     });
 
     return () => {

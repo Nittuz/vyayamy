@@ -1,6 +1,6 @@
 import * as Linking from 'expo-linking';
-import { Redirect, router } from 'expo-router';
-import { useEffect, useState } from 'react';
+import { Redirect } from 'expo-router';
+import { useState } from 'react';
 import {
   ActivityIndicator,
   KeyboardAvoidingView,
@@ -18,6 +18,8 @@ import { useAuth } from '@/auth/useAuth';
 import { DumbbellMark } from '@/ui/Logo';
 import { brand, theme } from '@/ui/theme';
 
+const GENERIC_AUTH_ERROR = "Couldn't sign in. Check your email and password and try again.";
+
 export default function LoginScreen() {
   const { session, loading } = useAuth();
   const [email, setEmail] = useState('');
@@ -26,27 +28,6 @@ export default function LoginScreen() {
   const [signingIn, setSigningIn] = useState(false);
   const [sent, setSent] = useState(false);
   const [error, setError] = useState<string | null>(null);
-
-  useEffect(() => {
-    const handleUrl = async (url: string) => {
-      try {
-        const parsed = Linking.parse(url);
-        const code = (parsed.queryParams?.code as string | undefined) ?? null;
-        if (code) {
-          const { error: exchangeErr } = await supabase.auth.exchangeCodeForSession(code);
-          if (exchangeErr) setError(exchangeErr.message);
-          else router.replace('/');
-        }
-      } catch (err) {
-        setError(err instanceof Error ? err.message : String(err));
-      }
-    };
-    const sub = Linking.addEventListener('url', ({ url }) => void handleUrl(url));
-    void Linking.getInitialURL().then((url) => {
-      if (url) void handleUrl(url);
-    });
-    return () => sub.remove();
-  }, []);
 
   if (loading) return null;
   if (session) return <Redirect href="/" />;
@@ -61,7 +42,9 @@ export default function LoginScreen() {
     });
     setSending(false);
     if (err) {
-      setError(err.message);
+      // Map raw Supabase errors to a single neutral string so the UI doesn't
+      // leak whether the email exists or whether signup is disabled.
+      setError(GENERIC_AUTH_ERROR);
       return;
     }
     setSent(true);
@@ -75,7 +58,7 @@ export default function LoginScreen() {
       password,
     });
     setSigningIn(false);
-    if (err) setError(err.message);
+    if (err) setError(GENERIC_AUTH_ERROR);
   }
 
   return (
@@ -200,7 +183,7 @@ const styles = StyleSheet.create({
     fontWeight: theme.font.weight.medium,
   },
   input: {
-    height: 48,
+    height: theme.touch.min + 4,
     paddingHorizontal: theme.space.s4,
     borderRadius: theme.radius.sm,
     borderWidth: 1,
@@ -210,7 +193,7 @@ const styles = StyleSheet.create({
     backgroundColor: theme.color.bg,
   },
   button: {
-    height: 48,
+    height: theme.touch.min + 4,
     borderRadius: theme.radius.sm,
     backgroundColor: theme.color.accent,
     alignItems: 'center',
@@ -218,7 +201,7 @@ const styles = StyleSheet.create({
     marginTop: theme.space.s2,
   },
   buttonSecondary: {
-    height: 48,
+    height: theme.touch.min + 4,
     borderRadius: theme.radius.sm,
     backgroundColor: 'transparent',
     borderWidth: 1,

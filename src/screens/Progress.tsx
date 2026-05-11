@@ -1,3 +1,4 @@
+import { useQuery } from '@tanstack/react-query';
 import { useState } from 'react';
 import {
   ActivityIndicator,
@@ -10,11 +11,10 @@ import {
   View,
 } from 'react-native';
 
-import { useQuery } from '@tanstack/react-query';
-
 import { useAuth } from '@/auth/useAuth';
 import { formatRelativeDate } from '@/core/format';
-import { getHeaviestWeightHistory, useGroupedPRs } from '@/queries/personalRecords';
+import { queryKeys } from '@/queries/keys';
+import { useGroupedPRs, getHeaviestWeightHistory } from '@/queries/personalRecords';
 import { LineChart } from '@/ui/LineChart';
 import { SyncIndicator } from '@/ui/SyncIndicator';
 import { theme } from '@/ui/theme';
@@ -38,7 +38,10 @@ export default function ProgressScreen() {
   const screenW = windowWidth - theme.space.page * 2;
 
   const { data: series = [] } = useQuery({
-    queryKey: ['weight-history', userId, active],
+    queryKey:
+      userId && active
+        ? queryKeys.sets.weightHistory(userId, active)
+        : ['sets', 'weight-history', 'none'],
     queryFn: async () => {
       if (!userId || !active) return [];
       const rows = await getHeaviestWeightHistory(userId, active);

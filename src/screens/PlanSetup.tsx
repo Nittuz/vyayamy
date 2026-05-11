@@ -40,6 +40,11 @@ export default function PlanSetupScreen() {
   const [stagedPreset, setStagedPreset] = useState<HydratedPreset | null>(null);
 
   const lastHydratedKeyRef = useRef<string | null>(null);
+  // While the user is staging a preset, background invalidations of `existing`
+  // must not reset the in-progress edits. Without this guard, a sync-driven
+  // refetch of plans clobbers the user's staged-preset state.
+  const stagedPresetRef = useRef<HydratedPreset | null>(null);
+  stagedPresetRef.current = stagedPreset;
 
   useEffect(() => {
     const p = existing.data;
@@ -47,10 +52,10 @@ export default function PlanSetupScreen() {
       lastHydratedKeyRef.current = null;
       return;
     }
+    if (stagedPresetRef.current) return;
     const key = activePlanHydrationKey(p);
     if (lastHydratedKeyRef.current === key) return;
     lastHydratedKeyRef.current = key;
-    setStagedPreset(null);
     setName(p.plan.name);
     setPlanType(p.plan.plan_type);
     setSlots(
@@ -552,10 +557,12 @@ const styles = StyleSheet.create({
   },
   clearBtn: {
     paddingHorizontal: theme.space.s3,
-    paddingVertical: theme.space.s1,
+    paddingVertical: theme.space.s2,
     borderRadius: theme.radius.full,
     borderWidth: 1,
     borderColor: theme.color.borderStrong,
+    minHeight: theme.touch.min,
+    justifyContent: 'center',
   },
   clearBtnText: { fontSize: theme.font.meta, color: theme.color.textSecondary },
   slotCard: {
@@ -575,10 +582,12 @@ const styles = StyleSheet.create({
   },
   toggle: {
     paddingHorizontal: theme.space.s3,
-    paddingVertical: theme.space.s1,
+    paddingVertical: theme.space.s2,
     borderRadius: theme.radius.full,
     borderWidth: 1,
     borderColor: theme.color.borderStrong,
+    minHeight: theme.touch.min,
+    justifyContent: 'center',
   },
   toggleOn: { borderColor: theme.color.accent, backgroundColor: theme.color.accent },
   toggleText: { fontSize: theme.font.meta, color: theme.color.textSecondary },
@@ -609,7 +618,7 @@ const styles = StyleSheet.create({
     fontWeight: theme.font.weight.medium,
   },
   saveBtn: {
-    height: 52,
+    height: theme.touch.cta,
     borderRadius: theme.radius.md,
     backgroundColor: theme.color.accent,
     alignItems: 'center',

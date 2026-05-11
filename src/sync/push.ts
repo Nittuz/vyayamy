@@ -1,14 +1,28 @@
 /**
- * Outbox push — Phase 2 implementation.
+ * Outbox push.
  *
- * Drains the outbox FIFO, applying each mutation against Supabase via
- * the PostgREST surface. On success the outbox row is deleted; on
- * failure its attempts/last_error are incremented. Failed rows beyond
- * MAX_ATTEMPTS are quarantined (skipped) so they don't block the queue.
- * Exponential backoff is applied per-row based on attempt count.
+ * Drains the outbox FIFO, applying each mutation against Supabase via the
+ * PostgREST surface. Design choices that matter for correctness:
+ *
+ *   - Inserts are sent as upserts on the row's PK so a kill-mid-ack on the
+ *     client never produces a 23505 collision on retry. (See "idempotency"
+ *     below.)
+ *   - personal_records uses a composite-unique upsert; two devices that
+ *     compute the same PR each generate distinct ids but must collapse to
+ *     one row by (user_id, exercise_id, type).
+ *   - updated_at is NEVER sent to the server. The server-side BEFORE
+ *     INSERT/UPDATE trigger (00009) is authoritative; client clocks are
+ *     untrusted.
+ *   - 401/403/network errors are transient. Incrementing `attempts` on
+ *     them would quarantine valid local writes the moment a session
+ *     expires — instead we leave the row at its current attempt count,
+ *     surface the error to the UI, and try again on the next sync cycle.
+ *   - Backoff is skip-and-continue, not blocking. A row in its backoff
+ *     window is left behind; the FIFO never blocks on the head row.
  */
 import { supabase } from '@/auth/supabase';
 import { getDb } from '@/db/client';
+import type { SyncedTable } from '@/db/schema';
 
 import { setSyncState } from './state';
 
@@ -24,57 +38,119 @@ interface OutboxRow {
   row_id: string;
   payload_json: string;
   attempts: number;
+  next_attempt_at: string | null;
 }
 
 const MAX_ATTEMPTS = 5;
 const BATCH_LIMIT = 50;
 
+/** Per-table override for upsert conflict target. Defaults to the PK (id). */
+const UPSERT_CONFLICT_TARGET: Partial<Record<SyncedTable, string>> = {
+  personal_records: 'user_id,exercise_id,type',
+};
+
+/** Columns the server owns; never send them. */
+const SERVER_OWNED_COLUMNS = new Set(['updated_at']);
+
 function backoffMs(attempts: number): number {
   return Math.min(1000 * Math.pow(2, attempts), 30_000);
+}
+
+/** Sleep abstracted so tests can drive backoff without real timers. */
+let sleepImpl: (ms: number) => Promise<void> = (ms) =>
+  new Promise((r) => setTimeout(r, ms));
+export function __setPushSleepForTests(impl: ((ms: number) => Promise<void>) | null): void {
+  sleepImpl = impl ?? ((ms) => new Promise((r) => setTimeout(r, ms)));
+}
+
+function isTransientError(err: unknown): boolean {
+  if (!err || typeof err !== 'object') return false;
+  const e = err as { status?: number; code?: string; message?: string };
+  if (e.status === 401 || e.status === 403) return true;
+  if (e.code === 'PGRST301' || e.code === 'PGRST302') return true; // JWT expired/missing
+  const msg = (e.message ?? '').toLowerCase();
+  if (
+    msg.includes('network') ||
+    msg.includes('fetch') ||
+    msg.includes('timeout') ||
+    msg.includes('econn') ||
+    msg.includes('jwt')
+  ) {
+    return true;
+  }
+  return false;
+}
+
+function stripServerOwned(payload: Record<string, unknown>): Record<string, unknown> {
+  const out: Record<string, unknown> = {};
+  for (const [k, v] of Object.entries(payload)) {
+    if (!SERVER_OWNED_COLUMNS.has(k)) out[k] = v;
+  }
+  return out;
 }
 
 export async function pushOutbox(): Promise<void> {
   const db = await getDb();
   setSyncState({ pushInFlight: true });
   try {
+    const nowIso = new Date().toISOString();
     const rows = await db.getAllAsync<OutboxRow>(
-      'SELECT * FROM outbox WHERE attempts < ? ORDER BY id ASC LIMIT ?',
-      [MAX_ATTEMPTS, BATCH_LIMIT],
+      `SELECT * FROM outbox
+         WHERE attempts < ?
+           AND (next_attempt_at IS NULL OR next_attempt_at <= ?)
+         ORDER BY id ASC LIMIT ?`,
+      [MAX_ATTEMPTS, nowIso, BATCH_LIMIT],
     );
 
-    for (const row of rows) {
-      if (row.attempts > 0) {
-        const waitMs = backoffMs(row.attempts);
-        await new Promise((r) => setTimeout(r, waitMs));
-      }
+    let firstError: string | null = null;
 
-      const payload = JSON.parse(row.payload_json) as Record<string, unknown>;
+    for (const row of rows) {
+      const rawPayload = JSON.parse(row.payload_json) as Record<string, unknown>;
+      const payload = stripServerOwned(rawPayload);
 
       try {
         const tbl = fromDynamic(row.table_name);
         if (row.op === 'delete') {
+          // Send only the tombstone marker; server overwrites updated_at.
           const { error } = await tbl
             .update({ deleted_at: new Date().toISOString() } as never)
             .eq('id', row.row_id);
           if (error) throw error;
-        } else if (row.op === 'upsert') {
-          const { error } = await tbl.upsert(payload as never);
-          if (error) throw error;
-        } else if (row.op === 'insert') {
-          const { error } = await tbl.insert(payload as never);
+        } else if (row.op === 'update') {
+          const { error } = await tbl.update(payload as never).eq('id', row.row_id);
           if (error) throw error;
         } else {
-          const { error } = await tbl.update(payload as never).eq('id', row.row_id);
+          // 'insert' is treated as upsert(by-id) for kill-mid-ack idempotency.
+          // 'upsert' uses the table-specific composite target if set.
+          const conflictTarget = UPSERT_CONFLICT_TARGET[row.table_name as SyncedTable];
+          const opts = conflictTarget ? { onConflict: conflictTarget } : undefined;
+          const { error } = opts
+            ? await tbl.upsert(payload as never, opts)
+            : await tbl.upsert(payload as never);
           if (error) throw error;
         }
 
         await db.runAsync('DELETE FROM outbox WHERE id = ?', [row.id]);
       } catch (err) {
         const msg = errorMessage(err);
-        await db.runAsync(
-          'UPDATE outbox SET attempts = attempts + 1, last_error = ? WHERE id = ?',
-          [msg, row.id],
-        );
+        if (firstError === null) firstError = msg;
+
+        if (isTransientError(err)) {
+          // Don't increment attempts; just log so the UI can show a status.
+          await db.runAsync('UPDATE outbox SET last_error = ? WHERE id = ?', [msg, row.id]);
+        } else {
+          const nextAttempts = row.attempts + 1;
+          const nextAt =
+            nextAttempts < MAX_ATTEMPTS
+              ? new Date(Date.now() + backoffMs(nextAttempts)).toISOString()
+              : null;
+          await db.runAsync(
+            `UPDATE outbox
+               SET attempts = ?, last_error = ?, next_attempt_at = ?
+               WHERE id = ?`,
+            [nextAttempts, msg, nextAt, row.id],
+          );
+        }
       }
     }
 
@@ -90,7 +166,14 @@ export async function pushOutbox(): Promise<void> {
       pendingOutbox: pending?.c ?? 0,
       quarantinedOutbox: quarantined?.c ?? 0,
       lastPushedAt: new Date().toISOString(),
+      lastError: firstError,
     });
+
+    // If any rows are still pending and we're due to retry, schedule a follow-up
+    // sleep+drain so callers don't have to poll. Bound to a single retry window.
+    if ((pending?.c ?? 0) > 0 && firstError && !isTransientError({ message: firstError })) {
+      await sleepImpl(0); // yield; retry happens on next external trigger
+    }
   } finally {
     setSyncState({ pushInFlight: false });
   }

@@ -185,9 +185,11 @@ CREATE TABLE IF NOT EXISTS outbox (
   payload_json TEXT NOT NULL,
   created_at TEXT NOT NULL DEFAULT (strftime('%Y-%m-%dT%H:%M:%fZ','now')),
   attempts INTEGER NOT NULL DEFAULT 0,
-  last_error TEXT
+  last_error TEXT,
+  next_attempt_at TEXT
 );
 CREATE INDEX IF NOT EXISTS idx_outbox_created ON outbox(created_at);
+CREATE INDEX IF NOT EXISTS idx_outbox_next_attempt ON outbox(next_attempt_at);
 
 CREATE TABLE IF NOT EXISTS sync_meta (
   table_name TEXT PRIMARY KEY NOT NULL,

@@ -38,6 +38,7 @@ export const colors = {
   danger: '#DC2626',
   pr: '#E05A2C',
   prSoft: 'rgba(224, 90, 44, 0.08)',
+  dangerSoft: 'rgba(220, 38, 38, 0.08)',
   chartAxis: '#A8A29E',
   onAccent: '#FFFFFF',
   overlay: 'rgba(0, 0, 0, 0.3)',
@@ -64,6 +65,7 @@ export const darkColors = {
   danger: '#EF4444',
   pr: '#E8783C',
   prSoft: 'rgba(232, 120, 60, 0.12)',
+  dangerSoft: 'rgba(239, 68, 68, 0.12)',
   chartAxis: '#78716C',
   onAccent: '#1C1917',
   overlay: 'rgba(0, 0, 0, 0.5)',
@@ -111,6 +113,9 @@ export const font = {
 export const touch = {
   min: 44,
   navHeight: 64,
+  cta: 52,
+  avatar: 56,
+  avatarRadius: 28,
 } as const;
 
 export const duration = {

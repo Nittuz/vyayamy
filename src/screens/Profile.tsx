@@ -152,16 +152,16 @@ const styles = StyleSheet.create({
   },
   avatar: {
     alignSelf: 'center',
-    width: 56,
-    height: 56,
-    borderRadius: 28,
+    width: theme.touch.avatar,
+    height: theme.touch.avatar,
+    borderRadius: theme.touch.avatarRadius,
     backgroundColor: theme.color.accent,
     alignItems: 'center',
     justifyContent: 'center',
   },
   avatarText: {
     color: theme.color.onAccent,
-    fontSize: 20,
+    fontSize: theme.font.section,
     fontWeight: theme.font.weight.bold,
   },
   email: {
@@ -217,7 +217,7 @@ const styles = StyleSheet.create({
     borderColor: theme.color.border,
   },
   rowLabel: { flex: 1, fontSize: theme.font.body, color: theme.color.text },
-  rowChevron: { fontSize: 22, color: theme.color.textTertiary },
+  rowChevron: { fontSize: theme.font.section, color: theme.color.textTertiary },
   signOut: {
     padding: theme.space.s4,
     alignItems: 'center',

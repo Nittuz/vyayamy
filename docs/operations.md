@@ -17,7 +17,7 @@ Day-to-day commands for building, testing, and shipping the FlexYug app.
 npm install --legacy-peer-deps
 ```
 
-`--legacy-peer-deps` keeps Expo's locked `react@18.2` compatible with a few transitive packages advertising React 19 peers.
+`--legacy-peer-deps` silences a few transitive dependencies whose declared React peer ranges haven't caught up to React 19 yet. Drop the flag once they do.
 
 ### Run
 
@@ -79,17 +79,25 @@ Run in order against your Supabase database:
 2. `supabase/migrations/00002_constraints_and_improvements.sql`
 3. `supabase/migrations/00003_training_plans.sql`
 4. `supabase/migrations/00004_sync_support.sql` — **required**; the sync engine depends on `updated_at`, `deleted_at`, triggers, and indexes
+5. `supabase/migrations/00005_seed_beyond_strength_phase1.sql`
+6. `supabase/migrations/00006_plan_presets.sql` — read-only catalog tables for the Plan Setup wizard
+7. `supabase/migrations/00007_seed_global_exercises.sql`
+8. `supabase/migrations/00008_seed_plan_presets.sql`
+9. `supabase/migrations/00009_security_hardening.sql` — **required**; locks down RLS (`WITH CHECK`), moves `updated_at` to a server-owned trigger, hardens `handle_new_user`, and adds the missing `personal_records.set_id` FK
 
-Optionally run `supabase/seed.sql` for the global exercise library.
+Optionally run `supabase/seed.sql` for any extra bootstrapping data.
 
 ### Adding a migration
 
 - File name: next sequential number + underscore + descriptive snake_case (e.g. `00005_add_workout_notes.sql`)
 - Make it idempotent: `CREATE TABLE IF NOT EXISTS`, `ALTER TABLE ... ADD COLUMN IF NOT EXISTS`, `DROP TRIGGER IF EXISTS` before `CREATE TRIGGER`
 - Add RLS policies for every new table, scoped to `auth.uid()`
-- For any synced table: add `updated_at`, `deleted_at`, the `set_updated_at` trigger, and the `idx_<table>_updated_at` index — see `00004_sync_support.sql` for the template
+- For any synced table: add `updated_at`, `deleted_at`, the `public.touch_updated_at()` BEFORE INSERT OR UPDATE trigger (the client never sets `updated_at`), and the `idx_<table>_updated_at` index — see `00009_security_hardening.sql` for the template
 - Mirror the schema in [src/db/schema.ts](../src/db/schema.ts) and add the name to `SYNCED_TABLES`
 - Update [src/db/types.ts](../src/db/types.ts) with Row / Insert / Update types
+- Add the table's React Query root prefix to `syncInvalidationRoots` in [src/queries/keys.ts](../src/queries/keys.ts) so screens refresh after pull
+- If parents of other synced tables: register the FK in `SOFT_DELETE_CASCADE` in [src/db/mutations.ts](../src/db/mutations.ts)
+- If two devices may produce duplicates that should collapse on a unique index: register a conflict target in `UPSERT_CONFLICT_TARGET` in [src/sync/push.ts](../src/sync/push.ts)
 
 ### Running Supabase locally
 
@@ -159,7 +167,9 @@ The notification icon used on Android is configured via the `expo-notifications`
 | Suite                                                          | What it guards                                                |
 | -------------------------------------------------------------- | ------------------------------------------------------------- |
 | [src/core/__tests__/pr-detection.test.ts](../src/core/__tests__/pr-detection.test.ts) | Pure PR computation                                       |
-| [src/__tests__/offline-workout.test.ts](../src/__tests__/offline-workout.test.ts) | Local-first write path, outbox drain on reconnect         |
+| [src/__tests__/offline-workout.test.ts](../src/__tests__/offline-workout.test.ts) | Local-first write path, outbox drain on reconnect, retry + quarantine, cascade soft-delete |
+| [src/__tests__/pull.test.ts](../src/__tests__/pull.test.ts) | Incremental pull — column-merge with pending outbox, cursor advance, tombstones |
+| [src/__tests__/sync-state.test.ts](../src/__tests__/sync-state.test.ts) | `deriveSyncState` enum reduction                              |
 
 `expo-sqlite` is mocked via [src/db/__mocks__/expo-sqlite.ts](../src/db/__mocks__/expo-sqlite.ts), which swaps in an in-memory `better-sqlite3` backend. `expo-crypto` is mocked in [src/db/__mocks__/expo-crypto.ts](../src/db/__mocks__/expo-crypto.ts) so UUIDs work in Node.
 

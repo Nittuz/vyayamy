@@ -1,4 +1,4 @@
-import { useQuery } from '@tanstack/react-query';
+import { useInfiniteQuery, useQuery } from '@tanstack/react-query';
 
 import { getDb } from '@/db/client';
 import type { Workout } from '@/db/types';
@@ -12,7 +12,9 @@ export interface HistoryRow extends Workout {
   volume: number;
 }
 
-export async function getHistory(userId: string, limit = 50): Promise<HistoryRow[]> {
+const PAGE_SIZE = 30;
+
+export async function getHistory(userId: string, limit = 50, offset = 0): Promise<HistoryRow[]> {
   const db = await getDb();
   return db.getAllAsync<HistoryRow>(
     `SELECT
@@ -31,15 +33,30 @@ export async function getHistory(userId: string, limit = 50): Promise<HistoryRow
      FROM workouts w
      WHERE w.user_id = ? AND w.ended_at IS NOT NULL AND w.deleted_at IS NULL
      ORDER BY w.started_at DESC
-     LIMIT ?`,
-    [userId, limit],
+     LIMIT ? OFFSET ?`,
+    [userId, limit, offset],
   );
 }
 
-export function useHistory(userId: string | undefined, limit = 50) {
+/** Backwards-compatible single-page query for callers that only need the head. */
+export function useHistory(userId: string | undefined, limit = PAGE_SIZE) {
   return useQuery({
     queryKey: userId ? queryKeys.history(userId) : ['history', 'none'],
     queryFn: () => (userId ? getHistory(userId, limit) : Promise.resolve([])),
+    enabled: !!userId,
+  });
+}
+
+/** Paginated history. The History screen scrolls through workout pages of
+ *  PAGE_SIZE so users with hundreds of sessions don't silently lose them. */
+export function useHistoryInfinite(userId: string | undefined) {
+  return useInfiniteQuery({
+    queryKey: userId ? [...queryKeys.history(userId), 'infinite'] : ['history', 'none', 'infinite'],
+    queryFn: ({ pageParam }) =>
+      userId ? getHistory(userId, PAGE_SIZE, pageParam as number) : Promise.resolve([]),
+    initialPageParam: 0,
+    getNextPageParam: (lastPage, allPages) =>
+      lastPage.length < PAGE_SIZE ? undefined : allPages.length * PAGE_SIZE,
     enabled: !!userId,
   });
 }

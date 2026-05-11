@@ -12,7 +12,7 @@ A mobile-only, local-first strength-training journal built with Expo and React N
 
 Do **not** introduce, remove, or migrate away from any of these without explicit approval:
 
-- **Expo SDK 51**, **React Native 0.74**, **React 18**, **TypeScript** strict
+- **Expo SDK 55**, **React Native 0.83**, **React 19**, **TypeScript** strict
 - **Expo Router** for navigation (file-based under [app/](app/))
 - **`expo-sqlite`** as the local source of truth; schema mirrored in [src/db/schema.ts](src/db/schema.ts)
 - **Supabase** (Postgres + GoTrue + PostgREST) as the sync target only — reached from [src/sync/](src/sync/) and from auth code in [src/auth/](src/auth/), nowhere else
@@ -26,7 +26,7 @@ Do **not** introduce, remove, or migrate away from any of these without explicit
 Explicitly forbidden:
 
 - React Router, React DOM, any web-specific API (`window`, `document`, `navigator.onLine`, `localStorage`)
-- Recharts, `victory-native` (conflicts with Expo 51's React 18)
+- Recharts, `victory-native` (use the in-house `react-native-svg` chart in [src/ui/LineChart.tsx](src/ui/LineChart.tsx) instead)
 - CSS files, CSS-in-JS (styled-components, emotion), Tailwind, utility frameworks
 - Vite, Vitest, `jest-expo` (we use `ts-jest`)
 - Redux, Zustand, Jotai, MobX, or any other global state store — UI state uses `useState`/`useReducer`, server state lives in React Query
@@ -66,10 +66,16 @@ Explicitly forbidden:
 
 ### Add a new synced table
 
-1. Write the Postgres migration: include `updated_at` (with trigger) and `deleted_at` columns; model it on [supabase/migrations/00004_sync_support.sql](supabase/migrations/00004_sync_support.sql)
-2. Add the same table to [src/db/schema.ts](src/db/schema.ts) (SQLite mirror) and add its name to `SYNCED_TABLES`
+1. Write the Postgres migration. Required pieces:
+   - `updated_at TIMESTAMPTZ NOT NULL DEFAULT now()` and `deleted_at TIMESTAMPTZ` columns
+   - `BEFORE INSERT OR UPDATE` trigger using `public.touch_updated_at()` (see [supabase/migrations/00009_security_hardening.sql](supabase/migrations/00009_security_hardening.sql)) so the client's clock is never trusted
+   - `idx_<table>_updated_at` index for the pull cursor
+   - `ALTER TABLE ... ENABLE ROW LEVEL SECURITY` and a policy with **both** `USING` and `WITH CHECK` (the `USING`-only `FOR ALL` shape is exploitable — see 00009)
+2. Add the same table to [src/db/schema.ts](src/db/schema.ts) (SQLite mirror), add its name to `SYNCED_TABLES`, and bump `SCHEMA_VERSION` in [src/db/client.ts](src/db/client.ts) if you need a new ALTER step
 3. Update [src/db/types.ts](src/db/types.ts) with Row / Insert / Update typings
-4. That's it — push and pull are driven by `SYNCED_TABLES` and require no further wiring
+4. Add the table's React Query root prefix to `syncInvalidationRoots` in [src/queries/keys.ts](src/queries/keys.ts) — without this, screens won't refresh after sync touches the new table
+5. If the new table is a parent of any other synced table, add the relationship to `SOFT_DELETE_CASCADE` in [src/db/mutations.ts](src/db/mutations.ts) so soft-deletes propagate locally + into the outbox in one transaction
+6. If multiple devices may produce duplicates that should collapse on a unique index (à la `personal_records`), add a conflict target to `UPSERT_CONFLICT_TARGET` in [src/sync/push.ts](src/sync/push.ts)
 
 ### Add a new query hook
 
