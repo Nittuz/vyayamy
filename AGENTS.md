@@ -8,6 +8,12 @@ Guidance for AI coding agents and automated tools working in this repo.
 
 A mobile-only, local-first strength-training journal built with Expo and React Native. SQLite on the device is the source of truth during a session. Supabase is a durable mirror reached only by the sync engine in [src/sync/](src/sync/). The UI must never block on the network.
 
+## Specs and ADRs
+
+Before implementing a non-trivial feature, check [docs/specs/](docs/specs/) for an existing design spec. If none exists for the work, draft one (or invoke the brainstorming flow) rather than improvising in code. Specs capture the *what* and *how* of a feature before implementation; they are mutable until the feature ships, then frozen.
+
+[docs/adr/](docs/adr/) holds architectural decision records — the *why* behind long-lived choices like local-first SQLite, the outbox sync model, and server-owned `updated_at`. **ADRs are read-only for agents.** Propose changes to a human; never write ADRs autonomously, never edit accepted ADRs. To change a decision, the human writes a new ADR that supersedes the old one.
+
 ## Stack guardrails
 
 Do **not** introduce, remove, or migrate away from any of these without explicit approval:
