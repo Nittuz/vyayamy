@@ -425,22 +425,11 @@ The Supabase JS client manages JWT storage in `AsyncStorage` and handles refresh
 
 ## Key Design Decisions
 
-### Why SQLite as source of truth, not Supabase?
+Foundational architectural decisions are recorded as ADRs under [docs/adr/](docs/adr/):
 
-Lifting in a gym is a place where the network is unreliable. A user logging a set should never see a spinner. SQLite writes finish in microseconds and survive app kills; sync becomes a background concern. This is the single most important architectural choice in the app.
+- [ADR-0001](docs/adr/0001-sqlite-as-source-of-truth.md) — SQLite as source of truth, not Supabase
+- [ADR-0002](docs/adr/0002-outbox-over-crdt.md) — Outbox over CRDTs and sync frameworks
+- [ADR-0003](docs/adr/0003-soft-delete-tombstones.md) — Soft-delete tombstones, never hard delete
+- [ADR-0004](docs/adr/0004-server-owned-updated-at.md) — Server-owned `updated_at`
 
-### Why an outbox instead of CRDTs or a heavier sync library?
-
-The product is effectively single-user, often single-device. Last-write-wins is correct. An outbox of explicit mutations is the smallest abstraction that survives offline, retries, and poisoned writes — and it keeps the server boring (plain PostgREST). WatermelonDB-style frameworks would add dependency weight and opacity without solving a problem we have.
-
-### Why React Query on top of a local DB?
-
-It pays for itself even with no HTTP: cache coherence across screens, `invalidateQueries` after a mutation, dedup of repeated reads, and the `useQuery` ergonomic. The alternative (raw `useEffect` + `useState`) reinvents all of this.
-
-### Why a custom SVG chart instead of `victory-native`?
-
-The chart surfaces are small (line + points + axis) and render cleanly with ~80 lines of `react-native-svg`. Adding a charting library would pull a transitive `react-native-reanimated`/Skia surface area we don't need.
-
-### Why `ts-jest` + `better-sqlite3` for tests?
-
-`jest-expo` tries to load `expo-modules-core`'s ESM web bundle under Node and fails. `ts-jest` runs TypeScript directly with a Node test environment, and a module mock swaps `expo-sqlite` for in-memory `better-sqlite3`. This lets the sync engine be exercised end-to-end without a simulator.
+Pragmatic engineering choices — React Query on top of a local DB, the in-house `react-native-svg` chart over `victory-native`, `ts-jest` + `better-sqlite3` over `jest-expo` — are documented inline in the relevant sections above and in [docs/operations.md](docs/operations.md). They are kept as prose rather than ADRs because they are reversible without architectural ripple.
