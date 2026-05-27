@@ -32,7 +32,7 @@ flowchart LR
 
 | Date | Title | Status |
 | --- | --- | --- |
-| [2026-05-26](2026-05-26-docs-uplevel-design.md) | Docs uplevel: ADRs + design specs | approved |
+| [2026-05-26](2026-05-26-docs-uplevel-design.md) | Docs Uplevel: ADRs + Design Specs | approved |
 
 ## Template
 
