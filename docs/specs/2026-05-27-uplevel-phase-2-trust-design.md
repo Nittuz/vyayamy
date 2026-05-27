@@ -1,6 +1,6 @@
 # Uplevel Phase 2 — Trust
 
-- **Status:** approved
+- **Status:** implemented
 - **Date:** 2026-05-27
 - **Related ADRs:** none new; respects [ADR-0001](../adr/0001-sqlite-as-source-of-truth.md) (SQLite source of truth), [ADR-0002](../adr/0002-outbox-over-crdt.md) (outbox pattern)
 - **Builds on:** [Phase 1 — Signature](2026-05-26-uplevel-phase-1-signature-design.md) (implemented)
