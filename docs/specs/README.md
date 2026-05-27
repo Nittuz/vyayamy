@@ -34,6 +34,7 @@ flowchart LR
 | --- | --- | --- |
 | [2026-05-26](2026-05-26-docs-uplevel-design.md) | Docs Uplevel: ADRs + Design Specs | approved |
 | [2026-05-26](2026-05-26-uplevel-phase-1-signature-design.md) | Uplevel Phase 1 — Signature | implemented |
+| [2026-05-27](2026-05-27-uplevel-phase-2-trust-design.md) | Uplevel Phase 2 — Trust | approved |
 
 ## Template
 
