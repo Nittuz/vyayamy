@@ -1,6 +1,7 @@
 # ADR-NNNN: <decision in one line>
 
-- **Status:** proposed | accepted | superseded by [ADR-XXXX](XXXX-…md)
+- **Status:** proposed | accepted
+<!-- if superseded, replace status with: superseded by [ADR-XXXX](XXXX-slug.md) -->
 - **Date:** YYYY-MM-DD
 
 ## Context
