@@ -9,6 +9,14 @@ import * as Haptics from 'expo-haptics';
 import { useCallback, useEffect, useRef, useState } from 'react';
 
 import { cancelRest, scheduleRestDone } from '@/lib/restNotifications';
+import { getKv, removeKv, setKv } from '@/lib/kvStore';
+
+import {
+  PersistedTimer,
+  REST_TIMER_KEY,
+  REST_TIMER_SCHEMA_VERSION,
+  shouldRestoreTimer,
+} from './restTimerPolicy';
 
 interface UseRestTimerArgs {
   targetSeconds?: number;
@@ -21,6 +29,25 @@ export function useRestTimer(args: UseRestTimerArgs = {}) {
   const firedRef = useRef(false);
   const intervalRef = useRef<ReturnType<typeof setInterval> | null>(null);
   const notificationIdRef = useRef<string | null>(null);
+
+  const hydratedRef = useRef(false);
+
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  useEffect(() => {
+    if (hydratedRef.current) return;
+    hydratedRef.current = true;
+    (async () => {
+      const persisted = await getKv<PersistedTimer>(REST_TIMER_KEY, REST_TIMER_SCHEMA_VERSION);
+      const decision = shouldRestoreTimer(persisted, Date.now());
+      if (decision.clearStale) {
+        void removeKv(REST_TIMER_KEY);
+      }
+      if (decision.restore && persisted) {
+        // Resume the timer from where it was
+        setStartedAt(persisted.startedAt);
+      }
+    })();
+  }, []);
 
   useEffect(() => {
     if (startedAt == null) return;
@@ -41,7 +68,13 @@ export function useRestTimer(args: UseRestTimerArgs = {}) {
   const start = useCallback(() => {
     firedRef.current = false;
     setElapsed(0);
-    setStartedAt(Date.now());
+    const now = Date.now();
+    setStartedAt(now);
+    void setKv<PersistedTimer>(REST_TIMER_KEY, {
+      schemaVersion: REST_TIMER_SCHEMA_VERSION,
+      startedAt: now,
+      targetSeconds,
+    });
     void cancelRest(notificationIdRef.current).then(() => {
       notificationIdRef.current = null;
       return scheduleRestDone(targetSeconds);
@@ -54,6 +87,7 @@ export function useRestTimer(args: UseRestTimerArgs = {}) {
     setStartedAt(null);
     setElapsed(0);
     firedRef.current = false;
+    void removeKv(REST_TIMER_KEY);
     void cancelRest(notificationIdRef.current);
     notificationIdRef.current = null;
   }, []);
