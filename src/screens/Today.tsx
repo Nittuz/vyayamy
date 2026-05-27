@@ -9,14 +9,18 @@ import {
   View,
   ActivityIndicator,
 } from 'react-native';
+import { useQueryClient } from '@tanstack/react-query';
 
 import { useAuth } from '@/auth/useAuth';
+import { CollisionSheet } from '@/components/CollisionSheet';
 import { RepeatCard } from '@/components/RepeatCard';
 import {
   useLastFinishedWorkoutWithSeeds,
   useRepeatLastWorkout,
 } from '@/queries/repeatLastWorkout';
-import { useActiveWorkout, useRecentWorkouts, useCreateWorkout } from '@/queries/workouts';
+import { useActiveWorkoutCollisions } from '@/queries/activeWorkouts';
+import { queryKeys } from '@/queries/keys';
+import { useActiveWorkout, useRecentWorkouts, useCreateWorkout, deleteWorkoutLocal } from '@/queries/workouts';
 import {
   getCachedSnapshot,
   persistSnapshot,
@@ -32,11 +36,38 @@ export default function TodayScreen() {
   const toastError = useCallback((msg: string) => showToast(msg, 'error'), [showToast]);
 
   const theme = useTheme();
+  const qc = useQueryClient();
   const activeQuery = useActiveWorkout(userId);
   const lastFinishedQuery = useLastFinishedWorkoutWithSeeds(userId);
   const recentQuery = useRecentWorkouts(userId, 3);
   const repeat = useRepeatLastWorkout(userId, toastError);
   const createWorkout = useCreateWorkout(toastError);
+  const collisionsQuery = useActiveWorkoutCollisions(userId);
+  const hasCollision = (collisionsQuery.data?.workouts.length ?? 0) >= 2;
+
+  const onCollisionResume = useCallback(
+    async (workoutId: string) => {
+      if (!collisionsQuery.data) return;
+      const toDiscard = collisionsQuery.data.workouts
+        .map((w) => w.id)
+        .filter((id) => id !== workoutId);
+      for (const id of toDiscard) {
+        // eslint-disable-next-line no-await-in-loop
+        await deleteWorkoutLocal(id);
+      }
+      qc.invalidateQueries({ queryKey: queryKeys.workouts.all });
+      router.push('/workout/active');
+    },
+    [collisionsQuery.data, qc],
+  );
+
+  const onCollisionDiscard = useCallback(
+    async (workoutId: string) => {
+      await deleteWorkoutLocal(workoutId);
+      qc.invalidateQueries({ queryKey: queryKeys.workouts.all });
+    },
+    [qc],
+  );
 
   const greeting = useMemo(() => greetingFor(new Date()), []);
 
@@ -247,6 +278,13 @@ export default function TodayScreen() {
           )}
         </View>
       </ScrollView>
+      <CollisionSheet
+        visible={hasCollision}
+        workouts={collisionsQuery.data?.workouts ?? []}
+        details={collisionsQuery.data?.details ?? new Map()}
+        onResume={onCollisionResume}
+        onDiscard={onCollisionDiscard}
+      />
     </SafeAreaView>
   );
 }
