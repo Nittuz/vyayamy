@@ -10,6 +10,7 @@ import * as SplashScreen from 'expo-splash-screen';
 import { StatusBar } from 'expo-status-bar';
 import { useEffect, useRef, useState } from 'react';
 import { ActivityIndicator, Platform, StyleSheet, Text, View } from 'react-native';
+import { GestureHandlerRootView } from 'react-native-gesture-handler';
 import { SafeAreaProvider, SafeAreaView } from 'react-native-safe-area-context';
 
 import { AuthProvider } from '@/auth/AuthContext';
@@ -125,39 +126,42 @@ export default function RootLayout() {
   // which prevents the "no navigator in root layout" +not-found redirect.
   return (
     <ErrorBoundary>
-      <SafeAreaProvider>
-        <QueryClientProvider client={queryClient}>
-          <AuthProvider>
-            <ToastProvider>
-              <StatusBar style="dark" />
-              <Stack screenOptions={stackScreenOptions}>
-                <Stack.Screen name="(tabs)" options={tabsScreenOpts} />
-                <Stack.Screen name="login" options={loginScreenOpts} />
-                <Stack.Screen name="workout/active" options={workoutActiveOpts} />
-                <Stack.Screen name="history/[id]" options={historyDetailOpts} />
-                <Stack.Screen name="profile/plan/index" options={planIndexOpts} />
-                <Stack.Screen name="profile/plan/setup" options={planSetupOpts} />
-              </Stack>
-              {(!ready || !fontsLoaded) && !bootError && (
-                <View style={bootStyles.overlay}>
-                  <ActivityIndicator color={theme.color.accent} />
-                </View>
-              )}
-              {bootError && (
-                <SafeAreaView style={bootStyles.overlay} edges={['top', 'bottom', 'left', 'right']}>
-                  <Text style={bootStyles.title}>Cannot start</Text>
-                  <Text style={bootStyles.body}>{bootError}</Text>
-                </SafeAreaView>
-              )}
-            </ToastProvider>
-          </AuthProvider>
-        </QueryClientProvider>
-      </SafeAreaProvider>
+      <GestureHandlerRootView style={bootStyles.gestureRoot}>
+        <SafeAreaProvider>
+          <QueryClientProvider client={queryClient}>
+            <AuthProvider>
+              <ToastProvider>
+                <StatusBar style="dark" />
+                <Stack screenOptions={stackScreenOptions}>
+                  <Stack.Screen name="(tabs)" options={tabsScreenOpts} />
+                  <Stack.Screen name="login" options={loginScreenOpts} />
+                  <Stack.Screen name="workout/active" options={workoutActiveOpts} />
+                  <Stack.Screen name="history/[id]" options={historyDetailOpts} />
+                  <Stack.Screen name="profile/plan/index" options={planIndexOpts} />
+                  <Stack.Screen name="profile/plan/setup" options={planSetupOpts} />
+                </Stack>
+                {(!ready || !fontsLoaded) && !bootError && (
+                  <View style={bootStyles.overlay}>
+                    <ActivityIndicator color={theme.color.accent} />
+                  </View>
+                )}
+                {bootError && (
+                  <SafeAreaView style={bootStyles.overlay} edges={['top', 'bottom', 'left', 'right']}>
+                    <Text style={bootStyles.title}>Cannot start</Text>
+                    <Text style={bootStyles.body}>{bootError}</Text>
+                  </SafeAreaView>
+                )}
+              </ToastProvider>
+            </AuthProvider>
+          </QueryClientProvider>
+        </SafeAreaProvider>
+      </GestureHandlerRootView>
     </ErrorBoundary>
   );
 }
 
 const bootStyles = StyleSheet.create({
+  gestureRoot: { flex: 1 },
   overlay: {
     ...StyleSheet.absoluteFillObject,
     alignItems: 'center',
