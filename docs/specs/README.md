@@ -33,6 +33,7 @@ flowchart LR
 | Date | Title | Status |
 | --- | --- | --- |
 | [2026-05-26](2026-05-26-docs-uplevel-design.md) | Docs Uplevel: ADRs + Design Specs | approved |
+| [2026-05-26](2026-05-26-uplevel-phase-1-signature-design.md) | Uplevel Phase 1 — Signature | approved |
 
 ## Template
 
