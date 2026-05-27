@@ -1,12 +1,99 @@
 /**
- * FlexYug design tokens.
- * Kept as a plain TS object so it can be consumed by StyleSheet.create
- * and by computed style helpers.
+ * Compatibility shim — Phase 1 of the brutalist-lifter uplevel.
  *
- * Single theme for now — dark mode variants live in `darkColors` below
- * and can be toggled in a later polish pass via useColorScheme().
+ * The new design system lives in:
+ *   - src/ui/colors.ts       (light + dark palettes)
+ *   - src/ui/typography.ts   (font tokens)
+ *   - src/ui/motion.ts       (spring + duration)
+ *   - src/ui/haptics.ts      (haptic wrappers)
+ *   - src/ui/useTheme.ts     (hook for dynamic theming)
+ *
+ * This file remains as a STATIC export for non-Phase-1 screens that
+ * still reference `theme.color.X` inside StyleSheet.create. It is
+ * pinned to the DARK palette. Phase 3 (Restraint) migrates remaining
+ * screens to useTheme() and this file is then deleted.
+ *
+ * Legacy color names (brand, pr, accentMuted, textSecondary, etc.)
+ * are mapped to the closest new token so existing screens don't break.
  */
+import { darkPalette } from './colors';
+import { motion } from './motion';
+import { space, radius, touch } from './useTheme';
+import { typography } from './typography';
 
+const legacyColors = {
+  // New canonical names (so new code can also import from theme.color)
+  bg: darkPalette.bg,
+  surface: darkPalette.surface,
+  border: darkPalette.border,
+  borderStrong: darkPalette.borderStrong,
+  ink: darkPalette.ink,
+  inkSecondary: darkPalette.inkSecondary,
+  inkTertiary: darkPalette.inkTertiary,
+  inkHero: darkPalette.inkHero,
+  accent: darkPalette.accent,
+  accentSoft: darkPalette.accentSoft,
+  success: darkPalette.success,
+  successSoft: darkPalette.successSoft,
+  danger: darkPalette.danger,
+  dangerSoft: darkPalette.dangerSoft,
+  onAccent: darkPalette.onAccent,
+  overlay: darkPalette.overlay,
+
+  // Legacy aliases (consumed by non-Phase-1 screens; resolve to closest new token)
+  text: darkPalette.ink,
+  textSecondary: darkPalette.inkSecondary,
+  textTertiary: darkPalette.inkTertiary,
+  textMuted: darkPalette.inkSecondary,
+  accentMuted: darkPalette.inkSecondary,
+  brand: darkPalette.accent,
+  brandMuted: darkPalette.accent,
+  brandSoft: darkPalette.accentSoft,
+  onBrand: darkPalette.onAccent,
+  pr: darkPalette.accent,
+  prSoft: darkPalette.accentSoft,
+  chartAxis: darkPalette.inkTertiary,
+};
+
+const legacyFont = {
+  display: typography.size.display,
+  title: typography.size.title,
+  section: typography.size.title,
+  card: typography.size.card,
+  body: typography.size.body,
+  meta: typography.size.meta,
+  micro: typography.size.micro,
+  weight: {
+    medium: typography.weight.medium,
+    semibold: typography.weight.semibold,
+    bold: typography.weight.semibold,
+  },
+};
+
+const legacyDuration = {
+  fast: motion.duration.fast,
+  normal: motion.duration.base,
+  slow: motion.duration.slow,
+};
+
+export const theme = {
+  color: legacyColors,
+  space,
+  radius,
+  font: legacyFont,
+  touch,
+  duration: legacyDuration,
+};
+
+export type Theme = typeof theme;
+
+// ---------------------------------------------------------------------------
+// Legacy named exports consumed by Logo.tsx, Login.tsx, etc.
+// These were top-level exports on the old theme.ts; re-exported here so
+// consumers don't need to change their imports.
+// ---------------------------------------------------------------------------
+
+/** Brand identity — saffron stays on the logo mark only. */
 export const brand = {
   name: 'FlexYug',
   tagline: 'The Strength Era',
@@ -17,120 +104,8 @@ export const brand = {
   cream: '#F8F6F3',
 } as const;
 
-export const colors = {
-  bg: '#F8F6F3',
-  surface: '#FFFFFF',
-  text: '#1C1917',
-  textSecondary: '#78716C',
-  textTertiary: '#A8A29E',
-  textMuted: '#78716C',
-  border: '#F0EEEC',
-  borderStrong: '#E7E5E4',
-  accent: '#1C1917',
-  accentMuted: '#57534E',
-  accentSoft: 'rgba(28, 25, 23, 0.06)',
-  brand: '#E05A2C',
-  brandMuted: '#C24B22',
-  brandSoft: 'rgba(224, 90, 44, 0.08)',
-  onBrand: '#FFFFFF',
-  success: '#16A34A',
-  successSoft: 'rgba(22, 163, 74, 0.08)',
-  danger: '#DC2626',
-  pr: '#E05A2C',
-  prSoft: 'rgba(224, 90, 44, 0.08)',
-  dangerSoft: 'rgba(220, 38, 38, 0.08)',
-  chartAxis: '#A8A29E',
-  onAccent: '#FFFFFF',
-  overlay: 'rgba(0, 0, 0, 0.3)',
-};
+/** Legacy `colors` object (same as theme.color). Kept for Logo.tsx. */
+export const colors = legacyColors;
 
-export const darkColors = {
-  bg: '#1C1917',
-  surface: '#292524',
-  text: '#F5F5F4',
-  textSecondary: '#A8A29E',
-  textTertiary: '#78716C',
-  textMuted: '#A8A29E',
-  border: '#44403C',
-  borderStrong: '#57534E',
-  accent: '#F5F5F4',
-  accentMuted: '#A8A29E',
-  accentSoft: 'rgba(245, 245, 244, 0.08)',
-  brand: '#E8783C',
-  brandMuted: '#E05A2C',
-  brandSoft: 'rgba(232, 120, 60, 0.12)',
-  onBrand: '#FFFFFF',
-  success: '#22C55E',
-  successSoft: 'rgba(34, 197, 94, 0.12)',
-  danger: '#EF4444',
-  pr: '#E8783C',
-  prSoft: 'rgba(232, 120, 60, 0.12)',
-  dangerSoft: 'rgba(239, 68, 68, 0.12)',
-  chartAxis: '#78716C',
-  onAccent: '#1C1917',
-  overlay: 'rgba(0, 0, 0, 0.5)',
-};
-
-export const space = {
-  half: 2,
-  s1: 4,
-  s2: 8,
-  s3: 12,
-  s4: 16,
-  s5: 20,
-  s6: 24,
-  s8: 32,
-  s10: 40,
-  s12: 48,
-  section: 32,
-  page: 20,
-} as const;
-
-export const radius = {
-  sm: 8,
-  md: 12,
-  lg: 16,
-  full: 9999,
-  card: 12,
-  button: 8,
-} as const;
-
-export const font = {
-  display: 34,
-  title: 28,
-  section: 20,
-  card: 16,
-  body: 15,
-  meta: 13,
-  micro: 11,
-  weight: {
-    medium: '500' as const,
-    semibold: '600' as const,
-    bold: '700' as const,
-  },
-} as const;
-
-export const touch = {
-  min: 44,
-  navHeight: 64,
-  cta: 52,
-  avatar: 56,
-  avatarRadius: 28,
-} as const;
-
-export const duration = {
-  fast: 150,
-  normal: 250,
-  slow: 350,
-} as const;
-
-export const theme = {
-  color: colors,
-  space,
-  radius,
-  font,
-  touch,
-  duration,
-};
-
-export type Theme = typeof theme;
+/** Legacy top-level `font` object (same as theme.font). Kept for Logo.tsx. */
+export const font = legacyFont;
