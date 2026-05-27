@@ -275,6 +275,7 @@ export default function WorkoutActiveScreen() {
       />
       <ScrollView contentContainerStyle={styles.scroll}>
         <ActiveSetCard
+          key={currentSet.id}
           exercise={currentEx}
           set={currentSet}
           exerciseIndex={currentExIdx + 1}

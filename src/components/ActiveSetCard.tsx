@@ -1,5 +1,5 @@
-import { useCallback, useState } from 'react';
-import { Pressable, StyleSheet, Text, View } from 'react-native';
+import { useCallback, useEffect, useState } from 'react';
+import { Dimensions, Pressable, StyleSheet, Text, View } from 'react-native';
 import { GestureDetector, Gesture } from 'react-native-gesture-handler';
 import Animated, {
   runOnJS,
@@ -57,6 +57,16 @@ export function ActiveSetCard({
   const thresholdCrossed = useSharedValue(false);
   const COMPLETION_THRESHOLD = 60;
 
+  const screenHeight = Dimensions.get('window').height;
+  const entryY = useSharedValue(screenHeight);
+
+  useEffect(() => {
+    entryY.value = withSpring(0, motion.spring.settle);
+    // Reset translateY whenever a new set mounts
+    translateY.value = 0;
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [set.id]);
+
   const fireThresholdHaptic = useCallback(() => {
     haptics.rigid();
   }, []);
@@ -100,7 +110,7 @@ export function ActiveSetCard({
     });
 
   const animatedStyle = useAnimatedStyle(() => ({
-    transform: [{ translateY: translateY.value }],
+    transform: [{ translateY: translateY.value + entryY.value }],
   }));
 
   const labelStyle = [
