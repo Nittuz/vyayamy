@@ -4,7 +4,7 @@ import { Pressable, StyleSheet, Text, TextInput, View } from 'react-native';
 import { haptics } from '@/ui/haptics';
 import { useTheme } from '@/ui/useTheme';
 
-import { applyStep, formatValue, parseUserInput } from './numericStepper';
+import { applyStep, formatValue, useDebouncedCommit } from './numericStepper';
 
 interface Props {
   value: number | null;
@@ -34,6 +34,7 @@ export function NumericStepper({
 }: Props) {
   const theme = useTheme();
   const [editingText, setEditingText] = useState<string | null>(null);
+  const debounced = useDebouncedCommit(onChange, 250);
   const rampTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const rampIntervalRef = useRef<ReturnType<typeof setInterval> | null>(null);
 
@@ -92,11 +93,9 @@ export function NumericStepper({
   }, [focused, value, onFocus]);
 
   const commitEdit = useCallback(() => {
-    if (editingText == null) return;
-    const parsed = parseUserInput(editingText);
-    onChange(parsed);
+    debounced.flushNow();
     setEditingText(null);
-  }, [editingText, onChange]);
+  }, [debounced]);
 
   const heroSize = size === 'hero' ? theme.font.size.hero : theme.font.size.title;
   const heroTracking = size === 'hero' ? theme.font.tracking.hero : theme.font.tracking.title;
@@ -130,7 +129,10 @@ export function NumericStepper({
       {editingText != null ? (
         <TextInput
           value={editingText}
-          onChangeText={setEditingText}
+          onChangeText={(text) => {
+            setEditingText(text);
+            debounced.bufferKeystroke(text);
+          }}
           onBlur={commitEdit}
           onSubmitEditing={commitEdit}
           autoFocus

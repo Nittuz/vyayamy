@@ -1,8 +1,11 @@
+import { act, renderHook } from '@testing-library/react-native';
+
 import {
   applyStep,
   clampValue,
   formatValue,
   parseUserInput,
+  useDebouncedCommit,
 } from '@/components/numericStepper';
 
 describe('applyStep', () => {
@@ -65,5 +68,90 @@ describe('parseUserInput', () => {
   });
   test('handles leading + trailing whitespace', () => {
     expect(parseUserInput('  185  ')).toBe(185);
+  });
+});
+
+describe('useDebouncedCommit', () => {
+  beforeEach(() => {
+    jest.useFakeTimers();
+  });
+
+  afterEach(() => {
+    jest.useRealTimers();
+  });
+
+  test('does not call onChange until debounce elapses', () => {
+    const onChange = jest.fn();
+    const { result } = renderHook(() => useDebouncedCommit(onChange, 250));
+    act(() => result.current.bufferKeystroke('1'));
+    act(() => result.current.bufferKeystroke('18'));
+    act(() => result.current.bufferKeystroke('185'));
+    expect(onChange).not.toHaveBeenCalled();
+    act(() => {
+      jest.advanceTimersByTime(250);
+    });
+    expect(onChange).toHaveBeenCalledTimes(1);
+    expect(onChange).toHaveBeenCalledWith(185);
+  });
+
+  test('restarts the timer on each keystroke', () => {
+    const onChange = jest.fn();
+    const { result } = renderHook(() => useDebouncedCommit(onChange, 250));
+    act(() => result.current.bufferKeystroke('1'));
+    act(() => {
+      jest.advanceTimersByTime(200);
+    });
+    act(() => result.current.bufferKeystroke('18'));
+    act(() => {
+      jest.advanceTimersByTime(200);
+    });
+    expect(onChange).not.toHaveBeenCalled(); // 400ms total, but reset at 200
+    act(() => {
+      jest.advanceTimersByTime(250);
+    });
+    expect(onChange).toHaveBeenCalledTimes(1);
+    expect(onChange).toHaveBeenCalledWith(18);
+  });
+
+  test('flushNow commits immediately and cancels pending timer', () => {
+    const onChange = jest.fn();
+    const { result } = renderHook(() => useDebouncedCommit(onChange, 250));
+    act(() => result.current.bufferKeystroke('185'));
+    act(() => result.current.flushNow());
+    expect(onChange).toHaveBeenCalledTimes(1);
+    expect(onChange).toHaveBeenCalledWith(185);
+    act(() => {
+      jest.advanceTimersByTime(500);
+    });
+    expect(onChange).toHaveBeenCalledTimes(1); // no double-fire
+  });
+
+  test('empty buffer commits null', () => {
+    const onChange = jest.fn();
+    const { result } = renderHook(() => useDebouncedCommit(onChange, 250));
+    act(() => result.current.bufferKeystroke(''));
+    act(() => result.current.flushNow());
+    expect(onChange).toHaveBeenCalledWith(null);
+  });
+
+  test('invalid text does not commit', () => {
+    const onChange = jest.fn();
+    const { result } = renderHook(() => useDebouncedCommit(onChange, 250));
+    act(() => result.current.bufferKeystroke('abc'));
+    act(() => {
+      jest.advanceTimersByTime(250);
+    });
+    expect(onChange).not.toHaveBeenCalled();
+  });
+
+  test('cancelPending clears the timer without committing', () => {
+    const onChange = jest.fn();
+    const { result } = renderHook(() => useDebouncedCommit(onChange, 250));
+    act(() => result.current.bufferKeystroke('185'));
+    act(() => result.current.cancelPending());
+    act(() => {
+      jest.advanceTimersByTime(500);
+    });
+    expect(onChange).not.toHaveBeenCalled();
   });
 });
