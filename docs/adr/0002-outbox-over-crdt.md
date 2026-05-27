@@ -1,7 +1,7 @@
 # ADR-0002: Outbox over CRDTs and sync frameworks
 
 - **Status:** accepted
-- **Date:** 2025-04 (best estimate; ADR filed retrospectively on 2026-05-26)
+- **Date:** 2026-05 (when src/sync/ landed; ADR filed retrospectively on 2026-05-26)
 
 ## Context
 
@@ -30,5 +30,5 @@ We will record every server-side effect as an explicit row in a local `outbox` t
 - Positive: explicit outbox rows are introspectable — a poisoned row is a visible artifact with a `last_error` we can read.
 - Positive: incremental pull is symmetric and equally explicit ([src/sync/pull.ts](../../src/sync/pull.ts)).
 - Negative: we maintain sync engine code (push, pull, state, conflict rule). When the rules need to evolve, we have to evolve them.
-- Negative: the "drain FIFO" rule is simple but means a poisoned head row could delay later rows; the current implementation uses per-row backoff + skip-and-continue to avoid head-of-line blocking. See [docs/local-first-sync.md](../local-first-sync.md).
+- Negative: the "drain FIFO" rule is simple but means a poisoned head row could delay later rows; the current implementation uses per-row backoff + skip-and-continue to avoid head-of-line blocking. See [ARCHITECTURE.md](../../ARCHITECTURE.md) — Sync Engine → Push.
 - Follow-ups: [ADR-0003](0003-soft-delete-tombstones.md), [ADR-0004](0004-server-owned-updated-at.md).

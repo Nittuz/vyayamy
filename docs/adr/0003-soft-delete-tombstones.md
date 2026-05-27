@@ -1,7 +1,7 @@
 # ADR-0003: Soft-delete tombstones, never hard delete
 
 - **Status:** accepted
-- **Date:** 2025-04 (best estimate; ADR filed retrospectively on 2026-05-26)
+- **Date:** 2026-05 (when migration 00004_sync_support.sql landed; ADR filed retrospectively on 2026-05-26)
 
 ## Context
 
@@ -30,6 +30,6 @@ Application reads filter `WHERE deleted_at IS NULL`. Sync code (pull, RLS polici
 - Positive: deletions propagate across devices via the same incremental-pull machinery as updates. No special case in the sync engine.
 - Positive: accidental deletes are recoverable until a future compaction pass (no such pass exists today; soft-deleted rows live forever).
 - Positive: foreign-key integrity is preserved — a parent's soft-delete is visible to children, but rows still satisfy FK constraints.
-- Negative: storage grows monotonically. No automatic GC of long-tombstoned rows; deferred until volume justifies it (see [docs/local-first-sync.md](../local-first-sync.md) "Intentionally Deferred").
+- Negative: storage grows monotonically. No automatic GC of long-tombstoned rows; deferred until volume justifies the work.
 - Negative: every application query must remember `WHERE deleted_at IS NULL`. This is a convention enforced by review, not by the type system.
 - Follow-ups: [ADR-0004](0004-server-owned-updated-at.md).

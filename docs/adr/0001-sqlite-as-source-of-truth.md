@@ -1,7 +1,7 @@
 # ADR-0001: SQLite as source of truth, not Supabase
 
 - **Status:** accepted
-- **Date:** 2025-04 (best estimate from initial repo history; ADR filed retrospectively on 2026-05-26)
+- **Date:** 2026-05 (when src/sync/ landed; ADR filed retrospectively on 2026-05-26)
 
 ## Context
 

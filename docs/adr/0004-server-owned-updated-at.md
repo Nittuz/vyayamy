@@ -1,7 +1,7 @@
 # ADR-0004: Server-owned `updated_at` (clients never set it)
 
 - **Status:** accepted
-- **Date:** 2025-05 (matches migration `00009_security_hardening.sql`; ADR filed retrospectively on 2026-05-26)
+- **Date:** 2026-05 (matches migration `00009_security_hardening.sql`, landed 2026-05-10; ADR filed retrospectively on 2026-05-26)
 
 ## Context
 
