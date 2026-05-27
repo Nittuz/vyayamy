@@ -65,7 +65,9 @@ CREATE TABLE outbox (
 
 Rules:
 
-- FIFO drain. The push loop reads `ORDER BY id ASC LIMIT 1` and stops on the first failure — order is preserved.
+- FIFO drain. The push loop reads `ORDER BY id ASC LIMIT <BATCH_LIMIT>` (currently 50) and processes the whole batch. Order within a cycle is preserved by the read order.
+- Per-row exponential backoff with skip-and-continue: a non-transient failure increments `attempts` and sets `next_attempt_at = now + min(2^attempts s, 30s)`. The next cycle's read filters on `next_attempt_at <= now`, so a row in its backoff window is left behind — the loop never blocks on the head row.
+- Transient failures (401/403, network/timeout, expired JWT) are not counted against `attempts`. They surface to the UI as `lastError` and retry on the next cycle.
 - `attempts < MAX_ATTEMPTS` (5). After that the row is **poisoned** and stays in the outbox for manual inspection / retry; the UI surfaces this via [src/ui/SyncIndicator.tsx](../src/ui/SyncIndicator.tsx).
 - The outbox is **never** truncated automatically. Draining on success is the only way rows leave.
 
@@ -80,7 +82,7 @@ Rules:
 | `update` | `from(tbl).update(payload).eq('id', row_id)`                    |
 | `delete` | `from(tbl).update({ deleted_at: now }).eq('id', row_id)`        |
 
-On success the outbox row is deleted. On failure `attempts++` and `last_error = <message>`; the loop breaks to preserve ordering. After the drain, `pendingOutbox` and `lastPushedAt` are published to sync state.
+On success the outbox row is deleted. On non-transient failure, `attempts++`, `last_error = <message>`, and `next_attempt_at` is set to the per-row backoff window — the loop continues to the next row rather than breaking. Transient errors (401/403, network, JWT) log `last_error` without incrementing `attempts`. After the drain, `pendingOutbox`, `quarantinedOutbox`, and `lastPushedAt` are published to sync state.
 
 ## Pull
 
@@ -187,8 +189,8 @@ The test backend is [better-sqlite3](https://github.com/WiseLibs/better-sqlite3)
 
 | Item                                             | Why                                                                                       |
 | ------------------------------------------------ | ----------------------------------------------------------------------------------------- |
-| Operation batching within a cycle                | FIFO single-row push is fast enough and trivially correct. Revisit if we measure latency pain. |
-| Retry with exponential backoff                   | Current model: stop on first failure and wait for the next trigger. Simpler to reason about. |
+| Operation batching across rows (single PostgREST round trip) | Per-row drain at BATCH_LIMIT=50 is fast enough today. Revisit if we measure latency pain.    |
 | Automatic poisoned-row dropping                  | We would rather leak a poisoned row forever than discard user data silently. Manual recovery is a future UI task. |
 | Multi-device conflict detection beyond LWW       | Single-user semantics make this noise. Add only when real conflicts appear in production. |
 | Compaction of the outbox on sign-out             | Sign-out flow is not finalized. Keep the data; scrub later.                               |
+| Compaction of long-tombstoned rows               | Soft-deleted rows live forever today. Defer GC until storage volume justifies it; see [ADR-0003](adr/0003-soft-delete-tombstones.md). |
