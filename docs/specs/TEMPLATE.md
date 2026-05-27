@@ -2,7 +2,7 @@
 
 - **Status:** draft | approved | implemented | archived
 - **Date:** YYYY-MM-DD
-- **Related ADRs:** [ADR-NNNN](../adr/NNNN-…md)
+- **Related ADRs:** [ADR-NNNN](../adr/NNNN-slug.md) — or `none`
 
 ## Problem
 
