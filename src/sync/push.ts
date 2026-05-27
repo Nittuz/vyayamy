@@ -41,7 +41,7 @@ interface OutboxRow {
   next_attempt_at: string | null;
 }
 
-const MAX_ATTEMPTS = 5;
+export const MAX_ATTEMPTS = 5;
 const BATCH_LIMIT = 50;
 
 /** Per-table override for upsert conflict target. Defaults to the PK (id). */
