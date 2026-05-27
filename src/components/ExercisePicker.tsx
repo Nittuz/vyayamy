@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react';
 import {
   ActivityIndicator,
+  Dimensions,
   FlatList,
   Modal,
   Pressable,
@@ -9,6 +10,8 @@ import {
   TextInput,
   View,
 } from 'react-native';
+import Animated, { useAnimatedStyle, useSharedValue, withSpring, withTiming } from 'react-native-reanimated';
+import { motion } from '@/ui/motion';
 
 import { useExercisesSearch } from '@/queries/exercises';
 import { theme } from '@/ui/theme';
@@ -34,16 +37,31 @@ export function ExercisePicker({ userId, visible, onClose, onPick }: Props) {
   const debouncedQuery = useDebouncedValue(query, 300);
   const { data, isLoading } = useExercisesSearch(userId, debouncedQuery);
 
+  const screenHeight = Dimensions.get('window').height;
+  const sheetY = useSharedValue(screenHeight);
+
+  useEffect(() => {
+    if (visible) {
+      sheetY.value = withSpring(0, motion.spring.settle);
+    } else {
+      sheetY.value = withTiming(screenHeight, { duration: 220 });
+    }
+  }, [visible, sheetY, screenHeight]);
+
+  const sheetStyle = useAnimatedStyle(() => ({
+    transform: [{ translateY: sheetY.value }],
+  }));
+
   return (
     <Modal
       visible={visible}
-      animationType="slide"
+      animationType="none"
       transparent
       onRequestClose={onClose}
       presentationStyle="overFullScreen"
     >
       <Pressable style={styles.backdrop} onPress={onClose} />
-      <View style={styles.sheet}>
+      <Animated.View style={[styles.sheet, sheetStyle]}>
         <View style={styles.handle} />
         <Text style={styles.title}>Add exercise</Text>
         <TextInput
@@ -79,7 +97,7 @@ export function ExercisePicker({ userId, visible, onClose, onPick }: Props) {
             )}
           />
         )}
-      </View>
+      </Animated.View>
     </Modal>
   );
 }
