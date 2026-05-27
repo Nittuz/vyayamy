@@ -17,6 +17,7 @@ import { AuthProvider } from '@/auth/AuthContext';
 import { supabase } from '@/auth/supabase';
 import { initDb } from '@/db/client';
 import { initErrorReporting } from '@/lib/errorReporting';
+import { hydrateSnapshot } from '@/ui/todaySnapshot';
 import { startSyncEngine, stopSyncEngine } from '@/sync/engine';
 import { ErrorBoundary } from '@/ui/ErrorBoundary';
 import { ToastProvider } from '@/ui/ToastContext';
@@ -71,6 +72,9 @@ export default function RootLayout() {
 
     (async () => {
       try {
+        // Hydrate the Today snapshot in parallel with SQLite init so the first paint
+        // has render-ready state. Don't await — initDb is the gate, hydrate races it.
+        void hydrateSnapshot();
         await Promise.race([
           initDb(),
           new Promise<never>((_, reject) =>

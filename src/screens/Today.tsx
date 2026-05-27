@@ -1,5 +1,5 @@
 import { router } from 'expo-router';
-import { useCallback, useMemo } from 'react';
+import { useCallback, useEffect, useMemo, useRef } from 'react';
 import {
   Pressable,
   SafeAreaView,
@@ -17,6 +17,11 @@ import {
   useRepeatLastWorkout,
 } from '@/queries/repeatLastWorkout';
 import { useActiveWorkout, useRecentWorkouts, useCreateWorkout } from '@/queries/workouts';
+import {
+  getCachedSnapshot,
+  persistSnapshot,
+  type TodaySnapshot,
+} from '@/ui/todaySnapshot';
 import { useToast } from '@/ui/ToastContext';
 import { useTheme } from '@/ui/useTheme';
 
@@ -34,6 +39,51 @@ export default function TodayScreen() {
   const createWorkout = useCreateWorkout(toastError);
 
   const greeting = useMemo(() => greetingFor(new Date()), []);
+
+  // Read the snapshot synchronously at first paint. After live queries land
+  // they override the snapshot view via the normal rendering paths.
+  const initialSnapshot = useRef(getCachedSnapshot()).current;
+
+  // Persist a fresh snapshot whenever all three source queries settle.
+  useEffect(() => {
+    if (
+      activeQuery.isLoading ||
+      lastFinishedQuery.isLoading ||
+      recentQuery.isLoading
+    ) {
+      return;
+    }
+    const state: TodaySnapshot['state'] = activeQuery.data
+      ? 'active'
+      : lastFinishedQuery.data
+        ? 'repeat'
+        : 'empty';
+    const recent = (recentQuery.data ?? []).map((w) => ({
+      id: w.id,
+      title: w.title || 'Workout',
+      daysAgo: daysSince(w.started_at),
+    }));
+    void persistSnapshot({
+      schemaVersion: 1,
+      capturedAt: new Date().toISOString(),
+      state,
+      repeatTitle: lastFinishedQuery.data?.workout.title,
+      repeatDaysAgo: lastFinishedQuery.data
+        ? daysSince(lastFinishedQuery.data.workout.ended_at)
+        : undefined,
+      repeatSeeds: lastFinishedQuery.data?.seeds,
+      recentRows: recent,
+    });
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    // daysSince is a module-scoped pure function — stable reference, safe to omit
+  }, [
+    activeQuery.isLoading,
+    activeQuery.data,
+    lastFinishedQuery.isLoading,
+    lastFinishedQuery.data,
+    recentQuery.isLoading,
+    recentQuery.data,
+  ]);
 
   const onRepeat = useCallback(async () => {
     const id = await repeat.mutateAsync();
@@ -82,7 +132,15 @@ export default function TodayScreen() {
 
         {activeQuery.data ? (
           <ResumeCard onPress={onResume} />
-        ) : lastFinishedQuery.isLoading ? (
+        ) : lastFinishedQuery.isLoading && initialSnapshot?.state === 'repeat' && initialSnapshot.repeatSeeds ? (
+          <RepeatCard
+            title={initialSnapshot.repeatTitle ?? 'Workout'}
+            daysAgo={initialSnapshot.repeatDaysAgo ?? 0}
+            seeds={initialSnapshot.repeatSeeds}
+            loading
+            onPress={() => {/* no-op until live data lands */}}
+          />
+        ) : lastFinishedQuery.isLoading && !initialSnapshot ? (
           <View style={styles.cardSkeleton}>
             <ActivityIndicator color={theme.color.inkSecondary} />
           </View>
