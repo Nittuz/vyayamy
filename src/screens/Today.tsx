@@ -1,123 +1,190 @@
 import { router } from 'expo-router';
-import { useCallback } from 'react';
+import { useCallback, useMemo } from 'react';
 import {
-  ActivityIndicator,
   Pressable,
-  RefreshControl,
   SafeAreaView,
   ScrollView,
   StyleSheet,
   Text,
   View,
+  ActivityIndicator,
 } from 'react-native';
 
 import { useAuth } from '@/auth/useAuth';
-import { formatDuration, formatRelativeDate, getGreeting } from '@/core/format';
-import { useActiveWorkout, useCreateWorkout, useRecentWorkouts } from '@/queries/workouts';
-import { triggerPull } from '@/sync/engine';
-import { SyncIndicator } from '@/ui/SyncIndicator';
+import { RepeatCard } from '@/components/RepeatCard';
+import {
+  useLastFinishedWorkoutWithSeeds,
+  useRepeatLastWorkout,
+} from '@/queries/repeatLastWorkout';
+import { useActiveWorkout, useRecentWorkouts, useCreateWorkout } from '@/queries/workouts';
 import { useToast } from '@/ui/ToastContext';
-import { theme } from '@/ui/theme';
+import { useTheme } from '@/ui/useTheme';
 
 export default function TodayScreen() {
   const { user } = useAuth();
   const userId = user?.id;
   const { showToast } = useToast();
-  const activeQuery = useActiveWorkout(userId);
-  const recentQuery = useRecentWorkouts(userId, 5);
   const toastError = useCallback((msg: string) => showToast(msg, 'error'), [showToast]);
+
+  const theme = useTheme();
+  const activeQuery = useActiveWorkout(userId);
+  const lastFinishedQuery = useLastFinishedWorkoutWithSeeds(userId);
+  const recentQuery = useRecentWorkouts(userId, 3);
+  const repeat = useRepeatLastWorkout(userId, toastError);
   const createWorkout = useCreateWorkout(toastError);
 
-  const onRefresh = useCallback(async () => {
-    await triggerPull();
-    await Promise.all([activeQuery.refetch(), recentQuery.refetch()]);
-  }, [activeQuery, recentQuery]);
+  const greeting = useMemo(() => greetingFor(new Date()), []);
 
-  const onStart = useCallback(async () => {
+  const onRepeat = useCallback(async () => {
+    const id = await repeat.mutateAsync();
+    if (id) router.push('/workout/active');
+  }, [repeat]);
+
+  const onResume = useCallback(() => {
+    router.push('/workout/active');
+  }, []);
+
+  const onBlankStart = useCallback(async () => {
     if (!userId) return;
-    const id = await createWorkout.mutateAsync({ userId, title: 'Workout' });
-    void id;
+    await createWorkout.mutateAsync({ userId, title: 'Workout' });
     router.push('/workout/active');
   }, [createWorkout, userId]);
 
   if (!userId) return null;
 
-  const active = activeQuery.data;
-
   return (
-    <SafeAreaView style={styles.container}>
-      <ScrollView
-        contentContainerStyle={styles.scroll}
-        refreshControl={
-          <RefreshControl
-            refreshing={activeQuery.isRefetching || recentQuery.isRefetching}
-            onRefresh={onRefresh}
-          />
-        }
-      >
-        <View style={styles.headerRow}>
-          <View style={{ flex: 1 }}>
-            <Text style={styles.greeting}>{getGreeting()}</Text>
-            <Text style={styles.title}>Today</Text>
-          </View>
-          <SyncIndicator />
-        </View>
+    <SafeAreaView style={[styles.container, { backgroundColor: theme.color.bg }]}>
+      <ScrollView contentContainerStyle={styles.scroll}>
+        <Text
+          style={[
+            styles.greet,
+            {
+              color: theme.color.inkTertiary,
+              fontFamily: theme.font.family.sansMedium,
+            },
+          ]}
+        >
+          {greeting.toUpperCase()}
+        </Text>
+        <Text
+          style={[
+            styles.titleLine,
+            {
+              color: theme.color.inkHero,
+              fontFamily: theme.font.family.sansSemibold,
+              fontSize: theme.font.size.display,
+              letterSpacing: theme.font.tracking.display,
+            },
+          ]}
+        >
+          {activeQuery.data ? 'Workout in progress.' : 'Ready to lift.'}
+        </Text>
 
-        {active ? (
-          <Pressable
-            onPress={() => router.push('/workout/active')}
-            style={({ pressed }) => [styles.activeCard, pressed && styles.cardPressed]}
-          >
-            <Text style={styles.activeLabel}>Workout in progress</Text>
-            <Text style={styles.activeTitle}>{active.title}</Text>
-            <Text style={styles.activeMeta}>
-              Started {formatRelativeDate(active.started_at).toLowerCase()}
-            </Text>
-            <View style={styles.resumeButton}>
-              <Text style={styles.resumeText}>Resume</Text>
-            </View>
-          </Pressable>
+        {activeQuery.data ? (
+          <ResumeCard onPress={onResume} />
+        ) : lastFinishedQuery.isLoading ? (
+          <View style={styles.cardSkeleton}>
+            <ActivityIndicator color={theme.color.inkSecondary} />
+          </View>
+        ) : lastFinishedQuery.data ? (
+          <RepeatCard
+            title={lastFinishedQuery.data.workout.title}
+            daysAgo={daysSince(lastFinishedQuery.data.workout.ended_at)}
+            seeds={lastFinishedQuery.data.seeds}
+            loading={repeat.isPending}
+            onPress={onRepeat}
+          />
         ) : (
-          <Pressable
-            onPress={onStart}
-            disabled={createWorkout.isPending}
-            style={({ pressed }) => [styles.startCard, pressed && styles.cardPressed]}
-          >
-            <View style={{ flex: 1 }}>
-              <Text style={styles.startTitle}>Start a workout</Text>
-              <Text style={styles.startBody}>Build it as you go, or follow a template.</Text>
-            </View>
-            {createWorkout.isPending ? (
-              <ActivityIndicator color={theme.color.onAccent} />
-            ) : (
-              <Text style={styles.startArrow}>→</Text>
-            )}
-          </Pressable>
+          <EmptyRepeatSlot />
         )}
 
-        <View style={styles.section}>
-          <Text style={styles.sectionTitle}>Recent</Text>
-          {recentQuery.isLoading ? (
-            <ActivityIndicator color={theme.color.textSecondary} />
-          ) : recentQuery.data && recentQuery.data.length > 0 ? (
+        <View style={styles.altRow}>
+          <Pressable
+            onPress={onBlankStart}
+            disabled={createWorkout.isPending || !!activeQuery.data}
+            accessibilityRole="button"
+            style={({ pressed }) => [
+              styles.altBtn,
+              {
+                borderColor: theme.color.borderStrong,
+                opacity: pressed ? 0.7 : activeQuery.data ? 0.3 : 1,
+              },
+            ]}
+          >
+            <Text
+              style={[
+                styles.altBtnText,
+                { color: theme.color.ink, fontFamily: theme.font.family.sansMedium },
+              ]}
+            >
+              + Blank
+            </Text>
+          </Pressable>
+          <Pressable
+            onPress={() => router.push('/profile/plan' as never)}
+            accessibilityRole="button"
+            style={({ pressed }) => [
+              styles.altBtn,
+              {
+                borderColor: theme.color.borderStrong,
+                opacity: pressed ? 0.7 : 1,
+              },
+            ]}
+          >
+            <Text
+              style={[
+                styles.altBtnText,
+                { color: theme.color.ink, fontFamily: theme.font.family.sansMedium },
+              ]}
+            >
+              Templates
+            </Text>
+          </Pressable>
+        </View>
+
+        <View style={styles.recentSection}>
+          <View style={[styles.recentHeader, { borderBottomColor: theme.color.border }]}>
+            <Text
+              style={[
+                styles.recentHeaderText,
+                { color: theme.color.inkTertiary, fontFamily: theme.font.family.sansMedium },
+              ]}
+            >
+              RECENT
+            </Text>
+          </View>
+          {recentQuery.data?.length ? (
             recentQuery.data.map((w) => (
-              <Pressable
+              <View
                 key={w.id}
-                onPress={() => router.push(`/history/${w.id}` as never)}
-                style={({ pressed }) => [styles.recentRow, pressed && styles.cardPressed]}
+                style={[styles.recentRow, { borderBottomColor: theme.color.border }]}
               >
-                <View style={{ flex: 1 }}>
-                  <Text style={styles.recentTitle}>{w.title}</Text>
-                  <Text style={styles.recentMeta}>{formatRelativeDate(w.started_at)}</Text>
-                </View>
-                <Text style={styles.recentDuration}>
-                  {formatDuration(w.started_at, w.ended_at)}
+                <Text
+                  style={[
+                    styles.recentName,
+                    { color: theme.color.ink, fontFamily: theme.font.family.sansMedium },
+                  ]}
+                >
+                  {w.title || 'Workout'}
                 </Text>
-              </Pressable>
+                <Text
+                  style={[
+                    styles.recentMeta,
+                    { color: theme.color.inkSecondary, fontFamily: theme.font.family.mono },
+                  ]}
+                >
+                  {recentMeta(w)}
+                </Text>
+              </View>
             ))
           ) : (
-            <Text style={styles.empty}>
-              No workouts yet. Tap &quot;Start a workout&quot; above to begin.
+            <Text
+              style={[
+                styles.recentEmpty,
+                { color: theme.color.inkTertiary, fontFamily: theme.font.family.sans },
+              ]}
+            >
+              Nothing here yet.
             </Text>
           )}
         </View>
@@ -126,110 +193,191 @@ export default function TodayScreen() {
   );
 }
 
+function ResumeCard({ onPress }: { onPress: () => void }) {
+  const theme = useTheme();
+  return (
+    <Pressable
+      onPress={onPress}
+      accessibilityRole="button"
+      style={({ pressed }) => [
+        styles.card,
+        {
+          backgroundColor: theme.color.accentSoft,
+          borderColor: theme.color.accent,
+          opacity: pressed ? 0.85 : 1,
+        },
+      ]}
+    >
+      <Text
+        style={[
+          styles.cardLabel,
+          { color: theme.color.accent, fontFamily: theme.font.family.sansMedium },
+        ]}
+      >
+        IN PROGRESS
+      </Text>
+      <Text
+        style={[
+          styles.cardTitle,
+          {
+            color: theme.color.inkHero,
+            fontFamily: theme.font.family.sansSemibold,
+            fontSize: theme.font.size.title,
+            letterSpacing: theme.font.tracking.title,
+          },
+        ]}
+      >
+        Resume workout
+      </Text>
+      <Text
+        style={[
+          styles.cardCta,
+          { color: theme.color.accent, fontFamily: theme.font.family.sansMedium },
+        ]}
+      >
+        → Resume
+      </Text>
+    </Pressable>
+  );
+}
+
+function EmptyRepeatSlot() {
+  const theme = useTheme();
+  return (
+    <View
+      style={[
+        styles.card,
+        styles.cardEmpty,
+        {
+          backgroundColor: theme.color.surface,
+          borderColor: theme.color.border,
+        },
+      ]}
+    >
+      <Text
+        style={[
+          styles.cardEmptyBody,
+          { color: theme.color.inkSecondary, fontFamily: theme.font.family.sans },
+        ]}
+      >
+        Your first workout will live here.
+      </Text>
+    </View>
+  );
+}
+
+function greetingFor(now: Date): string {
+  const h = now.getHours();
+  const day = ['Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday'][
+    now.getDay()
+  ];
+  const part = h < 5 ? 'night' : h < 12 ? 'morning' : h < 18 ? 'afternoon' : 'evening';
+  return `${day} ${part}`;
+}
+
+function daysSince(iso: string): number {
+  const then = new Date(iso).getTime();
+  const now = Date.now();
+  return Math.max(0, Math.floor((now - then) / (24 * 60 * 60 * 1000)));
+}
+
+function recentMeta(w: { started_at: string; ended_at: string | null }): string {
+  const d = daysSince(w.started_at);
+  const ago = d === 0 ? 'today' : d === 1 ? '1 day' : `${d} days`;
+  return ago;
+}
+
 const styles = StyleSheet.create({
-  container: { flex: 1, backgroundColor: theme.color.bg },
-  scroll: { padding: theme.space.page, gap: theme.space.s5, paddingBottom: theme.space.s12 },
-  headerRow: { flexDirection: 'row', alignItems: 'flex-end', gap: theme.space.s3 },
-  greeting: {
-    fontSize: theme.font.meta,
-    color: theme.color.textSecondary,
-    marginBottom: theme.space.s1,
+  container: { flex: 1 },
+  scroll: { paddingTop: 8, paddingBottom: 64 },
+  greet: {
+    fontSize: 10,
+    letterSpacing: 1.5,
+    paddingHorizontal: 20,
+    paddingTop: 16,
+    paddingBottom: 4,
   },
-  title: {
-    fontSize: theme.font.display,
-    fontWeight: theme.font.weight.bold,
-    color: theme.color.text,
-    letterSpacing: -0.5,
+  titleLine: {
+    paddingHorizontal: 20,
+    paddingBottom: 24,
   },
-  activeCard: {
-    backgroundColor: theme.color.accent,
-    borderRadius: theme.radius.lg,
-    padding: theme.space.s5,
-    gap: theme.space.s2,
+  card: {
+    marginHorizontal: 16,
+    paddingHorizontal: 20,
+    paddingVertical: 18,
+    borderRadius: 14,
+    borderWidth: 1,
   },
-  activeLabel: {
-    fontSize: theme.font.micro,
-    color: theme.color.onAccent,
-    opacity: 0.7,
-    textTransform: 'uppercase',
-    letterSpacing: 0.5,
-  },
-  activeTitle: {
-    fontSize: theme.font.section,
-    fontWeight: theme.font.weight.semibold,
-    color: theme.color.onAccent,
-  },
-  activeMeta: { fontSize: theme.font.meta, color: theme.color.onAccent, opacity: 0.75 },
-  resumeButton: {
-    alignSelf: 'flex-start',
-    marginTop: theme.space.s3,
-    paddingHorizontal: theme.space.s4,
-    paddingVertical: theme.space.s2,
-    backgroundColor: theme.color.onAccent,
-    borderRadius: theme.radius.full,
-  },
-  resumeText: {
-    color: theme.color.text,
-    fontSize: theme.font.meta,
-    fontWeight: theme.font.weight.semibold,
-  },
-  startCard: {
-    flexDirection: 'row',
+  cardSkeleton: {
+    marginHorizontal: 16,
+    paddingVertical: 40,
     alignItems: 'center',
-    backgroundColor: theme.color.accent,
-    borderRadius: theme.radius.lg,
-    padding: theme.space.s5,
-    gap: theme.space.s3,
   },
-  startTitle: {
-    fontSize: theme.font.section,
-    fontWeight: theme.font.weight.semibold,
-    color: theme.color.onAccent,
+  cardEmpty: {
+    paddingVertical: 32,
+    alignItems: 'center',
   },
-  startBody: {
-    fontSize: theme.font.meta,
-    color: theme.color.onAccent,
-    opacity: 0.75,
-    marginTop: theme.space.s1,
+  cardEmptyBody: {
+    fontSize: 13,
+    textAlign: 'center',
   },
-  startArrow: {
-    fontSize: theme.font.title,
-    color: theme.color.onAccent,
-    opacity: 0.9,
+  cardLabel: {
+    fontSize: 10,
+    letterSpacing: 1.5,
+    textTransform: 'uppercase',
+    marginBottom: 6,
   },
-  cardPressed: { opacity: 0.85 },
-  section: { gap: theme.space.s3 },
-  sectionTitle: {
-    fontSize: theme.font.section,
-    fontWeight: theme.font.weight.semibold,
-    color: theme.color.text,
+  cardTitle: {
+    marginBottom: 14,
+  },
+  cardCta: {
+    fontSize: 13,
+    fontWeight: '500',
+  },
+  altRow: {
+    flexDirection: 'row',
+    gap: 8,
+    paddingHorizontal: 16,
+    marginTop: 16,
+  },
+  altBtn: {
+    flex: 1,
+    paddingVertical: 12,
+    borderRadius: 10,
+    borderWidth: 1,
+    alignItems: 'center',
+  },
+  altBtnText: {
+    fontSize: 12,
+    fontWeight: '500',
+  },
+  recentSection: {
+    marginTop: 32,
+    paddingHorizontal: 20,
+  },
+  recentHeader: {
+    paddingBottom: 10,
+    borderBottomWidth: StyleSheet.hairlineWidth,
+  },
+  recentHeaderText: {
+    fontSize: 10,
+    letterSpacing: 1.5,
+    textTransform: 'uppercase',
   },
   recentRow: {
     flexDirection: 'row',
-    alignItems: 'center',
-    backgroundColor: theme.color.surface,
-    borderRadius: theme.radius.md,
-    paddingVertical: theme.space.s4,
-    paddingHorizontal: theme.space.s4,
-    gap: theme.space.s3,
-    borderWidth: 1,
-    borderColor: theme.color.border,
+    justifyContent: 'space-between',
+    paddingVertical: 14,
+    borderBottomWidth: StyleSheet.hairlineWidth,
   },
-  recentTitle: {
-    fontSize: theme.font.body,
-    fontWeight: theme.font.weight.medium,
-    color: theme.color.text,
+  recentName: {
+    fontSize: 13,
   },
-  recentMeta: { fontSize: theme.font.meta, color: theme.color.textSecondary },
-  recentDuration: {
-    fontSize: theme.font.meta,
-    color: theme.color.textSecondary,
-    fontVariant: ['tabular-nums'],
+  recentMeta: {
+    fontSize: 12,
   },
-  empty: {
-    fontSize: theme.font.body,
-    color: theme.color.textSecondary,
-    padding: theme.space.s4,
-    textAlign: 'center',
+  recentEmpty: {
+    fontSize: 13,
+    paddingVertical: 14,
   },
 });
