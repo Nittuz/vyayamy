@@ -250,4 +250,6 @@ See [ARCHITECTURE.md](ARCHITECTURE.md) for the full design. Key entry points:
 - **Product overview and domain glossary**: [docs/overview.md](docs/overview.md)
 - **Design system**: [docs/design-system.md](docs/design-system.md)
 - **Build and operations**: [docs/operations.md](docs/operations.md)
+- **Architecture decisions**: [docs/adr/](docs/adr/)
+- **Feature specs**: [docs/specs/](docs/specs/)
 - **Agent guardrails**: [AGENTS.md](AGENTS.md) and [.cursor/rules/](.cursor/rules/)
