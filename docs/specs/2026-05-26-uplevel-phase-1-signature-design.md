@@ -1,6 +1,6 @@
 # Uplevel Phase 1 — Signature
 
-- **Status:** approved
+- **Status:** implemented
 - **Date:** 2026-05-26
 - **Related ADRs:** none new; respects [ADR-0001](../adr/0001-sqlite-as-source-of-truth.md) (SQLite source of truth)
 
