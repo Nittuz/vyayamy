@@ -1,5 +1,5 @@
 import { router } from 'expo-router';
-import { useCallback, useEffect, useMemo, useRef } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import {
   Pressable,
   SafeAreaView,
@@ -13,6 +13,8 @@ import { useQueryClient } from '@tanstack/react-query';
 
 import { useAuth } from '@/auth/useAuth';
 import { CollisionSheet } from '@/components/CollisionSheet';
+import { QuarantineBanner } from '@/components/QuarantineBanner';
+import { QuarantineSheet } from '@/components/QuarantineSheet';
 import { RepeatCard } from '@/components/RepeatCard';
 import {
   useLastFinishedWorkoutWithSeeds,
@@ -26,6 +28,7 @@ import {
   persistSnapshot,
   type TodaySnapshot,
 } from '@/ui/todaySnapshot';
+import { getStaleQuarantined, useQuarantined } from '@/sync/quarantine';
 import { useToast } from '@/ui/ToastContext';
 import { useTheme } from '@/ui/useTheme';
 
@@ -44,6 +47,13 @@ export default function TodayScreen() {
   const createWorkout = useCreateWorkout(toastError);
   const collisionsQuery = useActiveWorkoutCollisions(userId);
   const hasCollision = (collisionsQuery.data?.workouts.length ?? 0) >= 2;
+
+  const quarantinedQuery = useQuarantined();
+  const staleQuarantined = useMemo(
+    () => (quarantinedQuery.data ? getStaleQuarantined(quarantinedQuery.data) : []),
+    [quarantinedQuery.data],
+  );
+  const [quarantineSheetOpen, setQuarantineSheetOpen] = useState(false);
 
   const onCollisionResume = useCallback(
     async (workoutId: string) => {
@@ -160,6 +170,11 @@ export default function TodayScreen() {
         >
           {activeQuery.data ? 'Workout in progress.' : 'Ready to lift.'}
         </Text>
+
+        <QuarantineBanner
+          staleCount={staleQuarantined.length}
+          onPress={() => setQuarantineSheetOpen(true)}
+        />
 
         {activeQuery.data ? (
           <ResumeCard onPress={onResume} />
@@ -284,6 +299,12 @@ export default function TodayScreen() {
         details={collisionsQuery.data?.details ?? new Map()}
         onResume={onCollisionResume}
         onDiscard={onCollisionDiscard}
+      />
+      <QuarantineSheet
+        visible={quarantineSheetOpen}
+        rows={quarantinedQuery.data ?? []}
+        onClose={() => setQuarantineSheetOpen(false)}
+        onChanged={() => qc.invalidateQueries({ queryKey: ['outbox', 'quarantined'] })}
       />
     </SafeAreaView>
   );
