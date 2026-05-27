@@ -17,7 +17,10 @@ import { AppState, type NativeEventSubscription } from 'react-native';
 
 import { supabase } from '@/auth/supabase';
 import { resetLocalDb } from '@/db/client';
+import { removeKv } from '@/lib/kvStore';
 import { syncInvalidationRoots } from '@/queries/keys';
+import { clearSnapshot } from '@/ui/todaySnapshot';
+import { REST_TIMER_KEY } from '@/ui/hooks/restTimerPolicy';
 
 import { pullOnce } from './pull';
 import { pushOutbox } from './push';
@@ -87,6 +90,12 @@ async function handleSignOut(): Promise<void> {
     lastPushedAt: null,
     lastPulledAt: null,
   });
+  // Clear Phase 2 KV state so a follow-up sign-in doesn't see the previous
+  // user's Today snapshot or active rest timer.
+  await Promise.all([
+    clearSnapshot(),
+    removeKv(REST_TIMER_KEY),
+  ]);
   client?.clear();
   await resetLocalDb();
 }
