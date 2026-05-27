@@ -1,6 +1,8 @@
 import 'react-native-url-polyfill/auto';
 
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
+import { useFonts as useGeist, Geist_400Regular, Geist_500Medium, Geist_600SemiBold } from '@expo-google-fonts/geist';
+import { GeistMono_400Regular, GeistMono_500Medium } from '@expo-google-fonts/geist-mono';
 import * as Linking from 'expo-linking';
 import { router, Stack } from 'expo-router';
 import * as SplashScreen from 'expo-splash-screen';
@@ -52,6 +54,14 @@ export default function RootLayout() {
   const [bootError, setBootError] = useState<string | null>(null);
   const started = useRef(false);
   const initialUrlConsumed = useRef(false);
+
+  const [fontsLoaded] = useGeist({
+    Geist_400Regular,
+    Geist_500Medium,
+    Geist_600SemiBold,
+    GeistMono_400Regular,
+    GeistMono_500Medium,
+  });
 
   useEffect(() => {
     if (started.current) return;
@@ -127,7 +137,7 @@ export default function RootLayout() {
                 <Stack.Screen name="profile/plan/index" options={planIndexOpts} />
                 <Stack.Screen name="profile/plan/setup" options={planSetupOpts} />
               </Stack>
-              {!ready && !bootError && (
+              {(!ready || !fontsLoaded) && !bootError && (
                 <View style={bootStyles.overlay}>
                   <ActivityIndicator color={theme.color.accent} />
                 </View>
