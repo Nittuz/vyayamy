@@ -1,6 +1,6 @@
 # Uplevel Phase 4 — Dimensions
 
-- **Status:** approved
+- **Status:** implemented
 - **Date:** 2026-05-28
 - **Related ADRs:** none new
 - **Builds on:** [Phase 1 — Signature](2026-05-26-uplevel-phase-1-signature-design.md), [Phase 2 — Trust](2026-05-27-uplevel-phase-2-trust-design.md), [Phase 3 — Restraint](2026-05-27-uplevel-phase-3-restraint-design.md) (all implemented)

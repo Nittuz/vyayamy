@@ -36,7 +36,7 @@ flowchart LR
 | [2026-05-26](2026-05-26-uplevel-phase-1-signature-design.md) | Uplevel Phase 1 — Signature | implemented |
 | [2026-05-27](2026-05-27-uplevel-phase-2-trust-design.md) | Uplevel Phase 2 — Trust | implemented |
 | [2026-05-27](2026-05-27-uplevel-phase-3-restraint-design.md) | Uplevel Phase 3 — Restraint | implemented |
-| [2026-05-28](2026-05-28-uplevel-phase-4-dimensions-design.md) | Uplevel Phase 4 — Dimensions | approved |
+| [2026-05-28](2026-05-28-uplevel-phase-4-dimensions-design.md) | Uplevel Phase 4 — Dimensions | implemented |
 
 ## Template
 
