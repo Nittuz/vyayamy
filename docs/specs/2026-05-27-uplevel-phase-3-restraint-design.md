@@ -1,6 +1,6 @@
 # Uplevel Phase 3 — Restraint
 
-- **Status:** approved
+- **Status:** implemented
 - **Date:** 2026-05-27
 - **Related ADRs:** none new; respects [ADR-0001](../adr/0001-sqlite-as-source-of-truth.md), [ADR-0002](../adr/0002-outbox-over-crdt.md)
 - **Builds on:** [Phase 1 — Signature](2026-05-26-uplevel-phase-1-signature-design.md) (implemented), [Phase 2 — Trust](2026-05-27-uplevel-phase-2-trust-design.md) (implemented)
