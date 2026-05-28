@@ -19,6 +19,7 @@ export interface ExerciseShape {
   exerciseId: string;
   exerciseName: string;
   orderIndex: number;
+  muscleGroup?: string | null; // optional for backwards-compat; Phase 3+ populates it
   sets: SetShape[];
 }
 
@@ -79,4 +80,14 @@ export function completedSetsBeforeCursor(ex: ExerciseShape, cursor: ActiveCurso
   const cursorIdx = ex.sets.findIndex((s) => s.id === cursor.setId);
   if (cursorIdx === -1) return ex.sets.filter((s) => s.completed);
   return ex.sets.slice(0, cursorIdx);
+}
+
+export function findNextExercise(
+  exercises: ExerciseShape[],
+  currentWeId: string,
+): ExerciseShape | null {
+  const idx = exercises.findIndex((e) => e.id === currentWeId);
+  if (idx === -1) return null;
+  if (idx + 1 >= exercises.length) return null;
+  return exercises[idx + 1] ?? null;
 }
