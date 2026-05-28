@@ -1,6 +1,7 @@
 import { useEffect, useRef } from 'react';
 import { Animated, Pressable, StyleSheet, View } from 'react-native';
 
+import { haptics } from '@/ui/haptics';
 import { useTheme } from '@/ui/useTheme';
 
 interface Props {
@@ -8,9 +9,10 @@ interface Props {
   elapsedSeconds: number;
   targetSeconds: number;
   onSkip: () => void;
+  onOpenOverride?: () => void;
 }
 
-export function RestProgressBar({ running, elapsedSeconds, targetSeconds, onSkip }: Props) {
+export function RestProgressBar({ running, elapsedSeconds, targetSeconds, onSkip, onOpenOverride }: Props) {
   const theme = useTheme();
   const widthAnim = useRef(new Animated.Value(0)).current;
 
@@ -23,13 +25,25 @@ export function RestProgressBar({ running, elapsedSeconds, targetSeconds, onSkip
     }).start();
   }, [elapsedSeconds, targetSeconds, widthAnim]);
 
+  const handleTap = () => {
+    haptics.light();
+    onSkip();
+  };
+
+  const handleLongPress = () => {
+    if (!onOpenOverride) return;
+    haptics.medium();
+    onOpenOverride();
+  };
+
   if (!running) return null;
 
   return (
     <Pressable
-      onLongPress={onSkip}
+      onPress={handleTap}
+      onLongPress={handleLongPress}
       delayLongPress={350}
-      accessibilityLabel="Long-press to skip rest"
+      accessibilityLabel="Tap to skip rest, long-press for rest options"
       style={styles.touch}
     >
       <View style={[styles.bar, { backgroundColor: theme.color.border }]}>
