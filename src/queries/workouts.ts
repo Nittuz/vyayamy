@@ -10,6 +10,7 @@ import { enqueueMutation } from '@/db/mutations';
 import type { Workout } from '@/db/types';
 import { nowIso, uuidv4 } from '@/db/uuid';
 import { triggerPush } from '@/sync/engine';
+import { dayOfWeek } from '@/lib/dayOfWeek';
 
 import { queryKeys } from './keys';
 
@@ -63,7 +64,7 @@ export async function createWorkout(args: {
     payload: {
       user_id: args.userId,
       started_at: startedAt,
-      title: args.title ?? 'Workout',
+      title: args.title ?? dayOfWeek(startedAt),
       template_id: args.templateId ?? null,
       ended_at: null,
     },
