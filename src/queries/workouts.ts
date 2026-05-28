@@ -10,6 +10,7 @@ import { enqueueMutation } from '@/db/mutations';
 import type { Workout } from '@/db/types';
 import { nowIso, uuidv4 } from '@/db/uuid';
 import { triggerPush } from '@/sync/engine';
+import { compositionTitle } from '@/lib/compositionTitle';
 import { dayOfWeek } from '@/lib/dayOfWeek';
 
 import { queryKeys } from './keys';
@@ -91,6 +92,40 @@ export async function updateWorkoutTitle(workoutId: string, title: string): Prom
     payload: { title },
   });
   void triggerPush();
+}
+
+/**
+ * Phase 4: when a workout reaches 3+ exercises and the title is still the
+ * default day-of-week, derive a composition title from the exercises'
+ * muscle groups and update once. After this, the title is no longer the
+ * default so subsequent adds short-circuit and never overwrite.
+ */
+export async function maybeUpdateAutoTitle(workoutId: string): Promise<void> {
+  const db = await getDb();
+  const workout = await db.getFirstAsync<{ title: string; started_at: string }>(
+    'SELECT title, started_at FROM workouts WHERE id = ? AND deleted_at IS NULL',
+    [workoutId],
+  );
+  if (!workout) return;
+
+  // Only auto-update when title is still the day-of-week default
+  if (workout.title !== dayOfWeek(workout.started_at)) return;
+
+  const rows = await db.getAllAsync<{ muscle_group: string | null }>(
+    `SELECT e.muscle_group
+       FROM workout_exercises we
+       JOIN exercises e ON e.id = we.exercise_id
+       WHERE we.workout_id = ? AND we.deleted_at IS NULL
+       ORDER BY we.order_index ASC`,
+    [workoutId],
+  );
+
+  if (rows.length < 3) return;
+
+  const composed = compositionTitle(rows.map((r) => r.muscle_group));
+  if (composed === '' || composed === workout.title) return;
+
+  await updateWorkoutTitle(workoutId, composed);
 }
 
 export async function deleteWorkoutLocal(workoutId: string): Promise<void> {

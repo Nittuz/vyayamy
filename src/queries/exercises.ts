@@ -13,6 +13,7 @@ import { uuidv4 } from '@/db/uuid';
 import { triggerPush } from '@/sync/engine';
 import { addSet } from '@/queries/sets';
 
+import { maybeUpdateAutoTitle } from './workouts';
 import { queryKeys } from './keys';
 
 export async function searchExercises(userId: string, query: string, limit = 50): Promise<Exercise[]> {
@@ -121,8 +122,13 @@ export function useAddExerciseToWorkout(onError?: (msg: string) => void) {
   const qc = useQueryClient();
   return useMutation({
     mutationFn: addExerciseToWorkout,
-    onSuccess: (_id, vars) =>
-      qc.invalidateQueries({ queryKey: queryKeys.workouts.withExercises(vars.workoutId) }),
+    onSuccess: async (_id, vars) => {
+      qc.invalidateQueries({ queryKey: queryKeys.workouts.withExercises(vars.workoutId) });
+      // Phase 4: maybe-update title once we have 3+ exercises and the
+      // title is still the day-of-week default
+      await maybeUpdateAutoTitle(vars.workoutId);
+      qc.invalidateQueries({ queryKey: queryKeys.workouts.all });
+    },
     onError: (err) => onError?.(err instanceof Error ? err.message : 'Failed to add exercise'),
   });
 }
