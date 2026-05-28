@@ -25,7 +25,9 @@ import {
 } from '@/components/activeSet';
 import { EditableTitle } from '@/components/EditableTitle';
 import { ExercisePicker } from '@/components/ExercisePicker';
+import { RestOverrideSheet } from '@/components/RestOverrideSheet';
 import { RestProgressBar } from '@/components/RestProgressBar';
+import { SyncErrorStripe } from '@/components/SyncErrorStripe';
 import { useAddExerciseToWorkout } from '@/queries/exercises';
 import { addSet, useUpdateSet } from '@/queries/sets';
 import { useActiveWorkout, useFinishWorkout, useUpdateWorkoutTitle } from '@/queries/workouts';
@@ -34,7 +36,7 @@ import { dayOfWeek } from '@/lib/dayOfWeek';
 import { haptics } from '@/ui/haptics';
 import { useRestTimer } from '@/ui/hooks/useRestTimer';
 import { motion as motionTokens } from '@/ui/motion';
-import { restForMuscleGroup } from '@/ui/restDefaults';
+import { effectiveRest, getOverrides } from '@/ui/restOverrides';
 import { SyncIndicator } from '@/ui/SyncIndicator';
 import { useSyncAwareErrorToast } from '@/ui/ToastContext';
 import { useTheme } from '@/ui/useTheme';
@@ -80,6 +82,16 @@ export default function WorkoutActiveScreen() {
 
   const [pickerOpen, setPickerOpen] = useState(false);
   const [cursor, setCursor] = useState<ActiveCursor | null>(null);
+  const [overrides, setOverridesState] = useState<Record<string, number>>({});
+  const [overrideSheetOpen, setOverrideSheetOpen] = useState(false);
+
+  useEffect(() => {
+    void getOverrides().then(setOverridesState);
+  }, []);
+
+  const reloadOverrides = useCallback(async () => {
+    setOverridesState(await getOverrides());
+  }, []);
 
   // Map query data into the ExerciseShape used by the state machine
   const exercises: ExerciseShape[] = useMemo(() => {
@@ -103,9 +115,8 @@ export default function WorkoutActiveScreen() {
 
   const currentExForRest = cursor ? findExercise(exercises, cursor.weId) : null;
   const restSeconds = useMemo(
-    () => restForMuscleGroup(currentExForRest?.muscleGroup ?? null),
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-    [currentExForRest?.muscleGroup],
+    () => effectiveRest(overrides, currentExForRest?.exerciseId ?? '', currentExForRest?.muscleGroup ?? null),
+    [overrides, currentExForRest?.exerciseId, currentExForRest?.muscleGroup],
   );
   const timer = useRestTimer({ targetSeconds: restSeconds });
 
@@ -368,12 +379,14 @@ export default function WorkoutActiveScreen() {
 
   return (
     <SafeAreaView style={[styles.container, { backgroundColor: theme.color.bg }]}>
+      <SyncErrorStripe />
       <Stack.Screen options={screenOptions} />
       <RestProgressBar
         running={timer.running}
         elapsedSeconds={timer.elapsed}
         targetSeconds={timer.targetSeconds}
         onSkip={timer.stop}
+        onOpenOverride={() => setOverrideSheetOpen(true)}
       />
       <ScrollView contentContainerStyle={styles.scroll}>
         <ActiveSetCard
@@ -411,6 +424,17 @@ export default function WorkoutActiveScreen() {
         onClose={() => setPickerOpen(false)}
         onPick={onAddExercise}
       />
+      {currentEx ? (
+        <RestOverrideSheet
+          visible={overrideSheetOpen}
+          exerciseId={currentEx.exerciseId}
+          exerciseName={currentEx.exerciseName}
+          muscleGroup={currentEx.muscleGroup ?? null}
+          currentOverride={overrides[currentEx.exerciseId] ?? null}
+          onClose={() => setOverrideSheetOpen(false)}
+          onChanged={() => void reloadOverrides()}
+        />
+      ) : null}
     </SafeAreaView>
   );
 }
@@ -435,7 +459,7 @@ const styles = StyleSheet.create({
   container: { flex: 1 },
   center: { alignItems: 'center', justifyContent: 'center', gap: 12 },
   scroll: { paddingBottom: 64 },
-  empty: { fontSize: 14 },
+  empty: { fontSize: 14, lineHeight: 20 },
   linkButton: { padding: 12 },
   linkText: { fontSize: 14 },
   primaryBtn: {
@@ -464,6 +488,7 @@ const styles = StyleSheet.create({
   },
   finishBody: {
     fontSize: 14,
+    lineHeight: 20,
     textAlign: 'center',
   },
 });
