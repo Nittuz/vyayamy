@@ -115,8 +115,11 @@ test('offline workout end-to-end → outbox drain matches local state', async ()
     'SELECT id, completed, weight FROM sets WHERE workout_exercise_id = ? ORDER BY order_index',
     [weId],
   );
-  expect(localSets).toHaveLength(2);
-  expect(localSets.every((s) => s.completed === 1)).toBe(true);
+  // Phase 3: addExerciseToWorkout auto-stages one empty set (order_index 0),
+  // then the two explicit addSet calls add order_index 1 and 2.
+  expect(localSets).toHaveLength(3);
+  // The two explicitly completed sets are completed; the auto-staged set is not.
+  expect(localSets.filter((s) => s.completed === 1)).toHaveLength(2);
 
   const outbox = await db.getAllAsync<{ table_name: string; op: string; row_id: string }>(
     'SELECT table_name, op, row_id FROM outbox ORDER BY id ASC',

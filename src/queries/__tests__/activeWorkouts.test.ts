@@ -49,8 +49,10 @@ test('detects 2 unfinished workouts with details', async () => {
 
   const result = await getActiveWorkoutCollisions(USER_ID);
   expect(result.workouts).toHaveLength(2);
-  expect(result.details.get(w1)).toEqual({ setCount: 2, exerciseCount: 1 });
-  expect(result.details.get(w2)).toEqual({ setCount: 1, exerciseCount: 1 });
+  // Phase 3: addExerciseToWorkout auto-stages one set, so each explicit addSet
+  // call adds to that baseline (we1: 1 auto + 2 explicit = 3; we2: 1 auto + 1 explicit = 2).
+  expect(result.details.get(w1)).toEqual({ setCount: 3, exerciseCount: 1 });
+  expect(result.details.get(w2)).toEqual({ setCount: 2, exerciseCount: 1 });
 });
 
 test('returns workouts ordered by started_at DESC', async () => {

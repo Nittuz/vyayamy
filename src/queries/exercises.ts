@@ -11,6 +11,7 @@ import { enqueueMutation } from '@/db/mutations';
 import type { Exercise } from '@/db/types';
 import { uuidv4 } from '@/db/uuid';
 import { triggerPush } from '@/sync/engine';
+import { addSet } from '@/queries/sets';
 
 import { queryKeys } from './keys';
 
@@ -101,6 +102,9 @@ export async function addExerciseToWorkout(args: {
     );
   });
   void triggerPush();
+  // Phase 3: every exercise starts with one empty set staged so the user
+  // never sees an empty card. Auto-stage on completion handles subsequent.
+  await addSet(id);
   return id;
 }
 
