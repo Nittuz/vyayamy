@@ -21,10 +21,8 @@ interface Props {
   exerciseIndex: number; // 1-based for display
   totalExercises: number;
   setIndex: number; // 1-based for display
-  totalSetsInExercise: number;
   weightStep: number; // 5 (lb) or 2.5 (kg)
   weightUnit: 'LB' | 'KG';
-  isLastSetOfExercise: boolean;
   ghostSets: SetShape[]; // completed sets before this one in the same exercise
   onChangeWeight: (next: number | null) => void;
   onChangeReps: (next: number | null) => void;
@@ -39,10 +37,8 @@ export function ActiveSetCard({
   exerciseIndex,
   totalExercises,
   setIndex,
-  totalSetsInExercise,
   weightStep,
   weightUnit,
-  isLastSetOfExercise,
   ghostSets,
   onChangeWeight,
   onChangeReps,
@@ -73,10 +69,9 @@ export function ActiveSetCard({
 
   const handleComplete = useCallback(() => {
     if (!canComplete) return;
-    if (isLastSetOfExercise) haptics.medium();
-    else haptics.light();
+    haptics.light();
     onComplete();
-  }, [canComplete, isLastSetOfExercise, onComplete]);
+  }, [canComplete, onComplete]);
 
   const fireCompletion = useCallback(() => {
     handleComplete();
@@ -136,7 +131,7 @@ export function ActiveSetCard({
           {exercise.exerciseName}
         </Text>
 
-        <Text style={labelStyle}>SET {setIndex} OF {totalSetsInExercise}</Text>
+        <Text style={labelStyle}>SET {setIndex}</Text>
 
         <Pressable
           onPress={() => setFocused(null)} // tap empty area clears focus

@@ -2,36 +2,41 @@ import { router, Stack } from 'expo-router';
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import {
   ActivityIndicator,
+  Alert,
   Pressable,
-  SafeAreaView,
   ScrollView,
   StyleSheet,
   Text,
   View,
 } from 'react-native';
 import Animated, { useAnimatedProps, useSharedValue, withTiming, Easing } from 'react-native-reanimated';
-import { motion as motionTokens } from '@/ui/motion';
+import { SafeAreaView } from 'react-native-safe-area-context';
 
 import { useAuth } from '@/auth/useAuth';
 import { ActiveSetCard } from '@/components/ActiveSetCard';
 import {
-  advanceCursor,
   type ActiveCursor,
   completedSetsBeforeCursor,
   type ExerciseShape,
   findExercise,
   findInitialCursor,
+  findNextExercise,
   findSet,
 } from '@/components/activeSet';
+import { EditableTitle } from '@/components/EditableTitle';
 import { ExercisePicker } from '@/components/ExercisePicker';
 import { RestProgressBar } from '@/components/RestProgressBar';
 import { useAddExerciseToWorkout } from '@/queries/exercises';
-import { useAddSet, useUpdateSet } from '@/queries/sets';
-import { useActiveWorkout, useFinishWorkout } from '@/queries/workouts';
+import { addSet, useUpdateSet } from '@/queries/sets';
+import { useActiveWorkout, useFinishWorkout, useUpdateWorkoutTitle } from '@/queries/workouts';
 import { useWorkoutDetail } from '@/queries/workoutDetail';
+import { dayOfWeek } from '@/lib/dayOfWeek';
+import { haptics } from '@/ui/haptics';
 import { useRestTimer } from '@/ui/hooks/useRestTimer';
+import { motion as motionTokens } from '@/ui/motion';
+import { restForMuscleGroup } from '@/ui/restDefaults';
 import { SyncIndicator } from '@/ui/SyncIndicator';
-import { useToast } from '@/ui/ToastContext';
+import { useSyncAwareErrorToast } from '@/ui/ToastContext';
 import { useTheme } from '@/ui/useTheme';
 
 const AnimatedText = Animated.createAnimatedComponent(Text);
@@ -61,20 +66,19 @@ function AnimatedCounter({
 export default function WorkoutActiveScreen() {
   const { user } = useAuth();
   const userId = user?.id;
-  const { showToast } = useToast();
-  const toastError = useCallback((msg: string) => showToast(msg, 'error'), [showToast]);
+  const syncAwareError = useSyncAwareErrorToast();
+  const toastError = useCallback((msg: string) => syncAwareError(msg), [syncAwareError]);
 
   const theme = useTheme();
   const activeQuery = useActiveWorkout(userId);
   const detail = useWorkoutDetail(activeQuery.data?.id);
 
   const addExercise = useAddExerciseToWorkout(toastError);
-  const addSet = useAddSet(toastError);
   const updateSet = useUpdateSet(toastError);
   const finishWorkout = useFinishWorkout(userId, toastError);
+  const updateTitle = useUpdateWorkoutTitle(toastError);
 
   const [pickerOpen, setPickerOpen] = useState(false);
-  const timer = useRestTimer({ targetSeconds: 90 });
   const [cursor, setCursor] = useState<ActiveCursor | null>(null);
 
   // Map query data into the ExerciseShape used by the state machine
@@ -85,6 +89,7 @@ export default function WorkoutActiveScreen() {
       exerciseId: we.exercise_id,
       exerciseName: we.exercise?.name ?? 'Unknown exercise',
       orderIndex: we.order_index,
+      muscleGroup: we.exercise?.muscle_group ?? null,
       sets: (we.sets ?? []).map((s) => ({
         id: s.id,
         weId: we.id,
@@ -95,6 +100,14 @@ export default function WorkoutActiveScreen() {
       })),
     }));
   }, [detail.data]);
+
+  const currentExForRest = cursor ? findExercise(exercises, cursor.weId) : null;
+  const restSeconds = useMemo(
+    () => restForMuscleGroup(currentExForRest?.muscleGroup ?? null),
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    [currentExForRest?.muscleGroup],
+  );
+  const timer = useRestTimer({ targetSeconds: restSeconds });
 
   // Initialize cursor when exercises first load, or reposition when external
   // state changes (e.g. new set added). cursor is read here only to check
@@ -131,16 +144,17 @@ export default function WorkoutActiveScreen() {
 
   const onComplete = useCallback(async () => {
     if (!cursor) return;
+    // Mark the current set complete
     updateSet.mutate({ setId: cursor.setId, weId: cursor.weId, patch: { completed: true } });
     timer.start();
-    const next = advanceCursor(exercises, cursor);
-    if (next === null) {
-      // Workout done — keep user on screen with a Finish CTA (no auto-finish)
-      setCursor(null);
-    } else {
-      setCursor(next);
-    }
-  }, [cursor, exercises, updateSet, timer]);
+    // Auto-stage the next set with the same weight × reps (Phase 3)
+    const currentSetData = currentExForRest && findSet(currentExForRest, cursor.setId);
+    const newSetId = await addSet(cursor.weId, {
+      weight: currentSetData?.weight ?? null,
+      reps: currentSetData?.reps ?? null,
+    });
+    setCursor({ weId: cursor.weId, setId: newSetId });
+  }, [cursor, currentExForRest, updateSet, timer]);
 
   const onFinish = useCallback(async () => {
     if (!activeQuery.data) return;
@@ -158,17 +172,70 @@ export default function WorkoutActiveScreen() {
     [activeQuery.data, addExercise],
   );
 
-  const onAddSet = useCallback(async () => {
-    if (!cursor) return;
-    await addSet.mutateAsync({ weId: cursor.weId });
-  }, [cursor, addSet]);
+  const onNextExercise = useCallback(() => {
+    if (!cursor || !currentExForRest) return;
+    const nextEx = findNextExercise(exercises, cursor.weId);
+    const currentSet = findSet(currentExForRest, cursor.setId);
+    const isUnmodified = !currentSet || (currentSet.weight == null && currentSet.reps == null);
+    const advance = async () => {
+      if (nextEx) {
+        // Find or stage first set of next exercise
+        let nextSetId = nextEx.sets[0]?.id;
+        if (!nextSetId) {
+          nextSetId = await addSet(nextEx.id);
+        }
+        setCursor({ weId: nextEx.id, setId: nextSetId });
+        haptics.medium();
+      } else {
+        setCursor(null); // → finish summary
+        haptics.medium();
+      }
+    };
+    if (isUnmodified) {
+      void advance();
+    } else {
+      Alert.alert('Skip this set?', undefined, [
+        { text: 'Cancel', style: 'cancel' },
+        { text: 'Skip', style: 'destructive', onPress: () => void advance() },
+      ]);
+    }
+  }, [cursor, currentExForRest, exercises]);
+
+  const hasNextExercise = currentExForRest ? findNextExercise(exercises, currentExForRest.id) !== null : false;
+  const nextLabel = hasNextExercise ? 'next →' : 'finish →';
 
   const screenOptions = useMemo(
     () => ({
-      title: (activeQuery.data?.title || 'Workout').toLowerCase(),
-      headerRight: () => <SyncIndicator />,
+      headerTitle: () => (
+        <EditableTitle
+          value={(activeQuery.data?.title || dayOfWeek(new Date())).toString()}
+          onCommit={(next) => {
+            if (activeQuery.data) {
+              updateTitle.mutate({ workoutId: activeQuery.data.id, title: next });
+            }
+          }}
+        />
+      ),
+      headerRight: () => (
+        <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8 }}>
+          {cursor ? (
+            <Pressable onPress={onNextExercise} hitSlop={8} accessibilityRole="button">
+              <Text
+                style={{
+                  color: theme.color.accent,
+                  fontFamily: theme.font.family.sansMedium,
+                  fontSize: 13,
+                }}
+              >
+                {nextLabel}
+              </Text>
+            </Pressable>
+          ) : null}
+          <SyncIndicator />
+        </View>
+      ),
     }),
-    [activeQuery.data?.title],
+    [activeQuery.data, cursor, nextLabel, onNextExercise, theme, updateTitle],
   );
 
   if (!userId) return null;
@@ -297,7 +364,6 @@ export default function WorkoutActiveScreen() {
   const currentSet = findSet(currentEx, cursor.setId)!;
   const currentExIdx = exercises.findIndex((e) => e.id === currentEx.id);
   const currentSetIdx = currentEx.sets.findIndex((s) => s.id === currentSet.id);
-  const isLastSetOfExercise = currentSetIdx === currentEx.sets.length - 1;
   const ghostSets = completedSetsBeforeCursor(currentEx, cursor);
 
   return (
@@ -317,35 +383,27 @@ export default function WorkoutActiveScreen() {
           exerciseIndex={currentExIdx + 1}
           totalExercises={exercises.length}
           setIndex={currentSetIdx + 1}
-          totalSetsInExercise={currentEx.sets.length}
           weightStep={5}
           weightUnit="LB"
-          isLastSetOfExercise={isLastSetOfExercise}
           ghostSets={ghostSets}
           onChangeWeight={onChangeWeight}
           onChangeReps={onChangeReps}
           onComplete={onComplete}
         />
-        <View style={styles.footerActions}>
-          <Pressable
-            onPress={onAddSet}
-            style={({ pressed }) => [
-              styles.secondaryBtn,
-              { borderColor: theme.color.borderStrong, opacity: pressed ? 0.7 : 1 },
-            ]}
+        <Pressable
+          onPress={() => setPickerOpen(true)}
+          style={({ pressed }) => [styles.addExercise, { opacity: pressed ? 0.7 : 1, marginTop: theme.space.s4 }]}
+        >
+          <Text
+            style={{
+              color: theme.color.accent,
+              fontFamily: theme.font.family.sansMedium,
+              fontSize: theme.font.size.body,
+            }}
           >
-            <Text style={[styles.secondaryBtnText, { color: theme.color.ink }]}>+ Add set</Text>
-          </Pressable>
-          <Pressable
-            onPress={() => setPickerOpen(true)}
-            style={({ pressed }) => [
-              styles.secondaryBtn,
-              { borderColor: theme.color.borderStrong, opacity: pressed ? 0.7 : 1 },
-            ]}
-          >
-            <Text style={[styles.secondaryBtnText, { color: theme.color.ink }]}>+ Add exercise</Text>
-          </Pressable>
-        </View>
+            + Add exercise
+          </Text>
+        </Pressable>
       </ScrollView>
       <ExercisePicker
         userId={userId}
@@ -395,11 +453,10 @@ const styles = StyleSheet.create({
     alignItems: 'center',
   },
   secondaryBtnText: { fontSize: 12, fontWeight: '500' },
-  footerActions: {
-    flexDirection: 'row',
-    gap: 8,
+  addExercise: {
+    paddingVertical: 12,
     paddingHorizontal: 20,
-    marginTop: 24,
+    alignItems: 'center',
   },
   finishTitle: {
     fontSize: 24,
