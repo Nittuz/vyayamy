@@ -2,18 +2,27 @@
  * Compact sync-state pill rendered in the header of the active
  * workout and other long-running screens. Reads from the sync state
  * pubsub (no React Query coupling).
+ *
+ * Phase 4: tapping the pill opens SyncDiagnosticsSheet. The diagnostics
+ * sheet's "Review quarantined" link closes itself and opens the
+ * QuarantineSheet (also managed here for self-containment).
  */
-import { useEffect, useState } from 'react';
-import { StyleSheet, Text, View } from 'react-native';
+import { useState } from 'react';
+import { Pressable, StyleSheet, Text, View } from 'react-native';
 
+import { QuarantineSheet } from '@/components/QuarantineSheet';
+import { SyncDiagnosticsSheet } from '@/components/SyncDiagnosticsSheet';
+import { useQuarantined } from '@/sync/quarantine';
 import { deriveSyncState, syncStateLabel } from '@/core/syncHelpers';
-import { getSyncState, subscribeSync, type SyncState as EngineState } from '@/sync/state';
+import { useSyncStateLive } from '@/sync/useSyncStateLive';
 
 import { theme } from './theme';
 
 export function SyncIndicator() {
-  const [state, setState] = useState<EngineState>(() => getSyncState());
-  useEffect(() => subscribeSync(setState), []);
+  const state = useSyncStateLive();
+  const quarantined = useQuarantined();
+  const [diagOpen, setDiagOpen] = useState(false);
+  const [quarOpen, setQuarOpen] = useState(false);
 
   const uiState = deriveSyncState({
     online: state.online,
@@ -27,23 +36,43 @@ export function SyncIndicator() {
   if (!label) return null;
 
   return (
-    <View
-      style={[
-        styles.pill,
-        uiState === 'offline' && styles.pillOffline,
-        uiState === 'error' && styles.pillError,
-      ]}
-    >
-      <View
+    <>
+      <Pressable
+        onPress={() => setDiagOpen(true)}
+        hitSlop={8}
+        accessibilityRole="button"
+        accessibilityLabel="Open sync diagnostics"
         style={[
-          styles.dot,
-          uiState === 'offline' && styles.dotOffline,
-          uiState === 'error' && styles.dotError,
-          uiState === 'saved' && styles.dotSaved,
+          styles.pill,
+          uiState === 'offline' && styles.pillOffline,
+          uiState === 'error' && styles.pillError,
         ]}
+      >
+        <View
+          style={[
+            styles.dot,
+            uiState === 'offline' && styles.dotOffline,
+            uiState === 'error' && styles.dotError,
+            uiState === 'saved' && styles.dotSaved,
+          ]}
+        />
+        <Text style={styles.label}>{label}</Text>
+      </Pressable>
+      <SyncDiagnosticsSheet
+        visible={diagOpen}
+        onClose={() => setDiagOpen(false)}
+        onOpenQuarantine={() => {
+          setDiagOpen(false);
+          setQuarOpen(true);
+        }}
       />
-      <Text style={styles.label}>{label}</Text>
-    </View>
+      <QuarantineSheet
+        visible={quarOpen}
+        rows={quarantined.data ?? []}
+        onClose={() => setQuarOpen(false)}
+        onChanged={() => void quarantined.refetch()}
+      />
+    </>
   );
 }
 
