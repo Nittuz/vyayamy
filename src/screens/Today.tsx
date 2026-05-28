@@ -2,13 +2,13 @@ import { router } from 'expo-router';
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import {
   Pressable,
-  SafeAreaView,
   ScrollView,
   StyleSheet,
   Text,
   View,
   ActivityIndicator,
 } from 'react-native';
+import { SafeAreaView } from 'react-native-safe-area-context';
 import { useQueryClient } from '@tanstack/react-query';
 
 import { useAuth } from '@/auth/useAuth';
@@ -146,6 +146,22 @@ export default function TodayScreen() {
   return (
     <SafeAreaView style={[styles.container, { backgroundColor: theme.color.bg }]}>
       <ScrollView contentContainerStyle={styles.scroll}>
+        <View style={styles.topRow}>
+          <Pressable
+            onPress={() => router.push('/history' as never)}
+            hitSlop={8}
+            accessibilityRole="button"
+          >
+            <Text
+              style={[
+                styles.historyLink,
+                { color: theme.color.inkTertiary, fontFamily: theme.font.family.sansMedium },
+              ]}
+            >
+              history →
+            </Text>
+          </Pressable>
+        </View>
         <Text
           style={[
             styles.greet,
@@ -407,6 +423,16 @@ function recentMeta(w: { started_at: string; ended_at: string | null }): string 
 const styles = StyleSheet.create({
   container: { flex: 1 },
   scroll: { paddingTop: 8, paddingBottom: 64 },
+  topRow: {
+    flexDirection: 'row',
+    justifyContent: 'flex-end',
+    paddingHorizontal: 20,
+    paddingTop: 8,
+  },
+  historyLink: {
+    fontSize: 12,
+    letterSpacing: 0.2,
+  },
   greet: {
     fontSize: 10,
     letterSpacing: 1.5,
