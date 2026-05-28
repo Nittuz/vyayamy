@@ -199,6 +199,7 @@ const styles = StyleSheet.create({
   rowMeta: {
     fontSize: 10,
     letterSpacing: 1.2,
+    lineHeight: 14,
     textTransform: 'uppercase',
     marginBottom: 8,
   },

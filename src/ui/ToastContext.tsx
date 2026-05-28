@@ -95,5 +95,6 @@ const styles = StyleSheet.create({
     color: theme.color.onAccent,
     fontSize: theme.font.meta,
     fontWeight: theme.font.weight.medium,
+    lineHeight: 20,
   },
 });
