@@ -83,6 +83,16 @@ export async function finishWorkout(workoutId: string): Promise<void> {
   void triggerPush();
 }
 
+export async function updateWorkoutTitle(workoutId: string, title: string): Promise<void> {
+  await enqueueMutation({
+    table: 'workouts',
+    op: 'update',
+    rowId: workoutId,
+    payload: { title },
+  });
+  void triggerPush();
+}
+
 export async function deleteWorkoutLocal(workoutId: string): Promise<void> {
   await enqueueMutation({ table: 'workouts', op: 'delete', rowId: workoutId });
   void triggerPush();
@@ -106,5 +116,15 @@ export function useFinishWorkout(userId: string | undefined, onError?: (msg: str
       if (userId) qc.invalidateQueries({ queryKey: queryKeys.history(userId) });
     },
     onError: (err) => onError?.(err instanceof Error ? err.message : 'Failed to finish workout'),
+  });
+}
+
+export function useUpdateWorkoutTitle(onError?: (msg: string) => void) {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: (args: { workoutId: string; title: string }) =>
+      updateWorkoutTitle(args.workoutId, args.title),
+    onSuccess: () => qc.invalidateQueries({ queryKey: queryKeys.workouts.all }),
+    onError: (err) => onError?.(err instanceof Error ? err.message : 'Failed to rename workout'),
   });
 }
