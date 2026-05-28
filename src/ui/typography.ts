@@ -22,7 +22,7 @@ export const fontSize = {
   card: 16,
   body: 14,
   meta: 12,
-  micro: 10,
+  micro: 12,
 } as const;
 
 export const fontWeight = {
