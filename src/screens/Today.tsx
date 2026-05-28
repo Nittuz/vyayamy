@@ -14,6 +14,7 @@ import { useQueryClient } from '@tanstack/react-query';
 import { useAuth } from '@/auth/useAuth';
 import { CollisionSheet } from '@/components/CollisionSheet';
 import { QuarantineBanner } from '@/components/QuarantineBanner';
+import { SyncErrorStripe } from '@/components/SyncErrorStripe';
 import { QuarantineSheet } from '@/components/QuarantineSheet';
 import { RepeatCard } from '@/components/RepeatCard';
 import {
@@ -145,6 +146,7 @@ export default function TodayScreen() {
 
   return (
     <SafeAreaView style={[styles.container, { backgroundColor: theme.color.bg }]}>
+      <SyncErrorStripe />
       <ScrollView contentContainerStyle={styles.scroll}>
         <View style={styles.topRow}>
           <Pressable
@@ -462,6 +464,7 @@ const styles = StyleSheet.create({
   },
   cardEmptyBody: {
     fontSize: 13,
+    lineHeight: 19,
     textAlign: 'center',
   },
   cardLabel: {
@@ -521,6 +524,7 @@ const styles = StyleSheet.create({
   },
   recentEmpty: {
     fontSize: 13,
+    lineHeight: 19,
     paddingVertical: 14,
   },
 });
