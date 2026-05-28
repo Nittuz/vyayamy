@@ -2,6 +2,9 @@ import { createContext, useCallback, useContext, useMemo, useRef, useState } fro
 import { Animated, StyleSheet, Text, View } from 'react-native';
 
 import { theme } from './theme';
+import { isSyncError } from './syncErrors';
+
+export { isSyncError };
 
 type ToastKind = 'info' | 'success' | 'error';
 interface ToastItem {
@@ -56,6 +59,17 @@ export function ToastProvider({ children }: { children: React.ReactNode }) {
         </Animated.View>
       ) : null}
     </ToastContext.Provider>
+  );
+}
+
+export function useSyncAwareErrorToast() {
+  const { showToast } = useToast();
+  return useCallback(
+    (msg: string) => {
+      if (isSyncError(msg)) return;
+      showToast(msg, 'error');
+    },
+    [showToast],
   );
 }
 
