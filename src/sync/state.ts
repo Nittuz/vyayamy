@@ -11,6 +11,7 @@ export interface SyncState {
   lastPushedAt: string | null;
   lastPulledAt: string | null;
   lastError: string | null;
+  lastErrorAt: string | null; // NEW: Phase 4
 }
 
 type Listener = (s: SyncState) => void;
@@ -24,6 +25,7 @@ let state: SyncState = {
   lastPushedAt: null,
   lastPulledAt: null,
   lastError: null,
+  lastErrorAt: null,
 };
 
 const listeners = new Set<Listener>();

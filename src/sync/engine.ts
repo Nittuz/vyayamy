@@ -87,6 +87,7 @@ async function handleSignOut(): Promise<void> {
     pendingOutbox: 0,
     quarantinedOutbox: 0,
     lastError: null,
+    lastErrorAt: null,
     lastPushedAt: null,
     lastPulledAt: null,
   });
@@ -113,10 +114,10 @@ export async function triggerPush(): Promise<void> {
   pushInFlight = true;
   try {
     await pushOutbox();
-    setSyncState({ lastError: null });
+    setSyncState({ lastError: null, lastErrorAt: null });
     invalidateAfterSync();
   } catch (err) {
-    setSyncState({ lastError: errorMessage(err) });
+    setSyncState({ lastError: errorMessage(err), lastErrorAt: new Date().toISOString() });
   } finally {
     pushInFlight = false;
   }
@@ -128,10 +129,10 @@ export async function triggerPull(): Promise<void> {
   pullInFlight = true;
   try {
     await pullOnce();
-    setSyncState({ lastError: null });
+    setSyncState({ lastError: null, lastErrorAt: null });
     invalidateAfterSync();
   } catch (err) {
-    setSyncState({ lastError: errorMessage(err) });
+    setSyncState({ lastError: errorMessage(err), lastErrorAt: new Date().toISOString() });
   } finally {
     pullInFlight = false;
   }
