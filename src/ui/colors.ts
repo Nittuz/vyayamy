@@ -51,7 +51,7 @@ export const lightPalette: PaletteTokens = {
   borderStrong: '#D6CFC0',
   ink: '#1A1F1C',
   inkSecondary: '#5A625C',
-  inkTertiary: '#9CA39E',
+  inkTertiary: '#7E847F',
   inkHero: '#0A0E0B',
   accent: '#3D6E52',
   accentSoft: 'rgba(61, 110, 82, 0.10)',
