@@ -148,7 +148,7 @@ export default function TodayScreen() {
       <ScrollView contentContainerStyle={styles.scroll}>
         <View style={styles.topRow}>
           <Pressable
-            onPress={() => router.push('/history' as never)}
+            onPress={() => router.push('/history')}
             hitSlop={8}
             accessibilityRole="button"
           >

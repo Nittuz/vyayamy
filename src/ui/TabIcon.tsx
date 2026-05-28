@@ -1,6 +1,6 @@
 import Svg, { Circle, Path } from 'react-native-svg';
 
-type Name = 'today' | 'history' | 'progress' | 'profile';
+type Name = 'today' | 'progress' | 'profile';
 
 interface Props {
   name: Name;
@@ -16,17 +16,6 @@ export function TabIcon({ name, color, size = 22 }: Props) {
         <Svg width={size} height={size} viewBox="0 0 24 24" fill="none">
           <Circle cx="12" cy="12" r="9" stroke={color} strokeWidth="1.8" />
           <Path d="M12 7v5l3 2" stroke={color} strokeWidth="1.8" strokeLinecap="round" />
-        </Svg>
-      );
-    case 'history':
-      return (
-        <Svg width={size} height={size} viewBox="0 0 24 24" fill="none">
-          <Path
-            d="M4 6h16M4 12h16M4 18h16"
-            stroke={color}
-            strokeWidth="1.8"
-            strokeLinecap="round"
-          />
         </Svg>
       );
     case 'progress':

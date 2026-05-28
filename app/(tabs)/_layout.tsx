@@ -27,12 +27,6 @@ const todayOptions = {
     <TabIcon name="today" color={color} focused={focused} />
   ),
 };
-const historyOptions = {
-  title: 'History',
-  tabBarIcon: ({ color, focused }: { color: string; focused: boolean }) => (
-    <TabIcon name="history" color={color} focused={focused} />
-  ),
-};
 const progressOptions = {
   title: 'Progress',
   tabBarIcon: ({ color, focused }: { color: string; focused: boolean }) => (
@@ -64,7 +58,6 @@ export default function TabsLayout() {
     <View style={styles.container}>
       <Tabs screenOptions={tabsScreenOptions}>
         <Tabs.Screen name="today" options={todayOptions} />
-        <Tabs.Screen name="history" options={historyOptions} />
         <Tabs.Screen name="progress" options={progressOptions} />
         <Tabs.Screen name="profile" options={profileOptions} />
       </Tabs>
