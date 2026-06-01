@@ -15,6 +15,13 @@ import { useTheme } from '@/ui/useTheme';
 
 import type { ExerciseShape, SetShape } from './activeSet';
 
+/** Live voice state for the inline-morph display. `idle` renders nothing extra. */
+export interface VoiceCardState {
+  phase: 'idle' | 'listening' | 'pending' | 'applied';
+  partial?: string;
+  feedback?: string;
+}
+
 interface Props {
   exercise: ExerciseShape;
   set: SetShape;
@@ -27,6 +34,7 @@ interface Props {
   onChangeWeight: (next: number | null) => void;
   onChangeReps: (next: number | null) => void;
   onComplete: () => void;
+  voice?: VoiceCardState;
 }
 
 type FocusedField = 'weight' | 'reps' | null;
@@ -43,6 +51,7 @@ export function ActiveSetCard({
   onChangeWeight,
   onChangeReps,
   onComplete,
+  voice,
 }: Props) {
   const theme = useTheme();
   const [focused, setFocused] = useState<FocusedField>(null);
@@ -213,6 +222,28 @@ export function ActiveSetCard({
           </>
         ) : null}
 
+        {voice && voice.phase !== 'idle' ? (
+          <View style={styles.voiceRow}>
+            <Text
+              style={[
+                styles.voiceText,
+                {
+                  color: voice.phase === 'applied' ? theme.color.accent : theme.color.inkSecondary,
+                  fontFamily: theme.font.family.sansMedium,
+                },
+              ]}
+            >
+              {voice.phase === 'listening'
+                ? voice.partial
+                  ? `“${voice.partial}”`
+                  : 'Listening…'
+                : voice.phase === 'pending'
+                  ? `Heard ${voice.feedback ?? ''} — say “yes” to confirm`
+                  : `✓ ${voice.feedback ?? ''}`}
+            </Text>
+          </View>
+        ) : null}
+
         <View style={styles.swipeHintRow}>
           <Text
             style={[
@@ -270,4 +301,6 @@ const styles = StyleSheet.create({
   },
   swipeHintRow: { marginTop: 28, alignItems: 'center' },
   swipeHint: { fontSize: 13 },
+  voiceRow: { marginTop: 16, alignItems: 'center' },
+  voiceText: { fontSize: 13, fontStyle: 'italic' },
 });

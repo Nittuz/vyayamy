@@ -28,6 +28,8 @@ import { ExercisePicker } from '@/components/ExercisePicker';
 import { RestOverrideSheet } from '@/components/RestOverrideSheet';
 import { RestProgressBar } from '@/components/RestProgressBar';
 import { SyncErrorStripe } from '@/components/SyncErrorStripe';
+import { VoiceMicButton } from '@/components/VoiceMicButton';
+import { useVoiceSession } from '@/voice/useVoiceSession';
 import { useAddExerciseToWorkout } from '@/queries/exercises';
 import { addSet, useUpdateSet } from '@/queries/sets';
 import { useActiveWorkout, useFinishWorkout, useUpdateWorkoutTitle } from '@/queries/workouts';
@@ -211,6 +213,37 @@ export default function WorkoutActiveScreen() {
       ]);
     }
   }, [cursor, currentExForRest, exercises]);
+
+  const onPrevExercise = useCallback(() => {
+    if (!cursor) return;
+    const idx = exercises.findIndex((e) => e.id === cursor.weId);
+    if (idx <= 0) return;
+    const prev = exercises[idx - 1]!;
+    const setId = prev.sets[0]?.id;
+    if (setId) {
+      setCursor({ weId: prev.id, setId });
+      haptics.medium();
+    }
+  }, [cursor, exercises]);
+
+  // Hands-free voice session. Data commands route through the tested dispatch
+  // layer; "done" reuses the screen's canonical completion (timer + auto-stage);
+  // "finish workout" drops to the existing finish-summary confirm screen.
+  const voice = useVoiceSession({
+    getDispatchContext: () => ({
+      userId: userId ?? '',
+      workoutId: activeQuery.data?.id ?? '',
+      activeWeId: cursor?.weId ?? null,
+      activeSetId: cursor?.setId ?? null,
+      units: 'lb',
+    }),
+    getParserContext: () => ({ units: 'lb', hasActiveExercise: exercises.length > 0 }),
+    onStartRest: () => timer.start(),
+    onNextExercise,
+    onPrevExercise,
+    onFinishWorkout: () => setCursor(null),
+    onCompleteSet: () => void onComplete(),
+  });
 
   const hasNextExercise = currentExForRest ? findNextExercise(exercises, currentExForRest.id) !== null : false;
   const nextLabel = hasNextExercise ? 'next →' : 'finish →';
@@ -420,7 +453,33 @@ export default function WorkoutActiveScreen() {
           onChangeWeight={onChangeWeight}
           onChangeReps={onChangeReps}
           onComplete={onComplete}
+          voice={{
+            phase: voice.ui.phase,
+            partial: voice.ui.phase === 'listening' ? voice.ui.partial : undefined,
+            feedback:
+              voice.ui.phase === 'pending' || voice.ui.phase === 'applied' ? voice.ui.label : undefined,
+          }}
         />
+        <View style={{ marginTop: theme.space.s4, gap: theme.space.s3 }}>
+          <VoiceMicButton
+            phase={!voice.available ? 'disabled' : voice.ui.phase === 'idle' ? 'idle' : 'listening'}
+            onTap={() => (voice.ui.phase === 'idle' ? void voice.start() : voice.stop())}
+            onHoldStart={() => void voice.start()}
+            onHoldEnd={() => voice.stop()}
+          />
+          {voice.ui.phase === 'pending' ? (
+            <Pressable
+              onPress={() => void voice.confirmPending()}
+              accessibilityRole="button"
+              accessibilityLabel="Confirm voice command"
+              style={({ pressed }) => [styles.addExercise, { opacity: pressed ? 0.7 : 1 }]}
+            >
+              <Text style={{ color: theme.color.accent, fontFamily: theme.font.family.sansMedium, fontSize: 13 }}>
+                Confirm
+              </Text>
+            </Pressable>
+          ) : null}
+        </View>
         <Pressable
           onPress={() => setPickerOpen(true)}
           accessibilityRole="button"
