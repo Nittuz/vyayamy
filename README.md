@@ -281,7 +281,7 @@ Submit credentials are read from env vars (`APPLE_ID`, `ASC_APP_ID`, `APPLE_TEAM
 
 Tests run under Node with `ts-jest`. `expo-sqlite` is swapped for an in-memory `better-sqlite3` backend via `moduleNameMapper` in [package.json](package.json), which lets the sync engine and mutation primitive be exercised without an emulator.
 
-The suite is **28 files / 203 tests** spanning the sync engine, query layer, pure domain logic, the voice parser, and UI helpers — a representative slice:
+The suite is **41 files / 309 tests** spanning the sync engine, query layer, pure domain logic, the voice parser, and UI helpers — a representative slice:
 
 | File                                                  | What it covers                                                   |
 | ----------------------------------------------------- | ---------------------------------------------------------------- |
