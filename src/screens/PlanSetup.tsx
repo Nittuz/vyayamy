@@ -22,7 +22,7 @@ import {
   useTemplates,
 } from '@/queries/plans';
 import { type HydratedPreset, useListPlanPresets } from '@/queries/planPresets';
-import { theme } from '@/ui/theme';
+import { useTheme, type Theme } from '@/ui/useTheme';
 
 const DAY_LABELS = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
 
@@ -34,6 +34,8 @@ export default function PlanSetupScreen() {
   const presets = useListPlanPresets();
   const save = useSaveActivePlan();
   const apply = useApplyPresetAndSavePlan();
+  const theme = useTheme();
+  const styles = useMemo(() => makeStyles(theme), [theme]);
 
   const [name, setName] = useState('My plan');
   const [planType, setPlanType] = useState<'weekly' | 'cycle'>('weekly');
@@ -224,7 +226,7 @@ export default function PlanSetupScreen() {
             value={name}
             onChangeText={setName}
             placeholder="My plan"
-            placeholderTextColor={theme.color.textTertiary}
+            placeholderTextColor={theme.color.inkTertiary}
             style={styles.input}
           />
         </View>
@@ -341,13 +343,15 @@ function PresetPicker({
   presets: HydratedPreset[];
   onPick: (p: HydratedPreset) => void;
 }) {
+  const theme = useTheme();
+  const styles = useMemo(() => makeStyles(theme), [theme]);
   const generic = presets.filter((p) => p.preset.tier === 'generic');
   const programs = presets.filter((p) => p.preset.tier === 'program');
 
   if (isLoading) {
     return (
       <View style={[styles.card, styles.presetLoading]}>
-        <ActivityIndicator color={theme.color.textSecondary} />
+        <ActivityIndicator color={theme.color.inkSecondary} />
       </View>
     );
   }
@@ -379,6 +383,8 @@ function PresetGroup({
   items: HydratedPreset[];
   onPick: (p: HydratedPreset) => void;
 }) {
+  const theme = useTheme();
+  const styles = useMemo(() => makeStyles(theme), [theme]);
   return (
     <View style={styles.presetGroup}>
       <Text style={styles.presetGroupTitle}>{title}</Text>
@@ -451,7 +457,8 @@ function buildCycleDraft(n: number): SlotDraft[] {
   }));
 }
 
-const styles = StyleSheet.create({
+const makeStyles = (theme: Theme) =>
+  StyleSheet.create({
   container: { flex: 1, backgroundColor: theme.color.bg },
   scroll: { padding: theme.space.page, gap: theme.space.s4, paddingBottom: theme.space.s12 },
   card: {
@@ -463,10 +470,10 @@ const styles = StyleSheet.create({
     borderColor: theme.color.border,
   },
   label: {
-    fontSize: theme.font.micro,
+    fontSize: theme.font.size.micro,
     textTransform: 'uppercase',
     letterSpacing: 0.5,
-    color: theme.color.textTertiary,
+    color: theme.color.inkTertiary,
     fontWeight: theme.font.weight.medium,
   },
   input: {
@@ -474,8 +481,8 @@ const styles = StyleSheet.create({
     paddingHorizontal: theme.space.s3,
     borderRadius: theme.radius.sm,
     backgroundColor: theme.color.bg,
-    fontSize: theme.font.body,
-    color: theme.color.text,
+    fontSize: theme.font.size.body,
+    color: theme.color.ink,
   },
   segment: {
     flexDirection: 'row',
@@ -491,27 +498,27 @@ const styles = StyleSheet.create({
   },
   segmentButtonActive: { backgroundColor: theme.color.surface },
   segmentText: {
-    fontSize: theme.font.meta,
-    color: theme.color.textSecondary,
+    fontSize: theme.font.size.meta,
+    color: theme.color.inkSecondary,
     fontWeight: theme.font.weight.medium,
   },
-  segmentTextActive: { color: theme.color.text },
+  segmentTextActive: { color: theme.color.ink },
   section: { gap: theme.space.s2 },
   sectionTitle: {
-    fontSize: theme.font.section,
+    fontSize: theme.font.size.title,
     fontWeight: theme.font.weight.semibold,
-    color: theme.color.text,
+    color: theme.color.ink,
     marginTop: theme.space.s2,
   },
   presetSection: { gap: theme.space.s2 },
-  presetIntro: { fontSize: theme.font.meta, color: theme.color.textSecondary },
+  presetIntro: { fontSize: theme.font.size.meta, color: theme.color.inkSecondary },
   presetLoading: { alignItems: 'center', paddingVertical: theme.space.s6 },
   presetGroup: { gap: theme.space.s2, marginTop: theme.space.s2 },
   presetGroupTitle: {
-    fontSize: theme.font.micro,
+    fontSize: theme.font.size.micro,
     textTransform: 'uppercase',
     letterSpacing: 0.5,
-    color: theme.color.textTertiary,
+    color: theme.color.inkTertiary,
     fontWeight: theme.font.weight.medium,
   },
   presetCard: {
@@ -523,14 +530,14 @@ const styles = StyleSheet.create({
     borderColor: theme.color.border,
   },
   presetName: {
-    fontSize: theme.font.card,
+    fontSize: theme.font.size.card,
     fontWeight: theme.font.weight.semibold,
-    color: theme.color.text,
+    color: theme.color.ink,
   },
-  presetBlurb: { fontSize: theme.font.meta, color: theme.color.textSecondary },
+  presetBlurb: { fontSize: theme.font.size.meta, color: theme.color.inkSecondary },
   presetPreview: {
-    fontSize: theme.font.micro,
-    color: theme.color.textTertiary,
+    fontSize: theme.font.size.micro,
+    color: theme.color.inkTertiary,
     marginTop: theme.space.s1,
   },
   stagedBanner: {
@@ -544,16 +551,16 @@ const styles = StyleSheet.create({
     gap: theme.space.s3,
   },
   stagedLabel: {
-    fontSize: theme.font.micro,
+    fontSize: theme.font.size.micro,
     textTransform: 'uppercase',
     letterSpacing: 0.5,
-    color: theme.color.accentMuted,
+    color: theme.color.inkSecondary,
     fontWeight: theme.font.weight.medium,
   },
   stagedName: {
-    fontSize: theme.font.body,
+    fontSize: theme.font.size.body,
     fontWeight: theme.font.weight.semibold,
-    color: theme.color.text,
+    color: theme.color.ink,
     marginTop: 2,
   },
   clearBtn: {
@@ -565,7 +572,7 @@ const styles = StyleSheet.create({
     minHeight: theme.touch.min,
     justifyContent: 'center',
   },
-  clearBtnText: { fontSize: theme.font.meta, color: theme.color.textSecondary },
+  clearBtnText: { fontSize: theme.font.size.meta, color: theme.color.inkSecondary },
   slotCard: {
     backgroundColor: theme.color.surface,
     borderRadius: theme.radius.md,
@@ -577,9 +584,9 @@ const styles = StyleSheet.create({
   slotHeader: { flexDirection: 'row', alignItems: 'center', gap: theme.space.s3 },
   slotHeaderText: {
     flex: 1,
-    fontSize: theme.font.body,
+    fontSize: theme.font.size.body,
     fontWeight: theme.font.weight.semibold,
-    color: theme.color.text,
+    color: theme.color.ink,
   },
   toggle: {
     paddingHorizontal: theme.space.s3,
@@ -591,7 +598,7 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
   },
   toggleOn: { borderColor: theme.color.accent, backgroundColor: theme.color.accent },
-  toggleText: { fontSize: theme.font.meta, color: theme.color.textSecondary },
+  toggleText: { fontSize: theme.font.size.meta, color: theme.color.inkSecondary },
   toggleTextOn: { color: theme.color.onAccent },
   templatePicker: { flexDirection: 'row', flexWrap: 'wrap', gap: theme.space.s2 },
   templatePill: {
@@ -603,7 +610,7 @@ const styles = StyleSheet.create({
     backgroundColor: theme.color.bg,
   },
   templatePillActive: { backgroundColor: theme.color.accent, borderColor: theme.color.accent },
-  templatePillText: { fontSize: theme.font.meta, color: theme.color.textSecondary },
+  templatePillText: { fontSize: theme.font.size.meta, color: theme.color.inkSecondary },
   templatePillTextActive: { color: theme.color.onAccent },
   addDay: {
     padding: theme.space.s3,
@@ -614,8 +621,8 @@ const styles = StyleSheet.create({
     alignItems: 'center',
   },
   addDayText: {
-    fontSize: theme.font.meta,
-    color: theme.color.accentMuted,
+    fontSize: theme.font.size.meta,
+    color: theme.color.inkSecondary,
     fontWeight: theme.font.weight.medium,
   },
   saveBtn: {
@@ -628,7 +635,7 @@ const styles = StyleSheet.create({
   },
   saveBtnText: {
     color: theme.color.onAccent,
-    fontSize: theme.font.card,
+    fontSize: theme.font.size.card,
     fontWeight: theme.font.weight.semibold,
   },
-});
+  });
