@@ -1,5 +1,6 @@
 import { router } from 'expo-router';
 import { safeRoute } from '@/lib/safeRoute';
+import { useMemo } from 'react';
 import {
   ActivityIndicator,
   Pressable,
@@ -12,7 +13,7 @@ import {
 
 import { useAuth } from '@/auth/useAuth';
 import { useActivePlan } from '@/queries/plans';
-import { theme } from '@/ui/theme';
+import { useTheme, type Theme } from '@/ui/useTheme';
 
 const DAY_LABELS = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
 
@@ -20,11 +21,13 @@ export default function TrainingPlanScreen() {
   const { user } = useAuth();
   const userId = user?.id;
   const planQuery = useActivePlan(userId);
+  const theme = useTheme();
+  const styles = useMemo(() => makeStyles(theme), [theme]);
 
   if (planQuery.isLoading) {
     return (
       <SafeAreaView style={[styles.container, styles.center]}>
-        <ActivityIndicator color={theme.color.textSecondary} />
+        <ActivityIndicator color={theme.color.inkSecondary} />
       </SafeAreaView>
     );
   }
@@ -94,17 +97,18 @@ export default function TrainingPlanScreen() {
   );
 }
 
-const styles = StyleSheet.create({
+const makeStyles = (theme: Theme) =>
+  StyleSheet.create({
   container: { flex: 1, backgroundColor: theme.color.bg },
   center: { alignItems: 'center', justifyContent: 'center' },
   scroll: { padding: theme.space.page, gap: theme.space.s4 },
   headerRow: { flexDirection: 'row', alignItems: 'center', gap: theme.space.s3 },
   planName: {
-    fontSize: theme.font.title,
-    fontWeight: theme.font.weight.bold,
-    color: theme.color.text,
+    fontSize: theme.font.size.title,
+    fontWeight: theme.font.weight.semibold,
+    color: theme.color.ink,
   },
-  planType: { fontSize: theme.font.meta, color: theme.color.textSecondary, marginTop: 2 },
+  planType: { fontSize: theme.font.size.meta, color: theme.color.inkSecondary, marginTop: 2 },
   editBtn: {
     paddingHorizontal: theme.space.s4,
     paddingVertical: theme.space.s3,
@@ -116,9 +120,9 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
   },
   editBtnText: {
-    fontSize: theme.font.meta,
+    fontSize: theme.font.size.meta,
     fontWeight: theme.font.weight.medium,
-    color: theme.color.text,
+    color: theme.color.ink,
   },
   slotList: {
     backgroundColor: theme.color.surface,
@@ -136,20 +140,20 @@ const styles = StyleSheet.create({
   },
   slotDay: {
     width: 60,
-    fontSize: theme.font.meta,
-    color: theme.color.textSecondary,
+    fontSize: theme.font.size.meta,
+    color: theme.color.inkSecondary,
     fontWeight: theme.font.weight.medium,
   },
   slotTemplate: {
     flex: 1,
-    fontSize: theme.font.body,
-    color: theme.color.text,
+    fontSize: theme.font.size.body,
+    color: theme.color.ink,
     fontWeight: theme.font.weight.medium,
   },
   slotRest: {
     flex: 1,
-    fontSize: theme.font.body,
-    color: theme.color.textTertiary,
+    fontSize: theme.font.size.body,
+    color: theme.color.inkTertiary,
     fontStyle: 'italic',
   },
   emptyCard: {
@@ -162,13 +166,13 @@ const styles = StyleSheet.create({
     borderColor: theme.color.border,
   },
   emptyTitle: {
-    fontSize: theme.font.section,
+    fontSize: theme.font.size.title,
     fontWeight: theme.font.weight.semibold,
-    color: theme.color.text,
+    color: theme.color.ink,
   },
   emptyBody: {
-    fontSize: theme.font.meta,
-    color: theme.color.textSecondary,
+    fontSize: theme.font.size.meta,
+    color: theme.color.inkSecondary,
     textAlign: 'center',
   },
   primaryBtn: {
@@ -180,7 +184,7 @@ const styles = StyleSheet.create({
   },
   primaryBtnText: {
     color: theme.color.onAccent,
-    fontSize: theme.font.body,
+    fontSize: theme.font.size.body,
     fontWeight: theme.font.weight.semibold,
   },
-});
+  });
