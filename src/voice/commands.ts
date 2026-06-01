@@ -10,6 +10,7 @@ export type Command =
   | { kind: 'startRest'; seconds?: number }
   | { kind: 'finishWorkout' }
   | { kind: 'undo' }
+  | { kind: 'confirm' }
   | { kind: 'stop' };
 
 export type Confidence = 'high' | 'low';

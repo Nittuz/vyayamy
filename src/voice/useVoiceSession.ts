@@ -41,11 +41,13 @@ export function useVoiceSession(deps: VoiceSessionDeps) {
   const engine = deps.engine ?? onDeviceEngine;
   const [ui, setUi] = useState<VoiceUiState>({ phase: 'idle' });
   const lastUndo = useRef<null | (() => Promise<void>)>(null);
+  const pendingRef = useRef<Command | null>(null);
   const timeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   const stop = useCallback(() => {
     if (timeoutRef.current) clearTimeout(timeoutRef.current);
     timeoutRef.current = null;
+    pendingRef.current = null;
     engine.stop();
     setUi({ phase: 'idle' });
   }, [engine]);
@@ -66,6 +68,14 @@ export function useVoiceSession(deps: VoiceSessionDeps) {
     [deps],
   );
 
+  const applyPending = useCallback(async () => {
+    const cmd = pendingRef.current;
+    if (cmd) {
+      pendingRef.current = null;
+      await runDataCommand(cmd);
+    }
+  }, [runDataCommand]);
+
   const handleCommand = useCallback(
     async (command: Command, confidence: 'high' | 'low') => {
       switch (command.kind) {
@@ -79,6 +89,8 @@ export function useVoiceSession(deps: VoiceSessionDeps) {
           setUi({ phase: 'listening', partial: '' });
           return;
         }
+        case 'confirm':
+          return applyPending();
         case 'finishWorkout':
           return deps.onFinishWorkout();
         case 'startRest':
@@ -96,6 +108,7 @@ export function useVoiceSession(deps: VoiceSessionDeps) {
           return runDataCommand(command);
         default: {
           if (confidence === 'low') {
+            pendingRef.current = command;
             setUi({ phase: 'pending', command, label: describe(command) });
             return;
           }
@@ -103,7 +116,7 @@ export function useVoiceSession(deps: VoiceSessionDeps) {
         }
       }
     },
-    [deps, runDataCommand, stop],
+    [deps, runDataCommand, applyPending, stop],
   );
 
   const onFinal = useCallback(
@@ -129,13 +142,9 @@ export function useVoiceSession(deps: VoiceSessionDeps) {
     );
   }, [engine, onFinal, resetSilence, stop]);
 
-  const confirmPending = useCallback(async () => {
-    if (ui.phase === 'pending') await runDataCommand(ui.command);
-  }, [ui, runDataCommand]);
-
   const available = engine.isAvailable();
 
-  return { ui, available, start, stop, confirmPending };
+  return { ui, available, start, stop, confirmPending: applyPending };
 }
 
 function describe(c: Command): string {

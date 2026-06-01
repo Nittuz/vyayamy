@@ -11,6 +11,12 @@ describe('GrammarParser — control & flow', () => {
     expect(parse('undo')!.command).toEqual({ kind: 'undo' });
   });
 
+  test('confirm (yes) for pending commands', () => {
+    expect(parse('yes')!.command).toEqual({ kind: 'confirm' });
+    expect(parse('yep')!.command).toEqual({ kind: 'confirm' });
+    expect(parse('correct')!.command).toEqual({ kind: 'confirm' });
+  });
+
   test('complete set', () => {
     expect(parse('done')!.command).toEqual({ kind: 'completeSet' });
     expect(parse('got it')!.command).toEqual({ kind: 'completeSet' });

@@ -56,6 +56,7 @@ export const GrammarParser: VoiceParser = {
 
     if (/\b(stop|stop listening|cancel)\b/.test(t)) return high({ kind: 'stop' }, transcript);
     if (/\b(undo|scratch that|never mind|delete that)\b/.test(t)) return high({ kind: 'undo' }, transcript);
+    if (/^(yes|yeah|yep|yup|correct|confirm|that's right)$/.test(t)) return high({ kind: 'confirm' }, transcript);
     if (/\b(finish|end)\b.*\bworkout\b|\bend session\b/.test(t)) return high({ kind: 'finishWorkout' }, transcript);
 
     if (/\b(rest|timer)\b/.test(t) && /\b(start|rest|timer|take)\b/.test(t)) {
