@@ -124,10 +124,24 @@ export async function pushOutbox(): Promise<void> {
           // 'upsert' uses the table-specific composite target if set.
           const conflictTarget = UPSERT_CONFLICT_TARGET[row.table_name as SyncedTable];
           const opts = conflictTarget ? { onConflict: conflictTarget } : undefined;
-          const { error } = opts
-            ? await tbl.upsert(payload as never, opts)
-            : await tbl.upsert(payload as never);
-          if (error) throw error;
+          if (opts?.onConflict && opts.onConflict !== 'id') {
+            // Composite-key upsert. Capture the server-returned row id and
+            // reconcile if it differs from the local one (per audit fix #2).
+            const { data: serverRow, error: upsertErr } = await tbl
+              .upsert(payload as never, opts)
+              .select('id')
+              .single();
+            if (upsertErr) throw upsertErr;
+            const serverId = (serverRow as { id?: string } | null)?.id;
+            if (typeof serverId === 'string' && serverId !== row.row_id) {
+              await reconcileLocalRowId(row.table_name, row.row_id, serverId);
+            }
+          } else {
+            const { error } = opts
+              ? await tbl.upsert(payload as never, opts)
+              : await tbl.upsert(payload as never);
+            if (error) throw error;
+          }
         }
 
         await db.runAsync('DELETE FROM outbox WHERE id = ?', [row.id]);
@@ -186,4 +200,24 @@ function errorMessage(err: unknown): string {
     if (typeof m === 'string') return m;
   }
   return String(err);
+}
+
+/** Tables for which reconcileLocalRowId is permitted to run. */
+const RECONCILE_SAFE_TABLES = new Set(['personal_records']);
+
+/**
+ * Update a local row's primary key to match the server-authoritative id
+ * after a composite-key upsert revealed a different id existed.
+ * Done in a transaction so a crash mid-update doesn't leave dangling refs.
+ */
+async function reconcileLocalRowId(
+  table: string,
+  oldId: string,
+  newId: string,
+): Promise<void> {
+  if (!RECONCILE_SAFE_TABLES.has(table)) return;
+  const db = await getDb();
+  await db.withTransactionAsync(async () => {
+    await db.runAsync(`UPDATE ${table} SET id = ? WHERE id = ?`, [newId, oldId]);
+  });
 }
