@@ -59,6 +59,15 @@ const config: ExpoConfig = {
         project: process.env.SENTRY_PROJECT,
       },
     ],
+    [
+      'expo-speech-recognition',
+      {
+        microphonePermission:
+          'FlexYug uses the microphone to log sets by voice during a workout.',
+        speechRecognitionPermission:
+          'FlexYug uses speech recognition to understand your workout commands.',
+      },
+    ],
   ],
   experiments: {
     typedRoutes: true,
