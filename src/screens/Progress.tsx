@@ -15,6 +15,7 @@ import { useAuth } from '@/auth/useAuth';
 import { formatRelativeDate } from '@/core/format';
 import { queryKeys } from '@/queries/keys';
 import { useGroupedPRs, getHeaviestWeightHistory } from '@/queries/personalRecords';
+import { FadeInView } from '@/ui/FadeInView';
 import { LineChart } from '@/ui/LineChart';
 import { SyncIndicator } from '@/ui/SyncIndicator';
 import { useTheme, type Theme } from '@/ui/useTheme';
@@ -87,9 +88,9 @@ export default function ProgressScreen() {
 
             <View style={styles.section}>
               <Text style={styles.sectionTitle}>Personal records</Text>
-              {(prs ?? []).map((g) => (
+              {(prs ?? []).map((g, i) => (
+                <FadeInView key={g.exerciseId} delay={i * 40}>
                 <Pressable
-                  key={g.exerciseId}
                   onPress={() => setSelectedExercise(g.exerciseId)}
                   style={({ pressed }) => [
                     styles.prRow,
@@ -112,6 +113,7 @@ export default function ProgressScreen() {
                     {g.records[0] ? formatRelativeDate(g.records[0].achievedAt) : ''}
                   </Text>
                 </Pressable>
+                </FadeInView>
               ))}
             </View>
           </>

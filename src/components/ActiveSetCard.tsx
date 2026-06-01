@@ -126,7 +126,11 @@ export function ActiveSetCard({
   return (
     <GestureDetector gesture={pan}>
       <Animated.View
-        style={[styles.container, animatedStyle]}
+        style={[
+          styles.container,
+          { backgroundColor: theme.color.surface2, borderColor: theme.color.border },
+          animatedStyle,
+        ]}
         accessibilityLabel={`Set ${setIndex}, ${set.weight ?? 'no weight'} by ${set.reps ?? 'no reps'} reps. Swipe up to complete.`}
         accessibilityHint="Swipe up to mark this set complete"
       >
@@ -261,7 +265,16 @@ export function ActiveSetCard({
 }
 
 const styles = StyleSheet.create({
-  container: { paddingHorizontal: 20, paddingTop: 24, gap: 6 },
+  container: {
+    paddingHorizontal: 20,
+    paddingTop: 24,
+    paddingBottom: 8,
+    gap: 6,
+    marginHorizontal: 16,
+    marginTop: 12,
+    borderRadius: 18,
+    borderWidth: 1,
+  },
   label: {
     fontSize: 10,
     letterSpacing: 1.5,
