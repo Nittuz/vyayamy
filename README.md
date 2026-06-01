@@ -8,6 +8,7 @@ A mobile-only, local-first strength-training journal. Built around one job: **ca
 
 - **Offline-first capture** — every set, rest, and finish is written to SQLite synchronously; the network is a background concern
 - **Workout logging** — start a session from Today, add exercises, record sets (weight + reps), and finish
+- **Hands-free voice logging** — run an entire workout by voice (log sets, complete, add exercises, rest timer, finish) with on-device speech recognition; fully offline. See [Voice logging](#voice-logging-hands-free)
 - **Training plans** — weekly or rotating-cycle schedules of templates; view and edit under Profile → Plan
 - **Repeat workouts** — re-create a past workout with the same exercise lineup
 - **Personal records** — automatic PR detection for heaviest weight, best volume, and most reps at a given weight
@@ -32,6 +33,7 @@ A mobile-only, local-first strength-training journal. Built around one job: **ca
 | Styling            | `StyleSheet.create` + tokens in [src/ui/theme.ts](src/ui/theme.ts) |
 | Charts             | Custom SVG via `react-native-svg` ([src/ui/LineChart.tsx](src/ui/LineChart.tsx)) |
 | Haptics / timers   | `expo-haptics`, `expo-notifications`                 |
+| Voice              | `expo-speech-recognition` (on-device STT) + local grammar parser ([src/voice/](src/voice/)) |
 | Error reporting    | `@sentry/react-native` (gated by DSN)                |
 | Testing            | Jest + `ts-jest`, `better-sqlite3` in-memory mock    |
 | Build / distribution | EAS Build + EAS Submit                             |
@@ -66,6 +68,7 @@ vyayamy/
 │   ├── queries/                    # React Query hooks reading SQLite
 │   ├── screens/                    # Large screen components consumed by app/ routes
 │   ├── sync/                       # engine.ts, push.ts, pull.ts, state.ts
+│   ├── voice/                      # Voice logging: numberWords, grammar, dispatch (pure) + speechEngine, useVoiceSession (native)
 │   ├── ui/                         # theme.ts + shared native UI (ErrorBoundary, LineChart, SyncIndicator, ...)
 │   └── __tests__/                  # Integration tests (offline workout)
 ├── supabase/
@@ -105,6 +108,56 @@ vyayamy/
 | `/login`                      | [src/screens/Login.tsx](src/screens/Login.tsx)               | Magic-link sign-in             |
 
 Bottom nav: Today, Progress, Profile. History opens from the Today header, not a tab.
+
+## Voice logging (hands-free)
+
+Busy, chalky hands mid-set shouldn't have to tap a phone. On the active workout screen ([src/screens/WorkoutActive.tsx](src/screens/WorkoutActive.tsx)) a **mic button** lets you run the whole session by voice.
+
+### How it works
+
+1. **Tap the mic** on the active set card to open a hands-free listening session (or **long-press** for push-to-talk in noisy moments).
+2. Speech is transcribed **on-device** (`expo-speech-recognition`, iOS Speech framework) and parsed by a **local grammar** ([src/voice/grammar.ts](src/voice/grammar.ts)) — no network, works in airplane mode.
+3. Each command maps onto the same local-first mutations the buttons use ([src/voice/dispatch.ts](src/voice/dispatch.ts)), so offline, sync, and undo all behave identically to tapping.
+4. **Confidence-based confirm:** clear commands apply instantly with one-word undo; ambiguous ones (a bare number) ask you to confirm. Unrecognized chatter is ignored, so a gym buddy's "yeah bro" does nothing.
+
+The parser sits behind a `VoiceParser` interface, so a **cloud LLM fallback** for free-form phrasing can drop in later (Phase 2) without touching the engine or UI. Wake word ("Hey Coach") and natural-language history queries are also Phase 2.
+
+### Command vocabulary
+
+| You say | Result |
+| ------- | ------ |
+| "185 for 5", "one eighty-five for five", "185 by 5", "log 135 times 8 reps" | Set weight + reps on the active set |
+| "185", "5 reps" | Set weight only / reps only |
+| "100 kilos for 5" | Weight + reps with an explicit unit |
+| "done", "got it", "complete" | Complete the set and advance |
+| "add a set", "one more" | Stage another set |
+| "add bench press" | Add an exercise (reuses the catalog, else creates it) |
+| "next exercise", "previous exercise" | Move between exercises |
+| "start rest timer", "two minute rest" | Start the rest timer (with optional duration) |
+| "make it 195", "scratch that" / "undo" | Correct a value / undo the last command |
+| "yes" | Confirm a pending (low-confidence) command |
+| "finish workout" | Go to the finish-summary confirm screen |
+| "stop" | End the listening session |
+
+### Running it
+
+Voice needs a **development build** — the speech recognizer is a native module and does not run in Expo Go:
+
+```bash
+npx expo prebuild          # regenerates ios/ with the speech plugin + permissions
+npx expo run:ios           # iOS device or simulator
+```
+
+On first use, grant the **microphone** and **speech recognition** permissions. If permission is denied or the device has no recognizer, the mic shows a disabled state and everything stays tappable — no crash.
+
+### Testing it
+
+The feature is split so the risky logic is fully unit-tested in the Node harness, while the parts that need a device are verified manually:
+
+- **Unit-tested (`npm test`)** — the pure core: `numberWords` (spoken-numeral parsing), `grammar` (command + confidence + chatter guard), and `dispatch` (commands → mutations + undo, against the SQLite mock). See [src/voice/\_\_tests\_\_/](src/voice/__tests__/).
+- **On-device QA** — the native engine (`speechEngine.ts`), the session hook (`useVoiceSession.ts`), and the card UI can't run under `ts-jest`. After `expo run:ios`, walk the checklist in [docs/superpowers/plans/2026-05-31-voice-workout-logging.md](docs/superpowers/plans/2026-05-31-voice-workout-logging.md) (Task 9): permission grant/deny, "one eighty-five for five", "done", "add a set", "two minute rest", a bare-number confirm, "scratch that", chatter ignored, and airplane-mode offline.
+
+Design and plan: [docs/superpowers/specs/2026-05-31-voice-workout-logging-design.md](docs/superpowers/specs/2026-05-31-voice-workout-logging-design.md).
 
 ## Getting Started
 
@@ -228,7 +281,7 @@ Submit credentials are read from env vars (`APPLE_ID`, `ASC_APP_ID`, `APPLE_TEAM
 
 Tests run under Node with `ts-jest`. `expo-sqlite` is swapped for an in-memory `better-sqlite3` backend via `moduleNameMapper` in [package.json](package.json), which lets the sync engine and mutation primitive be exercised without an emulator.
 
-The suite is **24 files / 177 tests** spanning the sync engine, query layer, pure domain logic, and UI helpers — a representative slice:
+The suite is **28 files / 203 tests** spanning the sync engine, query layer, pure domain logic, the voice parser, and UI helpers — a representative slice:
 
 | File                                                  | What it covers                                                   |
 | ----------------------------------------------------- | ---------------------------------------------------------------- |
@@ -236,8 +289,10 @@ The suite is **24 files / 177 tests** spanning the sync engine, query layer, pur
 | [src/__tests__/pull.test.ts](src/__tests__/pull.test.ts) | Incremental pull — column-merge with pending outbox, cursor advance, tombstones |
 | [src/__tests__/sync-state.test.ts](src/__tests__/sync-state.test.ts) | `deriveSyncState` enum reduction                              |
 | [src/core/__tests__/pr-detection.test.ts](src/core/__tests__/pr-detection.test.ts) | Pure PR computation and comparison logic              |
+| [src/voice/__tests__/grammar.setvalues.test.ts](src/voice/__tests__/grammar.setvalues.test.ts) | Voice command parsing — weight/reps, units, confidence |
+| [src/voice/__tests__/dispatch.test.ts](src/voice/__tests__/dispatch.test.ts) | Voice commands → local-first mutations, with undo            |
 
-Run `npm test` to execute every suite.
+Run `npm test` to execute every suite. Note: the voice **native engine and UI** (`src/voice/speechEngine.ts`, `useVoiceSession.ts`, and the card morph) are not unit-tested here — they need a development build and on-device QA (see [Voice logging → Testing it](#testing-it)).
 
 ## Local Supabase (optional)
 
