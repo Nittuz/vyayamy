@@ -66,14 +66,54 @@ export async function retryAllQuarantined(): Promise<void> {
   void triggerPush();
 }
 
+const SAFE_TABLES = new Set([
+  'workouts',
+  'workout_exercises',
+  'sets',
+  'exercises',
+  'personal_records',
+  'templates',
+  'training_plans',
+  'training_plan_slots',
+  'profiles',
+]);
+
 export async function discardQuarantinedRow(id: number): Promise<void> {
   const db = await getDb();
-  await db.runAsync('DELETE FROM outbox WHERE id = ?', [id]);
+  const outboxRow = await db.getFirstAsync<{
+    table_name: string;
+    op: string;
+    row_id: string;
+  }>('SELECT table_name, op, row_id FROM outbox WHERE id = ?', [id]);
+
+  if (!outboxRow) return;
+
+  const { table_name: table, op, row_id: rowId } = outboxRow;
+
+  await db.withTransactionAsync(async () => {
+    await db.runAsync('DELETE FROM outbox WHERE id = ?', [id]);
+
+    if (!SAFE_TABLES.has(table)) return;
+
+    if (op === 'insert' || op === 'upsert') {
+      await db.runAsync(`DELETE FROM ${table} WHERE id = ?`, [rowId]);
+    } else if (op === 'delete') {
+      await db.runAsync(`UPDATE ${table} SET deleted_at = NULL WHERE id = ?`, [rowId]);
+    }
+    // op === 'update': leave local row alone
+  });
 }
 
 export async function discardAllQuarantined(): Promise<void> {
   const db = await getDb();
-  await db.runAsync('DELETE FROM outbox WHERE attempts >= ?', [MAX_ATTEMPTS]);
+  const rows = await db.getAllAsync<{ id: number }>(
+    'SELECT id FROM outbox WHERE attempts >= ?',
+    [MAX_ATTEMPTS],
+  );
+  for (const row of rows) {
+    // eslint-disable-next-line no-await-in-loop
+    await discardQuarantinedRow(row.id);
+  }
 }
 
 export function summarizeRow(row: QuarantinedRow): string {
