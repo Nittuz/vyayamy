@@ -78,7 +78,8 @@ export function ActiveSetCard({
 
   const handleComplete = useCallback(() => {
     if (!canComplete) return;
-    haptics.light();
+    // Medium = "set banked" — the signature complete-set moment's haptic half.
+    haptics.medium();
     onComplete();
   }, [canComplete, onComplete]);
 

@@ -27,6 +27,7 @@ import { EditableTitle } from '@/components/EditableTitle';
 import { ExercisePicker } from '@/components/ExercisePicker';
 import { RestOverrideSheet } from '@/components/RestOverrideSheet';
 import { RestProgressBar } from '@/components/RestProgressBar';
+import { SessionVolumeBar } from '@/components/SessionVolumeBar';
 import { SyncErrorStripe } from '@/components/SyncErrorStripe';
 import { VoiceMicButton } from '@/components/VoiceMicButton';
 import { useVoiceSession } from '@/voice/useVoiceSession';
@@ -444,6 +445,7 @@ export default function WorkoutActiveScreen() {
         onSkip={timer.stop}
         onOpenOverride={() => setOverrideSheetOpen(true)}
       />
+      <SessionVolumeBar volume={totalVolume(exercises)} units={units} />
       <ScrollView contentContainerStyle={styles.scroll}>
         <ActiveSetCard
           key={currentSet.id}
