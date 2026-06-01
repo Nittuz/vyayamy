@@ -44,21 +44,22 @@ There is no custom API server. The mobile client talks to Supabase directly thro
 vyayamy/
 ├── app/                            # Expo Router routes (file-based)
 │   ├── _layout.tsx                 # Root stack + providers + db init + sync engine
+│   ├── index.tsx                   # Entry redirect → /(tabs)/today or /login
 │   ├── login.tsx                   # Magic-link sign-in
 │   ├── +not-found.tsx
 │   ├── (tabs)/                     # Bottom tab group
 │   │   ├── _layout.tsx
 │   │   ├── today.tsx
-│   │   ├── history.tsx
 │   │   ├── progress.tsx
 │   │   └── profile.tsx
+│   ├── history/index.tsx           # Workout history list
 │   ├── history/[id].tsx            # Workout detail
 │   ├── profile/plan/index.tsx      # Training plan view
 │   ├── profile/plan/setup.tsx      # Plan setup wizard
 │   └── workout/active.tsx          # Active workout session
 ├── src/
 │   ├── auth/                       # Supabase client + AuthProvider + useAuth
-│   ├── components/                 # ExerciseBlock, ExercisePicker, SetsTable
+│   ├── components/                 # ActiveSetCard, ExercisePicker, RepeatCard, sync/rest sheets
 │   ├── core/                       # Pure domain logic (PR detection, format, sync helpers)
 │   ├── db/                         # SQLite: schema, client, mutations, uuid, types, mocks
 │   ├── lib/                        # Cross-cutting services (errorReporting, restNotifications)
@@ -68,7 +69,7 @@ vyayamy/
 │   ├── ui/                         # theme.ts + shared native UI (ErrorBoundary, LineChart, SyncIndicator, ...)
 │   └── __tests__/                  # Integration tests (offline workout)
 ├── supabase/
-│   ├── migrations/                 # Numbered SQL migrations (00001 … 00009)
+│   ├── migrations/                 # Numbered SQL migrations (00001 … 00010)
 │   │   ├── 00001_initial_schema.sql
 │   │   ├── 00002_constraints_and_improvements.sql
 │   │   ├── 00003_training_plans.sql
@@ -77,7 +78,8 @@ vyayamy/
 │   │   ├── 00006_plan_presets.sql           # Plan-preset catalog tables (4)
 │   │   ├── 00007_seed_global_exercises.sql
 │   │   ├── 00008_seed_plan_presets.sql
-│   │   └── 00009_security_hardening.sql     # WITH CHECK, server-owned updated_at, search_path
+│   │   ├── 00009_security_hardening.sql     # WITH CHECK, server-owned updated_at, search_path
+│   │   └── 00010_perf_indexes.sql           # Partial perf indexes (PR history, set scans)
 │   ├── config.toml                 # Local Supabase + auth settings
 │   ├── templates/                  # GoTrue email templates
 │   └── seed.sql                    # Bootstrapping data
@@ -93,7 +95,7 @@ vyayamy/
 | Route                         | Screen                                                       | Purpose                        |
 | ----------------------------- | ------------------------------------------------------------ | ------------------------------ |
 | `/(tabs)/today`               | [src/screens/Today.tsx](src/screens/Today.tsx)               | Dashboard, start workout       |
-| `/(tabs)/history`             | [src/screens/History.tsx](src/screens/History.tsx)           | Past workouts list             |
+| `/history`                    | [src/screens/History.tsx](src/screens/History.tsx)           | Past workouts list             |
 | `/(tabs)/progress`            | [src/screens/Progress.tsx](src/screens/Progress.tsx)         | PRs, trend charts, frequency   |
 | `/(tabs)/profile`             | [src/screens/Profile.tsx](src/screens/Profile.tsx)           | Settings, routines, sign out   |
 | `/workout/active`             | [src/screens/WorkoutActive.tsx](src/screens/WorkoutActive.tsx) | Live workout session         |
@@ -102,7 +104,7 @@ vyayamy/
 | `/profile/plan/setup`         | [src/screens/PlanSetup.tsx](src/screens/PlanSetup.tsx)       | Create or edit plan            |
 | `/login`                      | [src/screens/Login.tsx](src/screens/Login.tsx)               | Magic-link sign-in             |
 
-Bottom nav: Today, History, Progress, Profile.
+Bottom nav: Today, Progress, Profile. History opens from the Today header, not a tab.
 
 ## Getting Started
 
@@ -137,6 +139,7 @@ In the Supabase SQL editor (or via the Supabase CLI) run the migrations **in ord
 7. `supabase/migrations/00007_seed_global_exercises.sql` — seeds the global exercise library
 8. `supabase/migrations/00008_seed_plan_presets.sql` — seeds the preset catalog
 9. `supabase/migrations/00009_security_hardening.sql` — **required**; adds `WITH CHECK` to RLS policies, server-owned `updated_at` trigger, locks down `handle_new_user`, FK on `personal_records.set_id`
+10. `supabase/migrations/00010_perf_indexes.sql` — performance indexes for PR-history and set-scan queries (local + server)
 
 In **Project Settings → API**, copy the project URL and anon key.
 
@@ -224,6 +227,8 @@ Submit credentials are read from env vars (`APPLE_ID`, `ASC_APP_ID`, `APPLE_TEAM
 ## Testing
 
 Tests run under Node with `ts-jest`. `expo-sqlite` is swapped for an in-memory `better-sqlite3` backend via `moduleNameMapper` in [package.json](package.json), which lets the sync engine and mutation primitive be exercised without an emulator.
+
+The suite is **24 files / 177 tests** spanning the sync engine, query layer, pure domain logic, and UI helpers — a representative slice:
 
 | File                                                  | What it covers                                                   |
 | ----------------------------------------------------- | ---------------------------------------------------------------- |

@@ -84,6 +84,7 @@ Run in order against your Supabase database:
 7. `supabase/migrations/00007_seed_global_exercises.sql`
 8. `supabase/migrations/00008_seed_plan_presets.sql`
 9. `supabase/migrations/00009_security_hardening.sql` — **required**; locks down RLS (`WITH CHECK`), moves `updated_at` to a server-owned trigger, hardens `handle_new_user`, and adds the missing `personal_records.set_id` FK
+10. `supabase/migrations/00010_perf_indexes.sql` — performance indexes for PR-history (`sets`) and recent-PR (`personal_records`) queries
 
 Optionally run `supabase/seed.sql` for any extra bootstrapping data.
 

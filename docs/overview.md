@@ -23,19 +23,19 @@ Every other design choice — local SQLite as source of truth, background sync, 
 File-based routing under [app/](../app/):
 
 ```
+index            — entry redirect (session → today, else login)
 (tabs)/
   today          — start or resume a workout
-  history        — past sessions grouped by date
   progress       — PRs and per-exercise trend charts
   profile        — settings, templates, plan link, sign out
 workout/active   — live workout session
-history/[id]     — single workout detail
+history/         — list (index) + single workout detail ([id])
 profile/plan/    — training plan view + setup wizard
 login            — OTP sign-in
 +not-found       — catch-all
 ```
 
-Bottom tabs: Today, History, Progress, Profile (4 tabs). The Plan surface lives under Profile and has a dedicated route — elevating it to a top-level tab is a future consideration, not a current commitment.
+Bottom tabs: Today, Progress, Profile (3 tabs). History is a stack route reached from the Today header, not a tab. The Plan surface lives under Profile and has a dedicated route — elevating it to a top-level tab is a future consideration, not a current commitment.
 
 ## Domain Glossary
 
@@ -72,7 +72,7 @@ Every one of those writes is a local SQLite transaction plus an outbox row. The 
 ### Review progress
 
 - **History** lists past workouts grouped by date, filtered by period
-- **History detail** shows the full exercise + sets breakdown and offers "Repeat" (creates a new workout from the same lineup)
+- **History detail** shows the full exercise + sets breakdown for a past session (read-only). Re-creating a past workout is the **Repeat-Last-Workout** card on Today, not an action here
 - **Progress** renders per-exercise trend charts via [src/ui/LineChart.tsx](../src/ui/LineChart.tsx) and a weekly training-frequency view
 
 ### Plan a week
@@ -100,6 +100,6 @@ Instrumentation is currently a no-op vocabulary — connecting a provider is a f
 
 - Multi-user training, coaching, or social features
 - Video or image attachments
-- A large seeded exercise library (users add custom exercises as needed)
-- Dark-mode polish beyond the pre-baked palette
+- A large curated exercise encyclopedia with media/instructions (a base global set is seeded; users add their own movements)
+- Additional themes or per-screen theming beyond the two built-in light/dark palettes
 - A web or desktop client

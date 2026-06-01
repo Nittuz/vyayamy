@@ -59,6 +59,7 @@ CREATE TABLE outbox (
   payload_json TEXT NOT NULL,  -- stringified server payload
   created_at  TEXT NOT NULL,
   attempts    INTEGER NOT NULL DEFAULT 0,
+  next_attempt_at TEXT,            -- backoff gate: a row is read only when next_attempt_at <= now
   last_error  TEXT
 );
 ```
@@ -84,6 +85,18 @@ Rules:
 
 On success the outbox row is deleted. On non-transient failure, `attempts++`, `last_error = <message>`, and `next_attempt_at` is set to the per-row backoff window — the loop continues to the next row rather than breaking. Transient errors (401/403, network, JWT) log `last_error` without incrementing `attempts`. After the drain, `pendingOutbox`, `quarantinedOutbox`, and `lastPushedAt` are published to sync state.
 
+For composite-key upserts (`personal_records`, conflict target `user_id,exercise_id,type`), push reads the server-returned id via `.select('id').single()` and, if it differs from the local UUID, rewrites the local row's primary key through `reconcileLocalRowId()` inside a transaction — preventing post-pull duplicate PRs across devices.
+
+## Quarantine & Recovery
+
+A row that exhausts `MAX_ATTEMPTS` (5) is **quarantined** — it stays in the outbox and is surfaced to the user. [src/sync/quarantine.ts](../src/sync/quarantine.ts) exposes:
+
+- `getQuarantined()` / `useQuarantined()` — list quarantined rows; `getStaleQuarantined()` flags ones older than 24h for the banner.
+- `retryQuarantinedRow(id)` / `retryAllQuarantined()` — reset `attempts` + `next_attempt_at` and re-trigger push.
+- `discardQuarantinedRow(id)` / `discardAllQuarantined()` — drop the outbox row **and** reconcile local state by op, in one transaction: `insert`/`upsert` → delete the local row; `delete` → un-tombstone (`deleted_at = NULL`); `update` → leave the user's edit. A `SAFE_TABLES` allowlist guards the dynamic-table SQL.
+
+The UI surfaces these through `QuarantineBanner` / `QuarantineSheet`.
+
 ## Pull
 
 [src/sync/pull.ts](../src/sync/pull.ts) fetches incremental updates for each synced table.
@@ -91,20 +104,22 @@ On success the outbox row is deleted. On non-transient failure, `attempts++`, `l
 ```mermaid
 flowchart TD
   Start([pullOnce]) --> Tables[for table in SYNCED_TABLES]
-  Tables --> Cursor["SELECT last_pulled_at FROM sync_meta"]
-  Cursor --> Fetch["from(table).select().gt(updated_at, cursor).order().limit(500)"]
-  Fetch --> Skip{pending outbox<br/>for row?}
-  Skip -->|yes| Continue[skip — local wins]
-  Skip -->|no| Upsert[upsert into SQLite]
+  Tables --> Cursor["SELECT last_pulled_at, last_pulled_id FROM sync_meta"]
+  Cursor --> Fetch["keyset fetch by (updated_at, id) > cursor, ordered, limit 500"]
+  Fetch --> Skip{pending outbox op<br/>for row?}
+  Skip -->|insert/upsert/delete| Continue[skip row — local wins]
+  Skip -->|update| Merge[column-merge: keep edited cols, take rest]
+  Skip -->|none| Upsert[upsert all columns into SQLite]
+  Merge --> Advance
   Upsert --> Advance[UPDATE sync_meta]
   Advance --> More{page full?}
   More -->|yes| Fetch
   More -->|no| Next[next table]
 ```
 
-- `sync_meta.last_pulled_at` stores the per-table cursor
+- The per-table cursor is the composite `(last_pulled_at, last_pulled_id)` in `sync_meta`; the fetch uses a keyset `(updated_at, id)` comparison so rows that share an `updated_at` are never skipped
 - Pages of 500 rows; loop until a page is non-full
-- Rows with a matching pending outbox entry are **skipped** on pull — the local write has not yet reached the server, so the server's version is stale
+- Conflict resolution is **column-level**: a pending `insert`/`upsert`/`delete` skips the whole row (local wins until the outbox drains); a pending `update` protects only the columns it touched and merges every other column from the server
 - Tombstones (`deleted_at IS NOT NULL`) are pulled too — this is how deletions propagate
 
 ## Triggers
@@ -113,8 +128,9 @@ The sync engine ([src/sync/engine.ts](../src/sync/engine.ts)) runs a cycle (push
 
 1. **App startup** — `startSyncEngine(queryClient)` in the root layout
 2. **Network regain** — subscribed via `@react-native-community/netinfo`
-3. **Auth change** — after `signInWithOtp` completes and a session appears
-4. **Post-mutation** — callers can invoke `triggerPush()` directly after an `enqueueMutation` for snappier propagation
+3. **App foreground** — an `AppState` change to `active` re-pulls so data refreshes after the app was backgrounded
+4. **Auth change** — a `SIGNED_IN` or `TOKEN_REFRESHED` event re-runs the cycle; `SIGNED_OUT` wipes local data
+5. **Post-mutation** — callers can invoke `triggerPush()` directly after an `enqueueMutation` for snappier propagation
 
 Concurrent cycles are coalesced via `pushInFlight` / `pullInFlight` flags.
 
@@ -128,9 +144,11 @@ interface SyncState {
   pushInFlight: boolean;
   pullInFlight: boolean;
   pendingOutbox: number;
+  quarantinedOutbox: number;
   lastPushedAt: string | null;
   lastPulledAt: string | null;
   lastError: string | null;
+  lastErrorAt: string | null;
 }
 ```
 
@@ -148,12 +166,12 @@ interface SyncState {
 
 Every synced table **must** have:
 
-- `updated_at TIMESTAMPTZ NOT NULL DEFAULT now()` with a `BEFORE UPDATE` trigger calling `public.set_updated_at()`
+- `updated_at TIMESTAMPTZ NOT NULL DEFAULT now()` with a `BEFORE INSERT OR UPDATE` trigger calling `public.touch_updated_at()` (migration `00009` superseded the legacy `BEFORE UPDATE` `set_updated_at()`)
 - `deleted_at TIMESTAMPTZ` nullable (NULL = live row)
 - Index on `updated_at` (`idx_<table>_updated_at`)
 - RLS policies scoped to `auth.uid()` that **do not** filter `deleted_at` — tombstones must be visible to the owner
 
-Template: [supabase/migrations/00004_sync_support.sql](../supabase/migrations/00004_sync_support.sql).
+Template: [supabase/migrations/00009_security_hardening.sql](../supabase/migrations/00009_security_hardening.sql) for the current server-owned `touch_updated_at` trigger (`00004` introduced the original sync columns).
 
 Application reads **must** filter `WHERE deleted_at IS NULL` at the query layer.
 
@@ -161,7 +179,7 @@ Application reads **must** filter `WHERE deleted_at IS NULL` at the query layer.
 
 Worked example for a hypothetical `workout_notes` table:
 
-1. **Postgres migration** — add the table with `updated_at` + `deleted_at`, attach the `set_updated_at` trigger, add the index, define RLS policies scoped to `user_id = auth.uid()`.
+1. **Postgres migration** — add the table with `updated_at` + `deleted_at`, attach the `touch_updated_at` trigger, add the index, define RLS policies (USING + WITH CHECK) scoped to `user_id = auth.uid()`.
 
 2. **Local schema mirror** — in [src/db/schema.ts](../src/db/schema.ts), add the `CREATE TABLE workout_notes (...)` with the same columns (UUIDs as `TEXT`, timestamps as ISO-8601 `TEXT`). Add `'workout_notes'` to `SYNCED_TABLES`.
 
@@ -190,7 +208,6 @@ The test backend is [better-sqlite3](https://github.com/WiseLibs/better-sqlite3)
 | Item                                             | Why                                                                                       |
 | ------------------------------------------------ | ----------------------------------------------------------------------------------------- |
 | Operation batching across rows (single PostgREST round trip) | Per-row drain at BATCH_LIMIT=50 is fast enough today. Revisit if we measure latency pain.    |
-| Automatic poisoned-row dropping                  | We would rather leak a poisoned row forever than discard user data silently. Manual recovery is a future UI task. |
+| Automatic poisoned-row dropping                  | We'd rather leak a poisoned row than silently discard user data. Manual recovery shipped (quarantine banner/sheet: retry or op-aware discard); fully *automatic* dropping stays deferred. |
 | Multi-device conflict detection beyond LWW       | Single-user semantics make this noise. Add only when real conflicts appear in production. |
-| Compaction of the outbox on sign-out             | Sign-out flow is not finalized. Keep the data; scrub later.                               |
 | Compaction of long-tombstoned rows               | Soft-deleted rows live forever today. Defer GC until storage volume justifies it; see [ADR-0003](adr/0003-soft-delete-tombstones.md). |

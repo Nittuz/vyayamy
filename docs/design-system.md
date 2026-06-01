@@ -22,39 +22,39 @@ Priority order — never invert it:
 ## Non-negotiables
 
 - **Single column**, phone-first. No tablet-specific layouts.
-- **Warm neutral palette** — stone/amber tones (`#F8F8F6` bg, `#1C1917` text). No saturated brand colors.
-- **System font** — React Native default (San Francisco on iOS, Roboto on Android). No custom fonts.
+- **Brutalist-lifter palette** — a muted green accent on near-black (dark, the default feel) or warm paper (light), selected by system color scheme. No saturated brand colors. See [src/ui/colors.ts](../src/ui/colors.ts).
+- **Custom fonts** — Geist Sans for chrome/labels, Geist Mono for numerals and data. Loaded via `@expo-google-fonts/geist` + `geist-mono`.
 - **44pt minimum touch target** (`theme.touch.min`) on everything interactive.
 - **Generous whitespace** — when in doubt, add more.
-- **Subtle motion** only — 150 / 250 / 350 ms tokens. No bouncy springs, no particles, no parallax.
+- **Subtle motion** only — 150 / 220 / 320 ms duration tokens (plus a 600ms counter tally) and three damped Reanimated springs (`snappy` / `settle` / `rebound`) used in exactly three interactions. No particles, no parallax.
 - **Progressive disclosure** — primary action first; secondary actions revealed on interaction.
 
 ## Tokens
 
-All values come from [src/ui/theme.ts](../src/ui/theme.ts). Never hard-code colors, spacing, radii, or font sizes.
+Tokens come from the modules under [src/ui/](../src/ui/) — `colors.ts`, `typography.ts`, `motion.ts`, plus the `space` / `radius` / `touch` scales in `useTheme.ts`. Consume them through the `useTheme()` hook (or the legacy `theme.ts` shim). Never hard-code colors, spacing, radii, or font sizes.
 
 ### Color
 
-Two palettes are defined (`colors`, `darkColors`). Only the light palette is active today; dark is kept in sync for a future `useColorScheme()` toggle.
+Defined in [src/ui/colors.ts](../src/ui/colors.ts) as two coordinated `PaletteTokens` palettes — **dark (the default feel)** and **light (warm-paper inverse)**. [src/ui/useTheme.ts](../src/ui/useTheme.ts) selects between them via `useColorScheme()`; the legacy [src/ui/theme.ts](../src/ui/theme.ts) shim is pinned to the dark palette and maps old token names onto these.
 
-| Token              | Light      | Purpose                                       |
-| ------------------ | ---------- | --------------------------------------------- |
-| `bg`               | `#F8F8F6`  | Page background                               |
-| `surface`          | `#FFFFFF`  | Cards, sheets, input fields                   |
-| `text`             | `#1C1917`  | Primary text                                  |
-| `textSecondary`    | `#78716C`  | Supporting text                               |
-| `textTertiary`     | `#A8A29E`  | Labels, hints                                 |
-| `border`           | `#F0EEEC`  | Soft dividers                                 |
-| `borderStrong`     | `#E7E5E4`  | Prominent dividers, toggles                   |
-| `accent`           | `#1C1917`  | Primary action                                |
-| `accentMuted`      | `#57534E`  | Secondary emphasis                            |
-| `accentSoft`       | `rgba(...)` | Subtle highlight                             |
-| `success`          | `#16A34A`  | Set complete, PR success                      |
-| `danger`           | `#DC2626`  | Destructive action, errors                    |
-| `pr`               | `#D97706`  | PR highlight                                  |
-| `chartAxis`        | `#A8A29E`  | Chart lines and axis text                     |
-| `onAccent`         | `#FFFFFF`  | Text on accent background                     |
-| `overlay`          | `rgba(...)` | Modal backdrops                              |
+| Token          | Dark                    | Light                  | Purpose                       |
+| -------------- | ----------------------- | ---------------------- | ----------------------------- |
+| `bg`           | `#0F1411`               | `#F4F1EB`              | Page background               |
+| `surface`      | `#161B18`               | `#FFFFFF`              | Cards, sheets, input fields   |
+| `border`       | `#1A2420`               | `#E5DFD3`              | Soft dividers                 |
+| `borderStrong` | `#1F2925`               | `#D6CFC0`              | Prominent dividers, handles   |
+| `ink`          | `#C9D4CC`               | `#1A1F1C`              | Primary text                  |
+| `inkSecondary` | `#8C9A92`               | `#5A625C`              | Supporting text               |
+| `inkTertiary`  | `#5E6862`               | `#7E847F`              | Labels, hints, chart axes     |
+| `inkHero`      | `#E8F0EA`               | `#0A0E0B`              | Hero numerals (weight × reps) |
+| `accent`       | `#6DA37E`               | `#3D6E52`              | Primary action, success       |
+| `accentSoft`   | `rgba(109,163,126,.12)` | `rgba(61,110,82,.10)`  | Subtle highlight              |
+| `success`      | `#6DA37E`               | `#3D6E52`              | Set complete, PR success      |
+| `successSoft`  | `rgba(109,163,126,.12)` | `rgba(61,110,82,.10)`  | Success wash                  |
+| `danger`       | `#C76B58`               | `#8A4030`              | Destructive action, errors    |
+| `dangerSoft`   | `rgba(199,107,88,.12)`  | `rgba(138,64,48,.10)`  | Error wash                    |
+| `onAccent`     | `#0F1411`               | `#FFFFFF`              | Text on accent background     |
+| `overlay`      | `rgba(0,0,0,.55)`       | `rgba(40,30,20,.30)`   | Modal backdrops               |
 
 ### Space (4pt base)
 
@@ -62,19 +62,19 @@ Two palettes are defined (`colors`, `darkColors`). Only the light palette is act
 
 ### Radius
 
-`sm` (8), `md` (12), `lg` (16), `full` (9999), `card` (12), `button` (8).
+`sm` (8), `md` (12), `lg` (16), `full` (9999), `card` (14), `button` (8).
 
 ### Typography
 
-`display` (34), `title` (28), `section` (20), `card` (16), `body` (15), `meta` (13), `micro` (11). Weights: `medium` (500), `semibold` (600), `bold` (700).
+`hero` (82, Geist Mono numerals), `display` (28), `title` (20), `card` (16), `body` (14), `meta` (12), `micro` (12). Weights: `regular` (400), `medium` (500), `semibold` (600) — there is no 700.
 
 ### Touch
 
-`min` (44), `navHeight` (64).
+`min` (44), `navHeight` (64), `cta` (52), `avatar` (56), `avatarRadius` (28).
 
 ### Duration
 
-`fast` (150), `normal` (250), `slow` (350).
+`fast` (150), `base` (220), `slow` (320), `counter` (600). Springs: `snappy`, `settle`, `rebound`.
 
 ## Implementation
 
@@ -142,7 +142,7 @@ Background: the same hook schedules a one-shot local notification via [src/lib/r
 
 ### Charts
 
-[src/ui/LineChart.tsx](../src/ui/LineChart.tsx) is the in-house SVG chart. Extend it; do not add Recharts or `victory-native`. Axes and ticks use `theme.color.chartAxis` / `textTertiary`.
+[src/ui/LineChart.tsx](../src/ui/LineChart.tsx) is the in-house SVG chart. Extend it; do not add Recharts or `victory-native`. Axes and ticks use `theme.color.inkTertiary`.
 
 ### Icons
 
@@ -164,11 +164,10 @@ Phone-first. No media queries, no `Dimensions`-based layout branching unless str
 - Every interactive element needs a clear label — icon-only controls require `accessibilityLabel`
 - Use `accessibilityRole` (`'button'`, `'link'`, `'header'`)
 - Minimum 44pt touch target
-- Text color contrast is enforced by the palette (stone-black on warm-white)
+- Text-color contrast is WCAG-checked against the palette (see [src/ui/__tests__/contrast.test.ts](../src/ui/__tests__/contrast.test.ts))
 
 ## Future Polish
 
-- Dark-mode activation via `useColorScheme()` (palette already ships)
 - Sheet + ConfirmDialog primitives ported from the legacy web app
 - Skeleton placeholders matched to content shape to prevent layout shift
 - Animated presence helpers (opacity + translateY fades) for list mount/unmount

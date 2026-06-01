@@ -37,8 +37,8 @@ the migration files under `supabase/migrations/`.
 - **RLS with USING + WITH CHECK on every table** (post-`00009_security_hardening.sql`)
 - **Server-owned `updated_at` trigger** prevents client clock-skew tampering
 - **Magic-link deep-link handler guards against React 19 strict-mode double-mount** (`app/_layout.tsx:101-126`)
-- **Sentry PII off** + URL query/fragment scrubbing (`src/lib/errorReporting.ts:25-42`)
-- **Notifications local-only, no payload content** (`src/lib/restNotifications.ts`)
+- **Sentry PII off** (`sendDefaultPii: false`) + URL query/fragment scrubbing (`src/lib/errorReporting.ts` — `beforeBreadcrumb`/`beforeSend` hooks + `scrubUrl` helper)
+- **Notifications local-only**; payload is a fixed generic string ("Rest complete"), carrying no workout data or PII (`src/lib/restNotifications.ts`)
 - **Sign-out clears Sync state, React Query cache, local SQLite, and all `@flexyug/*` AsyncStorage keys** (`src/sync/engine.ts handleSignOut`)
 - **Deep links land on a session-gated layout**; unauthenticated routes redirect to `/login` (`app/(tabs)/_layout.tsx`)
 

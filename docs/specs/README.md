@@ -32,11 +32,18 @@ flowchart LR
 
 | Date | Title | Status |
 | --- | --- | --- |
-| [2026-05-26](2026-05-26-docs-uplevel-design.md) | Docs Uplevel: ADRs + Design Specs | approved |
-| [2026-05-26](2026-05-26-uplevel-phase-1-signature-design.md) | Uplevel Phase 1 — Signature | implemented |
-| [2026-05-27](2026-05-27-uplevel-phase-2-trust-design.md) | Uplevel Phase 2 — Trust | implemented |
-| [2026-05-27](2026-05-27-uplevel-phase-3-restraint-design.md) | Uplevel Phase 3 — Restraint | implemented |
-| [2026-05-28](2026-05-28-uplevel-phase-4-dimensions-design.md) | Uplevel Phase 4 — Dimensions | implemented |
+| [2026-05-26](2026-05-26-docs-uplevel-design.md) | Docs Uplevel: ADRs + Design Specs | implemented |
+
+### Archived
+
+Implemented phase specs, frozen and kept for historical context under [archive/](archive/). The behavior they describe now lives in the code and in [../adr/](../adr/); revise via a new spec or ADR, not by editing these.
+
+| Date | Title | Status |
+| --- | --- | --- |
+| [2026-05-26](archive/2026-05-26-uplevel-phase-1-signature-design.md) | Uplevel Phase 1 — Signature | implemented |
+| [2026-05-27](archive/2026-05-27-uplevel-phase-2-trust-design.md) | Uplevel Phase 2 — Trust | implemented |
+| [2026-05-27](archive/2026-05-27-uplevel-phase-3-restraint-design.md) | Uplevel Phase 3 — Restraint | implemented |
+| [2026-05-28](archive/2026-05-28-uplevel-phase-4-dimensions-design.md) | Uplevel Phase 4 — Dimensions | implemented |
 
 ## Template
 

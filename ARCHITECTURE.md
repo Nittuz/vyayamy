@@ -116,7 +116,7 @@ Expo Router maps the filesystem under [app/](app/) to routes:
 | Route                   | File                                                       | Notes                       |
 | ----------------------- | ---------------------------------------------------------- | --------------------------- |
 | `/(tabs)/today`         | [app/(tabs)/today.tsx](app/(tabs)/today.tsx)               | Dashboard                   |
-| `/(tabs)/history`       | [app/(tabs)/history.tsx](app/(tabs)/history.tsx)           | Past workouts               |
+| `/history`              | [app/history/index.tsx](app/history/index.tsx)             | Past workouts (stack route) |
 | `/(tabs)/progress`      | [app/(tabs)/progress.tsx](app/(tabs)/progress.tsx)         | PRs + charts                |
 | `/(tabs)/profile`       | [app/(tabs)/profile.tsx](app/(tabs)/profile.tsx)           | Settings                    |
 | `/workout/active`       | [app/workout/active.tsx](app/workout/active.tsx)           | Live session                |
