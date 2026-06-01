@@ -1,6 +1,6 @@
 import { router, Tabs } from 'expo-router';
 import { useEffect, useMemo } from 'react';
-import { StyleSheet, View } from 'react-native';
+import { StyleSheet, View, type ColorValue } from 'react-native';
 
 import { useAuth } from '@/auth/useAuth';
 import { TabIcon } from '@/ui/TabIcon';
@@ -8,19 +8,19 @@ import { useTheme } from '@/ui/useTheme';
 
 const todayOptions = {
   title: 'Today',
-  tabBarIcon: ({ color, focused }: { color: string; focused: boolean }) => (
+  tabBarIcon: ({ color, focused }: { color: ColorValue; focused: boolean }) => (
     <TabIcon name="today" color={color} focused={focused} />
   ),
 };
 const progressOptions = {
   title: 'Progress',
-  tabBarIcon: ({ color, focused }: { color: string; focused: boolean }) => (
+  tabBarIcon: ({ color, focused }: { color: ColorValue; focused: boolean }) => (
     <TabIcon name="progress" color={color} focused={focused} />
   ),
 };
 const profileOptions = {
   title: 'Profile',
-  tabBarIcon: ({ color, focused }: { color: string; focused: boolean }) => (
+  tabBarIcon: ({ color, focused }: { color: ColorValue; focused: boolean }) => (
     <TabIcon name="profile" color={color} focused={focused} />
   ),
 };
@@ -52,7 +52,11 @@ export default function TabsLayout() {
       StyleSheet.create({
         container: { flex: 1 },
         gate: {
-          ...StyleSheet.absoluteFillObject,
+          position: 'absolute',
+          top: 0,
+          left: 0,
+          right: 0,
+          bottom: 0,
           backgroundColor: theme.color.bg,
         },
       }),

@@ -17,11 +17,6 @@ const config: ExpoConfig = {
   orientation: 'portrait',
   icon: './assets/icon.png',
   userInterfaceStyle: 'automatic',
-  splash: {
-    image: './assets/splash.png',
-    resizeMode: 'contain',
-    backgroundColor: '#F8F6F3',
-  },
   assetBundlePatterns: ['**/*'],
   ios: {
     supportsTablet: false,
@@ -29,10 +24,8 @@ const config: ExpoConfig = {
     infoPlist: {
       ITSAppUsesNonExemptEncryption: false,
       UIBackgroundModes: ['fetch'],
-      NSMicrophoneUsageDescription:
-        'FlexYug uses the microphone for hands-free voice workout logging.',
-      NSSpeechRecognitionUsageDescription:
-        'FlexYug uses speech recognition to log sets by voice, on-device.',
+      // Mic + speech usage strings come from the expo-speech-recognition config
+      // plugin below (microphonePermission / speechRecognitionPermission).
     },
   },
   android: {
@@ -49,6 +42,16 @@ const config: ExpoConfig = {
   },
   plugins: [
     'expo-router',
+    [
+      'expo-splash-screen',
+      {
+        image: './assets/splash.png',
+        resizeMode: 'contain',
+        backgroundColor: '#F8F6F3',
+      },
+    ],
+    'expo-sqlite',
+    'expo-status-bar',
     [
       'expo-notifications',
       {

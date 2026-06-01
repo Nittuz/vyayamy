@@ -194,7 +194,11 @@ function BootOverlay({
 const bootStyles = StyleSheet.create({
   gestureRoot: { flex: 1 },
   overlay: {
-    ...StyleSheet.absoluteFillObject,
+    position: 'absolute',
+    top: 0,
+    left: 0,
+    right: 0,
+    bottom: 0,
     alignItems: 'center',
     justifyContent: 'center',
     backgroundColor: theme.color.bg,

@@ -84,7 +84,7 @@ const styles = StyleSheet.create({
     borderRadius: 14,
     overflow: 'hidden',
   },
-  glow: { ...StyleSheet.absoluteFillObject },
+  glow: { position: 'absolute', top: 0, left: 0, right: 0, bottom: 0 },
   label: { fontSize: 10, letterSpacing: 1.5, textTransform: 'uppercase' },
   valueRow: { flexDirection: 'row', alignItems: 'baseline', marginTop: 2 },
   value: { fontSize: 22, letterSpacing: -0.5 },
