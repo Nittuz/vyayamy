@@ -1,4 +1,5 @@
 import { router } from 'expo-router';
+import { safeRoute } from '@/lib/safeRoute';
 import { useEffect, useMemo, useRef, useState } from 'react';
 import {
   ActivityIndicator,
@@ -186,7 +187,7 @@ export default function PlanSetupScreen() {
       });
     }
     if (router.canGoBack()) router.back();
-    else router.replace('/profile/plan' as never);
+    else router.replace(safeRoute('/profile/plan'));
   }
 
   if (!userId) return null;

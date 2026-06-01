@@ -1,4 +1,5 @@
 import { router } from 'expo-router';
+import { safeRoute } from '@/lib/safeRoute';
 import { useCallback, useEffect, useState } from 'react';
 import {
   ActivityIndicator,
@@ -109,7 +110,7 @@ export default function ProfileScreen() {
         </View>
 
         <Pressable
-          onPress={() => router.push('/profile/plan' as never)}
+          onPress={() => router.push(safeRoute('/profile/plan'))}
           style={({ pressed }) => [styles.row, pressed && { opacity: 0.85 }]}
         >
           <Text style={styles.rowLabel}>Training plan</Text>

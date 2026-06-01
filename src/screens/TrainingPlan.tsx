@@ -1,4 +1,5 @@
 import { router } from 'expo-router';
+import { safeRoute } from '@/lib/safeRoute';
 import {
   ActivityIndicator,
   Pressable,
@@ -41,7 +42,7 @@ export default function TrainingPlanScreen() {
               right workout without thinking.
             </Text>
             <Pressable
-              onPress={() => router.push('/profile/plan/setup' as never)}
+              onPress={() => router.push(safeRoute('/profile/plan/setup'))}
               style={styles.primaryBtn}
             >
               <Text style={styles.primaryBtnText}>Create plan</Text>
@@ -57,7 +58,7 @@ export default function TrainingPlanScreen() {
                 </Text>
               </View>
               <Pressable
-                onPress={() => router.push('/profile/plan/setup' as never)}
+                onPress={() => router.push(safeRoute('/profile/plan/setup'))}
                 style={styles.editBtn}
               >
                 <Text style={styles.editBtnText}>Edit</Text>

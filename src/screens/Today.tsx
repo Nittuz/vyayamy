@@ -1,4 +1,5 @@
 import { router } from 'expo-router';
+import { safeRoute } from '@/lib/safeRoute';
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import {
   Pressable,
@@ -243,7 +244,7 @@ export default function TodayScreen() {
             </Text>
           </Pressable>
           <Pressable
-            onPress={() => router.push('/profile/plan' as never)}
+            onPress={() => router.push(safeRoute('/profile/plan'))}
             accessibilityRole="button"
             style={({ pressed }) => [
               styles.altBtn,

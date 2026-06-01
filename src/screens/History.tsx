@@ -1,4 +1,5 @@
 import { router } from 'expo-router';
+import { safeRoute } from '@/lib/safeRoute';
 import { useCallback, useMemo } from 'react';
 import {
   ActivityIndicator,
@@ -95,7 +96,7 @@ const renderItem = ({ item }: { item: HistoryRow }) => <HistoryItem row={item} /
 function HistoryItem({ row }: { row: HistoryRow }) {
   return (
     <Pressable
-      onPress={() => router.push(`/history/${row.id}` as never)}
+      onPress={() => router.push(safeRoute(`/history/${row.id}`))}
       accessibilityRole="button"
       accessibilityLabel={`View workout ${row.title}`}
       style={({ pressed }) => [styles.row, pressed && { opacity: 0.85 }]}
