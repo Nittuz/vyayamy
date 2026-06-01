@@ -252,4 +252,5 @@ See [ARCHITECTURE.md](ARCHITECTURE.md) for the full design. Key entry points:
 - **Build and operations**: [docs/operations.md](docs/operations.md)
 - **Architecture decisions**: [docs/adr/](docs/adr/)
 - **Feature specs**: [docs/specs/](docs/specs/)
+- **Threat model**: [docs/threat-model.md](docs/threat-model.md) — assets, actors, risk acceptances
 - **Agent guardrails**: [AGENTS.md](AGENTS.md) and [.cursor/rules/](.cursor/rules/)
