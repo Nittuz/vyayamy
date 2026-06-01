@@ -25,6 +25,7 @@ const legacyColors = {
   // New canonical names (so new code can also import from theme.color)
   bg: darkPalette.bg,
   surface: darkPalette.surface,
+  surface2: darkPalette.surface2,
   border: darkPalette.border,
   borderStrong: darkPalette.borderStrong,
   ink: darkPalette.ink,

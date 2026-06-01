@@ -16,6 +16,8 @@ A mobile-only, local-first strength-training journal. Built around one job: **ca
 - **Workout history** — past sessions grouped by date with period filters
 - **Custom exercises** — add your own movements alongside the seeded library
 - **Unit preference** — switch between kg and lb
+- **Curated skins** — four restrained appearances (Forge, Iron, Ember, Chalk) switchable in Profile → Appearance; the skin-adaptive F-bar logo takes on the active accent
+- **Signature complete-set moment** — banking a set fires a haptic and a live session-volume tally with a single accent glow; a calm session recap on finish
 - **Magic-link auth** — passwordless email sign-in via Supabase Auth + deep links
 - **Background rest timer** — local notification fires even when the app is backgrounded or locked
 

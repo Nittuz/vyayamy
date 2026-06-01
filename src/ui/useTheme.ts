@@ -1,7 +1,9 @@
 import { useColorScheme } from 'react-native';
 
-import { darkPalette, lightPalette, type PaletteTokens } from './colors';
+import { type PaletteTokens } from './colors';
 import { motion } from './motion';
+import { skins } from './skins';
+import { useSkin } from './SkinContext';
 import { typography } from './typography';
 
 export const space = {
@@ -49,6 +51,7 @@ export interface Theme {
 export function useTheme(): Theme {
   const raw = useColorScheme();
   const scheme: 'light' | 'dark' = raw === 'light' ? 'light' : 'dark';
-  const color = scheme === 'light' ? lightPalette : darkPalette;
+  const { skin } = useSkin();
+  const color: PaletteTokens = skins[skin][scheme];
   return { color, space, radius, touch, font: typography, motion, scheme };
 }

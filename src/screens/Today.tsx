@@ -31,6 +31,8 @@ import {
   type TodaySnapshot,
 } from '@/ui/todaySnapshot';
 import { getStaleQuarantined, useQuarantined } from '@/sync/quarantine';
+import { FadeInView } from '@/ui/FadeInView';
+import { FBarMark } from '@/ui/Logo';
 import { useToast } from '@/ui/ToastContext';
 import { useTheme } from '@/ui/useTheme';
 
@@ -150,6 +152,7 @@ export default function TodayScreen() {
       <SyncErrorStripe />
       <ScrollView contentContainerStyle={styles.scroll}>
         <View style={styles.topRow}>
+          <FBarMark size={26} />
           <Pressable
             onPress={() => router.push('/history')}
             hitSlop={8}
@@ -196,6 +199,7 @@ export default function TodayScreen() {
           onPress={() => setQuarantineSheetOpen(true)}
         />
 
+        <FadeInView>
         {activeQuery.data ? (
           <ResumeCard onPress={onResume} />
         ) : lastFinishedQuery.isLoading && initialSnapshot?.state === 'repeat' && initialSnapshot.repeatSeeds ? (
@@ -221,6 +225,7 @@ export default function TodayScreen() {
         ) : (
           <EmptyRepeatSlot />
         )}
+        </FadeInView>
 
         <View style={styles.altRow}>
           <Pressable
@@ -435,7 +440,8 @@ const styles = StyleSheet.create({
   scroll: { paddingTop: 8, paddingBottom: 64 },
   topRow: {
     flexDirection: 'row',
-    justifyContent: 'flex-end',
+    alignItems: 'center',
+    justifyContent: 'space-between',
     paddingHorizontal: 20,
     paddingTop: 8,
   },

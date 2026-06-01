@@ -22,7 +22,7 @@ Priority order — never invert it:
 ## Non-negotiables
 
 - **Single column**, phone-first. No tablet-specific layouts.
-- **Brutalist-lifter palette** — a muted green accent on near-black (dark, the default feel) or warm paper (light), selected by system color scheme. No saturated brand colors. See [src/ui/colors.ts](../src/ui/colors.ts).
+- **Brutalist-lifter palette + curated skins** — the default **Forge** skin is a muted green accent on near-black (dark) or warm paper (light), selected by system color scheme. Three further skins (**Iron**, **Ember**, **Chalk**) are switchable in Profile. Each skin stays restrained — no saturated chaos. See [src/ui/skins.ts](../src/ui/skins.ts) and [src/ui/colors.ts](../src/ui/colors.ts).
 - **Custom fonts** — Geist Sans for chrome/labels, Geist Mono for numerals and data. Loaded via `@expo-google-fonts/geist` + `geist-mono`.
 - **44pt minimum touch target** (`theme.touch.min`) on everything interactive.
 - **Generous whitespace** — when in doubt, add more.
@@ -33,14 +33,23 @@ Priority order — never invert it:
 
 Tokens come from the modules under [src/ui/](../src/ui/) — `colors.ts`, `typography.ts`, `motion.ts`, plus the `space` / `radius` / `touch` scales in `useTheme.ts`. Consume them through the `useTheme()` hook (or the legacy `theme.ts` shim). Never hard-code colors, spacing, radii, or font sizes.
 
-### Color
+### Color & skins
 
-Defined in [src/ui/colors.ts](../src/ui/colors.ts) as two coordinated `PaletteTokens` palettes — **dark (the default feel)** and **light (warm-paper inverse)**. [src/ui/useTheme.ts](../src/ui/useTheme.ts) selects between them via `useColorScheme()`; the legacy [src/ui/theme.ts](../src/ui/theme.ts) shim is pinned to the dark palette and maps old token names onto these.
+Colors are organized as a **skin registry** in [src/ui/skins.ts](../src/ui/skins.ts): four skins (`forge`, `iron`, `ember`, `chalk`), each a coordinated `{ dark, light }` pair of `PaletteTokens`. The base Forge palette lives in [src/ui/colors.ts](../src/ui/colors.ts).
+
+- [src/ui/SkinContext.tsx](../src/ui/SkinContext.tsx) holds the active skin, persisted in AsyncStorage (`flexyug.skin`) — a device-display preference, **not synced**. Default is `forge`. First paint is gated on hydration so there's no skin flash.
+- [src/ui/useTheme.ts](../src/ui/useTheme.ts) resolves `activeSkin × useColorScheme()` to a single `PaletteTokens` object — consumers' signatures are unchanged.
+- Switch skins in **Profile → Appearance**. Every screen reskins live.
+- The legacy [src/ui/theme.ts](../src/ui/theme.ts) shim is pinned to Forge-dark for the boot overlay only; all in-app screens consume `useTheme()`.
+- WCAG AA is enforced across **all 4 skins × 2 schemes** in [src/ui/__tests__/contrast.test.ts](../src/ui/__tests__/contrast.test.ts).
+
+The dark-palette (Forge) token table below is the canonical reference; the other skins remap the same roles.
 
 | Token          | Dark                    | Light                  | Purpose                       |
 | -------------- | ----------------------- | ---------------------- | ----------------------------- |
 | `bg`           | `#0F1411`               | `#F4F1EB`              | Page background               |
 | `surface`      | `#161B18`               | `#FFFFFF`              | Cards, sheets, input fields   |
+| `surface2`     | `#1A211C`               | `#F1F4F0`              | Elevated/active surfaces (3rd step) |
 | `border`       | `#1A2420`               | `#E5DFD3`              | Soft dividers                 |
 | `borderStrong` | `#1F2925`               | `#D6CFC0`              | Prominent dividers, handles   |
 | `ink`          | `#C9D4CC`               | `#1A1F1C`              | Primary text                  |
@@ -129,6 +138,14 @@ Always `<Pressable>`. Express pressed state through the `style` function prop (l
 | Rest timer crosses target     | `Haptics.notificationAsync(NotificationFeedbackType.Success)`   |
 | PR achieved                   | `Haptics.notificationAsync(NotificationFeedbackType.Success)`   |
 | Destructive confirmation      | `Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Heavy)`        |
+
+### The signature complete-set moment
+
+Banking a set is the one moment given disproportionate craft. On completion: a **medium haptic** lands on the swipe gesture ([src/components/ActiveSetCard.tsx](../src/components/ActiveSetCard.tsx)), then the live **session-volume tally** ([src/components/SessionVolumeBar.tsx](../src/components/SessionVolumeBar.tsx)) counts up over 600ms with a single accent-glow bloom. The decision logic is the pure, unit-tested [src/ui/completeSetChoreography.ts](../src/ui/completeSetChoreography.ts); the Reanimated glow lives in [src/ui/useCompleteSetAnimation.ts](../src/ui/useCompleteSetAnimation.ts). Finishing a workout shows a calm [src/ui/SessionRecap.tsx](../src/ui/SessionRecap.tsx) — volume headline, sets, duration — framed as progress earned, never a streak. All of it honors OS **Reduce Motion** (state changes instantly; glow/rise are skipped). Still **no particles, no parallax**. List entrances use [src/ui/FadeInView.tsx](../src/ui/FadeInView.tsx) (opacity + small translateY).
+
+### Logo
+
+The mark is the **skin-adaptive F-bar** ([src/ui/Logo.tsx](../src/ui/Logo.tsx)) — a slab "F" whose middle arm is a loaded barbell. The F uses `inkHero`; the barbell takes the active skin's `accent`, so the identity lives the theme (green in Forge, steel in Iron, saffron in Ember). `FBarMark` is the icon; `Logo` is the mark + wordmark lockup. The static app icon is generated from [assets/icon-source.svg](../assets/icon-source.svg).
 
 ### Rest timer
 

@@ -1,25 +1,10 @@
 import { router, Tabs } from 'expo-router';
-import { useEffect } from 'react';
+import { useEffect, useMemo } from 'react';
 import { StyleSheet, View } from 'react-native';
 
 import { useAuth } from '@/auth/useAuth';
 import { TabIcon } from '@/ui/TabIcon';
-import { theme } from '@/ui/theme';
-
-const tabsScreenOptions = {
-  tabBarActiveTintColor: theme.color.accent,
-  tabBarInactiveTintColor: theme.color.textMuted,
-  tabBarStyle: {
-    backgroundColor: theme.color.surface,
-    borderTopColor: theme.color.border,
-    height: theme.touch.navHeight,
-    paddingTop: 6,
-    paddingBottom: 8,
-  },
-  headerStyle: { backgroundColor: theme.color.bg },
-  headerShadowVisible: false,
-  headerTitleStyle: { fontWeight: '600' as const, fontSize: theme.font.card + 1 },
-};
+import { useTheme } from '@/ui/useTheme';
 
 const todayOptions = {
   title: 'Today',
@@ -42,6 +27,37 @@ const profileOptions = {
 
 export default function TabsLayout() {
   const { session, loading } = useAuth();
+  const theme = useTheme();
+
+  const tabsScreenOptions = useMemo(
+    () => ({
+      tabBarActiveTintColor: theme.color.accent,
+      tabBarInactiveTintColor: theme.color.inkSecondary,
+      tabBarStyle: {
+        backgroundColor: theme.color.surface,
+        borderTopColor: theme.color.border,
+        height: theme.touch.navHeight,
+        paddingTop: 6,
+        paddingBottom: 8,
+      },
+      headerStyle: { backgroundColor: theme.color.bg },
+      headerShadowVisible: false,
+      headerTitleStyle: { fontWeight: '600' as const, fontSize: theme.font.size.card + 1 },
+    }),
+    [theme],
+  );
+
+  const styles = useMemo(
+    () =>
+      StyleSheet.create({
+        container: { flex: 1 },
+        gate: {
+          ...StyleSheet.absoluteFillObject,
+          backgroundColor: theme.color.bg,
+        },
+      }),
+    [theme],
+  );
 
   useEffect(() => {
     if (!loading && !session) {
@@ -65,11 +81,3 @@ export default function TabsLayout() {
     </View>
   );
 }
-
-const styles = StyleSheet.create({
-  container: { flex: 1 },
-  gate: {
-    ...StyleSheet.absoluteFillObject,
-    backgroundColor: theme.color.bg,
-  },
-});

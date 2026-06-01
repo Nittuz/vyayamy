@@ -9,6 +9,7 @@
 export interface PaletteTokens {
   bg: string;
   surface: string;
+  surface2: string;
   border: string;
   borderStrong: string;
   ink: string;
@@ -28,6 +29,7 @@ export interface PaletteTokens {
 export const darkPalette: PaletteTokens = {
   bg: '#0F1411',
   surface: '#161B18',
+  surface2: '#1A211C',
   border: '#1A2420',
   borderStrong: '#1F2925',
   ink: '#C9D4CC',
@@ -47,6 +49,7 @@ export const darkPalette: PaletteTokens = {
 export const lightPalette: PaletteTokens = {
   bg: '#F4F1EB',
   surface: '#FFFFFF',
+  surface2: '#F1F4F0',
   border: '#E5DFD3',
   borderStrong: '#D6CFC0',
   ink: '#1A1F1C',

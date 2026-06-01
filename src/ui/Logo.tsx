@@ -1,46 +1,50 @@
-import React from 'react';
 import { View, Text, StyleSheet } from 'react-native';
 import Svg, { Rect } from 'react-native-svg';
-import { brand, colors, font } from './theme';
 
-type LogoVariant = 'brand' | 'light' | 'dark';
+import { brand } from './theme';
+import { useTheme } from './useTheme';
 
-interface LogoProps {
+/**
+ * The F-bar mark: a slab "F" whose middle arm is a loaded barbell.
+ * The F (stem + top arm) uses `ink`; the barbell (mid arm + plates) uses
+ * `accent`, so the mark adopts the active skin's accent — green in Forge,
+ * steel in Iron, saffron in Ember. Pass explicit `accent`/`ink` to override
+ * (e.g. a fixed-color app icon); otherwise it reads the active theme.
+ */
+export function FBarMark({
+  size = 40,
+  accent,
+  ink,
+}: {
   size?: number;
-  variant?: LogoVariant;
-  showWordmark?: boolean;
-}
-
-const VIEWBOX_W = 100;
-const VIEWBOX_H = 60;
-
-const variantColors: Record<LogoVariant, { mark: string; text: string }> = {
-  brand: { mark: brand.saffron, text: brand.stone },
-  light: { mark: '#FFFFFF', text: '#FFFFFF' },
-  dark: { mark: brand.stone, text: brand.stone },
-};
-
-export function DumbbellMark({ size = 40, color = brand.saffron }: { size?: number; color?: string }) {
-  const h = size;
-  const w = (VIEWBOX_W / VIEWBOX_H) * h;
-
+  accent?: string;
+  ink?: string;
+}) {
+  const theme = useTheme();
+  const a = accent ?? theme.color.accent;
+  const i = ink ?? theme.color.inkHero;
   return (
-    <Svg width={w} height={h} viewBox={`0 0 ${VIEWBOX_W} ${VIEWBOX_H}`}>
-      <Rect x={0} y={22} width={100} height={16} rx={8} fill={color} />
-      <Rect x={0} y={0} width={24} height={60} rx={6} fill={color} />
-      <Rect x={76} y={0} width={24} height={60} rx={6} fill={color} />
+    <Svg width={size} height={size} viewBox="0 0 100 100">
+      {/* F stem */}
+      <Rect x={22} y={14} width={15} height={72} rx={4} fill={i} />
+      {/* F top arm */}
+      <Rect x={22} y={14} width={50} height={15} rx={4} fill={i} />
+      {/* middle arm = loaded barbell */}
+      <Rect x={22} y={46} width={44} height={11} rx={5} fill={a} />
+      <Rect x={60} y={40} width={8} height={23} rx={3} fill={a} />
+      <Rect x={70} y={44} width={6} height={15} rx={3} fill={a} />
     </Svg>
   );
 }
 
-export function Logo({ size = 40, variant = 'brand', showWordmark = true }: LogoProps) {
-  const { mark, text } = variantColors[variant];
-
+/** Full lockup — F-bar mark + wordmark. Used on Login and the splash. */
+export function Logo({ size = 40, showWordmark = true }: { size?: number; showWordmark?: boolean }) {
+  const theme = useTheme();
   return (
     <View style={styles.container}>
-      <DumbbellMark size={size} color={mark} />
+      <FBarMark size={size} />
       {showWordmark && (
-        <Text style={[styles.wordmark, { color: text, fontSize: size * 0.6 }]}>
+        <Text style={[styles.wordmark, { color: theme.color.inkHero, fontSize: size * 0.6 }]}>
           {brand.name}
         </Text>
       )}
@@ -49,12 +53,6 @@ export function Logo({ size = 40, variant = 'brand', showWordmark = true }: Logo
 }
 
 const styles = StyleSheet.create({
-  container: {
-    alignItems: 'center',
-    gap: 8,
-  },
-  wordmark: {
-    fontWeight: font.weight.bold,
-    letterSpacing: -0.5,
-  },
+  container: { alignItems: 'center', gap: 8 },
+  wordmark: { fontWeight: '600', letterSpacing: -0.5 },
 });

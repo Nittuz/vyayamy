@@ -20,6 +20,7 @@ import { initErrorReporting } from '@/lib/errorReporting';
 import { hydrateSnapshot } from '@/ui/todaySnapshot';
 import { startSyncEngine, stopSyncEngine } from '@/sync/engine';
 import { ErrorBoundary } from '@/ui/ErrorBoundary';
+import { SkinProvider, useSkin } from '@/ui/SkinContext';
 import { ToastProvider } from '@/ui/ToastContext';
 import { theme } from '@/ui/theme';
 
@@ -132,36 +133,62 @@ export default function RootLayout() {
     <ErrorBoundary>
       <GestureHandlerRootView style={bootStyles.gestureRoot}>
         <SafeAreaProvider>
-          <QueryClientProvider client={queryClient}>
-            <AuthProvider>
-              <ToastProvider>
-                <StatusBar style="dark" />
-                <Stack screenOptions={stackScreenOptions}>
-                  <Stack.Screen name="(tabs)" options={tabsScreenOpts} />
-                  <Stack.Screen name="login" options={loginScreenOpts} />
-                  <Stack.Screen name="workout/active" options={workoutActiveOpts} />
-                  <Stack.Screen name="history/[id]" options={historyDetailOpts} />
-                  <Stack.Screen name="profile/plan/index" options={planIndexOpts} />
-                  <Stack.Screen name="profile/plan/setup" options={planSetupOpts} />
-                </Stack>
-                {(!ready || !fontsLoaded) && !bootError && (
-                  <View style={bootStyles.overlay}>
-                    <ActivityIndicator color={theme.color.accent} />
-                  </View>
-                )}
-                {bootError && (
-                  <SafeAreaView style={bootStyles.overlay} edges={['top', 'bottom', 'left', 'right']}>
-                    <Text style={bootStyles.title}>Cannot start</Text>
-                    <Text style={bootStyles.body}>{bootError}</Text>
-                  </SafeAreaView>
-                )}
-              </ToastProvider>
-            </AuthProvider>
-          </QueryClientProvider>
+          <SkinProvider>
+            <QueryClientProvider client={queryClient}>
+              <AuthProvider>
+                <ToastProvider>
+                  <StatusBar style="dark" />
+                  <Stack screenOptions={stackScreenOptions}>
+                    <Stack.Screen name="(tabs)" options={tabsScreenOpts} />
+                    <Stack.Screen name="login" options={loginScreenOpts} />
+                    <Stack.Screen name="workout/active" options={workoutActiveOpts} />
+                    <Stack.Screen name="history/[id]" options={historyDetailOpts} />
+                    <Stack.Screen name="profile/plan/index" options={planIndexOpts} />
+                    <Stack.Screen name="profile/plan/setup" options={planSetupOpts} />
+                  </Stack>
+                  <BootOverlay ready={ready} fontsLoaded={fontsLoaded} bootError={bootError} />
+                </ToastProvider>
+              </AuthProvider>
+            </QueryClientProvider>
+          </SkinProvider>
         </SafeAreaProvider>
       </GestureHandlerRootView>
     </ErrorBoundary>
   );
+}
+
+/**
+ * Boot overlay rendered inside SkinProvider so it can gate first paint on skin
+ * hydration — this prevents a flash of the default skin before the stored one
+ * loads from AsyncStorage. Uses the legacy theme shim (Forge dark) for the
+ * brief loading state only.
+ */
+function BootOverlay({
+  ready,
+  fontsLoaded,
+  bootError,
+}: {
+  ready: boolean;
+  fontsLoaded: boolean;
+  bootError: string | null;
+}) {
+  const { hydrated } = useSkin();
+  if (bootError) {
+    return (
+      <SafeAreaView style={bootStyles.overlay} edges={['top', 'bottom', 'left', 'right']}>
+        <Text style={bootStyles.title}>Cannot start</Text>
+        <Text style={bootStyles.body}>{bootError}</Text>
+      </SafeAreaView>
+    );
+  }
+  if (!ready || !fontsLoaded || !hydrated) {
+    return (
+      <View style={bootStyles.overlay}>
+        <ActivityIndicator color={theme.color.accent} />
+      </View>
+    );
+  }
+  return null;
 }
 
 const bootStyles = StyleSheet.create({
