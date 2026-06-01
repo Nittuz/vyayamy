@@ -14,3 +14,9 @@ jest.mock('@react-native-async-storage/async-storage', () => ({
 jest.mock('react-native', () => ({
   Platform: { OS: 'ios', Version: 26, select: (spec) => spec.ios },
 }));
+
+jest.mock('@sentry/react-native', () => ({
+  captureException: jest.fn(),
+  init: jest.fn(),
+  setUser: jest.fn(),
+}));

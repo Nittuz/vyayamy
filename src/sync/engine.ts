@@ -14,6 +14,7 @@
 import type { QueryClient } from '@tanstack/react-query';
 import NetInfo, { type NetInfoSubscription } from '@react-native-community/netinfo';
 import { AppState, type NativeEventSubscription } from 'react-native';
+import * as Sentry from '@sentry/react-native';
 
 import { supabase } from '@/auth/supabase';
 import { resetLocalDb } from '@/db/client';
@@ -27,6 +28,28 @@ import { pullOnce } from './pull';
 import { pushOutbox } from './push';
 import { getSyncState, setSyncState } from './state';
 
+/**
+ * Wrap a listener callback so a thrown exception doesn't propagate
+ * to React Native's global error handler.
+ */
+function safeListener<T extends unknown[]>(
+  label: string,
+  fn: (...args: T) => void | Promise<void>,
+): (...args: T) => void {
+  return (...args: T) => {
+    try {
+      const result = fn(...args);
+      if (result instanceof Promise) {
+        result.catch((err) => {
+          Sentry.captureException(err, { tags: { engine_listener: label } });
+        });
+      }
+    } catch (err) {
+      Sentry.captureException(err, { tags: { engine_listener: label } });
+    }
+  };
+}
+
 let netSub: NetInfoSubscription | null = null;
 let authSub: { unsubscribe: () => void } | null = null;
 let appStateSub: NativeEventSubscription | null = null;
@@ -36,34 +59,34 @@ let pullInFlight = false;
 
 export function startSyncEngine(queryClient: QueryClient) {
   client = queryClient;
-  netSub = NetInfo.addEventListener((state) => {
+  netSub = NetInfo.addEventListener(safeListener('network', (state) => {
     const online = Boolean(state.isConnected && state.isInternetReachable !== false);
     setSyncState({ online });
     if (online) {
       void runSyncCycle();
     }
-  });
+  }));
 
   // Foreground re-pull. Without this, opening the app after hours on stable
   // wifi (no NetInfo change) would leave the user staring at stale data.
-  appStateSub = AppState.addEventListener('change', (nextState) => {
+  appStateSub = AppState.addEventListener('change', safeListener('appState', (nextState) => {
     if (nextState === 'active' && getSyncState().online) {
       void runSyncCycle();
     }
-  });
+  }));
 
   // Auth-change trigger. Initial pulls fired before sign-in run unauthenticated
   // and 401. SIGNED_IN re-runs the cycle once a session exists. SIGNED_OUT
   // wipes the local database so a different user signing in afterwards never
   // sees the previous user's workouts and never re-pushes their pending
   // mutations under a new identity.
-  authSub = supabase.auth.onAuthStateChange((event) => {
+  authSub = supabase.auth.onAuthStateChange(safeListener('auth', (event) => {
     if (event === 'SIGNED_IN' || event === 'TOKEN_REFRESHED') {
       void runSyncCycle();
     } else if (event === 'SIGNED_OUT') {
       void handleSignOut();
     }
-  }).data.subscription;
+  })).data.subscription;
 }
 
 export function stopSyncEngine() {
