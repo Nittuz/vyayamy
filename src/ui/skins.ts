@@ -21,6 +21,17 @@ export const SKIN_META: Record<SkinId, { name: string; blurb: string }> = {
   chalk: { name: 'Chalk', blurb: 'Warm paper' },
 };
 
+export const DEFAULT_SKIN: SkinId = 'forge';
+
+export function isSkinId(v: unknown): v is SkinId {
+  return typeof v === 'string' && (SKIN_IDS as string[]).includes(v);
+}
+
+/** Coerce an unknown persisted value into a valid skin id, falling back to the default. */
+export function coerceSkin(stored: unknown): SkinId {
+  return isSkinId(stored) ? stored : DEFAULT_SKIN;
+}
+
 /** Alpha wash derived from a hex accent/danger, keeping soft tokens consistent per skin. */
 const soft = (hex: string, a: number): string => {
   const m = hex.replace('#', '');

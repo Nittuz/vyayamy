@@ -1,5 +1,5 @@
 import type { PaletteTokens } from '@/ui/colors';
-import { skins, SKIN_IDS, SKIN_META } from '@/ui/skins';
+import { skins, SKIN_IDS, SKIN_META, coerceSkin, isSkinId, DEFAULT_SKIN } from '@/ui/skins';
 
 const TOKEN_KEYS: (keyof PaletteTokens)[] = [
   'bg',
@@ -41,5 +41,26 @@ describe('skin registry', () => {
     for (const id of SKIN_IDS) {
       expect(SKIN_META[id].name.length).toBeGreaterThan(0);
     }
+  });
+});
+
+describe('coerceSkin / isSkinId', () => {
+  test('default skin is forge', () => {
+    expect(DEFAULT_SKIN).toBe('forge');
+  });
+
+  test('accepts every valid skin id', () => {
+    for (const id of SKIN_IDS) {
+      expect(isSkinId(id)).toBe(true);
+      expect(coerceSkin(id)).toBe(id);
+    }
+  });
+
+  test('coerces unknown / null / wrong-type values to the default', () => {
+    expect(coerceSkin(null)).toBe('forge');
+    expect(coerceSkin(undefined)).toBe('forge');
+    expect(coerceSkin('neon')).toBe('forge');
+    expect(coerceSkin(42)).toBe('forge');
+    expect(isSkinId('neon')).toBe(false);
   });
 });
