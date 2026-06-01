@@ -15,7 +15,7 @@ import {
 
 import { supabase } from '@/auth/supabase';
 import { useAuth } from '@/auth/useAuth';
-import { DumbbellMark } from '@/ui/Logo';
+import { FBarMark } from '@/ui/Logo';
 import { brand } from '@/ui/theme';
 import { useTheme, type Theme } from '@/ui/useTheme';
 
@@ -72,7 +72,7 @@ export default function LoginScreen() {
       >
         <View style={styles.card}>
           <View style={styles.header}>
-            <DumbbellMark size={36} color={brand.saffron} />
+            <FBarMark size={44} />
             <Text style={styles.title}>{brand.name}</Text>
             <Text style={styles.tagline}>{brand.tagline}</Text>
           </View>
