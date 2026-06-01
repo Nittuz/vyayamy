@@ -29,6 +29,10 @@ const config: ExpoConfig = {
     infoPlist: {
       ITSAppUsesNonExemptEncryption: false,
       UIBackgroundModes: ['fetch'],
+      NSMicrophoneUsageDescription:
+        'FlexYug uses the microphone for hands-free voice workout logging.',
+      NSSpeechRecognitionUsageDescription:
+        'FlexYug uses speech recognition to log sets by voice, on-device.',
     },
   },
   android: {
