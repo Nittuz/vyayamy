@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import {
   ActivityIndicator,
   Dimensions,
@@ -14,7 +14,7 @@ import Animated, { useAnimatedStyle, useSharedValue, withSpring, withTiming } fr
 import { motion } from '@/ui/motion';
 
 import { useExercisesSearch } from '@/queries/exercises';
-import { theme } from '@/ui/theme';
+import { useTheme } from '@/ui/useTheme';
 
 interface Props {
   userId: string;
@@ -36,6 +36,7 @@ export function ExercisePicker({ userId, visible, onClose, onPick }: Props) {
   const [query, setQuery] = useState('');
   const debouncedQuery = useDebouncedValue(query, 300);
   const { data, isLoading } = useExercisesSearch(userId, debouncedQuery);
+  const theme = useTheme();
 
   const screenHeight = Dimensions.get('window').height;
   const sheetY = useSharedValue(screenHeight);
@@ -51,6 +52,54 @@ export function ExercisePicker({ userId, visible, onClose, onPick }: Props) {
   const sheetStyle = useAnimatedStyle(() => ({
     transform: [{ translateY: sheetY.value }],
   }));
+
+  const styles = useMemo(() => StyleSheet.create({
+    backdrop: { ...StyleSheet.absoluteFillObject, backgroundColor: theme.color.overlay },
+    sheet: {
+      position: 'absolute',
+      left: 0,
+      right: 0,
+      bottom: 0,
+      maxHeight: '80%',
+      backgroundColor: theme.color.surface,
+      borderTopLeftRadius: theme.radius.lg,
+      borderTopRightRadius: theme.radius.lg,
+      paddingHorizontal: theme.space.s5,
+      paddingBottom: theme.space.s8,
+      paddingTop: theme.space.s3,
+    },
+    handle: {
+      alignSelf: 'center',
+      width: 36,
+      height: 4,
+      borderRadius: 2,
+      backgroundColor: theme.color.borderStrong,
+      marginBottom: theme.space.s3,
+    },
+    title: {
+      fontSize: theme.font.size.title,
+      fontWeight: theme.font.weight.semibold,
+      color: theme.color.ink,
+      marginBottom: theme.space.s3,
+    },
+    search: {
+      height: 44,
+      borderRadius: theme.radius.sm,
+      backgroundColor: theme.color.bg,
+      paddingHorizontal: theme.space.s4,
+      fontSize: theme.font.size.body,
+      color: theme.color.ink,
+      marginBottom: theme.space.s3,
+    },
+    row: { paddingVertical: theme.space.s3 },
+    rowTitle: { fontSize: theme.font.size.body, color: theme.color.ink },
+    rowMuscle: {
+      fontSize: theme.font.size.meta,
+      color: theme.color.inkSecondary,
+      marginTop: theme.space.s1,
+    },
+    sep: { height: StyleSheet.hairlineWidth, backgroundColor: theme.color.border },
+  }), [theme]);
 
   return (
     <Modal
@@ -68,7 +117,7 @@ export function ExercisePicker({ userId, visible, onClose, onPick }: Props) {
           value={query}
           onChangeText={setQuery}
           placeholder="Search"
-          placeholderTextColor={theme.color.textTertiary}
+          placeholderTextColor={theme.color.inkTertiary}
           autoFocus
           style={styles.search}
         />
@@ -101,51 +150,3 @@ export function ExercisePicker({ userId, visible, onClose, onPick }: Props) {
     </Modal>
   );
 }
-
-const styles = StyleSheet.create({
-  backdrop: { ...StyleSheet.absoluteFillObject, backgroundColor: theme.color.overlay },
-  sheet: {
-    position: 'absolute',
-    left: 0,
-    right: 0,
-    bottom: 0,
-    maxHeight: '80%',
-    backgroundColor: theme.color.surface,
-    borderTopLeftRadius: theme.radius.lg,
-    borderTopRightRadius: theme.radius.lg,
-    paddingHorizontal: theme.space.s5,
-    paddingBottom: theme.space.s8,
-    paddingTop: theme.space.s3,
-  },
-  handle: {
-    alignSelf: 'center',
-    width: 36,
-    height: 4,
-    borderRadius: 2,
-    backgroundColor: theme.color.borderStrong,
-    marginBottom: theme.space.s3,
-  },
-  title: {
-    fontSize: theme.font.section,
-    fontWeight: theme.font.weight.semibold,
-    color: theme.color.text,
-    marginBottom: theme.space.s3,
-  },
-  search: {
-    height: 44,
-    borderRadius: theme.radius.sm,
-    backgroundColor: theme.color.bg,
-    paddingHorizontal: theme.space.s4,
-    fontSize: theme.font.body,
-    color: theme.color.text,
-    marginBottom: theme.space.s3,
-  },
-  row: { paddingVertical: theme.space.s3 },
-  rowTitle: { fontSize: theme.font.body, color: theme.color.text },
-  rowMuscle: {
-    fontSize: theme.font.meta,
-    color: theme.color.textSecondary,
-    marginTop: theme.space.s1,
-  },
-  sep: { height: StyleSheet.hairlineWidth, backgroundColor: theme.color.border },
-});
