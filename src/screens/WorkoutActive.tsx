@@ -230,7 +230,13 @@ export default function WorkoutActiveScreen() {
       headerRight: () => (
         <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8 }}>
           {cursor ? (
-            <Pressable onPress={onNextExercise} hitSlop={8} accessibilityRole="button">
+            <Pressable
+              onPress={onNextExercise}
+              hitSlop={8}
+              accessibilityRole="button"
+              accessibilityLabel={hasNextExercise ? 'Next exercise' : 'Finish workout'}
+              accessibilityHint={hasNextExercise ? 'Move to the next exercise' : 'Complete the workout'}
+            >
               <Text
                 style={{
                   color: theme.color.accent,
@@ -246,7 +252,7 @@ export default function WorkoutActiveScreen() {
         </View>
       ),
     }),
-    [activeQuery.data, cursor, nextLabel, onNextExercise, theme, updateTitle],
+    [activeQuery.data, cursor, hasNextExercise, nextLabel, onNextExercise, theme, updateTitle],
   );
 
   if (!userId) return null;
@@ -263,7 +269,12 @@ export default function WorkoutActiveScreen() {
     return (
       <SafeAreaView style={[styles.container, styles.center, { backgroundColor: theme.color.bg }]}>
         <Text style={[styles.empty, { color: theme.color.inkSecondary }]}>No active workout.</Text>
-        <Pressable onPress={() => router.replace('/today')} style={styles.linkButton}>
+        <Pressable
+          onPress={() => router.replace('/today')}
+          style={styles.linkButton}
+          accessibilityRole="link"
+          accessibilityLabel="Back to today"
+        >
           <Text style={[styles.linkText, { color: theme.color.accent }]}>Back to Today</Text>
         </Pressable>
       </SafeAreaView>
@@ -281,6 +292,8 @@ export default function WorkoutActiveScreen() {
           </Text>
           <Pressable
             onPress={() => setPickerOpen(true)}
+            accessibilityRole="button"
+            accessibilityLabel="Add your first exercise"
             style={({ pressed }) => [styles.primaryBtn, { backgroundColor: theme.color.accent, opacity: pressed ? 0.85 : 1 }]}
           >
             <Text style={[styles.primaryBtnText, { color: theme.color.onAccent }]}>
@@ -333,6 +346,9 @@ export default function WorkoutActiveScreen() {
           <Pressable
             onPress={onFinish}
             disabled={finishWorkout.isPending}
+            accessibilityRole="button"
+            accessibilityLabel="Finish workout"
+            accessibilityState={{ disabled: finishWorkout.isPending, busy: finishWorkout.isPending }}
             style={({ pressed }) => [
               styles.primaryBtn,
               { backgroundColor: theme.color.accent, opacity: pressed ? 0.85 : 1 },
@@ -348,6 +364,8 @@ export default function WorkoutActiveScreen() {
           </Pressable>
           <Pressable
             onPress={() => setPickerOpen(true)}
+            accessibilityRole="button"
+            accessibilityLabel="Add exercise to workout"
             style={({ pressed }) => [
               styles.secondaryBtn,
               {
@@ -405,6 +423,8 @@ export default function WorkoutActiveScreen() {
         />
         <Pressable
           onPress={() => setPickerOpen(true)}
+          accessibilityRole="button"
+          accessibilityLabel="Add exercise to workout"
           style={({ pressed }) => [styles.addExercise, { opacity: pressed ? 0.7 : 1, marginTop: theme.space.s4 }]}
         >
           <Text

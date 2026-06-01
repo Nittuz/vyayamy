@@ -59,7 +59,11 @@ export function RepeatCard({ title, daysAgo, seeds, loading, onPress }: Props) {
       </Text>
       <View style={styles.seedList}>
         {displaySeeds.map((seed) => (
-          <View key={seed.exerciseId} style={styles.seedRow}>
+          <View
+            key={seed.exerciseId}
+            style={styles.seedRow}
+            accessibilityLabel={`${seed.exerciseName}, ${formatSeed(seed)}`}
+          >
             <Text
               style={[
                 styles.seedName,

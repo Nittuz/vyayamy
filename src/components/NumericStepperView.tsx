@@ -137,6 +137,7 @@ export function NumericStepper({
           onSubmitEditing={commitEdit}
           autoFocus
           keyboardType={Number.isInteger(step) ? 'number-pad' : 'decimal-pad'}
+          accessibilityLabel={`${unit} input`}
           style={[
             styles.number,
             {
@@ -149,7 +150,7 @@ export function NumericStepper({
           ]}
         />
       ) : (
-        <Pressable onPress={onPressNumber} accessibilityRole="button" accessibilityLabel={unit}>
+        <Pressable onPress={onPressNumber} accessibilityRole="button" accessibilityLabel={`${unit}: ${formatValue(value)}. Tap to edit.`}>
           <Text
             style={[
               styles.number,

@@ -115,7 +115,11 @@ export function ActiveSetCard({
 
   return (
     <GestureDetector gesture={pan}>
-      <Animated.View style={[styles.container, animatedStyle]}>
+      <Animated.View
+        style={[styles.container, animatedStyle]}
+        accessibilityLabel={`Set ${setIndex}, ${set.weight ?? 'no weight'} by ${set.reps ?? 'no reps'} reps. Swipe up to complete.`}
+        accessibilityHint="Swipe up to mark this set complete"
+      >
         <Text style={labelStyle}>EXERCISE {exerciseIndex} OF {totalExercises}</Text>
         <Text
           style={[
@@ -179,7 +183,11 @@ export function ActiveSetCard({
             <View style={[styles.divider, { borderTopColor: theme.color.border }]} />
             <View style={styles.ghostList}>
               {ghostSets.map((g, i) => (
-                <View key={g.id} style={styles.ghostRow}>
+                <View
+                  key={g.id}
+                  style={styles.ghostRow}
+                  accessibilityLabel={`Set ${i + 1}, ${g.weight ?? 'no weight'} by ${g.reps ?? 'no reps'} reps, completed`}
+                >
                   <View style={styles.ghostLeft}>
                     <Text
                       style={[

@@ -153,7 +153,8 @@ export default function TodayScreen() {
           <Pressable
             onPress={() => router.push('/history')}
             hitSlop={8}
-            accessibilityRole="button"
+            accessibilityRole="link"
+            accessibilityLabel="Open workout history"
           >
             <Text
               style={[
@@ -226,6 +227,9 @@ export default function TodayScreen() {
             onPress={onBlankStart}
             disabled={createWorkout.isPending || !!activeQuery.data}
             accessibilityRole="button"
+            accessibilityLabel="Start a blank workout"
+            accessibilityHint="Begin a new workout with no exercises"
+            accessibilityState={{ disabled: createWorkout.isPending || !!activeQuery.data }}
             style={({ pressed }) => [
               styles.altBtn,
               {
@@ -246,6 +250,7 @@ export default function TodayScreen() {
           <Pressable
             onPress={() => router.push(safeRoute('/profile/plan'))}
             accessibilityRole="button"
+            accessibilityLabel="Open training plan templates"
             style={({ pressed }) => [
               styles.altBtn,
               {
@@ -281,6 +286,7 @@ export default function TodayScreen() {
               <View
                 key={w.id}
                 style={[styles.recentRow, { borderBottomColor: theme.color.border }]}
+                accessibilityLabel={`${w.title || 'Workout'}, ${recentMeta(w)}`}
               >
                 <Text
                   style={[
@@ -335,6 +341,7 @@ function ResumeCard({ onPress }: { onPress: () => void }) {
     <Pressable
       onPress={onPress}
       accessibilityRole="button"
+      accessibilityLabel="Resume workout in progress"
       style={({ pressed }) => [
         styles.card,
         {
