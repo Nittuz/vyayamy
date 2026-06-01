@@ -1,5 +1,5 @@
 import { useQuery } from '@tanstack/react-query';
-import { useState } from 'react';
+import { useMemo, useState } from 'react';
 import {
   ActivityIndicator,
   Pressable,
@@ -17,7 +17,7 @@ import { queryKeys } from '@/queries/keys';
 import { useGroupedPRs, getHeaviestWeightHistory } from '@/queries/personalRecords';
 import { LineChart } from '@/ui/LineChart';
 import { SyncIndicator } from '@/ui/SyncIndicator';
-import { theme } from '@/ui/theme';
+import { useTheme, type Theme } from '@/ui/useTheme';
 
 const PR_LABEL: Record<string, string> = {
   heaviest_weight: 'Heaviest',
@@ -30,6 +30,8 @@ export default function ProgressScreen() {
   const userId = user?.id;
   const { data: prs, isLoading } = useGroupedPRs(userId);
   const [selectedExercise, setSelectedExercise] = useState<string | null>(null);
+  const theme = useTheme();
+  const styles = useMemo(() => makeStyles(theme), [theme]);
 
   const active = selectedExercise ?? prs?.[0]?.exerciseId ?? null;
   const activeName = prs?.find((p) => p.exerciseId === active)?.exerciseName ?? '';
@@ -119,15 +121,16 @@ export default function ProgressScreen() {
   );
 }
 
-const styles = StyleSheet.create({
+const makeStyles = (theme: Theme) =>
+  StyleSheet.create({
   container: { flex: 1, backgroundColor: theme.color.bg },
   scroll: { padding: theme.space.page, gap: theme.space.s5, paddingBottom: theme.space.s12 },
   headerRow: { flexDirection: 'row', alignItems: 'flex-end', gap: theme.space.s3 },
   title: {
     flex: 1,
-    fontSize: theme.font.display,
-    fontWeight: theme.font.weight.bold,
-    color: theme.color.text,
+    fontSize: theme.font.size.display,
+    fontWeight: theme.font.weight.semibold,
+    color: theme.color.ink,
     letterSpacing: -0.5,
   },
   chartCard: {
@@ -139,15 +142,15 @@ const styles = StyleSheet.create({
     borderColor: theme.color.border,
   },
   chartTitle: {
-    fontSize: theme.font.card,
+    fontSize: theme.font.size.card,
     fontWeight: theme.font.weight.semibold,
-    color: theme.color.text,
+    color: theme.color.ink,
   },
   section: { gap: theme.space.s2 },
   sectionTitle: {
-    fontSize: theme.font.section,
+    fontSize: theme.font.size.title,
     fontWeight: theme.font.weight.semibold,
-    color: theme.color.text,
+    color: theme.color.ink,
     marginBottom: theme.space.s2,
   },
   prRow: {
@@ -162,28 +165,28 @@ const styles = StyleSheet.create({
   },
   prRowActive: { borderColor: theme.color.accent },
   prExercise: {
-    fontSize: theme.font.body,
+    fontSize: theme.font.size.body,
     fontWeight: theme.font.weight.medium,
-    color: theme.color.text,
+    color: theme.color.ink,
   },
   prMetaRow: { flexDirection: 'row', flexWrap: 'wrap', gap: theme.space.s2, marginTop: 4 },
   prBadge: {
-    fontSize: theme.font.micro,
-    color: theme.color.textSecondary,
+    fontSize: theme.font.size.micro,
+    color: theme.color.inkSecondary,
     backgroundColor: theme.color.bg,
     paddingVertical: 2,
     paddingHorizontal: theme.space.s2,
     borderRadius: theme.radius.full,
   },
   prDate: {
-    fontSize: theme.font.micro,
-    color: theme.color.textTertiary,
+    fontSize: theme.font.size.micro,
+    color: theme.color.inkTertiary,
   },
   recentDot: {
     width: 7,
     height: 7,
     borderRadius: 4,
-    backgroundColor: theme.color.pr,
+    backgroundColor: theme.color.accent,
   },
   empty: {
     alignItems: 'center',
@@ -195,13 +198,13 @@ const styles = StyleSheet.create({
     borderColor: theme.color.border,
   },
   emptyTitle: {
-    fontSize: theme.font.card,
+    fontSize: theme.font.size.card,
     fontWeight: theme.font.weight.semibold,
-    color: theme.color.text,
+    color: theme.color.ink,
   },
   emptyBody: {
-    fontSize: theme.font.meta,
-    color: theme.color.textSecondary,
+    fontSize: theme.font.size.meta,
+    color: theme.color.inkSecondary,
     textAlign: 'center',
   },
-});
+  });
