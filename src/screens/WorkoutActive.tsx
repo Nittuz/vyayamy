@@ -9,7 +9,6 @@ import {
   Text,
   View,
 } from 'react-native';
-import Animated, { useAnimatedProps, useSharedValue, withTiming, Easing } from 'react-native-reanimated';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
 import { useAuth } from '@/auth/useAuth';
@@ -39,35 +38,11 @@ import { useWorkoutDetail } from '@/queries/workoutDetail';
 import { dayOfWeek } from '@/lib/dayOfWeek';
 import { haptics } from '@/ui/haptics';
 import { useRestTimer } from '@/ui/hooks/useRestTimer';
-import { motion as motionTokens } from '@/ui/motion';
 import { effectiveRest, getOverrides } from '@/ui/restOverrides';
+import { SessionRecap } from '@/ui/SessionRecap';
 import { SyncIndicator } from '@/ui/SyncIndicator';
 import { useSyncAwareErrorToast } from '@/ui/ToastContext';
 import { useTheme } from '@/ui/useTheme';
-
-const AnimatedText = Animated.createAnimatedComponent(Text);
-
-function AnimatedCounter({
-  toValue,
-  suffix,
-  style,
-}: {
-  toValue: number;
-  suffix?: string;
-  style: any; // AnimatedText style prop is loosely typed in Reanimated 4
-}) {
-  const v = useSharedValue(0);
-  useEffect(() => {
-    v.value = withTiming(toValue, {
-      duration: motionTokens.duration.counter,
-      easing: Easing.out(Easing.cubic),
-    });
-  }, [toValue, v]);
-  const props = useAnimatedProps(() => ({
-    text: `${Math.round(v.value)}${suffix ?? ''}`,
-  })) as any;
-  return <AnimatedText style={style} animatedProps={props} />;
-}
 
 export default function WorkoutActiveScreen() {
   const { user } = useAuth();
@@ -364,24 +339,16 @@ export default function WorkoutActiveScreen() {
           >
             Workout complete.
           </Text>
-          <View style={{ flexDirection: 'row', gap: theme.space.s4 }}>
-            <AnimatedCounter
-              toValue={totalSetsCompleted(exercises)}
-              suffix=" sets"
-              style={[
-                styles.finishBody,
-                { color: theme.color.inkSecondary, fontFamily: theme.font.family.mono },
-              ]}
-            />
-            <AnimatedCounter
-              toValue={totalVolume(exercises)}
-              suffix={` ${units}`}
-              style={[
-                styles.finishBody,
-                { color: theme.color.inkSecondary, fontFamily: theme.font.family.mono },
-              ]}
-            />
-          </View>
+          <SessionRecap
+            volume={totalVolume(exercises)}
+            setCount={totalSetsCompleted(exercises)}
+            durationMs={
+              activeQuery.data.started_at
+                ? Date.now() - new Date(activeQuery.data.started_at).getTime()
+                : 0
+            }
+            units={units}
+          />
           <Pressable
             onPress={onFinish}
             disabled={finishWorkout.isPending}
