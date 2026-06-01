@@ -17,12 +17,14 @@ import { formatDuration, getDateGroup } from '@/core/format';
 import { useHistoryInfinite, type HistoryRow } from '@/queries/history';
 import { triggerPull } from '@/sync/engine';
 import { SyncIndicator } from '@/ui/SyncIndicator';
-import { theme } from '@/ui/theme';
+import { useTheme, type Theme } from '@/ui/useTheme';
 
 export default function HistoryScreen() {
   const { user } = useAuth();
   const userId = user?.id;
   const historyQuery = useHistoryInfinite(userId);
+  const theme = useTheme();
+  const styles = useMemo(() => makeStyles(theme), [theme]);
 
   const rows = useMemo<HistoryRow[]>(() => {
     return historyQuery.data?.pages.flat() ?? [];
@@ -94,6 +96,8 @@ export default function HistoryScreen() {
 const renderItem = ({ item }: { item: HistoryRow }) => <HistoryItem row={item} />;
 
 function HistoryItem({ row }: { row: HistoryRow }) {
+  const theme = useTheme();
+  const styles = useMemo(() => makeStyles(theme), [theme]);
   return (
     <Pressable
       onPress={() => router.push(safeRoute(`/history/${row.id}`))}
@@ -113,7 +117,8 @@ function HistoryItem({ row }: { row: HistoryRow }) {
   );
 }
 
-const styles = StyleSheet.create({
+const makeStyles = (theme: Theme) =>
+  StyleSheet.create({
   container: { flex: 1, backgroundColor: theme.color.bg },
   scroll: { padding: theme.space.page, gap: theme.space.s2, paddingBottom: theme.space.s12 },
   headerRow: {
@@ -123,16 +128,16 @@ const styles = StyleSheet.create({
   },
   title: {
     flex: 1,
-    fontSize: theme.font.display,
-    fontWeight: theme.font.weight.bold,
-    color: theme.color.text,
+    fontSize: theme.font.size.display,
+    fontWeight: theme.font.weight.semibold,
+    color: theme.color.ink,
     letterSpacing: -0.5,
   },
   sectionHeader: {
-    fontSize: theme.font.micro,
+    fontSize: theme.font.size.micro,
     textTransform: 'uppercase',
     letterSpacing: 0.6,
-    color: theme.color.textTertiary,
+    color: theme.color.inkTertiary,
     fontWeight: theme.font.weight.medium,
     marginTop: theme.space.s4,
     marginBottom: theme.space.s2,
@@ -148,19 +153,19 @@ const styles = StyleSheet.create({
     borderColor: theme.color.border,
   },
   rowTitle: {
-    fontSize: theme.font.body,
+    fontSize: theme.font.size.body,
     fontWeight: theme.font.weight.medium,
-    color: theme.color.text,
+    color: theme.color.ink,
   },
-  rowMeta: { fontSize: theme.font.meta, color: theme.color.textSecondary, marginTop: 2 },
+  rowMeta: { fontSize: theme.font.size.meta, color: theme.color.inkSecondary, marginTop: 2 },
   rowDuration: {
-    fontSize: theme.font.meta,
-    color: theme.color.textSecondary,
+    fontSize: theme.font.size.meta,
+    color: theme.color.inkSecondary,
     fontVariant: ['tabular-nums'],
   },
   empty: {
     textAlign: 'center',
-    color: theme.color.textSecondary,
+    color: theme.color.inkSecondary,
     marginTop: theme.space.s10,
   },
-});
+  });
