@@ -1,6 +1,6 @@
 import * as Linking from 'expo-linking';
 import { Redirect } from 'expo-router';
-import { useState } from 'react';
+import { useMemo, useState } from 'react';
 import {
   ActivityIndicator,
   KeyboardAvoidingView,
@@ -16,7 +16,8 @@ import {
 import { supabase } from '@/auth/supabase';
 import { useAuth } from '@/auth/useAuth';
 import { DumbbellMark } from '@/ui/Logo';
-import { brand, theme } from '@/ui/theme';
+import { brand } from '@/ui/theme';
+import { useTheme, type Theme } from '@/ui/useTheme';
 
 const GENERIC_AUTH_ERROR = "Couldn't sign in. Check your email and password and try again.";
 
@@ -28,6 +29,8 @@ export default function LoginScreen() {
   const [signingIn, setSigningIn] = useState(false);
   const [sent, setSent] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const theme = useTheme();
+  const styles = useMemo(() => makeStyles(theme), [theme]);
 
   if (loading) return null;
   if (session) return <Redirect href="/" />;
@@ -91,7 +94,7 @@ export default function LoginScreen() {
                 value={email}
                 onChangeText={setEmail}
                 placeholder="you@example.com"
-                placeholderTextColor={theme.color.textTertiary}
+                placeholderTextColor={theme.color.inkTertiary}
                 keyboardType="email-address"
                 autoCapitalize="none"
                 autoCorrect={false}
@@ -104,7 +107,7 @@ export default function LoginScreen() {
                 value={password}
                 onChangeText={setPassword}
                 placeholder="Optional — for direct sign-in"
-                placeholderTextColor={theme.color.textTertiary}
+                placeholderTextColor={theme.color.inkTertiary}
                 secureTextEntry
                 autoCapitalize="none"
                 autoCorrect={false}
@@ -139,7 +142,7 @@ export default function LoginScreen() {
                 ]}
               >
                 {sending ? (
-                  <ActivityIndicator color={theme.color.text} />
+                  <ActivityIndicator color={theme.color.ink} />
                 ) : (
                   <Text style={styles.buttonSecondaryText}>Send magic link instead</Text>
                 )}
@@ -155,90 +158,91 @@ export default function LoginScreen() {
   );
 }
 
-const styles = StyleSheet.create({
-  container: { flex: 1, backgroundColor: theme.color.bg },
-  kav: { flex: 1, justifyContent: 'center', padding: theme.space.s5 },
-  card: {
-    backgroundColor: theme.color.surface,
-    borderRadius: theme.radius.lg,
-    padding: theme.space.s8,
-    gap: theme.space.s6,
-  },
-  header: { alignItems: 'center', gap: theme.space.s3 },
-  title: {
-    fontSize: theme.font.title,
-    fontWeight: theme.font.weight.bold,
-    color: theme.color.text,
-    letterSpacing: -0.5,
-  },
-  tagline: {
-    fontSize: theme.font.meta,
-    color: theme.color.textSecondary,
-    textAlign: 'center',
-  },
-  form: { gap: theme.space.s3 },
-  label: {
-    fontSize: theme.font.meta,
-    color: theme.color.textSecondary,
-    fontWeight: theme.font.weight.medium,
-  },
-  input: {
-    height: theme.touch.min + 4,
-    paddingHorizontal: theme.space.s4,
-    borderRadius: theme.radius.sm,
-    borderWidth: 1,
-    borderColor: theme.color.borderStrong,
-    fontSize: theme.font.body,
-    color: theme.color.text,
-    backgroundColor: theme.color.bg,
-  },
-  button: {
-    height: theme.touch.min + 4,
-    borderRadius: theme.radius.sm,
-    backgroundColor: theme.color.accent,
-    alignItems: 'center',
-    justifyContent: 'center',
-    marginTop: theme.space.s2,
-  },
-  buttonSecondary: {
-    height: theme.touch.min + 4,
-    borderRadius: theme.radius.sm,
-    backgroundColor: 'transparent',
-    borderWidth: 1,
-    borderColor: theme.color.borderStrong,
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  buttonDisabled: { opacity: 0.4 },
-  buttonPressed: { opacity: 0.85 },
-  buttonText: {
-    color: theme.color.onAccent,
-    fontSize: theme.font.card,
-    fontWeight: theme.font.weight.semibold,
-  },
-  buttonSecondaryText: {
-    color: theme.color.text,
-    fontSize: theme.font.card,
-    fontWeight: theme.font.weight.medium,
-  },
-  hint: {
-    fontSize: theme.font.micro,
-    color: theme.color.textTertiary,
-    textAlign: 'center',
-  },
-  error: { color: theme.color.danger, fontSize: theme.font.meta },
-  sent: { alignItems: 'center', gap: theme.space.s2 },
-  sentHeading: {
-    fontSize: theme.font.section,
-    fontWeight: theme.font.weight.semibold,
-    color: theme.color.text,
-  },
-  sentBody: { fontSize: theme.font.body, color: theme.color.text, textAlign: 'center' },
-  bold: { fontWeight: theme.font.weight.semibold },
-  meta: {
-    fontSize: theme.font.meta,
-    color: theme.color.textSecondary,
-    textAlign: 'center',
-    marginTop: theme.space.s2,
-  },
-});
+const makeStyles = (theme: Theme) =>
+  StyleSheet.create({
+    container: { flex: 1, backgroundColor: theme.color.bg },
+    kav: { flex: 1, justifyContent: 'center', padding: theme.space.s5 },
+    card: {
+      backgroundColor: theme.color.surface,
+      borderRadius: theme.radius.lg,
+      padding: theme.space.s8,
+      gap: theme.space.s6,
+    },
+    header: { alignItems: 'center', gap: theme.space.s3 },
+    title: {
+      fontSize: theme.font.size.title,
+      fontWeight: theme.font.weight.semibold,
+      color: theme.color.ink,
+      letterSpacing: -0.5,
+    },
+    tagline: {
+      fontSize: theme.font.size.meta,
+      color: theme.color.inkSecondary,
+      textAlign: 'center',
+    },
+    form: { gap: theme.space.s3 },
+    label: {
+      fontSize: theme.font.size.meta,
+      color: theme.color.inkSecondary,
+      fontWeight: theme.font.weight.medium,
+    },
+    input: {
+      height: theme.touch.min + 4,
+      paddingHorizontal: theme.space.s4,
+      borderRadius: theme.radius.sm,
+      borderWidth: 1,
+      borderColor: theme.color.borderStrong,
+      fontSize: theme.font.size.body,
+      color: theme.color.ink,
+      backgroundColor: theme.color.bg,
+    },
+    button: {
+      height: theme.touch.min + 4,
+      borderRadius: theme.radius.sm,
+      backgroundColor: theme.color.accent,
+      alignItems: 'center',
+      justifyContent: 'center',
+      marginTop: theme.space.s2,
+    },
+    buttonSecondary: {
+      height: theme.touch.min + 4,
+      borderRadius: theme.radius.sm,
+      backgroundColor: 'transparent',
+      borderWidth: 1,
+      borderColor: theme.color.borderStrong,
+      alignItems: 'center',
+      justifyContent: 'center',
+    },
+    buttonDisabled: { opacity: 0.4 },
+    buttonPressed: { opacity: 0.85 },
+    buttonText: {
+      color: theme.color.onAccent,
+      fontSize: theme.font.size.card,
+      fontWeight: theme.font.weight.semibold,
+    },
+    buttonSecondaryText: {
+      color: theme.color.ink,
+      fontSize: theme.font.size.card,
+      fontWeight: theme.font.weight.medium,
+    },
+    hint: {
+      fontSize: theme.font.size.micro,
+      color: theme.color.inkTertiary,
+      textAlign: 'center',
+    },
+    error: { color: theme.color.danger, fontSize: theme.font.size.meta },
+    sent: { alignItems: 'center', gap: theme.space.s2 },
+    sentHeading: {
+      fontSize: theme.font.size.title,
+      fontWeight: theme.font.weight.semibold,
+      color: theme.color.ink,
+    },
+    sentBody: { fontSize: theme.font.size.body, color: theme.color.ink, textAlign: 'center' },
+    bold: { fontWeight: theme.font.weight.semibold },
+    meta: {
+      fontSize: theme.font.size.meta,
+      color: theme.color.inkSecondary,
+      textAlign: 'center',
+      marginTop: theme.space.s2,
+    },
+  });
