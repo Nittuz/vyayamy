@@ -21,6 +21,7 @@ import { removeKv } from '@/lib/kvStore';
 import { syncInvalidationRoots } from '@/queries/keys';
 import { clearSnapshot } from '@/ui/todaySnapshot';
 import { REST_TIMER_KEY } from '@/ui/hooks/restTimerPolicy';
+import { REST_OVERRIDES_KEY } from '@/ui/restOverrides';
 
 import { pullOnce } from './pull';
 import { pushOutbox } from './push';
@@ -96,6 +97,7 @@ async function handleSignOut(): Promise<void> {
   await Promise.all([
     clearSnapshot(),
     removeKv(REST_TIMER_KEY),
+    removeKv(REST_OVERRIDES_KEY),
   ]);
   client?.clear();
   await resetLocalDb();
