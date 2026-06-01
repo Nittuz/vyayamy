@@ -17,7 +17,7 @@ import { LOCAL_SCHEMA_SQL } from './schema';
 const DATABASE_NAME = 'flexyug.db';
 
 /** Bump when LOCAL_SCHEMA_SQL adds columns or tables that need a migration step. */
-const SCHEMA_VERSION = 2;
+const SCHEMA_VERSION = 3;
 
 let dbPromise: Promise<SQLite.SQLiteDatabase> | null = null;
 

@@ -70,6 +70,9 @@ CREATE TABLE IF NOT EXISTS sets (
   deleted_at TEXT
 );
 CREATE INDEX IF NOT EXISTS idx_sets_we ON sets(workout_exercise_id);
+CREATE INDEX IF NOT EXISTS idx_sets_completed_at
+  ON sets(workout_exercise_id, completed_at)
+  WHERE completed = 1 AND deleted_at IS NULL;
 
 CREATE TABLE IF NOT EXISTS personal_records (
   id TEXT PRIMARY KEY NOT NULL,
