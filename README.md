@@ -25,7 +25,7 @@ A mobile-only, local-first strength-training journal. Built around one job: **ca
 
 | Layer              | Technology                                           |
 | ------------------ | ---------------------------------------------------- |
-| Runtime            | Expo SDK 55, React Native 0.83, React 19             |
+| Runtime            | Expo SDK 56, React Native 0.85, React 19             |
 | Language           | TypeScript 5 (strict)                                |
 | Navigation         | Expo Router (file-based, typed routes)               |
 | Local DB           | `expo-sqlite` (SQLite on device, source of truth)    |

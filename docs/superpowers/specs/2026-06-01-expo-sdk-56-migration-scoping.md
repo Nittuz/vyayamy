@@ -1,6 +1,6 @@
 # Expo SDK 55 → 56 Migration — Scoping
 
-**Status:** Scoping only (no code changed). Decide whether/when to execute.
+**Status:** ✅ Executed 2026-06-01 on `chore/expo-sdk-56`. expo 56 / RN 0.85.3 / React 19.2.3 / speech-recognition 56.0.0. typecheck clean, 367 tests green, expo-doctor 21/21, clean iOS build launches. See "Execution notes" at the bottom for what actually surfaced vs. predicted.
 **Date:** 2026-06-01
 **Trigger:** `expo-speech-recognition@56` (the current line) is SDK-56-only; on our SDK 55 it cannot autolink. We pinned to `3.1.3` (the correct SDK-55 version, voice works). Moving to the 56 line of the module — and staying current generally — requires an Expo SDK upgrade.
 
@@ -81,6 +81,19 @@ Run on a **dedicated branch** (`chore/expo-sdk-56`), not the design branch.
 ## Recommendation
 
 Defer until there's a dedicated slot for a native pass, then execute on `chore/expo-sdk-56`. Because the breaking changes don't touch us and we're already on New Arch, this is about as low-risk as an SDK major gets — but it still warrants its own branch, its own PR, and a real device QA pass rather than being folded into feature work. Until then, `expo-speech-recognition@3.1.3` on SDK 55 is the correct, working state.
+
+## Execution notes (what actually surfaced)
+
+As predicted, the headline breaking changes were all no-ops here. The real work was a handful of small fixes:
+
+- **SDK 56 requires explicit config plugins** for `expo-splash-screen`, `expo-sqlite`, `expo-status-bar` — added to `app.config.ts`. The top-level `splash` config moved into the `expo-splash-screen` plugin.
+- **`expo-speech-recognition@56` autolinks cleanly on SDK 56** (the whole point) — and its config plugin (already present in `app.config.ts`) generates the mic/speech `Info.plist` strings, so the manual `infoPlist` entries from the SDK-55 stopgap were removed.
+- **RN 0.85 type changes:** `StyleSheet.absoluteFillObject` dropped from types (inlined the object in 4 files); `tabBarIcon`'s `color` is now `ColorValue` (updated callbacks + `TabIcon` prop).
+- **TypeScript:** SDK 56 wants TS `~6.0.3`, but TS 6.0 breaks `@types/jest@29` global resolution under `ts-jest@29` (all suites fail to compile). Pinned `typescript@~5.9` and recorded it in `expo.install.exclude` so `expo-doctor` stays green. Revisit when the jest stack supports TS 6.
+- **`react-test-renderer`** had to be bumped to `19.2.3` to match React.
+- **eslint:** SDK 56's `eslint-config-expo` enables React Compiler rules (`react-hooks/refs|immutability|purity|set-state-in-effect`) that false-positive on Reanimated/gesture code — downgraded to `warn`. ~30 findings remain as warnings; a future cleanup could address them where genuine.
+
+Total wall-clock: well within the estimated half-day; no surprises from lagging third-party native libs (Sentry ~7.11 passed doctor on RN 0.85).
 
 ## Sources
 
