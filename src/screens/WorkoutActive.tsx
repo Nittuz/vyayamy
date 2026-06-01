@@ -31,6 +31,7 @@ import { SyncErrorStripe } from '@/components/SyncErrorStripe';
 import { VoiceMicButton } from '@/components/VoiceMicButton';
 import { useVoiceSession } from '@/voice/useVoiceSession';
 import { useAddExerciseToWorkout } from '@/queries/exercises';
+import { useProfile } from '@/queries/profile';
 import { addSet, useUpdateSet } from '@/queries/sets';
 import { useActiveWorkout, useFinishWorkout, useUpdateWorkoutTitle } from '@/queries/workouts';
 import { useWorkoutDetail } from '@/queries/workoutDetail';
@@ -76,6 +77,10 @@ export default function WorkoutActiveScreen() {
   const theme = useTheme();
   const activeQuery = useActiveWorkout(userId);
   const detail = useWorkoutDetail(activeQuery.data?.id);
+  const profileQuery = useProfile(userId);
+  const units: 'kg' | 'lb' = profileQuery.data?.units ?? 'lb';
+  const weightUnit = units === 'kg' ? 'KG' : 'LB';
+  const weightStep = units === 'kg' ? 2.5 : 5;
 
   const addExercise = useAddExerciseToWorkout(toastError);
   const updateSet = useUpdateSet(toastError);
@@ -235,9 +240,9 @@ export default function WorkoutActiveScreen() {
       workoutId: activeQuery.data?.id ?? '',
       activeWeId: cursor?.weId ?? null,
       activeSetId: cursor?.setId ?? null,
-      units: 'lb',
+      units,
     }),
-    getParserContext: () => ({ units: 'lb', hasActiveExercise: exercises.length > 0 }),
+    getParserContext: () => ({ units, hasActiveExercise: exercises.length > 0 }),
     onStartRest: () => timer.start(),
     onNextExercise,
     onPrevExercise,
@@ -369,7 +374,7 @@ export default function WorkoutActiveScreen() {
             />
             <AnimatedCounter
               toValue={totalVolume(exercises)}
-              suffix=" lb"
+              suffix={` ${units}`}
               style={[
                 styles.finishBody,
                 { color: theme.color.inkSecondary, fontFamily: theme.font.family.mono },
@@ -447,8 +452,8 @@ export default function WorkoutActiveScreen() {
           exerciseIndex={currentExIdx + 1}
           totalExercises={exercises.length}
           setIndex={currentSetIdx + 1}
-          weightStep={5}
-          weightUnit="LB"
+          weightStep={weightStep}
+          weightUnit={weightUnit}
           ghostSets={ghostSets}
           onChangeWeight={onChangeWeight}
           onChangeReps={onChangeReps}
