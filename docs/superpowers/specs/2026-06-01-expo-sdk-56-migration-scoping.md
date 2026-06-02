@@ -93,7 +93,11 @@ As predicted, the headline breaking changes were all no-ops here. The real work 
 - **`react-test-renderer`** had to be bumped to `19.2.3` to match React.
 - **eslint:** SDK 56's `eslint-config-expo` enables React Compiler rules (`react-hooks/refs|immutability|purity|set-state-in-effect`) that false-positive on Reanimated/gesture code — downgraded to `warn`. ~30 findings remain as warnings; a future cleanup could address them where genuine.
 
-Total wall-clock: well within the estimated half-day; no surprises from lagging third-party native libs (Sentry ~7.11 passed doctor on RN 0.85).
+One real bug surfaced (not caused) by the migration:
+
+- **Sync transaction race.** `expo-sqlite`'s `withTransactionAsync` is raw `BEGIN/COMMIT/ROLLBACK` (not nestable). The sync engine's `pushInFlight`/`pullInFlight` guards prevent push-vs-push and pull-vs-pull, but a **push transaction could overlap a pull transaction** (triggered from different startup events) → "cannot rollback - no transaction is active", which masked the real error and failed the sync. Latent on SDK 55; SDK 56's faster New-Arch startup made it fire on every launch. Fixed with a single sync mutex in `engine.ts` (invokes synchronously when uncontended, FIFO-queues under contention) + a regression test. Also worth a follow-up: the two unhandled in-flight runtime stalls aside, this is the only place the codebase relied on `withTransactionAsync` concurrency safety.
+
+Total wall-clock: a bit over the estimated half-day once the sync race + clean-rebuild debugging is counted; no surprises from lagging third-party native libs (Sentry ~7.11 passed doctor on RN 0.85). Note: after an SDK bump, **always restart Metro with `-c`** — a stale Metro cache from the prior SDK serves an incompatible bundle and looks like an app crash.
 
 ## Sources
 
