@@ -9,6 +9,7 @@ import { getDb } from '@/db/client';
 import { enqueueMutation } from '@/db/mutations';
 import type { Workout } from '@/db/types';
 import { nowIso, uuidv4 } from '@/db/uuid';
+import { recordWorkoutPRs } from '@/queries/personalRecords';
 import { triggerPush } from '@/sync/engine';
 import { compositionTitle } from '@/lib/compositionTitle';
 import { dayOfWeek } from '@/lib/dayOfWeek';
@@ -74,13 +75,23 @@ export async function createWorkout(args: {
   return id;
 }
 
-export async function finishWorkout(workoutId: string): Promise<void> {
+export async function finishWorkout(workoutId: string, userId?: string): Promise<void> {
   await enqueueMutation({
     table: 'workouts',
     op: 'update',
     rowId: workoutId,
     payload: { ended_at: nowIso() },
   });
+  // Detect personal records from this workout's exercises before pushing, so the
+  // PR rows ride the same sync cycle. Best-effort: a PR-detection failure must
+  // not block finishing the workout.
+  if (userId) {
+    try {
+      await recordWorkoutPRs(userId, workoutId);
+    } catch {
+      // swallow — finishing the workout is the critical path
+    }
+  }
   void triggerPush();
 }
 
@@ -145,10 +156,13 @@ export function useCreateWorkout(onError?: (msg: string) => void) {
 export function useFinishWorkout(userId: string | undefined, onError?: (msg: string) => void) {
   const qc = useQueryClient();
   return useMutation({
-    mutationFn: finishWorkout,
+    mutationFn: (workoutId: string) => finishWorkout(workoutId, userId),
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: queryKeys.workouts.all });
-      if (userId) qc.invalidateQueries({ queryKey: queryKeys.history(userId) });
+      if (userId) {
+        qc.invalidateQueries({ queryKey: queryKeys.history(userId) });
+        qc.invalidateQueries({ queryKey: queryKeys.personalRecords(userId) });
+      }
     },
     onError: (err) => onError?.(err instanceof Error ? err.message : 'Failed to finish workout'),
   });

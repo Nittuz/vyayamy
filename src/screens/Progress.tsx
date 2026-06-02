@@ -1,5 +1,5 @@
-import { useQuery } from '@tanstack/react-query';
-import { useMemo, useState } from 'react';
+import { useQuery, useQueryClient } from '@tanstack/react-query';
+import { useEffect, useMemo, useState } from 'react';
 import {
   ActivityIndicator,
   Pressable,
@@ -14,7 +14,7 @@ import {
 import { useAuth } from '@/auth/useAuth';
 import { formatRelativeDate } from '@/core/format';
 import { queryKeys } from '@/queries/keys';
-import { useGroupedPRs, getHeaviestWeightHistory } from '@/queries/personalRecords';
+import { useGroupedPRs, getHeaviestWeightHistory, recomputeAllPRs } from '@/queries/personalRecords';
 import { FadeInView } from '@/ui/FadeInView';
 import { LineChart } from '@/ui/LineChart';
 import { SyncIndicator } from '@/ui/SyncIndicator';
@@ -26,6 +26,11 @@ const PR_LABEL: Record<string, string> = {
   most_reps_at_weight: 'Most reps',
 };
 
+// Session guard: backfill PRs from existing history at most once per signed-in
+// user, the first time Progress is opened. PR detection was added after these
+// workouts were logged, so without this their records would never appear.
+let prBackfilledFor: string | null = null;
+
 export default function ProgressScreen() {
   const { user } = useAuth();
   const userId = user?.id;
@@ -33,6 +38,17 @@ export default function ProgressScreen() {
   const [selectedExercise, setSelectedExercise] = useState<string | null>(null);
   const theme = useTheme();
   const styles = useMemo(() => makeStyles(theme), [theme]);
+  const qc = useQueryClient();
+
+  useEffect(() => {
+    if (!userId || prBackfilledFor === userId) return;
+    prBackfilledFor = userId;
+    void recomputeAllPRs(userId)
+      .then(() => qc.invalidateQueries({ queryKey: queryKeys.personalRecords(userId) }))
+      .catch(() => {
+        prBackfilledFor = null; // allow a retry on next mount if it failed
+      });
+  }, [userId, qc]);
 
   const active = selectedExercise ?? prs?.[0]?.exerciseId ?? null;
   const activeName = prs?.find((p) => p.exerciseId === active)?.exerciseName ?? '';

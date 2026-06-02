@@ -23,6 +23,7 @@ import { ErrorBoundary } from '@/ui/ErrorBoundary';
 import { SkinProvider, useSkin } from '@/ui/SkinContext';
 import { ToastProvider } from '@/ui/ToastContext';
 import { theme } from '@/ui/theme';
+import { useTheme } from '@/ui/useTheme';
 
 initErrorReporting();
 void SplashScreen.preventAutoHideAsync();
@@ -39,12 +40,6 @@ const queryClient = new QueryClient({
     },
   },
 });
-
-const stackScreenOptions = {
-  headerStyle: { backgroundColor: theme.color.bg },
-  headerTitleStyle: { fontWeight: '600' as const },
-  contentStyle: { backgroundColor: theme.color.bg },
-};
 
 const tabsScreenOpts = { headerShown: false };
 const loginScreenOpts = { headerShown: false };
@@ -137,15 +132,7 @@ export default function RootLayout() {
             <QueryClientProvider client={queryClient}>
               <AuthProvider>
                 <ToastProvider>
-                  <StatusBar style="dark" />
-                  <Stack screenOptions={stackScreenOptions}>
-                    <Stack.Screen name="(tabs)" options={tabsScreenOpts} />
-                    <Stack.Screen name="login" options={loginScreenOpts} />
-                    <Stack.Screen name="workout/active" options={workoutActiveOpts} />
-                    <Stack.Screen name="history/[id]" options={historyDetailOpts} />
-                    <Stack.Screen name="profile/plan/index" options={planIndexOpts} />
-                    <Stack.Screen name="profile/plan/setup" options={planSetupOpts} />
-                  </Stack>
+                  <AppNavigator />
                   <BootOverlay ready={ready} fontsLoaded={fontsLoaded} bootError={bootError} />
                 </ToastProvider>
               </AuthProvider>
@@ -154,6 +141,37 @@ export default function RootLayout() {
         </SafeAreaProvider>
       </GestureHandlerRootView>
     </ErrorBoundary>
+  );
+}
+
+/**
+ * Root stack + status bar, rendered inside SkinProvider so the header chrome
+ * follows the active skin (header bg/title/tint, content bg) and light/dark
+ * scheme. `headerBackButtonDisplayMode: 'minimal'` shows just the chevron — the
+ * tab group has no title, so the default label would read "(tabs)".
+ */
+function AppNavigator() {
+  const theme = useTheme();
+  const screenOptions = {
+    headerStyle: { backgroundColor: theme.color.bg },
+    headerTitleStyle: { fontWeight: '600' as const, color: theme.color.inkHero },
+    headerTintColor: theme.color.accent,
+    headerShadowVisible: false,
+    headerBackButtonDisplayMode: 'minimal' as const,
+    contentStyle: { backgroundColor: theme.color.bg },
+  };
+  return (
+    <>
+      <StatusBar style={theme.scheme === 'dark' ? 'light' : 'dark'} />
+      <Stack screenOptions={screenOptions}>
+        <Stack.Screen name="(tabs)" options={tabsScreenOpts} />
+        <Stack.Screen name="login" options={loginScreenOpts} />
+        <Stack.Screen name="workout/active" options={workoutActiveOpts} />
+        <Stack.Screen name="history/[id]" options={historyDetailOpts} />
+        <Stack.Screen name="profile/plan/index" options={planIndexOpts} />
+        <Stack.Screen name="profile/plan/setup" options={planSetupOpts} />
+      </Stack>
+    </>
   );
 }
 

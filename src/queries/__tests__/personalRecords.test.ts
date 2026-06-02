@@ -1,5 +1,5 @@
 import { getDb, initDb, resetDbForTests } from '@/db/client';
-import { getGroupedPRs, getHeaviestWeightHistory } from '@/queries/personalRecords';
+import { getGroupedPRs, getHeaviestWeightHistory, recordWorkoutPRs } from '@/queries/personalRecords';
 import { setSyncState } from '@/sync/state';
 
 jest.mock('@/auth/supabase', () => ({
@@ -112,6 +112,62 @@ describe('getGroupedPRs', () => {
 
     const [group] = await getGroupedPRs(USER);
     expect(group!.records.map((r) => r.id)).toEqual(['live']);
+  });
+});
+
+describe('recordWorkoutPRs', () => {
+  async function seedWorkout(
+    workoutId: string,
+    weId: string,
+    exerciseId: string,
+    sets: { weight: number | null; reps: number | null; completed: boolean }[],
+  ) {
+    const db = await getDb();
+    await db.runAsync(
+      'INSERT INTO workouts (id, user_id, started_at, title, created_at, updated_at) VALUES (?, ?, ?, ?, ?, ?)',
+      [workoutId, USER, T, 'W', T, T],
+    );
+    await db.runAsync(
+      'INSERT INTO workout_exercises (id, workout_id, exercise_id, order_index, created_at, updated_at) VALUES (?, ?, ?, ?, ?, ?)',
+      [weId, workoutId, exerciseId, 0, T, T],
+    );
+    let i = 0;
+    for (const s of sets) {
+      await db.runAsync(
+        `INSERT INTO sets (id, workout_exercise_id, order_index, weight, reps, completed, completed_at, created_at, updated_at)
+           VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+        [`${weId}-s${i}`, weId, i, s.weight, s.reps, s.completed ? 1 : 0, T, T, T],
+      );
+      i++;
+    }
+  }
+
+  test('creates heaviest/volume/most-reps PRs from a finished workout', async () => {
+    await insertExercise('ex-dl', 'Deadlift', 'Back');
+    await seedWorkout('w1', 'we1', 'ex-dl', [
+      { weight: 140, reps: 5, completed: true }, // heaviest 140
+      { weight: 100, reps: 10, completed: true }, // best volume 1000, most reps 10@100
+      { weight: 999, reps: 1, completed: false }, // incomplete — ignored
+    ]);
+
+    await recordWorkoutPRs(USER, 'w1');
+
+    const [group] = await getGroupedPRs(USER);
+    const byType = Object.fromEntries(group!.records.map((r) => [r.type, r.displayValue]));
+    expect(byType.heaviest_weight).toBe('140');
+    expect(byType.best_volume).toBe('1000');
+    expect(byType.most_reps_at_weight).toBe('10 × 100');
+  });
+
+  test('does not downgrade an existing heavier PR', async () => {
+    await insertExercise('ex', 'Bench', 'Chest');
+    await insertPR({ id: 'pr-h', exerciseId: 'ex', type: 'heaviest_weight', value: 200, achievedAt: oldIso() });
+    await seedWorkout('w2', 'we2', 'ex', [{ weight: 150, reps: 5, completed: true }]);
+
+    await recordWorkoutPRs(USER, 'w2');
+
+    const [group] = await getGroupedPRs(USER);
+    expect(group!.records.find((r) => r.type === 'heaviest_weight')!.displayValue).toBe('200');
   });
 });
 
