@@ -73,6 +73,11 @@ export async function resetLocalDb(): Promise<void> {
   }
   dbPromise = null;
   await SQLite.deleteDatabaseAsync(DATABASE_NAME).catch(() => undefined);
+  // Recreate the schema immediately. initDb() only runs once at app startup, so
+  // without this a sign-out (which deletes the file) followed by a sign-in in the
+  // same session would leave an empty database — every query then throws
+  // "no such table". Re-bootstrapping here keeps the next sign-in fully usable.
+  await initDb();
 }
 
 async function tryAlter(db: SQLite.SQLiteDatabase, sql: string): Promise<void> {
