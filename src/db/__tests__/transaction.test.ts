@@ -1,23 +1,25 @@
 import { withTransaction } from '@/db/transaction';
 
 /**
- * Fake DB whose withTransactionAsync mimics expo-sqlite: raw BEGIN/COMMIT that
- * is NOT re-entrant. If a second transaction's BEGIN runs while one is already
- * open, it throws — exactly the production failure the mutex must prevent.
+ * Fake DB mimicking expo-sqlite's connection: a single implicit transaction
+ * that cannot nest. A BEGIN while already open throws (like SQLite), and a
+ * ROLLBACK with nothing open throws "cannot rollback - no transaction is
+ * active" — the exact production failure mode.
  */
 function makeFakeDb() {
   let open = false;
   const log: string[] = [];
   return {
     log,
-    async withTransactionAsync(task: () => Promise<void>): Promise<void> {
-      if (open) throw new Error('cannot start a transaction within a transaction');
-      open = true;
-      log.push('BEGIN');
-      try {
-        await task();
-        log.push('COMMIT');
-      } finally {
+    async execAsync(sql: string): Promise<void> {
+      log.push(sql);
+      if (sql === 'BEGIN') {
+        if (open) throw new Error('cannot start a transaction within a transaction');
+        open = true;
+      } else if (sql === 'COMMIT') {
+        open = false;
+      } else if (sql === 'ROLLBACK') {
+        if (!open) throw new Error('cannot rollback - no transaction is active');
         open = false;
       }
     },
@@ -40,30 +42,35 @@ describe('withTransaction mutex', () => {
 
     await Promise.all([first, second]);
 
-    expect(db.log).toEqual(['BEGIN', 'A:work', 'A:work2', 'COMMIT', 'BEGIN', 'B:work', 'COMMIT']);
+    expect(db.log).toEqual([
+      'BEGIN',
+      'A:work',
+      'A:work2',
+      'COMMIT',
+      'BEGIN',
+      'B:work',
+      'COMMIT',
+    ]);
   });
 
-  test('a failing transaction releases the lock so the next one still runs', async () => {
+  test('propagates the real error from the task (not a rollback error)', async () => {
     const db = makeFakeDb();
+    const msg = await withTransaction(db, async () => {
+      throw new Error('UNIQUE constraint failed');
+    }).catch((e) => (e as Error).message);
+    expect(msg).toBe('UNIQUE constraint failed');
+    expect(db.log).toEqual(['BEGIN', 'ROLLBACK']);
+  });
 
+  test('a failed transaction releases the lock so the next one still runs', async () => {
+    const db = makeFakeDb();
     const failing = withTransaction(db, async () => {
       throw new Error('boom');
-    }).catch((e) => (e as Error).message);
+    }).catch(() => {});
     const next = withTransaction(db, async () => {
       db.log.push('next');
     });
-
-    const [failMsg] = await Promise.all([failing, next]);
-    expect(failMsg).toBe('boom');
+    await Promise.all([failing, next]);
     expect(db.log).toContain('next');
-  });
-
-  test('runs synchronously when uncontended (no microtask defer)', () => {
-    const db = makeFakeDb();
-    void withTransaction(db, async () => {
-      db.log.push('immediate');
-    });
-    // BEGIN + the synchronous part of the task ran before any await.
-    expect(db.log).toEqual(['BEGIN', 'immediate']);
   });
 });

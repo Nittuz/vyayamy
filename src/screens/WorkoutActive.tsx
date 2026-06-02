@@ -395,8 +395,19 @@ export default function WorkoutActiveScreen() {
     );
   }
 
-  const currentEx = findExercise(exercises, cursor.weId)!;
-  const currentSet = findSet(currentEx, cursor.setId)!;
+  const currentEx = findExercise(exercises, cursor.weId);
+  const currentSet = currentEx ? findSet(currentEx, cursor.setId) : null;
+  if (!currentEx || !currentSet) {
+    // The cursor briefly points at a set that isn't in the latest data — e.g.
+    // just after auto-staging the next set, before the React Query refetch
+    // lands. The cursor-reset effect repositions it on the next tick; render a
+    // placeholder until then instead of dereferencing null.
+    return (
+      <SafeAreaView style={[styles.container, styles.center, { backgroundColor: theme.color.bg }]}>
+        <ActivityIndicator color={theme.color.inkSecondary} />
+      </SafeAreaView>
+    );
+  }
   const currentExIdx = exercises.findIndex((e) => e.id === currentEx.id);
   const currentSetIdx = currentEx.sets.findIndex((s) => s.id === currentSet.id);
   const ghostSets = completedSetsBeforeCursor(currentEx, cursor);
