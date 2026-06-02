@@ -153,7 +153,7 @@ const makeStyles = (theme: Theme) =>
   slotRest: {
     flex: 1,
     fontSize: theme.font.size.body,
-    color: theme.color.inkTertiary,
+    color: theme.color.inkSecondary,
     fontStyle: 'italic',
   },
   emptyCard: {
