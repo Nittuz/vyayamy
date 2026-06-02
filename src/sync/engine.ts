@@ -57,66 +57,6 @@ let client: QueryClient | null = null;
 let pushInFlight = false;
 let pullInFlight = false;
 
-/**
- * Single sync mutex serializing all push/pull database work.
- *
- * `expo-sqlite`'s `withTransactionAsync` is not concurrency-safe — its raw
- * BEGIN/COMMIT cannot nest, so a push transaction overlapping a pull
- * transaction collides and throws "cannot rollback - no transaction is active"
- * (masking the real error). The `pushInFlight`/`pullInFlight` guards only
- * prevent push-vs-push and pull-vs-pull; push and pull can still overlap each
- * other when triggered from different events (network + auth on startup). This
- * mutex makes every sync transaction mutually exclusive on the single SQLite
- * connection.
- *
- * When uncontended it invokes `fn` synchronously (no microtask defer) so the
- * caller's in-flight bookkeeping and call ordering are unchanged; concurrent
- * callers queue and run in FIFO order once the lock frees.
- */
-let syncLocked = false;
-const syncWaiters: Array<() => void> = [];
-
-function releaseSyncLock(): void {
-  const next = syncWaiters.shift();
-  if (next) {
-    next(); // hand the lock to the next waiter (stays locked)
-  } else {
-    syncLocked = false;
-  }
-}
-
-function withSyncLock<T>(fn: () => Promise<T>): Promise<T> {
-  if (!syncLocked) {
-    syncLocked = true;
-    return invokeAndRelease(fn);
-  }
-  return new Promise<T>((resolve, reject) => {
-    syncWaiters.push(() => {
-      invokeAndRelease(fn).then(resolve, reject);
-    });
-  });
-}
-
-function invokeAndRelease<T>(fn: () => Promise<T>): Promise<T> {
-  let result: Promise<T>;
-  try {
-    result = Promise.resolve(fn());
-  } catch (err) {
-    releaseSyncLock();
-    return Promise.reject(err);
-  }
-  return result.then(
-    (v) => {
-      releaseSyncLock();
-      return v;
-    },
-    (err) => {
-      releaseSyncLock();
-      throw err;
-    },
-  );
-}
-
 export function startSyncEngine(queryClient: QueryClient) {
   client = queryClient;
   netSub = NetInfo.addEventListener(safeListener('network', (state) => {
@@ -198,7 +138,7 @@ export async function triggerPush(): Promise<void> {
   if (pushInFlight) return;
   pushInFlight = true;
   try {
-    await withSyncLock(() => pushOutbox());
+    await pushOutbox();
     setSyncState({ lastError: null, lastErrorAt: null });
     invalidateAfterSync();
   } catch (err) {
@@ -213,7 +153,7 @@ export async function triggerPull(): Promise<void> {
   if (pullInFlight) return;
   pullInFlight = true;
   try {
-    await withSyncLock(() => pullOnce());
+    await pullOnce();
     setSyncState({ lastError: null, lastErrorAt: null });
     invalidateAfterSync();
   } catch (err) {

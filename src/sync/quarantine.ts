@@ -6,6 +6,7 @@
 import { useQuery } from '@tanstack/react-query';
 
 import { getDb } from '@/db/client';
+import { withTransaction } from '@/db/transaction';
 import { triggerPush } from '@/sync/engine';
 import { MAX_ATTEMPTS } from '@/sync/push';
 
@@ -90,7 +91,7 @@ export async function discardQuarantinedRow(id: number): Promise<void> {
 
   const { table_name: table, op, row_id: rowId } = outboxRow;
 
-  await db.withTransactionAsync(async () => {
+  await withTransaction(db, async () => {
     await db.runAsync('DELETE FROM outbox WHERE id = ?', [id]);
 
     if (!SAFE_TABLES.has(table)) return;

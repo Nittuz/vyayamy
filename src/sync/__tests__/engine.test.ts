@@ -96,38 +96,3 @@ describe('runSyncCycle', () => {
     expect(mockPull).toHaveBeenCalledTimes(1);
   });
 });
-
-describe('sync mutex', () => {
-  // expo-sqlite's withTransactionAsync is not concurrency-safe; a push
-  // transaction overlapping a pull transaction throws "cannot rollback - no
-  // transaction is active". The engine serializes them through one lock.
-  test('a pull triggered during an in-flight push waits until the push finishes', async () => {
-    const events: string[] = [];
-    let releasePush: () => void = () => {};
-    mockPush.mockImplementationOnce(
-      () =>
-        new Promise<void>((resolve) => {
-          events.push('push:start');
-          releasePush = () => {
-            events.push('push:end');
-            resolve();
-          };
-        }),
-    );
-    mockPull.mockImplementationOnce(async () => {
-      events.push('pull:start');
-      events.push('pull:end');
-    });
-
-    const pushing = triggerPush();
-    const pulling = triggerPull(); // fired concurrently, from a different event
-
-    // The pull must NOT have started — the push holds the lock.
-    expect(events).toEqual(['push:start']);
-
-    releasePush();
-    await Promise.all([pushing, pulling]);
-
-    expect(events).toEqual(['push:start', 'push:end', 'pull:start', 'pull:end']);
-  });
-});
