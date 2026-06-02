@@ -114,8 +114,16 @@ export default function WorkoutActiveScreen() {
     }
     if (cursor) {
       const ex = findExercise(exercises, cursor.weId);
-      const set = ex ? findSet(ex, cursor.setId) : null;
-      if (ex && set && !set.completed) return; // current cursor still valid
+      if (ex) {
+        const set = findSet(ex, cursor.setId);
+        // Set not in the cached data yet — it was just created (advancing to a
+        // new exercise stages a set before the query refetch lands). Keep the
+        // cursor; the data will catch up. Resetting here would bounce to the
+        // first incomplete set (an earlier exercise) and trap the user on it.
+        if (!set) return;
+        if (!set.completed) return; // valid working set
+        // set exists and is completed → fall through and reposition
+      }
     }
     setCursor(findInitialCursor(exercises));
   }, [exercises, cursor]);
