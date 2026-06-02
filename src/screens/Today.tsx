@@ -152,7 +152,7 @@ export default function TodayScreen() {
       <SyncErrorStripe />
       <ScrollView contentContainerStyle={styles.scroll}>
         <View style={styles.topRow}>
-          <FBarMark size={26} />
+          <FBarMark size={60} />
           <Pressable
             onPress={() => router.push('/history')}
             hitSlop={8}

@@ -72,7 +72,7 @@ export default function LoginScreen() {
       >
         <View style={styles.card}>
           <View style={styles.header}>
-            <FBarMark size={44} />
+            <FBarMark size={104} />
             <Text style={styles.title}>{brand.name}</Text>
             <Text style={styles.tagline}>{brand.tagline}</Text>
           </View>

@@ -32,7 +32,7 @@ const config: ExpoConfig = {
     package: 'com.mokshlabs.flexyug',
     adaptiveIcon: {
       foregroundImage: './assets/adaptive-icon.png',
-      backgroundColor: '#F8F6F3',
+      backgroundColor: '#0E1411',
     },
   },
   web: {
@@ -47,7 +47,7 @@ const config: ExpoConfig = {
       {
         image: './assets/splash.png',
         resizeMode: 'contain',
-        backgroundColor: '#F8F6F3',
+        backgroundColor: '#0E1411',
       },
     ],
     'expo-sqlite',
@@ -56,7 +56,7 @@ const config: ExpoConfig = {
       'expo-notifications',
       {
         icon: './assets/notification-icon.png',
-        color: '#0F172A',
+        color: '#D8AB92',
       },
     ],
     [
