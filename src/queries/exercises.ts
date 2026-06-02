@@ -8,6 +8,7 @@ import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 
 import { getDb } from '@/db/client';
 import { enqueueMutation } from '@/db/mutations';
+import { withTransaction } from '@/db/transaction';
 import type { Exercise } from '@/db/types';
 import { uuidv4 } from '@/db/uuid';
 import { triggerPush } from '@/sync/engine';
@@ -68,7 +69,7 @@ export async function addExerciseToWorkout(args: {
   const now = new Date().toISOString();
   // Compute next order_index inside the same transaction as the insert so two
   // rapid taps cannot both read MAX=N and write duplicate order_index = N+1.
-  await db.withTransactionAsync(async () => {
+  await withTransaction(db, async () => {
     const result = await db.getFirstAsync<{ next_order: number }>(
       `SELECT COALESCE(MAX(order_index), -1) + 1 AS next_order
          FROM workout_exercises WHERE workout_id = ? AND deleted_at IS NULL`,
