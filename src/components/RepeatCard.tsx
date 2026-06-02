@@ -58,9 +58,9 @@ export function RepeatCard({ title, daysAgo, seeds, loading, onPress }: Props) {
         {title || 'Workout'}
       </Text>
       <View style={styles.seedList}>
-        {displaySeeds.map((seed) => (
+        {displaySeeds.map((seed, i) => (
           <View
-            key={seed.exerciseId}
+            key={`${seed.exerciseId}-${i}`}
             style={styles.seedRow}
             accessibilityLabel={`${seed.exerciseName}, ${formatSeed(seed)}`}
           >
