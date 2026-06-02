@@ -1,6 +1,9 @@
 import { useQuery } from '@tanstack/react-query';
 
+import { computeBestMetrics, detectNewPRs } from '@/core/pr-detection';
 import { getDb } from '@/db/client';
+import { enqueueMutation } from '@/db/mutations';
+import { nowIso, uuidv4 } from '@/db/uuid';
 import { parsePRValue, type GroupedPR } from '@/core/domain';
 import type { Exercise, PersonalRecord } from '@/db/types';
 
@@ -9,6 +12,108 @@ import { queryKeys } from './keys';
 interface Row extends PersonalRecord {
   exercise_name: string | null;
   muscle_group: string | null;
+}
+
+/**
+ * Recompute an exercise's all-time PRs from every completed set the user has
+ * logged for it, and upsert only genuine improvements over the stored records.
+ * Writes go through the outbox like any other mutation.
+ */
+async function upsertExercisePRs(
+  db: Awaited<ReturnType<typeof getDb>>,
+  userId: string,
+  exerciseId: string,
+  workoutId: string | null,
+): Promise<void> {
+  const sets = await db.getAllAsync<{ weight: number | null; reps: number | null; completed: number }>(
+    `SELECT s.weight, s.reps, s.completed
+       FROM sets s
+       JOIN workout_exercises we ON we.id = s.workout_exercise_id
+       JOIN workouts w ON w.id = we.workout_id
+      WHERE w.user_id = ? AND we.exercise_id = ?
+        AND s.completed = 1 AND s.deleted_at IS NULL
+        AND we.deleted_at IS NULL AND w.deleted_at IS NULL`,
+    [userId, exerciseId],
+  );
+
+  const metrics = computeBestMetrics(sets.map((s) => ({ ...s, completed: Boolean(s.completed) })));
+
+  const existing = await db.getAllAsync<{ id: string; type: string; value: string }>(
+    `SELECT id, type, value FROM personal_records
+      WHERE user_id = ? AND exercise_id = ? AND deleted_at IS NULL`,
+    [userId, exerciseId],
+  );
+  const existingIdByType = new Map(existing.map((r) => [r.type, r.id]));
+  const existingValueByType = new Map(existing.map((r) => [r.type, decodePRValue(r.value)]));
+
+  const candidates = detectNewPRs(metrics, existingValueByType);
+  const now = nowIso();
+
+  for (const c of candidates) {
+    const value = JSON.stringify(c.value);
+    const id = existingIdByType.get(c.type);
+    if (id) {
+      await enqueueMutation({
+        table: 'personal_records',
+        op: 'update',
+        rowId: id,
+        payload: { value, achieved_at: now, workout_id: workoutId },
+      });
+    } else {
+      await enqueueMutation({
+        table: 'personal_records',
+        op: 'insert',
+        rowId: uuidv4(),
+        payload: {
+          user_id: userId,
+          exercise_id: exerciseId,
+          type: c.type,
+          value,
+          achieved_at: now,
+          ...(workoutId ? { workout_id: workoutId } : {}),
+        },
+      });
+    }
+  }
+}
+
+/**
+ * Detect and persist personal records for every exercise in a finished workout.
+ *
+ * PR detection lives in `@/core/pr-detection` but was never wired into the app,
+ * so `personal_records` stayed empty and Progress showed nothing. Runs on finish.
+ */
+export async function recordWorkoutPRs(userId: string, workoutId: string): Promise<void> {
+  const db = await getDb();
+  const exerciseRows = await db.getAllAsync<{ exercise_id: string }>(
+    `SELECT DISTINCT exercise_id FROM workout_exercises
+       WHERE workout_id = ? AND deleted_at IS NULL`,
+    [workoutId],
+  );
+  for (const { exercise_id } of exerciseRows) {
+    await upsertExercisePRs(db, userId, exercise_id, workoutId);
+  }
+}
+
+/**
+ * One-time backfill: recompute PRs across every exercise the user has ever
+ * completed a set for. Lets existing history surface PRs without re-finishing
+ * old workouts. Idempotent — only writes improvements.
+ */
+export async function recomputeAllPRs(userId: string): Promise<void> {
+  const db = await getDb();
+  const exerciseRows = await db.getAllAsync<{ exercise_id: string }>(
+    `SELECT DISTINCT we.exercise_id
+       FROM sets s
+       JOIN workout_exercises we ON we.id = s.workout_exercise_id
+       JOIN workouts w ON w.id = we.workout_id
+      WHERE w.user_id = ? AND s.completed = 1
+        AND s.deleted_at IS NULL AND we.deleted_at IS NULL AND w.deleted_at IS NULL`,
+    [userId],
+  );
+  for (const { exercise_id } of exerciseRows) {
+    await upsertExercisePRs(db, userId, exercise_id, null);
+  }
 }
 
 /** Postgres ships `value` as JSONB; SQLite stores the JSON as TEXT. Decode here. */
