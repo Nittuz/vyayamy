@@ -1,10 +1,11 @@
+import { type ColorValue } from 'react-native';
 import Svg, { Circle, Path } from 'react-native-svg';
 
 type Name = 'today' | 'progress' | 'profile';
 
 interface Props {
   name: Name;
-  color: string;
+  color: ColorValue;
   focused: boolean;
   size?: number;
 }

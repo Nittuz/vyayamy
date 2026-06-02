@@ -23,6 +23,7 @@
 import { supabase } from '@/auth/supabase';
 import { getDb } from '@/db/client';
 import type { SyncedTable } from '@/db/schema';
+import { withTransaction } from '@/db/transaction';
 
 import { setSyncState } from './state';
 
@@ -217,7 +218,7 @@ async function reconcileLocalRowId(
 ): Promise<void> {
   if (!RECONCILE_SAFE_TABLES.has(table)) return;
   const db = await getDb();
-  await db.withTransactionAsync(async () => {
+  await withTransaction(db, async () => {
     await db.runAsync(`UPDATE ${table} SET id = ? WHERE id = ?`, [newId, oldId]);
   });
 }

@@ -25,6 +25,7 @@
 import { supabase } from '@/auth/supabase';
 import { getDb } from '@/db/client';
 import { SYNCED_TABLES, type SyncedTable } from '@/db/schema';
+import { withTransaction } from '@/db/transaction';
 
 import { setSyncState } from './state';
 
@@ -79,7 +80,7 @@ export async function pullOnce(): Promise<void> {
       const ids = (data as Record<string, unknown>[]).map((r) => String(r.id));
       const pendingByRowId = await fetchPendingOutbox(table, ids);
 
-      await db.withTransactionAsync(async () => {
+      await withTransaction(db, async () => {
         for (const row of data) {
           const r = row as Record<string, unknown>;
           const rowId = String(r.id);

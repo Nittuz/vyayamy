@@ -17,6 +17,7 @@
  */
 import { getDb } from './client';
 import type { SyncedTable } from './schema';
+import { withTransaction } from './transaction';
 import { nowIso } from './uuid';
 
 export type MutationOp = 'insert' | 'update' | 'upsert' | 'delete';
@@ -40,7 +41,7 @@ export async function enqueueMutation(args: EnqueueArgs): Promise<void> {
   const db = await getDb();
   const now = nowIso();
 
-  await db.withTransactionAsync(async () => {
+  await withTransaction(db, async () => {
     if (args.op === 'delete') {
       // Cascade-soft-delete children first so a fresh device's pull never
       // sees orphaned-yet-live rows. Walk depth-first.

@@ -1,5 +1,5 @@
 import { router, Stack } from 'expo-router';
-import { useCallback, useEffect, useMemo, useState } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import {
   ActivityIndicator,
   Alert,
@@ -103,21 +103,44 @@ export default function WorkoutActiveScreen() {
   );
   const timer = useRestTimer({ targetSeconds: restSeconds });
 
-  // Initialize cursor when exercises first load, or reposition when external
-  // state changes (e.g. new set added). cursor is read here only to check
-  // validity — the setter is always called conditionally, so this is safe.
+  // Tracks whether the cursor has been initialized for the current workout.
+  // Distinguishes "cursor is null because we haven't loaded yet" (→ initialize)
+  // from "cursor is null because the user finished" (→ leave it, show the recap).
+  const didInitCursor = useRef(false);
+
+  // Initialize cursor when exercises first load, or reposition when the cursor
+  // points at a set that no longer exists / is already completed. cursor is read
+  // here only to check validity — the setter is always called conditionally.
   // eslint-disable-next-line react-hooks/exhaustive-deps
   useEffect(() => {
     if (exercises.length === 0) {
       setCursor(null);
+      didInitCursor.current = false;
       return;
     }
     if (cursor) {
+      didInitCursor.current = true; // we have a real cursor → initialized
       const ex = findExercise(exercises, cursor.weId);
-      const set = ex ? findSet(ex, cursor.setId) : null;
-      if (ex && set && !set.completed) return; // current cursor still valid
+      if (ex) {
+        const set = findSet(ex, cursor.setId);
+        // Set not in the cached data yet — it was just created (advancing to a
+        // new exercise stages a set before the query refetch lands). Keep the
+        // cursor; the data will catch up.
+        if (!set) return;
+        if (!set.completed) return; // valid working set
+        // set exists and is completed → fall through and reposition
+      }
+      // cursor points at a missing exercise or a completed set → reposition
+      setCursor(findInitialCursor(exercises));
+      return;
     }
-    setCursor(findInitialCursor(exercises));
+    // cursor is null: initialize on first load. Once the user has finished
+    // (deliberate null via "finish →"), leave it null so the recap shows and we
+    // don't bounce them back into the first incomplete set.
+    if (!didInitCursor.current) {
+      didInitCursor.current = true;
+      setCursor(findInitialCursor(exercises));
+    }
   }, [exercises, cursor]);
 
   const onChangeWeight = useCallback(
@@ -161,6 +184,9 @@ export default function WorkoutActiveScreen() {
     async (exerciseId: string) => {
       if (!activeQuery.data) return;
       setPickerOpen(false);
+      // Adding from the finish recap (cursor === null) should drop back into the
+      // working view on the new exercise — let the init effect reposition.
+      didInitCursor.current = false;
       await addExercise.mutateAsync({ workoutId: activeQuery.data.id, exerciseId });
     },
     [activeQuery.data, addExercise],
@@ -173,8 +199,12 @@ export default function WorkoutActiveScreen() {
     const isUnmodified = !currentSet || (currentSet.weight == null && currentSet.reps == null);
     const advance = async () => {
       if (nextEx) {
-        // Find or stage first set of next exercise
-        let nextSetId = nextEx.sets[0]?.id;
+        // Target the next exercise's first INCOMPLETE set — not sets[0], which
+        // may already be completed (prior session / earlier logging). Landing
+        // the cursor on a completed set makes the cursor-reset effect bounce it
+        // back to the first incomplete set (an earlier exercise). Stage a fresh
+        // set only if every set in the next exercise is already done.
+        let nextSetId = nextEx.sets.find((s) => !s.completed)?.id;
         if (!nextSetId) {
           nextSetId = await addSet(nextEx.id);
         }
@@ -395,8 +425,19 @@ export default function WorkoutActiveScreen() {
     );
   }
 
-  const currentEx = findExercise(exercises, cursor.weId)!;
-  const currentSet = findSet(currentEx, cursor.setId)!;
+  const currentEx = findExercise(exercises, cursor.weId);
+  const currentSet = currentEx ? findSet(currentEx, cursor.setId) : null;
+  if (!currentEx || !currentSet) {
+    // The cursor briefly points at a set that isn't in the latest data — e.g.
+    // just after auto-staging the next set, before the React Query refetch
+    // lands. The cursor-reset effect repositions it on the next tick; render a
+    // placeholder until then instead of dereferencing null.
+    return (
+      <SafeAreaView style={[styles.container, styles.center, { backgroundColor: theme.color.bg }]}>
+        <ActivityIndicator color={theme.color.inkSecondary} />
+      </SafeAreaView>
+    );
+  }
   const currentExIdx = exercises.findIndex((e) => e.id === currentEx.id);
   const currentSetIdx = currentEx.sets.findIndex((s) => s.id === currentSet.id);
   const ghostSets = completedSetsBeforeCursor(currentEx, cursor);

@@ -54,7 +54,7 @@ export function ExercisePicker({ userId, visible, onClose, onPick }: Props) {
   }));
 
   const styles = useMemo(() => StyleSheet.create({
-    backdrop: { ...StyleSheet.absoluteFillObject, backgroundColor: theme.color.overlay },
+    backdrop: { position: 'absolute', top: 0, left: 0, right: 0, bottom: 0, backgroundColor: theme.color.overlay },
     sheet: {
       position: 'absolute',
       left: 0,

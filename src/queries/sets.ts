@@ -7,6 +7,7 @@ import { useMutation, useQueryClient } from '@tanstack/react-query';
 
 import { getDb } from '@/db/client';
 import { enqueueMutation } from '@/db/mutations';
+import { withTransaction } from '@/db/transaction';
 import type { Set as SetRow } from '@/db/types';
 import { nowIso, uuidv4 } from '@/db/uuid';
 import { triggerPush } from '@/sync/engine';
@@ -27,7 +28,7 @@ export async function addSet(weId: string, args: { weight?: number | null; reps?
   const id = uuidv4();
   // Compute next order_index inside the same transaction as the insert so two
   // rapid taps cannot both read MAX=N and write duplicate order_index = N+1.
-  await db.withTransactionAsync(async () => {
+  await withTransaction(db, async () => {
     const result = await db.getFirstAsync<{ next_order: number }>(
       `SELECT COALESCE(MAX(order_index), -1) + 1 AS next_order
          FROM sets WHERE workout_exercise_id = ? AND deleted_at IS NULL`,
