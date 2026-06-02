@@ -181,8 +181,12 @@ export default function WorkoutActiveScreen() {
     const isUnmodified = !currentSet || (currentSet.weight == null && currentSet.reps == null);
     const advance = async () => {
       if (nextEx) {
-        // Find or stage first set of next exercise
-        let nextSetId = nextEx.sets[0]?.id;
+        // Target the next exercise's first INCOMPLETE set — not sets[0], which
+        // may already be completed (prior session / earlier logging). Landing
+        // the cursor on a completed set makes the cursor-reset effect bounce it
+        // back to the first incomplete set (an earlier exercise). Stage a fresh
+        // set only if every set in the next exercise is already done.
+        let nextSetId = nextEx.sets.find((s) => !s.completed)?.id;
         if (!nextSetId) {
           nextSetId = await addSet(nextEx.id);
         }
