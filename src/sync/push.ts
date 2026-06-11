@@ -45,10 +45,9 @@ interface OutboxRow {
 export const MAX_ATTEMPTS = 5;
 const BATCH_LIMIT = 50;
 
-/** Per-table override for upsert conflict target. Defaults to the PK (id). */
-const UPSERT_CONFLICT_TARGET: Partial<Record<SyncedTable, string>> = {
-  personal_records: 'user_id,exercise_id,type',
-};
+/** Per-table override for upsert conflict target. Defaults to the PK (id).
+ *  (personal_records is no longer synced — it is a local derived cache, #138.) */
+const UPSERT_CONFLICT_TARGET: Partial<Record<SyncedTable, string>> = {};
 
 /** Columns the server owns; never send them. */
 const SERVER_OWNED_COLUMNS = new Set(['updated_at']);

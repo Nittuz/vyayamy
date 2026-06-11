@@ -123,9 +123,10 @@ describe('recordWorkoutPRs', () => {
     sets: { weight: number | null; reps: number | null; completed: boolean }[],
   ) {
     const db = await getDb();
+    // PRs only count sets from FINISHED workouts (#143), so seed ended_at.
     await db.runAsync(
-      'INSERT INTO workouts (id, user_id, started_at, title, created_at, updated_at) VALUES (?, ?, ?, ?, ?, ?)',
-      [workoutId, USER, T, 'W', T, T],
+      'INSERT INTO workouts (id, user_id, started_at, ended_at, title, created_at, updated_at) VALUES (?, ?, ?, ?, ?, ?, ?)',
+      [workoutId, USER, T, T, 'W', T, T],
     );
     await db.runAsync(
       'INSERT INTO workout_exercises (id, workout_id, exercise_id, order_index, created_at, updated_at) VALUES (?, ?, ?, ?, ?, ?)',
@@ -159,15 +160,50 @@ describe('recordWorkoutPRs', () => {
     expect(byType.most_reps_at_weight).toBe('10 × 100');
   });
 
-  test('does not downgrade an existing heavier PR', async () => {
+  test('PRs are a LOCAL cache — recording them never enqueues a sync op (#138/#139)', async () => {
     await insertExercise('ex', 'Bench', 'Chest');
-    await insertPR({ id: 'pr-h', exerciseId: 'ex', type: 'heaviest_weight', value: 200, achievedAt: oldIso() });
-    await seedWorkout('w2', 'we2', 'ex', [{ weight: 150, reps: 5, completed: true }]);
+    await seedWorkout('w', 'we', 'ex', [{ weight: 100, reps: 5, completed: true }]);
 
-    await recordWorkoutPRs(USER, 'w2');
+    await recordWorkoutPRs(USER, 'w');
+
+    const db = await getDb();
+    const prOutbox = await db.getFirstAsync<{ c: number }>(
+      `SELECT COUNT(*) AS c FROM outbox WHERE table_name = 'personal_records'`,
+    );
+    expect(prOutbox?.c).toBe(0);
+    // ...but the local cache was written.
+    const prCount = await db.getFirstAsync<{ c: number }>('SELECT COUNT(*) AS c FROM personal_records');
+    expect(prCount!.c).toBeGreaterThan(0);
+  });
+
+  test('reflects the best across all finished history, not just the latest workout', async () => {
+    await insertExercise('ex', 'Bench', 'Chest');
+    await seedWorkout('w-heavy', 'we-h', 'ex', [{ weight: 200, reps: 3, completed: true }]);
+    await seedWorkout('w-light', 'we-l', 'ex', [{ weight: 150, reps: 5, completed: true }]);
+
+    await recordWorkoutPRs(USER, 'w-heavy');
+    await recordWorkoutPRs(USER, 'w-light'); // authoritative recompute sees both
 
     const [group] = await getGroupedPRs(USER);
+    // The heavier set still owns the PR — the lighter workout did not downgrade it.
     expect(group!.records.find((r) => r.type === 'heaviest_weight')!.displayValue).toBe('200');
+  });
+
+  test('drops a PR when its backing set is deleted (authoritative down-write, #138)', async () => {
+    await insertExercise('ex', 'Bench', 'Chest');
+    await seedWorkout('w', 'we', 'ex', [
+      { weight: 200, reps: 3, completed: true }, // the PR
+      { weight: 150, reps: 5, completed: true }, // the next-best
+    ]);
+    await recordWorkoutPRs(USER, 'w');
+    expect((await getGroupedPRs(USER))[0]!.records.find((r) => r.type === 'heaviest_weight')!.displayValue).toBe('200');
+
+    // Soft-delete the 200 set, then recompute: the phantom PR must drop to 150.
+    const db = await getDb();
+    await db.runAsync(`UPDATE sets SET deleted_at = ? WHERE id = 'we-s0'`, [T]);
+    await recordWorkoutPRs(USER, 'w');
+
+    expect((await getGroupedPRs(USER))[0]!.records.find((r) => r.type === 'heaviest_weight')!.displayValue).toBe('150');
   });
 });
 

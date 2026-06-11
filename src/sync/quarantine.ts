@@ -72,7 +72,6 @@ const SAFE_TABLES = new Set([
   'workout_exercises',
   'sets',
   'exercises',
-  'personal_records',
   'templates',
   'training_plans',
   'training_plan_slots',

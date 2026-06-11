@@ -1,86 +1,73 @@
 /**
  * Personal-record detection — pure functions only.
  *
- * detectNewPRs(...) runs against rows already read from SQLite; callers
- * enqueue any resulting upserts through the outbox like any other mutation.
+ * computePRs(...) runs against completed sets already read from SQLite and
+ * returns the authoritative best-ever PRs for one exercise. Weights are
+ * normalized to kg so sets logged in different units compare correctly (#132);
+ * each PR carries the completed_at of the achieving set (#142). Callers persist
+ * the result into the local personal_records cache (it is derived data — never
+ * synced).
  */
-import type { PRType } from './domain';
+import type { PRType, Units } from './domain';
+import { toKg } from './units';
 
-type SetRow = { weight: number | null; reps: number | null; completed: boolean };
+export interface PRSet {
+  weight: number | null;
+  reps: number | null;
+  units: Units | null;
+  completed: boolean;
+  completedAt: string | null;
+}
 
-export type WorkoutExerciseRow = { exercise_id: string; sets: SetRow[] };
-
-export type BestMetrics = {
-  bestWeight: number | null;
-  bestVolume: number;
-  bestRepsAtWeight: { weight: number; reps: number } | null;
-};
-
-export type PRCandidate = {
+export interface ComputedPR {
   type: PRType;
+  /** Value in canonical kg. */
   value: number | { weight: number; reps: number };
-};
+  achievedAt: string | null;
+}
 
-export function computeBestMetrics(sets: SetRow[]): BestMetrics {
-  const completed = sets.filter((s) => s.completed && (s.weight != null || s.reps != null));
+function round(n: number): number {
+  return Math.round(n * 100) / 100;
+}
 
-  let bestWeight: number | null = null;
-  let bestVolume = 0;
-  let bestRepsAtWeight: { weight: number; reps: number } | null = null;
+export function computePRs(sets: PRSet[]): ComputedPR[] {
+  let bestWeight: { kg: number; at: string | null } | null = null;
+  let bestVolume: { kg: number; at: string | null } | null = null;
+  let bestReps: { weightKg: number; reps: number; at: string | null } | null = null;
 
-  for (const s of completed) {
-    const w = s.weight ?? 0;
+  for (const s of sets) {
+    if (!s.completed) continue;
+    if (s.weight == null && s.reps == null) continue;
+    const w = s.weight != null ? toKg(s.weight, s.units ?? 'kg') : 0;
     const r = s.reps ?? 0;
     const vol = w * r;
-    if (w > 0 && (bestWeight == null || w > bestWeight)) bestWeight = w;
-    if (vol > bestVolume) bestVolume = vol;
+
+    if (w > 0 && (bestWeight == null || w > bestWeight.kg)) {
+      bestWeight = { kg: w, at: s.completedAt };
+    }
+    if (vol > 0 && (bestVolume == null || vol > bestVolume.kg)) {
+      bestVolume = { kg: vol, at: s.completedAt };
+    }
     if (
       w > 0 &&
       r > 0 &&
-      (bestRepsAtWeight == null ||
-        r > bestRepsAtWeight.reps ||
-        (r === bestRepsAtWeight.reps && w > bestRepsAtWeight.weight))
+      (bestReps == null ||
+        r > bestReps.reps ||
+        (r === bestReps.reps && w > bestReps.weightKg))
     ) {
-      bestRepsAtWeight = { weight: w, reps: r };
+      bestReps = { weightKg: w, reps: r, at: s.completedAt };
     }
   }
 
-  return { bestWeight, bestVolume, bestRepsAtWeight };
-}
-
-export function detectNewPRs(
-  metrics: BestMetrics,
-  existingByType: Map<string, unknown>,
-): PRCandidate[] {
-  const candidates: PRCandidate[] = [];
-
-  if (metrics.bestWeight != null) {
-    const prev = existingByType.get('heaviest_weight') as number | undefined;
-    if (prev == null || metrics.bestWeight > prev) {
-      candidates.push({ type: 'heaviest_weight', value: metrics.bestWeight });
-    }
+  const out: ComputedPR[] = [];
+  if (bestWeight) out.push({ type: 'heaviest_weight', value: round(bestWeight.kg), achievedAt: bestWeight.at });
+  if (bestVolume) out.push({ type: 'best_volume', value: round(bestVolume.kg), achievedAt: bestVolume.at });
+  if (bestReps) {
+    out.push({
+      type: 'most_reps_at_weight',
+      value: { weight: round(bestReps.weightKg), reps: bestReps.reps },
+      achievedAt: bestReps.at,
+    });
   }
-
-  if (metrics.bestVolume > 0) {
-    const prev = existingByType.get('best_volume') as number | undefined;
-    if (prev == null || metrics.bestVolume > prev) {
-      candidates.push({ type: 'best_volume', value: metrics.bestVolume });
-    }
-  }
-
-  if (metrics.bestRepsAtWeight != null) {
-    const prev = existingByType.get('most_reps_at_weight') as
-      | { weight: number; reps: number }
-      | undefined;
-    const isBetter =
-      prev == null ||
-      metrics.bestRepsAtWeight.reps > prev.reps ||
-      (metrics.bestRepsAtWeight.reps === prev.reps &&
-        metrics.bestRepsAtWeight.weight > prev.weight);
-    if (isBetter) {
-      candidates.push({ type: 'most_reps_at_weight', value: metrics.bestRepsAtWeight });
-    }
-  }
-
-  return candidates;
+  return out;
 }

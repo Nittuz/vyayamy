@@ -205,13 +205,14 @@ CREATE TABLE IF NOT EXISTS sync_meta (
 );
 `;
 
+// personal_records is intentionally NOT synced — it is a LOCAL derived cache
+// recomputed from sets (which do sync). See src/queries/personalRecords.ts (#138–145).
 export const SYNCED_TABLES = [
   'profiles',
   'exercises',
   'workouts',
   'workout_exercises',
   'sets',
-  'personal_records',
   'templates',
   'training_plans',
   'training_plan_slots',
