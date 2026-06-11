@@ -11,7 +11,8 @@
  * unit-tested in the ts-jest/Node harness. The pure pieces it composes
  * (GrammarParser, dispatchCommand) are unit-tested.
  */
-import { useCallback, useRef, useState } from 'react';
+import { useCallback, useEffect, useRef, useState } from 'react';
+import { AppState } from 'react-native';
 
 import type { Command, VoiceContext } from './commands';
 import { dispatchCommand, type DispatchContext } from './dispatch';
@@ -22,13 +23,15 @@ export type VoiceUiState =
   | { phase: 'idle' }
   | { phase: 'listening'; partial: string }
   | { phase: 'pending'; command: Command; label: string }
-  | { phase: 'applied'; label: string };
+  | { phase: 'applied'; label: string }
+  | { phase: 'error'; label: string };
 
 export interface VoiceSessionDeps {
   engine?: SpeechEngine;
   getDispatchContext: () => DispatchContext;
   getParserContext: () => VoiceContext;
   onStartRest: (seconds?: number) => void;
+  onStopRest?: () => void;
   onNextExercise: () => void;
   onPrevExercise: () => void;
   onFinishWorkout: () => void;
@@ -63,6 +66,9 @@ export function useVoiceSession(deps: VoiceSessionDeps) {
       if (res.ok) {
         lastUndo.current = res.undo ?? null;
         setUi({ phase: 'applied', label: res.message });
+      } else {
+        // Don't fail silently — show what went wrong (#104).
+        setUi({ phase: 'error', label: res.message });
       }
     },
     [deps],
@@ -80,6 +86,7 @@ export function useVoiceSession(deps: VoiceSessionDeps) {
     async (command: Command, confidence: 'high' | 'low') => {
       switch (command.kind) {
         case 'stop':
+          lastUndo.current = null;
           return stop();
         case 'undo': {
           if (lastUndo.current) {
@@ -92,14 +99,22 @@ export function useVoiceSession(deps: VoiceSessionDeps) {
         case 'confirm':
           return applyPending();
         case 'finishWorkout':
+          // A non-data command invalidates the pending undo — "undo" must never
+          // reach back past it and revert a set the user already moved on from (#99).
+          lastUndo.current = null;
           return deps.onFinishWorkout();
         case 'startRest':
           return deps.onStartRest(command.seconds);
+        case 'stopRest':
+          return deps.onStopRest?.();
         case 'nextExercise':
+          lastUndo.current = null;
           return deps.onNextExercise();
         case 'prevExercise':
+          lastUndo.current = null;
           return deps.onPrevExercise();
         case 'completeSet':
+          lastUndo.current = null;
           if (deps.onCompleteSet) {
             deps.onCompleteSet();
             setUi({ phase: 'applied', label: 'Set complete' });
@@ -129,8 +144,18 @@ export function useVoiceSession(deps: VoiceSessionDeps) {
     [deps, handleCommand, resetSilence],
   );
 
+  const listeningRef = useRef(false);
   const start = useCallback(async () => {
-    if (!(await engine.requestPermissions())) return;
+    // Re-entrancy guard: a second start() while already listening would register
+    // a second result listener and every command would dispatch twice (#97).
+    if (listeningRef.current) return;
+    if (!(await engine.requestPermissions())) {
+      // Surface the denial (the screen can route to Settings) instead of a
+      // dead mic button (#104).
+      setUi({ phase: 'error', label: 'Microphone access needed' });
+      return;
+    }
+    listeningRef.current = true;
     setUi({ phase: 'listening', partial: '' });
     resetSilence();
     engine.start(
@@ -138,9 +163,29 @@ export function useVoiceSession(deps: VoiceSessionDeps) {
         if (e.isFinal) onFinal(e.transcript);
         else setUi({ phase: 'listening', partial: e.transcript });
       },
-      () => stop(),
+      () => {
+        stop(); // resets ui to idle...
+        setUi({ phase: 'error', label: 'Voice unavailable' }); // ...so surface after
+      },
     );
   }, [engine, onFinal, resetSilence, stop]);
+
+  // Keep the listening flag in sync when stop() runs (silence timeout, command, etc.).
+  useEffect(() => {
+    if (ui.phase === 'idle') listeningRef.current = false;
+  }, [ui.phase]);
+
+  // Stop the mic when the screen unmounts or the app backgrounds — otherwise the
+  // engine keeps listening (and dispatching) after the user leaves (#96).
+  useEffect(() => {
+    const sub = AppState.addEventListener('change', (next) => {
+      if (next !== 'active') stop();
+    });
+    return () => {
+      sub.remove();
+      stop();
+    };
+  }, [stop]);
 
   const available = engine.isAvailable();
 
@@ -149,5 +194,6 @@ export function useVoiceSession(deps: VoiceSessionDeps) {
 
 function describe(c: Command): string {
   if (c.kind === 'setValues') return `${c.weight ?? '—'} × ${c.reps ?? '—'}`;
+  if (c.kind === 'addExercise') return `Add ${c.name}`;
   return c.kind;
 }

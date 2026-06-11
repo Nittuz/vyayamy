@@ -26,6 +26,9 @@ export function useRestTimer(args: UseRestTimerArgs = {}) {
   const { targetSeconds = 90 } = args;
   const [startedAt, setStartedAt] = useState<number | null>(null);
   const [elapsed, setElapsed] = useState(0);
+  // The target actually in effect — equals the prop unless a spoken duration or a
+  // restored timer overrode it (#105/#17). Kept in sync with the prop while idle.
+  const [activeTarget, setActiveTarget] = useState(targetSeconds);
   const firedRef = useRef(false);
   const intervalRef = useRef<ReturnType<typeof setInterval> | null>(null);
   const notificationIdRef = useRef<string | null>(null);
@@ -43,20 +46,28 @@ export function useRestTimer(args: UseRestTimerArgs = {}) {
         void removeKv(REST_TIMER_KEY);
       }
       if (decision.restore && persisted) {
-        // Resume the timer from where it was, and re-adopt the scheduled
-        // notification id so stop() can still cancel it after a remount (#17/#160).
+        // Resume the timer from where it was, re-adopt the persisted target, and
+        // re-adopt the scheduled notification id so stop() can still cancel it
+        // after a remount (#17/#160).
         setStartedAt(persisted.startedAt);
+        setActiveTarget(persisted.targetSeconds);
         notificationIdRef.current = persisted.notificationId ?? null;
       }
     })();
   }, []);
+
+  // Keep the active target aligned with the prop while idle (the prop changes as
+  // the cursor moves to an exercise with a different configured rest).
+  useEffect(() => {
+    if (startedAt == null) setActiveTarget(targetSeconds);
+  }, [targetSeconds, startedAt]);
 
   useEffect(() => {
     if (startedAt == null) return;
     intervalRef.current = setInterval(() => {
       const secs = Math.floor((Date.now() - startedAt) / 1000);
       setElapsed(secs);
-      if (!firedRef.current && secs >= targetSeconds) {
+      if (!firedRef.current && secs >= activeTarget) {
         firedRef.current = true;
         void Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success).catch(() => {});
       }
@@ -65,36 +76,40 @@ export function useRestTimer(args: UseRestTimerArgs = {}) {
       if (intervalRef.current) clearInterval(intervalRef.current);
       intervalRef.current = null;
     };
-  }, [startedAt, targetSeconds]);
+  }, [startedAt, activeTarget]);
 
-  const start = useCallback(() => {
-    firedRef.current = false;
-    setElapsed(0);
-    const now = Date.now();
-    setStartedAt(now);
-    void setKv<PersistedTimer>(REST_TIMER_KEY, {
-      schemaVersion: REST_TIMER_SCHEMA_VERSION,
-      startedAt: now,
-      targetSeconds,
-      notificationId: null,
-    });
-    void cancelRest(notificationIdRef.current)
-      .then(() => {
-        notificationIdRef.current = null;
-        // Prime here — the first rest of a workout is a deliberate, contextual
-        // moment to ask, and iOS only shows the dialog once (#157).
-        return primeRestAlerts();
-      })
-      .then(() => scheduleRestDone(targetSeconds))
-      .then((id) => {
-        notificationIdRef.current = id;
-        // Persist the id so a restored timer can cancel the right notification.
-        void setKv<PersistedTimer>(REST_TIMER_KEY, {
-          schemaVersion: REST_TIMER_SCHEMA_VERSION,
-          startedAt: now,
-          targetSeconds,
-          notificationId: id,
-        });
+  const start = useCallback(
+    (secondsOverride?: number) => {
+      firedRef.current = false;
+      setElapsed(0);
+      const now = Date.now();
+      // A spoken "rest two minutes" overrides the exercise's configured rest (#105).
+      const target = secondsOverride != null && secondsOverride > 0 ? secondsOverride : targetSeconds;
+      setActiveTarget(target);
+      setStartedAt(now);
+      void setKv<PersistedTimer>(REST_TIMER_KEY, {
+        schemaVersion: REST_TIMER_SCHEMA_VERSION,
+        startedAt: now,
+        targetSeconds: target,
+        notificationId: null,
+      });
+      void cancelRest(notificationIdRef.current)
+        .then(() => {
+          notificationIdRef.current = null;
+          // Prime here — the first rest of a workout is a deliberate, contextual
+          // moment to ask, and iOS only shows the dialog once (#157).
+          return primeRestAlerts();
+        })
+        .then(() => scheduleRestDone(target))
+        .then((id) => {
+          notificationIdRef.current = id;
+          // Persist the id so a restored timer can cancel the right notification.
+          void setKv<PersistedTimer>(REST_TIMER_KEY, {
+            schemaVersion: REST_TIMER_SCHEMA_VERSION,
+            startedAt: now,
+            targetSeconds: target,
+            notificationId: id,
+          });
       });
   }, [targetSeconds]);
 
@@ -119,7 +134,7 @@ export function useRestTimer(args: UseRestTimerArgs = {}) {
   return {
     running: startedAt != null,
     elapsed,
-    targetSeconds,
+    targetSeconds: activeTarget,
     start,
     stop,
   };

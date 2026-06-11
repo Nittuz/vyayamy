@@ -311,7 +311,8 @@ export default function WorkoutActiveScreen() {
       units,
     }),
     getParserContext: () => ({ units, hasActiveExercise: exercises.length > 0 }),
-    onStartRest: () => timer.start(),
+    onStartRest: (seconds) => timer.start(seconds), // honor a spoken duration (#105)
+    onStopRest: () => timer.stop(),
     onNextExercise,
     onPrevExercise,
     onFinishWorkout: () => setCursor(null),
@@ -549,7 +550,9 @@ export default function WorkoutActiveScreen() {
             phase: voice.ui.phase,
             partial: voice.ui.phase === 'listening' ? voice.ui.partial : undefined,
             feedback:
-              voice.ui.phase === 'pending' || voice.ui.phase === 'applied' ? voice.ui.label : undefined,
+              voice.ui.phase === 'pending' || voice.ui.phase === 'applied' || voice.ui.phase === 'error'
+                ? voice.ui.label
+                : undefined,
           }}
         />
         <View style={{ marginTop: theme.space.s4, gap: theme.space.s3 }}>

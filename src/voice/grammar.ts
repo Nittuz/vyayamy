@@ -2,7 +2,15 @@ import type { Command, ParseResult, VoiceContext, VoiceParser } from './commands
 import { wordsToNumber } from './numberWords';
 
 function normalize(t: string): string {
-  return t.toLowerCase().replace(/[.,!?]/g, ' ').replace(/\s+/g, ' ').trim();
+  return t
+    .toLowerCase()
+    .replace(/[,!?]/g, ' ')
+    // Keep a decimal point between digits ("102.5") but drop sentence dots (#84).
+    .replace(/(\d)\.(\d)/g, '$1__DEC__$2')
+    .replace(/\./g, ' ')
+    .replace(/__DEC__/g, '.')
+    .replace(/\s+/g, ' ')
+    .trim();
 }
 
 /** Parse a duration phrase like "two minute" / "ninety seconds". */
@@ -16,7 +24,7 @@ function parseDuration(s: string): number | undefined {
 
 const FILLER = new Set(['log', 'set', 'put', 'do', 'make', 'it', 'to', 'the', 'weight', 'of', 'at']);
 const NUM_WORDS = new Set([
-  'a', 'zero', 'one', 'two', 'three', 'four', 'five', 'six', 'seven', 'eight', 'nine',
+  'a', 'zero', 'oh', 'o', 'one', 'two', 'three', 'four', 'five', 'six', 'seven', 'eight', 'nine',
   'ten', 'eleven', 'twelve', 'thirteen', 'fourteen', 'fifteen', 'sixteen', 'seventeen',
   'eighteen', 'nineteen', 'twenty', 'thirty', 'forty', 'fifty', 'sixty', 'seventy',
   'eighty', 'ninety', 'hundred', 'thousand', 'and',
@@ -27,7 +35,7 @@ function firstNumberIn(phrase: string): number | null {
   const tokens = phrase.toLowerCase().replace(/-/g, ' ').split(/\s+/).filter(Boolean);
   const run: string[] = [];
   for (const tok of tokens) {
-    const isNum = /^\d+$/.test(tok) || NUM_WORDS.has(tok);
+    const isNum = /^\d+(\.\d+)?$/.test(tok) || NUM_WORDS.has(tok);
     if (isNum) {
       run.push(tok);
     } else if (FILLER.has(tok)) {
@@ -54,6 +62,12 @@ export const GrammarParser: VoiceParser = {
     const t = normalize(transcript);
     if (t === '') return null;
 
+    // Stop the REST TIMER (must beat both the global "stop" and "startRest"):
+    // "skip rest" / "stop the rest timer" / "cancel rest" / "rest done" (#105).
+    if (/\b(rest|timer)\b/.test(t) && /\b(skip|stop|cancel|end|over|done)\b/.test(t)) {
+      return high({ kind: 'stopRest' }, transcript);
+    }
+
     if (/\b(stop|stop listening|cancel)\b/.test(t)) return high({ kind: 'stop' }, transcript);
     if (/\b(undo|scratch that|never mind|delete that)\b/.test(t)) return high({ kind: 'undo' }, transcript);
     if (/^(yes|yeah|yep|yup|correct|confirm|that's right)$/.test(t)) return high({ kind: 'confirm' }, transcript);
@@ -70,12 +84,19 @@ export const GrammarParser: VoiceParser = {
     // add a set / another set / one more  — MUST come before "add <exercise>"
     if (/\b(add (a )?set|another set|one more( set)?)\b/.test(t)) return high({ kind: 'addSet' }, transcript);
 
-    if (/\b(done|complete|completed|got it|logged|next set|mark (it )?done)\b/.test(t)) {
-      return high({ kind: 'completeSet' }, transcript);
+    // add <exercise> — LOW confidence so the session confirms before creating +
+    // syncing a custom exercise from a possibly-misheard utterance (#103).
+    const add = t.match(/^add (.+)$/);
+    if (add) {
+      return {
+        command: { kind: 'addExercise', name: add[1]!.trim() },
+        confidence: 'low',
+        transcript,
+      };
     }
 
-    const add = t.match(/^add (.+)$/);
-    if (add) return high({ kind: 'addExercise', name: add[1]!.trim() }, transcript);
+    // VALUE-BEARING patterns are tried BEFORE the bare control-keyword scan, so a
+    // trailing "...done" / "...got it" can't swallow the weight × reps (#100).
 
     // weight <connector> reps
     const conn = t.match(/^(.*?)\b(?:for|by|times|x)\b(.*)$/);
@@ -92,11 +113,31 @@ export const GrammarParser: VoiceParser = {
       }
     }
 
+    // reps-first: "five reps at one thirty five" → reps then weight (#102)
+    const repsFirst = t.match(/^(.*?)\breps?\b\s+(?:at|with|on)\s+(.*)$/);
+    if (repsFirst) {
+      const reps = firstNumberIn(repsFirst[1]!);
+      const weight = firstNumberIn(repsFirst[2]!);
+      if (reps != null && weight != null) {
+        const unit = detectUnit(t);
+        return {
+          command: { kind: 'setValues', weight, reps, ...(unit ? { unit } : {}) },
+          confidence: 'high',
+          transcript,
+        };
+      }
+    }
+
     // reps only: "<n> reps"
     const repsOnly = t.match(/^(.*?)\breps?\b\s*$/);
     if (repsOnly) {
       const reps = firstNumberIn(repsOnly[1]!);
       if (reps != null) return { command: { kind: 'setValues', reps }, confidence: 'high', transcript };
+    }
+
+    // Bare control keyword (no values found above).
+    if (/\b(done|complete|completed|got it|logged|next set|mark (it )?done)\b/.test(t)) {
+      return high({ kind: 'completeSet' }, transcript);
     }
 
     // bare weight (incl. "make it 195") — low confidence

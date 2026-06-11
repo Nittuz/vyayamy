@@ -35,4 +35,36 @@ describe('GrammarParser — set values', () => {
   test('correction "make it 195"', () => {
     expect(parse('make it 195')!.command).toEqual({ kind: 'setValues', weight: 195 });
   });
+
+  test('a trailing "done" does not swallow the values (#100)', () => {
+    // "225 for 5 done" must still log 225 × 5, not be eaten by the complete keyword.
+    expect(parse('225 for 5 done')!.command).toEqual({ kind: 'setValues', weight: 225, reps: 5 });
+    expect(parse('one eighty five for five got it')!.command).toEqual({
+      kind: 'setValues',
+      weight: 185,
+      reps: 5,
+    });
+  });
+
+  test('"two oh five" parses as 205, not 2 (#102)', () => {
+    expect(parse('two oh five for three')!.command).toEqual({ kind: 'setValues', weight: 205, reps: 3 });
+    expect(parse('one oh five for five')!.command).toEqual({ kind: 'setValues', weight: 105, reps: 5 });
+  });
+
+  test('reps-first phrasing "five reps at one thirty five" (#102)', () => {
+    expect(parse('five reps at one thirty five')!.command).toEqual({
+      kind: 'setValues',
+      reps: 5,
+      weight: 135,
+    });
+  });
+
+  test('decimal weights survive normalization (#84)', () => {
+    expect(parse('102.5 for 5')!.command).toEqual({ kind: 'setValues', weight: 102.5, reps: 5 });
+  });
+
+  test('a bare "done" still completes the set', () => {
+    expect(parse('done')!.command).toEqual({ kind: 'completeSet' });
+    expect(parse('next set')!.command).toEqual({ kind: 'completeSet' });
+  });
 });

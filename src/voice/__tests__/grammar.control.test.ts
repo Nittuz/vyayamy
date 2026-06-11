@@ -44,6 +44,17 @@ describe('GrammarParser — control & flow', () => {
     expect(parse('rest for ninety seconds')!.command).toEqual({ kind: 'startRest', seconds: 90 });
   });
 
+  test('skip/stop/cancel rest stops the timer, not starts it (#105)', () => {
+    expect(parse('skip rest')!.command).toEqual({ kind: 'stopRest' });
+    expect(parse('stop the rest timer')!.command).toEqual({ kind: 'stopRest' });
+    expect(parse('cancel rest')!.command).toEqual({ kind: 'stopRest' });
+  });
+
+  test('add exercise is LOW confidence so it confirms before creating (#103)', () => {
+    expect(parse('add bench press')!.confidence).toBe('low');
+    expect(parse('add a set')!.confidence).toBe('high'); // addSet is unambiguous
+  });
+
   test('finish workout is high confidence (UI confirms separately)', () => {
     const r = parse('finish workout');
     expect(r!.command).toEqual({ kind: 'finishWorkout' });
