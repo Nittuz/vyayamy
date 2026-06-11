@@ -5,6 +5,7 @@ import {
   clampValue,
   formatValue,
   parseUserInput,
+  sanitizeNumber,
   useDebouncedCommit,
 } from '@/components/numericStepper';
 
@@ -68,6 +69,18 @@ describe('parseUserInput', () => {
   });
   test('handles leading + trailing whitespace', () => {
     expect(parseUserInput('  185  ')).toBe(185);
+  });
+});
+
+describe('sanitizeNumber (#19)', () => {
+  test('clamps to [min, max]', () => {
+    expect(sanitizeNumber(-5, { min: 0, max: 1500 })).toBe(0);
+    expect(sanitizeNumber(99999, { min: 0, max: 1500 })).toBe(1500);
+    expect(sanitizeNumber(102.5, { min: 0, max: 1500 })).toBe(102.5); // decimals kept for weight
+  });
+  test('rounds to an integer when asked (reps)', () => {
+    expect(sanitizeNumber(5.7, { min: 0, max: 200, integer: true })).toBe(6);
+    expect(sanitizeNumber(12.2, { min: 0, max: 200, integer: true })).toBe(12);
   });
 });
 
@@ -153,5 +166,14 @@ describe('useDebouncedCommit', () => {
       jest.advanceTimersByTime(500);
     });
     expect(onChange).not.toHaveBeenCalled();
+  });
+
+  test('applies the sanitizer to committed keypad input (#19)', () => {
+    const onChange = jest.fn();
+    const sanitize = (n: number) => sanitizeNumber(n, { min: 0, max: 200, integer: true });
+    const { result } = renderHook(() => useDebouncedCommit(onChange, 250, sanitize));
+    act(() => result.current.bufferKeystroke('999')); // above the reps max
+    act(() => result.current.flushNow());
+    expect(onChange).toHaveBeenCalledWith(200);
   });
 });

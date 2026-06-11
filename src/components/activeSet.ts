@@ -62,10 +62,9 @@ export function findInitialCursor(exercises: ExerciseShape[]): ActiveCursor | nu
     const next = ex.sets.find((s) => !s.completed);
     if (next) return { weId: ex.id, setId: next.id };
   }
-  // No incomplete sets — fall back to the very first set if any
-  for (const ex of exercises) {
-    if (ex.sets.length > 0) return { weId: ex.id, setId: ex.sets[0]!.id };
-  }
+  // No incomplete set anywhere → the workout is done. Return null so the screen
+  // shows the recap; returning a completed set here made the cursor-reset effect
+  // reposition onto it every render (infinite setState loop, #15).
   return null;
 }
 

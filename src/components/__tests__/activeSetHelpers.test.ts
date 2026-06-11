@@ -33,14 +33,16 @@ describe('findInitialCursor', () => {
     expect(findInitialCursor(exercises)).toEqual({ weId: 'a', setId: 'a2' });
   });
 
-  test('falls back to the very first set when all are complete', () => {
+  test('returns null when every set is complete (#15 — show the recap, never loop)', () => {
+    // Returning a completed set here made the cursor-reset effect reposition onto
+    // a completed set forever (infinite setState). null routes to the recap.
     const exercises = [ex('a', [{ id: 'a1', completed: true }, { id: 'a2', completed: true }])];
-    expect(findInitialCursor(exercises)).toEqual({ weId: 'a', setId: 'a1' });
+    expect(findInitialCursor(exercises)).toBeNull();
   });
 
-  test('skips exercises with no sets when falling back', () => {
+  test('returns null when no incomplete set exists across any exercise (#15)', () => {
     const exercises = [ex('empty', []), ex('a', [{ id: 'a1', completed: true }])];
-    expect(findInitialCursor(exercises)).toEqual({ weId: 'a', setId: 'a1' });
+    expect(findInitialCursor(exercises)).toBeNull();
   });
 
   test('returns null when there are no sets at all', () => {
