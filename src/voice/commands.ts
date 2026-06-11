@@ -8,6 +8,7 @@ export type Command =
   | { kind: 'nextExercise' }
   | { kind: 'prevExercise' }
   | { kind: 'startRest'; seconds?: number }
+  | { kind: 'stopRest' }
   | { kind: 'finishWorkout' }
   | { kind: 'undo' }
   | { kind: 'confirm' }

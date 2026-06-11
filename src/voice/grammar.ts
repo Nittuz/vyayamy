@@ -62,6 +62,12 @@ export const GrammarParser: VoiceParser = {
     const t = normalize(transcript);
     if (t === '') return null;
 
+    // Stop the REST TIMER (must beat both the global "stop" and "startRest"):
+    // "skip rest" / "stop the rest timer" / "cancel rest" / "rest done" (#105).
+    if (/\b(rest|timer)\b/.test(t) && /\b(skip|stop|cancel|end|over|done)\b/.test(t)) {
+      return high({ kind: 'stopRest' }, transcript);
+    }
+
     if (/\b(stop|stop listening|cancel)\b/.test(t)) return high({ kind: 'stop' }, transcript);
     if (/\b(undo|scratch that|never mind|delete that)\b/.test(t)) return high({ kind: 'undo' }, transcript);
     if (/^(yes|yeah|yep|yup|correct|confirm|that's right)$/.test(t)) return high({ kind: 'confirm' }, transcript);
@@ -78,8 +84,16 @@ export const GrammarParser: VoiceParser = {
     // add a set / another set / one more  — MUST come before "add <exercise>"
     if (/\b(add (a )?set|another set|one more( set)?)\b/.test(t)) return high({ kind: 'addSet' }, transcript);
 
+    // add <exercise> — LOW confidence so the session confirms before creating +
+    // syncing a custom exercise from a possibly-misheard utterance (#103).
     const add = t.match(/^add (.+)$/);
-    if (add) return high({ kind: 'addExercise', name: add[1]!.trim() }, transcript);
+    if (add) {
+      return {
+        command: { kind: 'addExercise', name: add[1]!.trim() },
+        confidence: 'low',
+        transcript,
+      };
+    }
 
     // VALUE-BEARING patterns are tried BEFORE the bare control-keyword scan, so a
     // trailing "...done" / "...got it" can't swallow the weight × reps (#100).

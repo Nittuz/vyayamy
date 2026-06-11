@@ -30,6 +30,7 @@ export interface VoiceSessionDeps {
   getDispatchContext: () => DispatchContext;
   getParserContext: () => VoiceContext;
   onStartRest: (seconds?: number) => void;
+  onStopRest?: () => void;
   onNextExercise: () => void;
   onPrevExercise: () => void;
   onFinishWorkout: () => void;
@@ -100,6 +101,8 @@ export function useVoiceSession(deps: VoiceSessionDeps) {
           return deps.onFinishWorkout();
         case 'startRest':
           return deps.onStartRest(command.seconds);
+        case 'stopRest':
+          return deps.onStopRest?.();
         case 'nextExercise':
           lastUndo.current = null;
           return deps.onNextExercise();
@@ -179,5 +182,6 @@ export function useVoiceSession(deps: VoiceSessionDeps) {
 
 function describe(c: Command): string {
   if (c.kind === 'setValues') return `${c.weight ?? '—'} × ${c.reps ?? '—'}`;
+  if (c.kind === 'addExercise') return `Add ${c.name}`;
   return c.kind;
 }

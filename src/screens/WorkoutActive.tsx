@@ -311,7 +311,8 @@ export default function WorkoutActiveScreen() {
       units,
     }),
     getParserContext: () => ({ units, hasActiveExercise: exercises.length > 0 }),
-    onStartRest: () => timer.start(),
+    onStartRest: (seconds) => timer.start(seconds), // honor a spoken duration (#105)
+    onStopRest: () => timer.stop(),
     onNextExercise,
     onPrevExercise,
     onFinishWorkout: () => setCursor(null),
