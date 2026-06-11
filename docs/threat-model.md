@@ -1,7 +1,7 @@
 # FlexYug Threat Model
 
 - **Status:** living document
-- **Last reviewed:** 2026-05-31
+- **Last reviewed:** 2026-06-11
 
 ## Scope
 
@@ -26,21 +26,23 @@ the migration files under `supabase/migrations/`.
 | --- | --- | --- |
 | Casual observer of the phone screen | Visual inspection | Yes |
 | Thief with a non-jailbroken/non-rooted phone | OS-level only | Yes |
-| Thief with a jailbroken/rooted phone | App sandbox extraction | **No** — see "Risk acceptances" |
+| Thief with a jailbroken/rooted phone | App sandbox extraction | **No** (see "Risk acceptances" and "Open risks") |
 | Malicious app on the same device | Inter-app communication via deep links | Yes |
 | Network MITM | Wire-level traffic interception | Yes |
 | Compromised Supabase project key | Server-side access | Out of scope (Supabase RLS) |
 
 ## Mitigations in place
 
-- **HTTPS only** — Supabase URLs use HTTPS; no fallback to HTTP
+- **HTTPS only**: Supabase URLs use HTTPS; no fallback to HTTP
 - **RLS with USING + WITH CHECK on every table** (post-`00009_security_hardening.sql`)
 - **Server-owned `updated_at` trigger** prevents client clock-skew tampering
-- **Magic-link deep-link handler guards against React 19 strict-mode double-mount** (`app/_layout.tsx:101-126`)
-- **Sentry PII off** (`sendDefaultPii: false`) + URL query/fragment scrubbing (`src/lib/errorReporting.ts` — `beforeBreadcrumb`/`beforeSend` hooks + `scrubUrl` helper)
+- **Magic-link deep-link handler guards against React 19 strict-mode double-mount** (`app/_layout.tsx`, root deep-link handler)
+- **Sentry PII off** (`sendDefaultPii: false`) + URL query/fragment scrubbing (`src/lib/errorReporting.ts`: `beforeBreadcrumb`/`beforeSend` hooks + `scrubUrl` helper)
 - **Notifications local-only**; payload is a fixed generic string ("Rest complete"), carrying no workout data or PII (`src/lib/restNotifications.ts`)
 - **Sign-out clears Sync state, React Query cache, local SQLite, and all `@flexyug/*` AsyncStorage keys** (`src/sync/engine.ts handleSignOut`)
-- **Deep links land on a session-gated layout**; unauthenticated routes redirect to `/login` (`app/(tabs)/_layout.tsx`)
+- **Single root-level auth gate covers ALL routes** (tabs plus sibling stack routes like `workout/active` and `history/[id]`); without a session, any route except `/login` redirects there (`app/_layout.tsx` `AppNavigator`, #91)
+- **Magic-link redirect allowlist pinned to the exact app callback `flexyug://login`**; no app-scheme wildcards. `exp://*` exists only in local dev config and must never reach the hosted project (`supabase/config.toml`, #89).
+- **Magic-link abuse limits codified in `supabase/config.toml` (#93)**: email send rate limit (4/hr), token-verification and sign-in rate limits, 15-minute OTP expiry, 1-minute resend frequency, and email confirmation required before a session is issued.
 
 ## Risk acceptances
 
@@ -60,8 +62,8 @@ rooted device, the database is extractable as plaintext.
   + secure storage of the key, and creates a recovery hazard if the key is
   lost (the user's local data becomes permanently unreadable)
 - The Supabase mirror provides recovery if the local DB is wiped; the
-  inverse — protecting against the case where someone has the device but
-  not credentials — is poorly served by full encryption because
+  inverse (protecting against the case where someone has the device but
+  not credentials) is poorly served by full encryption because
   Supabase data is recoverable via password reset anyway
 
 **Revisit if:** a paying customer requires HIPAA/healthcare-grade
@@ -77,6 +79,22 @@ attempt the action manually. Adding retry adds complexity and can mask
 real DB-corruption issues.
 
 **Revisit if:** Sentry breadcrumbs show recurring transient SQLite errors.
+
+## Open risks
+
+### Session JWT stored in plaintext AsyncStorage (OPEN, #88)
+
+The Supabase auth session (including the refresh token) is stored via
+`storage: AsyncStorage` in `src/auth/supabase.ts:55`. `expo-secure-store`
+is absent from `package.json`. On a jailbroken or rooted device, the
+token is extractable from the app sandbox without any further credentials.
+
+This is NOT an accepted risk. The planned fix is migrating the auth
+storage adapter to `expo-secure-store`, currently blocked on device
+testing of the session-restore path. Until that migration ships, this
+remains an open risk: an attacker with sandbox-level access to a
+jailbroken/rooted device can hijack a live or refresh-capable session
+without knowing the user's credentials.
 
 ## Out of scope
 

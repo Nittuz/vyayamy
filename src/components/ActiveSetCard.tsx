@@ -243,7 +243,7 @@ export function ActiveSetCard({
                   ? `“${voice.partial}”`
                   : 'Listening…'
                 : voice.phase === 'pending'
-                  ? `Heard ${voice.feedback ?? ''} — say “yes” to confirm`
+                  ? `Heard ${voice.feedback ?? ''}. Say “yes” to confirm`
                   : `✓ ${voice.feedback ?? ''}`}
             </Text>
           </View>

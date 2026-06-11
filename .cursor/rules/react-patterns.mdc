@@ -1,5 +1,5 @@
 ---
-description: React Native component conventions for Vyayamy
+description: React Native component conventions for FlexYug
 globs: **/*.tsx
 alwaysApply: false
 ---
@@ -12,14 +12,16 @@ Every component follows this order:
 
 1. Imports (see project-conventions)
 2. `type` / `interface` for props
-3. Named `export function` — no default exports (except where Expo Router requires one — route files)
-4. `StyleSheet.create` at the bottom
+3. Named `export function` (no default exports, except route files where Expo Router requires one)
+4. A `makeStyles(theme)` factory at the bottom, consumed via `useTheme()` + `useMemo`
 
 ```tsx
-import { Pressable, StyleSheet, Text, View } from 'react-native';
+import { useMemo } from 'react';
+import { Pressable, StyleSheet } from 'react-native';
 
 import type { Workout } from '@/db/types';
-import { theme } from '@/ui/theme';
+import { Text } from '@/ui/Text';
+import { useTheme, type Theme } from '@/ui/useTheme';
 
 type WorkoutCardProps = {
   workout: Workout;
@@ -27,34 +29,35 @@ type WorkoutCardProps = {
 };
 
 export function WorkoutCard({ workout, onPress }: WorkoutCardProps) {
+  const theme = useTheme();
+  const styles = useMemo(() => makeStyles(theme), [theme]);
   return (
     <Pressable onPress={() => onPress(workout.id)} style={styles.card}>
-      <Text style={styles.title}>{workout.title}</Text>
+      <Text variant="card">{workout.title}</Text>
     </Pressable>
   );
 }
 
-const styles = StyleSheet.create({
-  card: {
-    padding: theme.space.s4,
-    backgroundColor: theme.color.surface,
-    borderRadius: theme.radius.md,
-  },
-  title: {
-    fontSize: theme.font.card,
-    color: theme.color.text,
-  },
-});
+const makeStyles = (theme: Theme) =>
+  StyleSheet.create({
+    card: {
+      padding: theme.space.s4,
+      backgroundColor: theme.color.surface,
+      borderRadius: theme.radius.md,
+    },
+  });
 ```
+
+`useTheme()` returns a referentially stable object per skin × scheme, so the `useMemo` actually caches. Do not bind a module-level static `StyleSheet.create` to the deprecated `src/ui/theme.ts` shim in new code.
 
 ## Primitives
 
-Use React Native primitives — never DOM elements:
+Use React Native primitives, never DOM elements:
 
 | Instead of HTML      | Use                                              |
 | -------------------- | ------------------------------------------------ |
 | `<div>`              | `<View>`                                         |
-| `<span>` / `<p>`     | `<Text>`                                         |
+| `<span>` / `<p>`     | `<Text variant>` from `src/ui/Text.tsx` (binds the Geist family per variant) |
 | `<button>`           | `<Pressable>` (or `<TouchableOpacity>` sparingly) |
 | `<input>`            | `<TextInput>`                                    |
 | `<a>`                | `<Pressable>` with `router.push(...)`            |
@@ -65,9 +68,9 @@ No `className`, no CSS imports, no `window`, `document`, `navigator.onLine`, or 
 
 ## Route vs. Screen vs. Component
 
-- **Routes** live under `app/` (Expo Router). Each file is thin — it imports a screen and default-exports it. Dynamic segments use `[id].tsx`, groups use `(group)/`.
+- **Routes** live under `app/` (Expo Router). Each file is thin: it imports a screen and default-exports it. Dynamic segments use `[id].tsx`, groups use `(group)/`. Auth is handled once by the root gate in `app/_layout.tsx`; do not re-check sessions inside routes or screens.
 - **Screens** live under `src/screens/` and hold the page-level logic: data hooks, local state, layout, navigation calls.
-- **Shared components** live under `src/components/` (feature-specific) and `src/ui/` (theme primitives, charts, error boundary). Shared components are presentational — they receive data and callbacks via props and do not fetch data themselves.
+- **Shared components** live under `src/components/` (feature-specific) and `src/ui/` (theme primitives, charts, error boundary). Shared components are presentational: they receive data and callbacks via props and do not fetch data themselves.
 
 ## Navigation
 
@@ -94,37 +97,38 @@ Do not import from `react-router`, `@react-navigation/native`, or `expo-router`'
 ## Event Handlers
 
 - Name handlers `handleXxx` inside the component; props take `onXxx`
-- Always pass `style` as an array or object — don't spread deeply computed styles each render
+- Always pass `style` as an array or object; don't spread deeply computed styles each render
 - For `Pressable`, express pressed state via the `style` function signature rather than `useState`
 
 ## UI Clarity
 
-- Every interactive element needs a clear label — icon-only buttons require `accessibilityLabel`
+- Every interactive element needs a clear label; icon-only buttons require `accessibilityLabel`
 - Use `accessibilityRole` appropriately (`'button'`, `'link'`, `'header'`)
 - Empty states should tell the user what the screen is for and suggest the next action
-- Avoid stacked modals — prefer inline expansion, bottom sheets, or navigation
+- Avoid stacked modals; prefer inline expansion, bottom sheets, or navigation
 
 ## Loading and Errors
 
 - Queries: check `isPending` / `isError` and render a skeleton or compact state; match the approximate shape of the real content to avoid layout shift
-- Mutations: surface errors through `useToast()` — never `Alert.alert` for toast-grade feedback
+- Mutations: surface errors through `useToast()`; never `Alert.alert` for toast-grade feedback
 - Forms: local `error` state for inline validation
 
 ## Haptics
 
-Import `expo-haptics` and call in meaningful moments:
+Use the wrappers in `src/ui/haptics.ts`; never call `expo-haptics` directly in components:
 
 ```ts
-import * as Haptics from 'expo-haptics';
-void Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium).catch(() => {});
+import { haptics } from '@/ui/haptics';
+haptics.medium(); // light | medium | rigid | success
 ```
 
-Always `.catch(() => {})` — haptics are best-effort.
+The wrappers swallow errors internally, so haptics stay best-effort.
 
 ## What NOT to do
 
 - No class components
 - No `default export` of components (except route files Expo Router requires)
-- No inline styles with hard-coded pixel values — use `theme` tokens
+- No inline styles with hard-coded pixel values; use `theme` tokens via `useTheme()`
+- No new imports of the static `theme` from `src/ui/theme.ts` (deprecated shim; boot overlay and `brand` constants only)
 - No direct `supabase.from(...)` calls in a component
 - No DOM APIs, window objects, or PWA concepts

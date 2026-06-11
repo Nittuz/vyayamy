@@ -46,7 +46,7 @@ const { url, anonKey } = resolveSupabaseConfig();
 
 if (!url || !anonKey) {
   throw new Error(
-    'Missing Supabase URL or anon key. Add a project-root .env with EXPO_PUBLIC_SUPABASE_URL and EXPO_PUBLIC_SUPABASE_ANON_KEY (or VITE_/SUPABASE_ fallbacks — see app.config.ts), then restart Metro with a clean cache: npx expo start -c.',
+    'Missing Supabase URL or anon key. Add a project-root .env with EXPO_PUBLIC_SUPABASE_URL and EXPO_PUBLIC_SUPABASE_ANON_KEY (or VITE_/SUPABASE_ fallbacks; see app.config.ts), then restart Metro with a clean cache: npx expo start -c.',
   );
 }
 

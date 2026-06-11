@@ -33,3 +33,5 @@ Application reads filter `WHERE deleted_at IS NULL`. Sync code (pull, RLS polici
 - Negative: storage grows monotonically. No automatic GC of long-tombstoned rows; deferred until volume justifies the work.
 - Negative: every application query must remember `WHERE deleted_at IS NULL`. This is a convention enforced by review, not by the type system.
 - Follow-ups: [ADR-0004](0004-server-owned-updated-at.md).
+
+**Update 2026-06-10:** `personal_records` no longer syncs. It was demoted to a local derived cache recomputed from synced sets (commit c0254f3, deep-review findings #138-#145), so the tombstone rule no longer applies to PRs. The list above is left as written for the record.

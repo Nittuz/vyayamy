@@ -62,7 +62,7 @@ Key properties:
 
 - No custom API server
 - Writes never block on the network
-- Last-write-wins is sufficient — single user, often single device
+- Last-write-wins is sufficient: single user, often single device
 - Every mutable table carries `updated_at` and `deleted_at`; hard deletes are never issued
 
 ---
@@ -71,7 +71,7 @@ Key properties:
 
 | Concern             | Solution                                                                |
 | ------------------- | ----------------------------------------------------------------------- |
-| UI rendering        | React Native (Expo SDK 55), React 19 functional components              |
+| UI rendering        | React Native (Expo SDK 56), React 19 functional components              |
 | Navigation          | Expo Router (file-based under [app/](app/), typed routes)               |
 | Local state         | `useState` / `useReducer` inside components                             |
 | Server state        | TanStack React Query 5, backed by SQLite reads                          |
@@ -88,7 +88,7 @@ Key properties:
 | Testing             | Jest + `ts-jest`, `better-sqlite3` in-memory mock of `expo-sqlite`      |
 | Build / distribution | EAS Build, EAS Submit                                                  |
 
-There is no server-side rendering, no ORM, no middleware, and no custom HTTP layer. UI code does not call `supabase.from()` directly — only the sync engine does.
+There is no server-side rendering, no ORM, no middleware, and no custom HTTP layer. UI code does not call `supabase.from()` directly; only the sync engine does.
 
 ---
 
@@ -100,11 +100,13 @@ Defined in [app/_layout.tsx](app/_layout.tsx). Order matters:
 
 ```
 ErrorBoundary
-  └─ SafeAreaProvider
-       └─ QueryClientProvider       ← TanStack Query cache
-            └─ AuthProvider          ← Supabase session + user
-                 └─ ToastProvider    ← transient notifications
-                      └─ Expo Router <Stack>
+  └─ GestureHandlerRootView
+       └─ SafeAreaProvider
+            └─ SkinProvider (skin tokens + hydration gate)
+                 └─ QueryClientProvider       ← TanStack Query cache
+                      └─ AuthProvider          ← Supabase session + user
+                           └─ ToastProvider    ← transient notifications
+                                └─ AppNavigator (Stack) + BootOverlay
 ```
 
 `RootLayout` also initializes the local database (`initDb()`) and starts the sync engine (`startSyncEngine(queryClient)`) once. Sentry init runs at module load via `initErrorReporting()` and is a no-op if no DSN is configured.
@@ -128,6 +130,8 @@ Expo Router maps the filesystem under [app/](app/) to routes:
 
 Route files are thin; the real screens live in [src/screens/](src/screens/) and are imported by the route file. This keeps routing declarative and lets screens stay portable across navigation choices.
 
+A single root-level auth gate in `AppNavigator` ([app/_layout.tsx](app/_layout.tsx)) redirects every route except `/login` to `/login` until a session exists, so sibling stack routes cannot be reached by deep link without authentication.
+
 ---
 
 ## Data Layer
@@ -143,7 +147,7 @@ await db.withTransactionAsync(async () => {
 });
 ```
 
-There is no optimistic/rollback branching in UI code — by the time the function returns, the write is durable locally. The sync engine picks up the outbox asynchronously.
+There is no optimistic/rollback branching in UI code. By the time the function returns, the write is durable locally. The sync engine picks up the outbox asynchronously.
 
 ### Read path
 
@@ -169,7 +173,7 @@ React Query still earns its keep: cache, dedup, and hook ergonomics across the s
 
 ### Mutations
 
-Mutations go through `enqueueMutation` and never call `supabase.from()` directly. That boundary is now genuinely enforced: a `no-restricted-imports` rule forbids importing [src/auth/supabase.ts](src/auth/supabase.ts) anywhere except [src/sync/](src/sync/) and [src/auth/](src/auth/) — everything else uses the auth facade [src/auth/authActions.ts](src/auth/authActions.ts). Pushing is structural too: a write emits a mutation-committed event ([src/db/mutationEvents.ts](src/db/mutationEvents.ts)) and the engine debounces a push — the queries layer no longer imports the sync engine.
+Mutations go through `enqueueMutation` and never call `supabase.from()` directly. That boundary is now genuinely enforced: a `no-restricted-imports` rule forbids importing [src/auth/supabase.ts](src/auth/supabase.ts) anywhere except [src/sync/](src/sync/) and [src/auth/](src/auth/); everything else uses the auth facade [src/auth/authActions.ts](src/auth/authActions.ts). Pushing is structural too: a write emits a mutation-committed event ([src/db/mutationEvents.ts](src/db/mutationEvents.ts)) and the engine debounces a push. The queries layer no longer imports the sync engine.
 
 ---
 
@@ -178,7 +182,7 @@ Mutations go through `enqueueMutation` and never call `supabase.from()` directly
 The engine ([src/sync/engine.ts](src/sync/engine.ts)) owns lifecycle:
 
 - Subscribes to `@react-native-community/netinfo` for connectivity
-- Triggers a sync cycle on startup, network regain, and auth change
+- Triggers a sync cycle on startup, network regain, app foreground, and auth change; committed mutations trigger a debounced push via the mutation event bus
 - Coalesces concurrent push/pull runs with in-flight flags
 - Publishes state via a lightweight pub/sub in [src/sync/state.ts](src/sync/state.ts) consumed by [src/ui/SyncIndicator.tsx](src/ui/SyncIndicator.tsx)
 
@@ -191,20 +195,21 @@ flowchart TD
   Cycle --> Push[pushOutbox]
   Push --> Pull[pullOnce]
   UserAction([user writes data]) --> Enqueue[enqueueMutation]
-  Enqueue --> Cycle
+  Enqueue --> Emit[mutation-committed event]
+  Emit --> DebouncedPush[debounced pushOutbox]
 ```
 
 ### Push ([src/sync/push.ts](src/sync/push.ts))
 
 FIFO drain of the outbox. Each row is applied to Supabase via PostgREST:
 
-- `insert` / `upsert` — `tbl.upsert(payload)`. Inserts go through `upsert(by-PK)` so a kill-mid-ack on the client can never produce a 23505 collision on retry. `personal_records` overrides the conflict target to its composite unique index `(user_id, exercise_id, type)` so two devices computing the same PR collapse to a single row.
-- `update` — `tbl.update(payload).eq('id', row_id)`
-- `delete` — `tbl.update({ deleted_at: now }).eq('id', row_id)` (soft delete only)
+- `insert` / `upsert`: `tbl.upsert(payload)`. Inserts go through `upsert(by-PK)` so a kill-mid-ack on the client can never produce a 23505 collision on retry.
+- `update`: `tbl.update(payload).eq('id', row_id)`
+- `delete`: `tbl.update({ deleted_at: now }).eq('id', row_id)` (soft delete only)
 
 `updated_at` is **never** sent from the client. The server-side `BEFORE INSERT OR UPDATE` trigger (migration `00009_security_hardening.sql`) overwrites it with `now()`, making the high-water mark immune to client clock skew.
 
-On a per-row error: 401/403/network/JWT errors are treated as transient (the row is left alone, the UI surface is updated). All other errors increment `attempts` and set `next_attempt_at` for backoff; after `MAX_ATTEMPTS = 5` the row is quarantined and surfaced to the UI sync indicator. Backoff is skip-and-continue — a row in its backoff window is left behind, the FIFO never blocks on the head row.
+On a per-row error: 401/403/network/JWT errors are treated as transient (the row is left alone, the UI surface is updated). All other errors increment `attempts` and set `next_attempt_at` for backoff; after `MAX_ATTEMPTS = 5` the row is quarantined and surfaced to the UI sync indicator. Backoff is skip-and-continue: a row in its backoff window is left behind, the FIFO never blocks on the head row.
 
 ### Pull ([src/sync/pull.ts](src/sync/pull.ts))
 
@@ -232,9 +237,11 @@ interface SyncState {
   pushInFlight: boolean;
   pullInFlight: boolean;
   pendingOutbox: number;
+  quarantinedOutbox: number;
   lastPushedAt: string | null;
   lastPulledAt: string | null;
   lastError: string | null;
+  lastErrorAt: string | null;
 }
 ```
 
@@ -246,7 +253,7 @@ interface SyncState {
 
 ### Entity-Relationship Model
 
-The schema is shared between Postgres (authoritative, in [supabase/migrations/](supabase/migrations/)) and SQLite (mirrored in [src/db/schema.ts](src/db/schema.ts)). Table names and columns match 1:1; UUIDs are `TEXT` locally, timestamps are ISO-8601 `TEXT`.
+The schema is shared between Postgres (authoritative, in [supabase/migrations/](supabase/migrations/)) and SQLite (mirrored in [src/db/schema.ts](src/db/schema.ts)). Table names and columns match 1:1; UUIDs are `TEXT` locally, timestamps are ISO-8601 `TEXT`. Note: `personal_records` exists in both schemas but is excluded from sync (see table descriptions below).
 
 ```mermaid
 erDiagram
@@ -272,8 +279,8 @@ erDiagram
 | `exercises`              | Catalog; `user_id IS NULL` for global seeded rows, otherwise user-created |
 | `workouts`               | Training session with start/end timestamps and optional template link   |
 | `workout_exercises`      | Junction: workout ↔ exercise with ordering                              |
-| `sets`                   | Individual sets (weight, reps, completion)                              |
-| `personal_records`       | Best-ever lifts per `(user_id, exercise_id, type)` — unique constraint  |
+| `sets`                   | Individual sets (weight, reps, per-set units, completion); `units` is stamped per set when a weight is written, so changing the profile preference never reinterprets historical sets |
+| `personal_records`       | Local-only derived cache: best-ever lifts per `(user_id, exercise_id, type)`, recomputed from synced sets; not pushed or pulled (#138) |
 | `templates`              | Reusable routines (ordered UUID array)                                  |
 | `training_plans`         | Weekly or rotating-cycle schedule                                       |
 | `training_plan_slots`    | Maps each day / cycle position in a plan to a template or rest day      |
@@ -288,7 +295,7 @@ Added by `supabase/migrations/00004_sync_support.sql` and tightened by `00009_se
 
 | Column        | Purpose                                                                                              |
 | ------------- | ---------------------------------------------------------------------------------------------------- |
-| `updated_at`  | Owned by a `BEFORE INSERT OR UPDATE` trigger; the client never sets it — high-water mark is immune to clock skew |
+| `updated_at`  | Owned by a `BEFORE INSERT OR UPDATE` trigger; the client never sets it. High-water mark is immune to clock skew. |
 | `deleted_at`  | Soft-delete tombstone; application reads filter `IS NULL`                                           |
 
 Every table also has an `idx_<table>_updated_at` index; incremental pull always queries `WHERE (updated_at, id) > :cursor ORDER BY updated_at, id`.
@@ -317,13 +324,13 @@ sequenceDiagram
   participant App
   participant SB as Supabase Auth
   U->>App: enters email
-  App->>SB: signInWithOtp(email, emailRedirectTo=flexyug://auth-callback)
+  App->>SB: signInWithOtp(email, emailRedirectTo=Linking.createURL('/login'))
   SB-->>U: magic-link email
   U->>App: taps link
-  App->>App: expo-linking parses URL
+  App->>App: root Linking listener parses URL for ?code param
   App->>SB: exchangeCodeForSession(code)
   SB-->>App: session JWT
-  App->>App: AuthProvider.onAuthStateChange → setUser → setReportingUser
+  App->>App: AuthProvider.onAuthStateChange -> setUser -> setReportingUser
 ```
 
 Supabase client config ([src/auth/supabase.ts](src/auth/supabase.ts)):
@@ -340,15 +347,15 @@ The `AuthProvider` ([src/auth/AuthContext.tsx](src/auth/AuthContext.tsx)) subscr
 
 ## Personal Record Detection
 
-PR logic runs client-side in [src/core/pr-detection.ts](src/core/pr-detection.ts) after a workout finishes. Because writes go through the outbox, the resulting upsert participates in the same sync path as any other mutation.
+PR logic runs client-side in [src/core/pr-detection.ts](src/core/pr-detection.ts) after a workout finishes. `personal_records` is a local derived cache, not a synced table: it is recomputed from completed sets (which do sync) on workout finish via `recordWorkoutPRs` ([src/queries/workouts.ts](src/queries/workouts.ts):104) and on Progress screen load via `recomputeAllPRs` ([src/screens/Progress.tsx](src/screens/Progress.tsx):50), so a fresh device rebuilds PRs after its first pull of sets. Weights are normalized to canonical kg before comparison so sets logged in different units compare correctly.
 
 Record types:
 
 | Type                  | Value shape                                                    |
 | --------------------- | -------------------------------------------------------------- |
-| `heaviest_weight`     | `number` — max weight in any completed set                     |
-| `best_volume`         | `number` — max single-set volume (weight × reps)               |
-| `most_reps_at_weight` | `{ weight, reps }` — highest reps at any weight (ties → heavier) |
+| `heaviest_weight`     | `number`: max weight in any completed set                      |
+| `best_volume`         | `number`: max single-set volume (weight x reps)                |
+| `most_reps_at_weight` | `{ weight, reps }`: highest reps at any weight (ties go to the heavier set) |
 
 Upserts use the unique index `(user_id, exercise_id, type)` on the `personal_records` table.
 
@@ -362,7 +369,7 @@ To survive backgrounding and screen lock, the same hook schedules a local notifi
 
 1. `start()` requests permission if needed, schedules a one-shot notification in `targetSeconds`, and records the id
 2. `stop()` / unmount cancels the pending notification
-3. Permission denials, web, and Expo Go fall back to a no-op — the foreground timer is authoritative
+3. Permission denials, web, and Expo Go fall back to a no-op; the foreground timer is authoritative
 
 ---
 
@@ -414,10 +421,10 @@ Rules:
 - Single column, phone-first; no tablet-specific layouts yet
 - 44pt minimum touch target (`theme.touch.min`) on everything interactive
 - Four skins (Forge/Iron/Ember/Chalk) × light/dark, picked in Profile; tokens use `ink`/`inkSecondary`, not the legacy `text`/`textSecondary`
-- System font (React Native default → San Francisco on iOS, Roboto on Android)
+- Geist Sans for chrome/labels, Geist Mono for numerals and data, loaded via `@expo-google-fonts` and applied through the `<Text variant>` primitive ([src/ui/typography.ts](src/ui/typography.ts))
 - Motion is subtle: 150–350 ms tokens in `theme.duration`
 
-Charts are in-house SVG — [src/ui/LineChart.tsx](src/ui/LineChart.tsx) renders trend lines with `react-native-svg` primitives. Recharts was not ported (no RN support) and `victory-native` was skipped to avoid pulling in a Skia/Reanimated surface we don't otherwise need.
+Charts are in-house SVG: [src/ui/LineChart.tsx](src/ui/LineChart.tsx) renders trend lines with `react-native-svg` primitives. Recharts was not ported (no RN support) and `victory-native` was skipped to avoid pulling in a Skia/Reanimated surface we don't otherwise need.
 
 See [docs/design-system.md](docs/design-system.md) for the full spec.
 
@@ -433,13 +440,13 @@ Every table has RLS enabled; policies scope rows to `auth.uid()`. Tombstoned row
 
 ### Token handling
 
-The Supabase JS client manages JWT storage in `AsyncStorage` and handles refresh automatically. The anon key is safe to ship in the client bundle — it only grants access permitted by RLS policies.
+The Supabase JS client manages JWT storage in `AsyncStorage` and handles refresh automatically. The anon key is safe to ship in the client bundle; it only grants access permitted by RLS policies.
 
 ### Data isolation
 
 - All tables (except global `exercises` where `user_id IS NULL`) are scoped to the authenticated user
-- The sync engine respects RLS — every PostgREST call carries the user's JWT
-- Local SQLite is dropped on sign-out: `startSyncEngine` listens for `SIGNED_OUT` and calls `resetLocalDb()` + `queryClient.clear()`, so a different user signing in afterwards never sees the previous user's data and never re-pushes their pending mutations under a new identity
+- The sync engine respects RLS: every PostgREST call carries the user's JWT
+- Local SQLite is dropped on sign-out: `startSyncEngine` listens for `SIGNED_OUT` and calls `resetLocalDb()` + `queryClient.clear()`, and clears all per-user key-value state (Today snapshot, rest-timer persistence) via a KV registry that UI modules register into, keeping the sync engine free of UI imports. A different user signing in afterwards never sees the previous user's data and never re-pushes their pending mutations under a new identity.
 
 ---
 
@@ -447,9 +454,9 @@ The Supabase JS client manages JWT storage in `AsyncStorage` and handles refresh
 
 Foundational architectural decisions are recorded as ADRs under [docs/adr/](docs/adr/):
 
-- [ADR-0001](docs/adr/0001-sqlite-as-source-of-truth.md) — SQLite as source of truth, not Supabase
-- [ADR-0002](docs/adr/0002-outbox-over-crdt.md) — Outbox over CRDTs and sync frameworks
-- [ADR-0003](docs/adr/0003-soft-delete-tombstones.md) — Soft-delete tombstones, never hard delete
-- [ADR-0004](docs/adr/0004-server-owned-updated-at.md) — Server-owned `updated_at`
+- [ADR-0001](docs/adr/0001-sqlite-as-source-of-truth.md): SQLite as source of truth, not Supabase
+- [ADR-0002](docs/adr/0002-outbox-over-crdt.md): Outbox over CRDTs and sync frameworks
+- [ADR-0003](docs/adr/0003-soft-delete-tombstones.md): Soft-delete tombstones, never hard delete
+- [ADR-0004](docs/adr/0004-server-owned-updated-at.md): Server-owned `updated_at`
 
-Pragmatic engineering choices — React Query on top of a local DB, the in-house `react-native-svg` chart over `victory-native`, `ts-jest` + `better-sqlite3` over `jest-expo` — are documented inline in the relevant sections above and in [docs/operations.md](docs/operations.md). They are kept as prose rather than ADRs because they are reversible without architectural ripple.
+Pragmatic engineering choices (React Query on top of a local DB, the in-house `react-native-svg` chart over `victory-native`, `ts-jest` + `better-sqlite3` over `jest-expo`) are documented inline in the relevant sections above and in [docs/operations.md](docs/operations.md). They are kept as prose rather than ADRs because they are reversible without architectural ripple.

@@ -4,41 +4,41 @@ FlexYug is a calm, minimal strength-training journal. The design system exists t
 
 ## Philosophy
 
-Priority order — never invert it:
+Priority order (never invert it):
 
-1. **Clarity** — the user should instantly understand what they're looking at
-2. **Usability** — every interaction should feel obvious and forgiving
-3. **Speed** — perceived and actual; no layout jank, no unnecessary spinners
-4. **Consistency** — identical patterns for identical actions, everywhere
-5. **Delight** — subtle motion and refined details, earned only after the above
+1. **Clarity**: the user should instantly understand what they're looking at
+2. **Usability**: every interaction should feel obvious and forgiving
+3. **Speed**: perceived and actual; no layout jank, no unnecessary spinners
+4. **Consistency**: identical patterns for identical actions, everywhere
+5. **Delight**: subtle motion and refined details, earned only after the above
 
 ### Lineage
 
-- **Dieter Rams** — remove everything unnecessary
-- **Don Norman** — match human mental models; actions must be predictable
-- **Alan Kay** — powerful systems should still be understandable
-- **Apple Health / Fitness** — restrained, typographic, spacious; not typical fitness-app design
+- **Dieter Rams**: remove everything unnecessary
+- **Don Norman**: match human mental models; actions must be predictable
+- **Alan Kay**: powerful systems should still be understandable
+- **Apple Health / Fitness**: restrained, typographic, spacious; not typical fitness-app design
 
 ## Non-negotiables
 
 - **Single column**, phone-first. No tablet-specific layouts.
-- **Brutalist-lifter palette + curated skins** — the default **Forge** skin is a muted green accent on near-black (dark) or warm paper (light), selected by system color scheme. Three further skins (**Iron**, **Ember**, **Chalk**) are switchable in Profile. Each skin stays restrained — no saturated chaos. See [src/ui/skins.ts](../src/ui/skins.ts) and [src/ui/colors.ts](../src/ui/colors.ts).
-- **Custom fonts** — Geist Sans for chrome/labels, Geist Mono for numerals and data. Loaded via `@expo-google-fonts/geist` + `geist-mono`.
+- **Brutalist-lifter palette + curated skins**: the default **Forge** skin is a muted green accent on near-black (dark) or warm paper (light), selected by system color scheme. Three further skins (**Iron**, **Ember**, **Chalk**) are switchable in Profile. Each skin stays restrained, no saturated chaos. See [src/ui/skins.ts](../src/ui/skins.ts) and [src/ui/colors.ts](../src/ui/colors.ts).
+- **Custom fonts**: Geist Sans for chrome/labels, Geist Mono for numerals and data. Loaded via `@expo-google-fonts/geist` + `geist-mono`.
 - **44pt minimum touch target** (`theme.touch.min`) on everything interactive.
-- **Generous whitespace** — when in doubt, add more.
-- **Subtle motion** only — 150 / 220 / 320 ms duration tokens (plus a 600ms counter tally) and three damped Reanimated springs (`snappy` / `settle` / `rebound`) used in exactly three interactions. No particles, no parallax.
-- **Progressive disclosure** — primary action first; secondary actions revealed on interaction.
+- **Generous whitespace**: when in doubt, add more.
+- **Subtle motion** only: 150 / 220 / 320 ms duration tokens (plus a 600ms counter tally) and three damped Reanimated springs (`snappy` / `settle` / `rebound`) used in exactly three interactions. No particles, no parallax.
+- **Progressive disclosure**: primary action first; secondary actions revealed on interaction.
 
 ## Tokens
 
-Tokens come from the modules under [src/ui/](../src/ui/) — `colors.ts`, `typography.ts`, `motion.ts`, plus the `space` / `radius` / `touch` scales in `useTheme.ts`. Consume them through the `useTheme()` hook (or the legacy `theme.ts` shim). Never hard-code colors, spacing, radii, or font sizes.
+Tokens come from the modules under [src/ui/](../src/ui/): `colors.ts`, `typography.ts`, `motion.ts`, plus the `space` / `radius` / `touch` scales in `useTheme.ts`. Consume them through the `useTheme()` hook; the legacy `theme.ts` shim exists only for the pre-hydration boot overlay in `app/_layout.tsx` and the `brand` constants. Never hard-code colors, spacing, radii, or font sizes.
 
 ### Color & skins
 
 Colors are organized as a **skin registry** in [src/ui/skins.ts](../src/ui/skins.ts): four skins (`forge`, `iron`, `ember`, `chalk`), each a coordinated `{ dark, light }` pair of `PaletteTokens`. The base Forge palette lives in [src/ui/colors.ts](../src/ui/colors.ts).
 
-- [src/ui/SkinContext.tsx](../src/ui/SkinContext.tsx) holds the active skin, persisted in AsyncStorage (`flexyug.skin`) — a device-display preference, **not synced**. Default is `forge`. First paint is gated on hydration so there's no skin flash.
-- [src/ui/useTheme.ts](../src/ui/useTheme.ts) resolves `activeSkin × useColorScheme()` to a single `PaletteTokens` object — consumers' signatures are unchanged.
+- [src/ui/SkinContext.tsx](../src/ui/SkinContext.tsx) holds the active skin, persisted in AsyncStorage (`flexyug.skin`), a device-display preference, **not synced**. Default is `forge`. First paint is gated on hydration so there's no skin flash.
+- [src/ui/useTheme.ts](../src/ui/useTheme.ts) resolves `activeSkin × useColorScheme()` to a single `PaletteTokens` object; consumers' signatures are unchanged.
 - Switch skins in **Profile → Appearance**. Every screen reskins live.
 - The legacy [src/ui/theme.ts](../src/ui/theme.ts) shim is pinned to Forge-dark for the boot overlay only; all in-app screens consume `useTheme()`.
 - WCAG AA is enforced across **all 4 skins × 2 schemes** in [src/ui/__tests__/contrast.test.ts](../src/ui/__tests__/contrast.test.ts).
@@ -75,7 +75,26 @@ The dark-palette (Forge) token table below is the canonical reference; the other
 
 ### Typography
 
-`hero` (82, Geist Mono numerals), `display` (28), `title` (20), `card` (16), `body` (14), `meta` (12), `micro` (12). Weights: `regular` (400), `medium` (500), `semibold` (600) — there is no 700.
+`hero` (82, Geist Mono numerals), `display` (28), `title` (20), `card` (16), `body` (14), `meta` (12), `micro` (12). Weights: `regular` (400), `medium` (500), `semibold` (600). There is no 700.
+
+#### Text primitive
+
+All new code renders text through the `<Text variant="...">` primitive from [src/ui/Text.tsx](../src/ui/Text.tsx). It binds Geist fontFamily + size + tracking + line-height per variant via `resolveTextStyle` in [src/ui/textVariants.ts](../src/ui/textVariants.ts), so no screen can accidentally omit `fontFamily` and fall back to the system font (fix #22).
+
+Variants:
+
+| Variant   | Description                                  |
+| --------- | -------------------------------------------- |
+| `hero`    | 82pt Geist Mono Medium, active-set headline  |
+| `numeral` | Geist Mono, inline data figures              |
+| `display` | 28pt sans semibold, screen-defining numbers  |
+| `title`   | 20pt sans semibold, screen titles            |
+| `card`    | 16pt sans medium, card headings              |
+| `body`    | 14pt sans regular, body copy                 |
+| `label`   | 12pt sans medium, tracked + uppercase        |
+| `meta`    | 12pt sans regular, secondary meta text       |
+
+Migration status: the 2521a49 sweep added the correct Geist `fontFamily` to existing inline styles across seven screens, but no screen imports the `<Text>` primitive yet (zero call sites as of this writing). Full migration to the primitive is an open follow-up.
 
 ### Touch
 
@@ -87,40 +106,47 @@ The dark-palette (Forge) token table below is the canonical reference; the other
 
 ## Implementation
 
-All styles are `StyleSheet.create` blocks at the bottom of component files. No CSS files ship in the mobile app.
+Two styling architectures coexist in the codebase (open finding #66). The **blessed pattern** for new and touched code is `makeStyles(theme)` with `useMemo`:
 
 ```tsx
-import { Pressable, StyleSheet, Text, View } from 'react-native';
+import { useMemo } from 'react';
+import { Pressable, StyleSheet, View } from 'react-native';
 
-import { theme } from '@/ui/theme';
+import { Text } from '@/ui/Text';
+import { useTheme, type Theme } from '@/ui/useTheme';
 
 export function PrimaryCTA({ label, onPress }: Props) {
+  const theme = useTheme();
+  const styles = useMemo(() => makeStyles(theme), [theme]);
+
   return (
     <Pressable
       onPress={onPress}
       style={({ pressed }) => [styles.cta, pressed && styles.ctaPressed]}
     >
-      <Text style={styles.ctaText}>{label}</Text>
+      <Text variant="card" color={theme.color.onAccent}>{label}</Text>
     </Pressable>
   );
 }
 
-const styles = StyleSheet.create({
-  cta: {
-    height: 52,
-    borderRadius: theme.radius.md,
-    backgroundColor: theme.color.accent,
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  ctaPressed: { opacity: 0.9 },
-  ctaText: {
-    color: theme.color.onAccent,
-    fontSize: theme.font.card,
-    fontWeight: theme.font.weight.semibold,
-  },
-});
+const makeStyles = (theme: Theme) =>
+  StyleSheet.create({
+    cta: {
+      height: 52,
+      borderRadius: theme.radius.md,
+      backgroundColor: theme.color.accent,
+      alignItems: 'center',
+      justifyContent: 'center',
+    },
+    ctaPressed: { opacity: 0.9 },
+  });
 ```
+
+Live examples of this pattern: [src/screens/History.tsx](../src/screens/History.tsx) lines 26-27 and 120-121, [src/screens/Profile.tsx](../src/screens/Profile.tsx), [src/screens/Progress.tsx](../src/screens/Progress.tsx), [src/screens/PlanSetup.tsx](../src/screens/PlanSetup.tsx), [src/screens/TrainingPlan.tsx](../src/screens/TrainingPlan.tsx), [src/screens/Login.tsx](../src/screens/Login.tsx), [src/ui/ToastContext.tsx](../src/ui/ToastContext.tsx), [src/ui/SyncIndicator.tsx](../src/ui/SyncIndicator.tsx), [src/ui/ErrorBoundary.tsx](../src/ui/ErrorBoundary.tsx).
+
+Several components ([src/screens/Today.tsx](../src/screens/Today.tsx), [src/screens/WorkoutActive.tsx](../src/screens/WorkoutActive.tsx), [src/components/ActiveSetCard.tsx](../src/components/ActiveSetCard.tsx), [src/components/SessionVolumeBar.tsx](../src/components/SessionVolumeBar.tsx)) still use a module-level static `StyleSheet.create` combined with inline theme-derived style arrays. That pattern is pending unification (#66). Do not copy it into new code.
+
+No CSS files ship in the mobile app.
 
 ## Interactions
 
@@ -130,28 +156,30 @@ Always `<Pressable>`. Express pressed state through the `style` function prop (l
 
 ### Haptics
 
-`expo-haptics` for meaningful moments. Always `.catch(() => {})` — haptics are best-effort.
+Use the wrappers in [src/ui/haptics.ts](../src/ui/haptics.ts) (`haptics.light` / `haptics.medium` / `haptics.rigid` / `haptics.success`). They swallow errors internally so haptics stay best-effort. Never call `expo-haptics` directly in components.
 
-| Event                         | Haptic                                                          |
-| ----------------------------- | --------------------------------------------------------------- |
-| Set marked complete           | `Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium)`       |
-| Rest timer crosses target     | `Haptics.notificationAsync(NotificationFeedbackType.Success)`   |
-| PR achieved                   | `Haptics.notificationAsync(NotificationFeedbackType.Success)`   |
-| Destructive confirmation      | `Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Heavy)`        |
+| Trigger                                          | Haptic              |
+| ------------------------------------------------ | ------------------- |
+| Stepper increments, sheet actions, skip-rest     | `haptics.light`     |
+| Set banked / last set of exercise                | `haptics.medium`    |
+| Swipe crosses completion threshold               | `haptics.rigid`     |
+| Rest timer hits target / PR achieved             | `haptics.success`   |
+
+Sources: [src/components/ActiveSetCard.tsx](../src/components/ActiveSetCard.tsx) lines 76 and 82, [src/ui/completeSetChoreography.ts](../src/ui/completeSetChoreography.ts), [src/ui/hooks/useRestTimer.ts](../src/ui/hooks/useRestTimer.ts).
 
 ### The signature complete-set moment
 
-Banking a set is the one moment given disproportionate craft. On completion: a **medium haptic** lands on the swipe gesture ([src/components/ActiveSetCard.tsx](../src/components/ActiveSetCard.tsx)), then the live **session-volume tally** ([src/components/SessionVolumeBar.tsx](../src/components/SessionVolumeBar.tsx)) counts up over 600ms with a single accent-glow bloom. The decision logic is the pure, unit-tested [src/ui/completeSetChoreography.ts](../src/ui/completeSetChoreography.ts); the Reanimated glow lives in [src/ui/useCompleteSetAnimation.ts](../src/ui/useCompleteSetAnimation.ts). Finishing a workout shows a calm [src/ui/SessionRecap.tsx](../src/ui/SessionRecap.tsx) — volume headline, sets, duration — framed as progress earned, never a streak. All of it honors OS **Reduce Motion** (state changes instantly; glow/rise are skipped). Still **no particles, no parallax**. List entrances use [src/ui/FadeInView.tsx](../src/ui/FadeInView.tsx) (opacity + small translateY).
+Banking a set is the one moment given disproportionate craft. On completion: a **medium haptic** lands on the swipe gesture ([src/components/ActiveSetCard.tsx](../src/components/ActiveSetCard.tsx)), then the live **session-volume tally** ([src/components/SessionVolumeBar.tsx](../src/components/SessionVolumeBar.tsx)) counts up over 600ms with a single accent-glow bloom. The decision logic is the pure, unit-tested [src/ui/completeSetChoreography.ts](../src/ui/completeSetChoreography.ts); the Reanimated glow lives in [src/ui/useCompleteSetAnimation.ts](../src/ui/useCompleteSetAnimation.ts). Finishing a workout shows a calm [src/ui/SessionRecap.tsx](../src/ui/SessionRecap.tsx): volume headline, sets, duration, framed as progress earned, never a streak. All of it honors OS **Reduce Motion** (state changes instantly; glow/rise are skipped). Still **no particles, no parallax**. List entrances use [src/ui/FadeInView.tsx](../src/ui/FadeInView.tsx) (opacity + small translateY).
 
 ### Logo
 
-The mark is the **skin-adaptive F-bar** ([src/ui/Logo.tsx](../src/ui/Logo.tsx)) — a slab "F" whose middle arm is a loaded barbell. The F uses `inkHero`; the barbell takes the active skin's `accent`, so the identity lives the theme (green in Forge, steel in Iron, saffron in Ember). `FBarMark` is the icon; `Logo` is the mark + wordmark lockup. The static app icon is generated from [assets/icon-source.svg](../assets/icon-source.svg).
+The mark is the rose-gold championship medal with a Fraunces 900 Italic "F" monogram ([src/ui/Medal.tsx](../src/ui/Medal.tsx)). `FBarMark` in [src/ui/Logo.tsx](../src/ui/Logo.tsx) is a compatibility alias for existing call sites (Today, Login) and ignores `accent`/`ink` props; the mark is fixed-brand and does not reskin with the theme. `Logo` is the medal + wordmark lockup; the wordmark uses `inkHero`. App icon source is [assets/icon-source.svg](../assets/icon-source.svg), regenerated via [assets/branding/medal.js](../assets/branding/medal.js).
 
 ### Rest timer
 
 Foreground: `setInterval` in [src/ui/hooks/useRestTimer.ts](../src/ui/hooks/useRestTimer.ts) with a haptic at the configured target.
 
-Background: the same hook schedules a one-shot local notification via [src/lib/restNotifications.ts](../src/lib/restNotifications.ts) on `start()` and cancels it on `stop()` / unmount. The foreground counter is authoritative — notifications are the fallback for when the app is backgrounded or the screen is locked.
+Background: the same hook schedules a one-shot local notification via [src/lib/restNotifications.ts](../src/lib/restNotifications.ts) on `start()` and cancels it on `stop()` / unmount. The foreground counter is authoritative; notifications are the fallback for when the app is backgrounded or the screen is locked.
 
 ### Toasts
 
@@ -178,7 +206,7 @@ Phone-first. No media queries, no `Dimensions`-based layout branching unless str
 
 ## Accessibility
 
-- Every interactive element needs a clear label — icon-only controls require `accessibilityLabel`
+- Every interactive element needs a clear label; icon-only controls require `accessibilityLabel`
 - Use `accessibilityRole` (`'button'`, `'link'`, `'header'`)
 - Minimum 44pt touch target
 - Text-color contrast is WCAG-checked against the palette (see [src/ui/__tests__/contrast.test.ts](../src/ui/__tests__/contrast.test.ts))
@@ -187,4 +215,4 @@ Phone-first. No media queries, no `Dimensions`-based layout branching unless str
 
 - Sheet + ConfirmDialog primitives ported from the legacy web app
 - Skeleton placeholders matched to content shape to prevent layout shift
-- Animated presence helpers (opacity + translateY fades) for list mount/unmount
+- Exit/presence animations for list unmount (mount is covered by [src/ui/FadeInView.tsx](../src/ui/FadeInView.tsx))

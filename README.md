@@ -1,318 +1,248 @@
 # FlexYug
 
-> **Product name:** FlexYug. **Repo / directory name:** `vyayamy`. The repo predates the product rename; references to `vyayamy` you'll still see (the clone target, this directory) are the repo handle, not the product.
+A mobile-only, local-first strength-training journal built around one job: capture strength training reliably, offline, and fast. SQLite on the device is the source of truth; Supabase is a durable mirror that syncs in the background.
 
-A mobile-only, local-first strength-training journal. Built around one job: **capture strength training reliably, offline, and fast**. SQLite on the device is the source of truth during a session; Supabase is a durable mirror that syncs in the background.
+> The product is **FlexYug**; the repo and directory are named `vyayamy`, a handle that predates the product rename.
 
 ## Features
 
-- **Offline-first capture** — every set, rest, and finish is written to SQLite synchronously; the network is a background concern
-- **Workout logging** — start a session from Today, add exercises, record sets (weight + reps), and finish
-- **Hands-free voice logging** — run an entire workout by voice (log sets, complete, add exercises, rest timer, finish) with on-device speech recognition; fully offline. See [Voice logging](#voice-logging-hands-free)
-- **Training plans** — weekly or rotating-cycle schedules of templates; view and edit under Profile → Plan
-- **Repeat workouts** — re-create a past workout with the same exercise lineup
-- **Personal records** — automatic PR detection for heaviest weight, best volume, and most reps at a given weight
-- **Progress charts** — per-exercise trend lines drawn with `react-native-svg`
-- **Workout history** — past sessions grouped by date with period filters
-- **Custom exercises** — add your own movements alongside the seeded library
-- **Unit preference** — switch between kg and lb
-- **Curated skins** — four restrained appearances (Forge, Iron, Ember, Chalk) switchable in Profile → Appearance; the skin-adaptive F-bar logo takes on the active accent
-- **Signature complete-set moment** — banking a set fires a haptic and a live session-volume tally with a single accent glow; a calm session recap on finish
-- **Magic-link auth** — passwordless email sign-in via Supabase Auth + deep links
-- **Background rest timer** — local notification fires even when the app is backgrounded or locked
+- **Offline-first capture**: every write goes through `enqueueMutation` ([src/db/mutations.ts](src/db/mutations.ts)), which applies it to SQLite and appends an outbox row in one transaction. The network is a background concern.
+- **Workout logging**: start a session from Today, add exercises, record sets, and finish ([src/screens/WorkoutActive.tsx](src/screens/WorkoutActive.tsx)).
+- **Hands-free voice logging**: run a whole session by voice with on-device speech recognition and a local grammar; works in airplane mode. See [Voice logging](#voice-logging).
+- **Per-set units**: each set stores the unit it was logged in (`sets.units`, [supabase/migrations/00011_set_units.sql](supabase/migrations/00011_set_units.sql)). Single-set displays use the set's own unit; aggregations (volume, PRs, charts) convert through one conversion home, [src/core/units.ts](src/core/units.ts) (`convertWeight`, `sumVolume`). Changing your preference never reinterprets history.
+- **Personal records**: automatic PR detection in pure domain code ([src/core/pr-detection.ts](src/core/pr-detection.ts)), maintained as a local derived cache ([src/queries/personalRecords.ts](src/queries/personalRecords.ts)).
+- **Training plans**: weekly or rotating-cycle schedules of templates, with a preset catalog, under Profile ([app/profile/plan/](app/profile/plan/)).
+- **Repeat workouts**: re-create a past workout's exercise lineup ([src/queries/repeatLastWorkout.ts](src/queries/repeatLastWorkout.ts)).
+- **Progress charts**: per-exercise trend lines drawn with `react-native-svg` ([src/ui/LineChart.tsx](src/ui/LineChart.tsx)).
+- **Workout history**: past sessions with per-workout detail ([src/screens/History.tsx](src/screens/History.tsx), [src/screens/HistoryDetail.tsx](src/screens/HistoryDetail.tsx)).
+- **Custom exercises**: add your own movements alongside the seeded library ([src/components/ExercisePicker.tsx](src/components/ExercisePicker.tsx)).
+- **Four skins**: Forge, Iron, Ember, Chalk ([src/ui/skins.ts](src/ui/skins.ts)), switchable under Profile, Appearance.
+- **Complete-set choreography**: banking a set fires a haptic, a live session-volume tally, and an accent glow ([src/ui/completeSetChoreography.ts](src/ui/completeSetChoreography.ts), [src/components/SessionVolumeBar.tsx](src/components/SessionVolumeBar.tsx)); a calm recap on finish ([src/ui/SessionRecap.tsx](src/ui/SessionRecap.tsx)).
+- **Auth**: magic-link or password sign-in via Supabase Auth ([src/screens/Login.tsx](src/screens/Login.tsx), [src/auth/authActions.ts](src/auth/authActions.ts)), behind a single root-level auth gate in [app/_layout.tsx](app/_layout.tsx).
+- **Background rest timer**: a local notification fires even when the app is backgrounded; tapping it returns to the active workout ([src/lib/restNotifications.ts](src/lib/restNotifications.ts)).
+- **Sync you can see**: status indicator, error stripe, diagnostics sheet, and a quarantine flow for writes that exhaust retries ([src/sync/quarantine.ts](src/sync/quarantine.ts), [src/components/QuarantineSheet.tsx](src/components/QuarantineSheet.tsx)).
 
-## Tech Stack
+### Navigation
 
-| Layer              | Technology                                           |
-| ------------------ | ---------------------------------------------------- |
-| Runtime            | Expo SDK 56, React Native 0.85, React 19             |
-| Language           | TypeScript 5 (strict)                                |
-| Navigation         | Expo Router (file-based, typed routes)               |
-| Local DB           | `expo-sqlite` (SQLite on device, source of truth)    |
-| Cloud DB / Auth    | Supabase (Postgres + GoTrue + PostgREST, sync target) |
-| Server state       | TanStack React Query 5 (reads SQLite, not HTTP)      |
-| Sync engine        | In-house outbox + incremental pull ([src/sync/](src/sync/)) |
-| Styling            | `StyleSheet.create` + tokens in [src/ui/theme.ts](src/ui/theme.ts) |
-| Charts             | Custom SVG via `react-native-svg` ([src/ui/LineChart.tsx](src/ui/LineChart.tsx)) |
-| Haptics / timers   | `expo-haptics`, `expo-notifications`                 |
-| Voice              | `expo-speech-recognition` (on-device STT) + local grammar parser ([src/voice/](src/voice/)) |
-| Error reporting    | `@sentry/react-native` (gated by DSN)                |
-| Testing            | Jest + `ts-jest`, `better-sqlite3` in-memory mock    |
-| Build / distribution | EAS Build + EAS Submit                             |
-
-There is no custom API server. The mobile client talks to Supabase directly through PostgREST for sync, and every UI write goes through the local outbox.
-
-## Project Structure
-
-```
-vyayamy/
-├── app/                            # Expo Router routes (file-based)
-│   ├── _layout.tsx                 # Root stack + providers + db init + sync engine
-│   ├── index.tsx                   # Entry redirect → /(tabs)/today or /login
-│   ├── login.tsx                   # Magic-link sign-in
-│   ├── +not-found.tsx
-│   ├── (tabs)/                     # Bottom tab group
-│   │   ├── _layout.tsx
-│   │   ├── today.tsx
-│   │   ├── progress.tsx
-│   │   └── profile.tsx
-│   ├── history/index.tsx           # Workout history list
-│   ├── history/[id].tsx            # Workout detail
-│   ├── profile/plan/index.tsx      # Training plan view
-│   ├── profile/plan/setup.tsx      # Plan setup wizard
-│   └── workout/active.tsx          # Active workout session
-├── src/
-│   ├── auth/                       # Supabase client + AuthProvider + useAuth
-│   ├── components/                 # ActiveSetCard, ExercisePicker, RepeatCard, sync/rest sheets
-│   ├── core/                       # Pure domain logic (PR detection, format, sync helpers)
-│   ├── db/                         # SQLite: schema, client, mutations, uuid, types, mocks
-│   ├── lib/                        # Cross-cutting services (errorReporting, restNotifications)
-│   ├── queries/                    # React Query hooks reading SQLite
-│   ├── screens/                    # Large screen components consumed by app/ routes
-│   ├── sync/                       # engine.ts, push.ts, pull.ts, state.ts
-│   ├── voice/                      # Voice logging: numberWords, grammar, dispatch (pure) + speechEngine, useVoiceSession (native)
-│   ├── ui/                         # theme.ts + shared native UI (ErrorBoundary, LineChart, SyncIndicator, ...)
-│   └── __tests__/                  # Integration tests (offline workout)
-├── supabase/
-│   ├── migrations/                 # Numbered SQL migrations (00001 … 00010)
-│   │   ├── 00001_initial_schema.sql
-│   │   ├── 00002_constraints_and_improvements.sql
-│   │   ├── 00003_training_plans.sql
-│   │   ├── 00004_sync_support.sql           # Adds updated_at, deleted_at, triggers, indexes
-│   │   ├── 00005_seed_beyond_strength_phase1.sql
-│   │   ├── 00006_plan_presets.sql           # Plan-preset catalog tables (4)
-│   │   ├── 00007_seed_global_exercises.sql
-│   │   ├── 00008_seed_plan_presets.sql
-│   │   ├── 00009_security_hardening.sql     # WITH CHECK, server-owned updated_at, search_path
-│   │   └── 00010_perf_indexes.sql           # Partial perf indexes (PR history, set scans)
-│   ├── config.toml                 # Local Supabase + auth settings
-│   ├── templates/                  # GoTrue email templates
-│   └── seed.sql                    # Bootstrapping data
-├── docs/                           # Architecture + operational docs
-├── app.config.ts                   # Expo app config (plugins, extra, scheme)
-├── eas.json                        # EAS Build + Submit profiles
-├── .env.example                    # Required env vars
-└── ARCHITECTURE.md                 # Design and solution architecture
-```
-
-## Navigation
-
-| Route                         | Screen                                                       | Purpose                        |
-| ----------------------------- | ------------------------------------------------------------ | ------------------------------ |
-| `/(tabs)/today`               | [src/screens/Today.tsx](src/screens/Today.tsx)               | Dashboard, start workout       |
-| `/history`                    | [src/screens/History.tsx](src/screens/History.tsx)           | Past workouts list             |
-| `/(tabs)/progress`            | [src/screens/Progress.tsx](src/screens/Progress.tsx)         | PRs, trend charts, frequency   |
-| `/(tabs)/profile`             | [src/screens/Profile.tsx](src/screens/Profile.tsx)           | Settings, routines, sign out   |
-| `/workout/active`             | [src/screens/WorkoutActive.tsx](src/screens/WorkoutActive.tsx) | Live workout session         |
-| `/history/[id]`               | [src/screens/HistoryDetail.tsx](src/screens/HistoryDetail.tsx) | Single workout detail        |
-| `/profile/plan`               | [src/screens/TrainingPlan.tsx](src/screens/TrainingPlan.tsx) | View active plan               |
-| `/profile/plan/setup`         | [src/screens/PlanSetup.tsx](src/screens/PlanSetup.tsx)       | Create or edit plan            |
-| `/login`                      | [src/screens/Login.tsx](src/screens/Login.tsx)               | Magic-link sign-in             |
+| Route                 | Screen                                                         | Purpose                      |
+| --------------------- | -------------------------------------------------------------- | ---------------------------- |
+| `/(tabs)/today`       | [src/screens/Today.tsx](src/screens/Today.tsx)                 | Dashboard, start workout     |
+| `/(tabs)/progress`    | [src/screens/Progress.tsx](src/screens/Progress.tsx)           | PRs, trend charts            |
+| `/(tabs)/profile`     | [src/screens/Profile.tsx](src/screens/Profile.tsx)             | Settings, plan, sign out     |
+| `/workout/active`     | [src/screens/WorkoutActive.tsx](src/screens/WorkoutActive.tsx) | Live workout session         |
+| `/history`            | [src/screens/History.tsx](src/screens/History.tsx)             | Past workouts list           |
+| `/history/[id]`       | [src/screens/HistoryDetail.tsx](src/screens/HistoryDetail.tsx) | Single workout detail        |
+| `/profile/plan`       | [src/screens/TrainingPlan.tsx](src/screens/TrainingPlan.tsx)   | View active plan             |
+| `/profile/plan/setup` | [src/screens/PlanSetup.tsx](src/screens/PlanSetup.tsx)         | Create or edit plan          |
+| `/login`              | [src/screens/Login.tsx](src/screens/Login.tsx)                 | Magic-link or password login |
 
 Bottom nav: Today, Progress, Profile. History opens from the Today header, not a tab.
 
-## Voice logging (hands-free)
+### Voice logging
 
-Busy, chalky hands mid-set shouldn't have to tap a phone. On the active workout screen ([src/screens/WorkoutActive.tsx](src/screens/WorkoutActive.tsx)) a **mic button** lets you run the whole session by voice.
+On the active workout screen, a mic button opens a hands-free listening session (long-press for push-to-talk). Speech is transcribed on-device (`expo-speech-recognition`) and parsed by a local grammar ([src/voice/grammar.ts](src/voice/grammar.ts)), so no network is needed. Commands map onto the same local-first mutations the buttons use ([src/voice/dispatch.ts](src/voice/dispatch.ts)), so offline behavior, sync, and undo are identical to tapping. Clear commands apply instantly; ambiguous ones (a bare number, a new exercise name) ask you to confirm first. Unrecognized chatter is ignored. The parser sits behind the `VoiceParser` interface ([src/voice/commands.ts](src/voice/commands.ts)) so a smarter parser can drop in later without touching the engine or UI.
 
-### How it works
+Every row below is verified against [src/voice/grammar.ts](src/voice/grammar.ts):
 
-1. **Tap the mic** on the active set card to open a hands-free listening session (or **long-press** for push-to-talk in noisy moments).
-2. Speech is transcribed **on-device** (`expo-speech-recognition`, iOS Speech framework) and parsed by a **local grammar** ([src/voice/grammar.ts](src/voice/grammar.ts)) — no network, works in airplane mode.
-3. Each command maps onto the same local-first mutations the buttons use ([src/voice/dispatch.ts](src/voice/dispatch.ts)), so offline, sync, and undo all behave identically to tapping.
-4. **Confidence-based confirm:** clear commands apply instantly with one-word undo; ambiguous ones (a bare number) ask you to confirm. Unrecognized chatter is ignored, so a gym buddy's "yeah bro" does nothing.
+| You say                                                                     | Result                                                                |
+| --------------------------------------------------------------------------- | --------------------------------------------------------------------- |
+| "185 for 5", "one eighty-five for five", "185 by 5", "log 135 times 8 reps" | Log weight and reps on the active set                                  |
+| "225 for 5 done"                                                            | Logs 225 x 5 (values win over the trailing keyword); a separate "done" completes |
+| "five reps at one thirty five"                                              | Reps-first phrasing, logs reps and weight                              |
+| "100 kilos for 5"                                                           | Explicit unit, stored on the set                                       |
+| "185"                                                                       | Weight only; low confidence, asks you to confirm                       |
+| "5 reps"                                                                    | Reps only                                                              |
+| "done", "got it", "complete"                                                | Complete the active set                                                |
+| "add a set", "one more"                                                     | Stage another set                                                      |
+| "add bench press"                                                           | Add an exercise; always confirms before creating from a misheard name  |
+| "next exercise", "previous exercise"                                        | Move between exercises                                                 |
+| "start rest timer", "two minute rest"                                       | Start the rest timer, with optional duration                           |
+| "skip rest", "stop the rest timer", "rest done"                             | Stop a running rest timer                                              |
+| "make it 195"                                                               | Correct the staged weight (confirmed)                                  |
+| "scratch that", "undo"                                                      | Undo the last command                                                  |
+| "yes"                                                                       | Confirm a pending low-confidence command                               |
+| "finish workout"                                                            | Open the finish confirmation                                           |
+| "stop"                                                                      | End the listening session                                              |
 
-The parser sits behind a `VoiceParser` interface, so a **cloud LLM fallback** for free-form phrasing can drop in later (Phase 2) without touching the engine or UI. Wake word ("Hey Coach") and natural-language history queries are also Phase 2.
-
-### Command vocabulary
-
-| You say | Result |
-| ------- | ------ |
-| "185 for 5", "one eighty-five for five", "185 by 5", "log 135 times 8 reps" | Set weight + reps on the active set |
-| "185", "5 reps" | Set weight only / reps only |
-| "100 kilos for 5" | Weight + reps with an explicit unit |
-| "done", "got it", "complete" | Complete the set and advance |
-| "add a set", "one more" | Stage another set |
-| "add bench press" | Add an exercise (reuses the catalog, else creates it) |
-| "next exercise", "previous exercise" | Move between exercises |
-| "start rest timer", "two minute rest" | Start the rest timer (with optional duration) |
-| "make it 195", "scratch that" / "undo" | Correct a value / undo the last command |
-| "yes" | Confirm a pending (low-confidence) command |
-| "finish workout" | Go to the finish-summary confirm screen |
-| "stop" | End the listening session |
-
-### Running it
-
-Voice needs a **development build** — the speech recognizer is a native module and does not run in Expo Go:
+Voice needs a development build (the recognizer is a native module; it does not run in Expo Go):
 
 ```bash
-npx expo prebuild          # regenerates ios/ with the speech plugin + permissions
-npx expo run:ios           # iOS device or simulator
+npx expo prebuild
+npx expo run:ios
 ```
 
-On first use, grant the **microphone** and **speech recognition** permissions. If permission is denied or the device has no recognizer, the mic shows a disabled state and everything stays tappable — no crash.
+## Implementation status
 
-### Testing it
+A 16-dimension deep review ran in June 2026 (115 confirmed findings), followed by roughly 33 test-first fix commits merged to main. The narrative synthesis, phase plan, and full findings appendix live in [docs/specs/2026-06-10-deep-review-improvement-plan.md](docs/specs/2026-06-10-deep-review-improvement-plan.md). The current per-area assessment is in [docs/REPO_REVIEW.md](docs/REPO_REVIEW.md); the visual and interaction backlog is in [docs/UX_POLISH_BACKLOG.md](docs/UX_POLISH_BACKLOG.md).
 
-The feature is split so the risky logic is fully unit-tested in the Node harness, while the parts that need a device are verified manually:
+**Partial**:
 
-- **Unit-tested (`npm test`)** — the pure core: `numberWords` (spoken-numeral parsing), `grammar` (command + confidence + chatter guard), and `dispatch` (commands → mutations + undo, against the SQLite mock). See [src/voice/\_\_tests\_\_/](src/voice/__tests__/).
-- **On-device QA** — the native engine (`speechEngine.ts`), the session hook (`useVoiceSession.ts`), and the card UI can't run under `ts-jest`. After `expo run:ios`, walk the checklist in [docs/superpowers/plans/2026-05-31-voice-workout-logging.md](docs/superpowers/plans/2026-05-31-voice-workout-logging.md) (Task 9): permission grant/deny, "one eighty-five for five", "done", "add a set", "two minute rest", a bare-number confirm, "scratch that", chatter ignored, and airplane-mode offline.
+- **Rest-alert status in Profile**: the capability check exists (`getRestAlertStatus` in [src/lib/restNotifications.ts](src/lib/restNotifications.ts)) but the Profile "Rest alerts" status row is not wired to it.
+- **PR moment in the set choreography**: the choreography defines a PR pill state ([src/ui/completeSetChoreography.ts](src/ui/completeSetChoreography.ts)), but live PR detection does not drive it mid-session yet, and the session recap has no PR card.
+- **Text primitive migration**: [src/ui/Text.tsx](src/ui/Text.tsx) is the standard and screens were swept onto Geist, but raw React Native `Text` usages remain in screens.
 
-Design and plan: [docs/superpowers/specs/2026-05-31-voice-workout-logging-design.md](docs/superpowers/specs/2026-05-31-voice-workout-logging-design.md).
+**Planned / known open**:
 
-## Getting Started
+- **Plan-to-Today loop**: plans are created and viewable, but the day's scheduled workout does not yet feed the Today start flow.
+- **VoiceOver and Dynamic Type passes**: need on-device QA.
+- **SecureStore session encryption**: the Supabase session currently persists in plaintext AsyncStorage; moving it to `expo-secure-store` needs a device test.
+- **iOS privacy manifest**: needs an EAS build and store-side verification.
 
-### Prerequisites
+## Tech stack
 
-- **Node.js** 20+
-- **Xcode** (for iOS simulator and native builds) and/or **Android Studio** (for Android emulator)
-- An **Expo account** (required for EAS Build; optional for local dev)
-- A **Supabase** project ([supabase.com](https://supabase.com), free tier works)
-- Optional: the **Supabase CLI** for local database development
+Versions from [package.json](package.json) on main.
 
-### 1. Clone and install
+| Layer                | Technology                                                                                          |
+| -------------------- | --------------------------------------------------------------------------------------------------- |
+| Runtime              | Expo SDK 56, React Native 0.85.3, React 19.2.3                                                       |
+| Language             | TypeScript 5.9, strict                                                                               |
+| Navigation           | Expo Router ~56.2 (file-based, typed routes enabled in [app.config.ts](app.config.ts))               |
+| Local DB             | `expo-sqlite` (source of truth, schema in [src/db/schema.ts](src/db/schema.ts))                      |
+| Cloud DB / auth      | Supabase (`@supabase/supabase-js` 2.x), reached only by [src/sync/](src/sync/) and [src/auth/](src/auth/) |
+| Server state         | TanStack React Query 5 (reads SQLite, not HTTP)                                                      |
+| Sync engine          | In-house outbox plus incremental pull ([src/sync/](src/sync/))                                       |
+| Styling              | `useTheme()` + `makeStyles`, tokens in [src/ui/colors.ts](src/ui/colors.ts) and [src/ui/typography.ts](src/ui/typography.ts); Geist / Geist Mono fonts |
+| Charts               | Custom SVG via `react-native-svg` ([src/ui/LineChart.tsx](src/ui/LineChart.tsx))                     |
+| Haptics / timers     | `expo-haptics`, `expo-notifications`                                                                 |
+| Voice                | `expo-speech-recognition` (on-device STT) + local grammar parser ([src/voice/](src/voice/))          |
+| Error reporting      | `@sentry/react-native` 7.x, gated by `EXPO_PUBLIC_SENTRY_DSN`                                        |
+| Testing              | Jest 29 + `ts-jest`, `better-sqlite3` in-memory swap for `expo-sqlite`                               |
+| CI                   | GitHub Actions ([.github/workflows/ci.yml](.github/workflows/ci.yml)): typecheck, lint, test on every push to main and every PR |
+| Build / distribution | EAS Build + EAS Submit ([eas.json](eas.json))                                                        |
+
+There is no custom API server. The client talks to Supabase directly through PostgREST, and only from the sync and auth layers.
+
+## Local-first architecture
+
+The full picture is in [docs/ARCHITECTURE_REALITY.md](docs/ARCHITECTURE_REALITY.md) and [docs/local-first-sync.md](docs/local-first-sync.md). The short version:
+
+- **Reads**: React Query hooks in [src/queries/](src/queries/) read SQLite. The UI never blocks on the network.
+- **Writes**: `enqueueMutation` ([src/db/mutations.ts](src/db/mutations.ts)) applies the write to SQLite, appends an outbox row, and cascades soft-deletes to FK children, all in a single transaction.
+- **Mutation event bus**: committed writes emit on [src/db/mutationEvents.ts](src/db/mutationEvents.ts) (`emitMutationCommitted`); the sync engine ([src/sync/engine.ts](src/sync/engine.ts)) subscribes and debounces a push. The queries layer does not import the sync engine.
+- **Push**: [src/sync/push.ts](src/sync/push.ts) drains the outbox in insertion order, never sends a row while an earlier write to the same row is pending, and verifies the server actually matched a row on update and delete (`assertServerRowMatched`), so a 0-row PostgREST update cannot silently drop a write. Rows that exhaust retries are quarantined for explicit user retry or discard ([src/sync/quarantine.ts](src/sync/quarantine.ts)).
+- **Pull**: [src/sync/pull.ts](src/sync/pull.ts) does incremental per-table cursor pulls, merging around pending outbox writes, with per-table fault isolation so one bad table cannot poison the rest.
+- **personal_records is local-only**: it is a derived cache recomputed from sets (which do sync) and is intentionally excluded from `SYNCED_TABLES` ([src/db/schema.ts](src/db/schema.ts)). Two devices converge because they derive from the same synced sets.
+
+## Development setup
+
+Prerequisites: Node 20 ([.nvmrc](.nvmrc)), Xcode and/or Android Studio, a Supabase project, and an Expo account for EAS builds.
 
 ```bash
 git clone <repo-url> vyayamy
 cd vyayamy
-npm install --legacy-peer-deps
+npm ci --legacy-peer-deps     # same install CI uses; the Expo 56 / RN 0.85 peer graph is not strict-clean
 ```
 
-The `--legacy-peer-deps` flag silences a few transitive dependencies whose declared React peer ranges haven't caught up to React 19 yet. Once they do, drop the flag.
+Run the migrations in [supabase/migrations/](supabase/migrations/) in order (Supabase SQL editor or CLI):
 
-### 2. Configure Supabase
+1. `00001_initial_schema.sql`
+2. `00002_constraints_and_improvements.sql`
+3. `00003_training_plans.sql`
+4. `00004_sync_support.sql` (required by the sync engine: `updated_at`, `deleted_at`, triggers, indexes)
+5. `00005_seed_beyond_strength_phase1.sql`
+6. `00006_plan_presets.sql`
+7. `00007_seed_global_exercises.sql`
+8. `00008_seed_plan_presets.sql`
+9. `00009_security_hardening.sql` (required: RLS `WITH CHECK`, server-owned `updated_at`)
+10. `00010_perf_indexes.sql`
+11. `00011_set_units.sql` (required: per-set `units` column plus backfill from the profile preference)
 
-In the Supabase SQL editor (or via the Supabase CLI) run the migrations **in order**:
-
-1. `supabase/migrations/00001_initial_schema.sql`
-2. `supabase/migrations/00002_constraints_and_improvements.sql`
-3. `supabase/migrations/00003_training_plans.sql`
-4. `supabase/migrations/00004_sync_support.sql` — **required**; adds `updated_at`, `deleted_at`, triggers, and indexes that the sync engine depends on
-5. `supabase/migrations/00005_seed_beyond_strength_phase1.sql` — seed program for the Beyond Strength preset
-6. `supabase/migrations/00006_plan_presets.sql` — read-only catalog tables for the Plan Setup wizard
-7. `supabase/migrations/00007_seed_global_exercises.sql` — seeds the global exercise library
-8. `supabase/migrations/00008_seed_plan_presets.sql` — seeds the preset catalog
-9. `supabase/migrations/00009_security_hardening.sql` — **required**; adds `WITH CHECK` to RLS policies, server-owned `updated_at` trigger, locks down `handle_new_user`, FK on `personal_records.set_id`
-10. `supabase/migrations/00010_perf_indexes.sql` — performance indexes for PR-history and set-scan queries (local + server)
-
-In **Project Settings → API**, copy the project URL and anon key.
-
-### 3. Environment variables
+Then configure the environment and start:
 
 ```bash
-cp .env.example .env
+cp .env.example .env    # fill EXPO_PUBLIC_SUPABASE_URL and EXPO_PUBLIC_SUPABASE_ANON_KEY
+npx expo start          # press i / a for simulator
+npx expo run:ios        # development build, required for voice and other native modules
 ```
 
-Fill in at minimum:
+Optional local Supabase: `npx supabase start` uses [supabase/config.toml](supabase/config.toml) (API 54321, DB 54322, Studio 54323).
+
+| Command                | Description                        |
+| ---------------------- | ---------------------------------- |
+| `npm run start`        | Expo dev server                    |
+| `npm run ios` / `npm run android` | Build and run natively  |
+| `npm run typecheck`    | `tsc --noEmit`                     |
+| `npm run lint`         | ESLint                             |
+| `npm test`             | Jest once (`npm run test:watch` to watch) |
+| `npm run format`       | Prettier write (`format:check` to check)  |
+
+### Project structure
 
 ```
-EXPO_PUBLIC_SUPABASE_URL=https://your-project.supabase.co
-EXPO_PUBLIC_SUPABASE_ANON_KEY=your-anon-key
+vyayamy/
+├── app/                  # Expo Router routes
+│   ├── _layout.tsx       # Root stack, providers, db init, sync engine, auth gate
+│   ├── index.tsx         # Entry redirect
+│   ├── login.tsx
+│   ├── (tabs)/           # today.tsx, progress.tsx, profile.tsx
+│   ├── history/          # index.tsx, [id].tsx
+│   ├── profile/plan/     # index.tsx, setup.tsx
+│   └── workout/active.tsx
+├── src/
+│   ├── auth/             # Supabase client, AuthProvider, authActions facade
+│   ├── components/       # ActiveSetCard, ExercisePicker, sync/rest sheets, VoiceMicButton
+│   ├── core/             # Pure domain: pr-detection, units, format, syncHelpers
+│   ├── db/               # schema, client, mutations, mutationEvents, transaction
+│   ├── lib/              # restNotifications, errorReporting, kvStore, safeRoute
+│   ├── queries/          # React Query hooks reading SQLite, one file per domain
+│   ├── screens/          # Screen components consumed by app/ routes
+│   ├── sync/             # engine, push, pull, state, quarantine, outboxPreview
+│   ├── ui/               # skins, useTheme, Text primitive, LineChart, choreography
+│   ├── voice/            # numberWords, grammar, dispatch (pure); speechEngine, useVoiceSession (native)
+│   └── __tests__/        # Cross-layer integration tests
+├── supabase/             # migrations/ (00001..00011), config.toml, seed.sql, templates/
+├── docs/                 # Architecture, operations, specs, ADRs
+├── app.config.ts
+└── eas.json
 ```
-
-Additional variables (all optional in development):
-
-| Variable                      | Purpose                                        |
-| ----------------------------- | ---------------------------------------------- |
-| `EXPO_PUBLIC_SENTRY_DSN`      | Enables Sentry crash reporting when set        |
-| `SENTRY_ORG`, `SENTRY_PROJECT`, `SENTRY_AUTH_TOKEN` | Sentry source-map upload on EAS production |
-| `EAS_PROJECT_ID`              | Links the app to your EAS project              |
-| `APPLE_ID`, `ASC_APP_ID`, `APPLE_TEAM_ID` | EAS Submit → TestFlight                  |
-
-### 4. Run locally
-
-```bash
-npx expo start
-```
-
-Press `i` for iOS simulator or `a` for Android emulator. On a physical device, install Expo Go (for simple previews) or a **development build** (required once native modules like `expo-sqlite`, `expo-notifications`, or Sentry are active):
-
-```bash
-npx expo run:ios
-# or
-npx expo run:android
-```
-
-## Scripts
-
-| Command                | Description                                           |
-| ---------------------- | ----------------------------------------------------- |
-| `npm run start`        | Start the Expo dev server (`expo start`)              |
-| `npm run ios`          | Start Expo and boot the iOS simulator                 |
-| `npm run android`      | Start Expo and boot the Android emulator              |
-| `npm run prebuild`     | Generate native `ios/` and `android/` projects        |
-| `npm run lint`         | Run ESLint                                            |
-| `npm run format`       | Format with Prettier                                  |
-| `npm run format:check` | Check formatting without writing                      |
-| `npm run typecheck`    | `tsc --noEmit`                                        |
-| `npm test`             | Run Jest once                                         |
-| `npm run test:watch`   | Run Jest in watch mode                                |
-
-## EAS Build and Submit
-
-[eas.json](eas.json) defines three profiles:
-
-| Profile       | Purpose                                                 |
-| ------------- | ------------------------------------------------------- |
-| `development` | Dev client with `developmentClient: true`               |
-| `preview`     | Internal distribution; iOS simulator build enabled      |
-| `production`  | Store builds, auto-incremented, Sentry env wired        |
-
-Typical flow:
-
-```bash
-# One-time: create an EAS project and set EAS_PROJECT_ID in .env
-npx eas init
-
-# Dev client on a physical device
-npx eas build --profile development --platform ios
-
-# Preview (QR-installable)
-npx eas build --profile preview --platform all
-
-# Production
-npx eas build --profile production --platform all
-npx eas submit --profile production --platform ios      # → TestFlight
-npx eas submit --profile production --platform android  # → internal track
-```
-
-Submit credentials are read from env vars (`APPLE_ID`, `ASC_APP_ID`, `APPLE_TEAM_ID`) and, on Android, from a service-account JSON referenced in `eas.json`.
 
 ## Testing
 
-Tests run under Node with `ts-jest`. `expo-sqlite` is swapped for an in-memory `better-sqlite3` backend via `moduleNameMapper` in [package.json](package.json), which lets the sync engine and mutation primitive be exercised without an emulator.
-
-The suite is **41 files / 309 tests** spanning the sync engine, query layer, pure domain logic, the voice parser, and UI helpers — a representative slice:
-
-| File                                                  | What it covers                                                   |
-| ----------------------------------------------------- | ---------------------------------------------------------------- |
-| [src/__tests__/offline-workout.test.ts](src/__tests__/offline-workout.test.ts) | End-to-end offline write → outbox → push on reconnect    |
-| [src/__tests__/pull.test.ts](src/__tests__/pull.test.ts) | Incremental pull — column-merge with pending outbox, cursor advance, tombstones |
-| [src/__tests__/sync-state.test.ts](src/__tests__/sync-state.test.ts) | `deriveSyncState` enum reduction                              |
-| [src/core/__tests__/pr-detection.test.ts](src/core/__tests__/pr-detection.test.ts) | Pure PR computation and comparison logic              |
-| [src/voice/__tests__/grammar.setvalues.test.ts](src/voice/__tests__/grammar.setvalues.test.ts) | Voice command parsing — weight/reps, units, confidence |
-| [src/voice/__tests__/dispatch.test.ts](src/voice/__tests__/dispatch.test.ts) | Voice commands → local-first mutations, with undo            |
-
-Run `npm test` to execute every suite. Note: the voice **native engine and UI** (`src/voice/speechEngine.ts`, `useVoiceSession.ts`, and the card morph) are not unit-tested here — they need a development build and on-device QA (see [Voice logging → Testing it](#testing-it)).
-
-## Local Supabase (optional)
-
 ```bash
-npx supabase start
+npm test
 ```
 
-Uses the settings in `supabase/config.toml` (API on 54321, DB on 54322, Studio on 54323). Update `.env` to point at the local instance. Local Supabase captures auth emails in [Inbucket](http://localhost:54324).
+Current count on main: **58 suites, 439 tests**, all green; CI runs the same suite plus typecheck and lint on every PR.
 
-## Architecture
+Tests run in Node under `ts-jest`. The `moduleNameMapper` in [package.json](package.json) swaps `expo-sqlite` for an in-memory `better-sqlite3` backend ([src/db/__mocks__/expo-sqlite.ts](src/db/__mocks__/expo-sqlite.ts)), so the mutation primitive and the whole sync engine run against a real SQL engine without an emulator. Coverage spans the sync engine (push ordering, pull merge, quarantine), `enqueueMutation` and cascades, the query layer, pure domain logic (PR detection, unit conversion), the voice parser and dispatch, and UI choreography helpers.
 
-See [ARCHITECTURE.md](ARCHITECTURE.md) for the full design. Key entry points:
+What still needs a device or simulator: the voice native engine ([src/voice/speechEngine.ts](src/voice/speechEngine.ts), [src/voice/useVoiceSession.ts](src/voice/useVoiceSession.ts)), rest-notification timing, skin and motion visual checks, and the accessibility passes (VoiceOver, Dynamic Type). The voice on-device checklist is in [docs/superpowers/plans/2026-05-31-voice-workout-logging.md](docs/superpowers/plans/2026-05-31-voice-workout-logging.md).
 
-- **Local-first sync**: [docs/local-first-sync.md](docs/local-first-sync.md)
-- **Product overview and domain glossary**: [docs/overview.md](docs/overview.md)
-- **Design system**: [docs/design-system.md](docs/design-system.md)
-- **Build and operations**: [docs/operations.md](docs/operations.md)
-- **Architecture decisions**: [docs/adr/](docs/adr/)
-- **Feature specs**: [docs/specs/](docs/specs/)
-- **Threat model**: [docs/threat-model.md](docs/threat-model.md) — assets, actors, risk acceptances
-- **Agent guardrails**: [AGENTS.md](AGENTS.md) and [.cursor/rules/](.cursor/rules/)
+## Build and distribution
+
+[eas.json](eas.json) sets `appVersionSource: "remote"` (EAS owns the build number) and defines three build profiles:
+
+| Profile       | Purpose                                                  |
+| ------------- | -------------------------------------------------------- |
+| `development` | Dev client, internal distribution                        |
+| `preview`     | Internal distribution, iOS simulator builds enabled      |
+| `production`  | Store builds, `autoIncrement`                            |
+
+Build profiles carry no inline `env` blocks: runtime configuration lives in EAS environment variables created with `npx eas env:create` (the exact commands are in [docs/operations.md](docs/operations.md)). The submit profile is iOS-only and reads `APPLE_ID`, `ASC_APP_ID`, and `APPLE_TEAM_ID` from the environment; there is no Android submit profile.
+
+```bash
+npx eas build --profile development --platform ios
+npx eas build --profile preview --platform ios
+npx eas build --profile production --platform ios
+npx eas submit --profile production --platform ios
+```
+
+A full EAS build has not been exercised in the latest verification pass (it needs project credentials); `eas.json` itself was repaired and hand-verified.
+
+## Known limitations
+
+- The Supabase session JWT persists in plaintext AsyncStorage; SecureStore migration is pending.
+- The Apple privacy manifest has not been verified against a store build.
+- The pull path assumes the server schema matches local expectations; schema skew between devices on different app versions is not defended yet, and local SQLite migration handling is minimal.
+- The sync collision sheet is a blocking modal.
+- The outbox does not coalesce rapid edits to the same row (a known race with in-flight pushes makes naive coalescing lossy); a debounce mitigates the symptom.
+- Prettier formatting is not a CI gate and the tree currently fails `prettier --check`.
+- iOS-first: Android builds, but there is no Android submit profile and no Android QA pass.
+- The voice grammar is English-only.
+- Screen-level test coverage is thin compared to the data and sync layers.
+
+## Contributing
+
+Read [AGENTS.md](AGENTS.md) first: it defines the stack guardrails (what may not be introduced or removed), the layering rules enforced by lint, and the golden paths for adding mutations, queries, and screens. Non-trivial features start with a spec in [docs/specs/](docs/specs/); ADRs in [docs/adr/](docs/adr/) are read-only.
+
+Every PR must pass the CI gate ([.github/workflows/ci.yml](.github/workflows/ci.yml)): typecheck, lint, and the full Jest suite. The working expectation is test-first: reproduce the bug or specify the behavior in a failing test, then make it pass. Changes to native or visual surfaces also need the relevant on-device checklist.

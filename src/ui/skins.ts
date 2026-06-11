@@ -15,7 +15,7 @@ export type SkinId = 'forge' | 'iron' | 'ember' | 'chalk';
 export const SKIN_IDS: SkinId[] = ['forge', 'iron', 'ember', 'chalk'];
 
 export const SKIN_META: Record<SkinId, { name: string; blurb: string }> = {
-  forge: { name: 'Forge', blurb: 'Muted green — the original' },
+  forge: { name: 'Forge', blurb: 'Muted green, the original' },
   iron: { name: 'Iron', blurb: 'Cool steel & graphite' },
   ember: { name: 'Ember', blurb: 'Saffron heat' },
   chalk: { name: 'Chalk', blurb: 'Warm paper' },

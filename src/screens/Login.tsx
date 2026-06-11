@@ -103,7 +103,7 @@ export default function LoginScreen() {
               <TextInput
                 value={password}
                 onChangeText={setPassword}
-                placeholder="Optional — for direct sign-in"
+                placeholder="Optional, for direct sign-in"
                 placeholderTextColor={theme.color.inkTertiary}
                 secureTextEntry
                 autoCapitalize="none"

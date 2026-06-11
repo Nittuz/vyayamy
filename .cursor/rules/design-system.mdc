@@ -1,5 +1,5 @@
 ---
-description: Design system, visual identity, and styling conventions for Vyayamy
+description: Design system, visual identity, and styling conventions for FlexYug
 globs: src/ui/**/*.ts,src/ui/**/*.tsx,src/components/**/*.tsx,src/screens/**/*.tsx,app/**/*.tsx
 alwaysApply: false
 ---
@@ -8,73 +8,83 @@ alwaysApply: false
 
 ## Design Philosophy
 
-Vyayamy is a **calm, minimal workout journal**. Every design decision follows this priority order — never invert it:
+FlexYug is a **calm, minimal workout journal**. Every design decision follows this priority order; never invert it:
 
-1. **Clarity** — the user should instantly understand what they're looking at
-2. **Usability** — every interaction should feel obvious and forgiving
-3. **Speed** — perceived and actual; no layout jank, no unnecessary spinners
-4. **Consistency** — identical patterns for identical actions, everywhere
-5. **Delight** — subtle motion and refined details, earned only after the above are satisfied
+1. **Clarity**: the user should instantly understand what they're looking at
+2. **Usability**: every interaction should feel obvious and forgiving
+3. **Speed**: perceived and actual; no layout jank, no unnecessary spinners
+4. **Consistency**: identical patterns for identical actions, everywhere
+5. **Delight**: subtle motion and refined details, earned only after the above are satisfied
 
 ### Foundational Principles
 
-**Dieter Rams — remove everything unnecessary.** Fewer buttons, fewer visual elements, more whitespace. If an element doesn't serve the user's current task, it shouldn't be on screen.
+**Dieter Rams: remove everything unnecessary.** Fewer buttons, fewer visual elements, more whitespace. If an element doesn't serve the user's current task, it shouldn't be on screen.
 
-**Don Norman — match human mental models.** Behavior must be predictable. Labels must be clear. Actions must be obvious.
+**Don Norman: match human mental models.** Behavior must be predictable. Labels must be clear. Actions must be obvious.
 
-**Apple Health aesthetic.** Restrained, typographic, spacious — not typical fitness-app design. Inspirations: Apple Health, Apple Fitness, Whoop, Strava, Strong, Hevy.
+**Apple Health aesthetic.** Restrained, typographic, spacious; not typical fitness-app design. Inspirations: Apple Health, Apple Fitness, Whoop, Strava, Strong, Hevy.
 
 ### Non-negotiables
 
 - **Single column**, phone-first; no tablet-specific layouts
-- **Warm neutral palette** — stone/amber tones (`#F8F8F6` bg, `#1C1917` text)
-- **System font** (React Native default — San Francisco on iOS, Roboto on Android). No custom fonts.
+- **Brutalist-lifter palette + curated skins**: four skins (`forge`, `iron`, `ember`, `chalk`) in `src/ui/skins.ts`, each a coordinated `{ dark, light }` pair selected by system color scheme. Default is Forge: muted green accent on near-black (dark) or warm paper (light). Switchable in Profile → Appearance.
+- **Geist fonts**: Geist Sans for chrome/labels, Geist Mono for numerals and data, loaded via `@expo-google-fonts/geist` + `geist-mono`. Render text through the `<Text variant>` primitive in `src/ui/Text.tsx` so no screen falls back to the system font.
 - **44pt minimum touch target** (`theme.touch.min`) on every interactive element
-- **Generous whitespace** — when in doubt, add more
-- **Subtle motion** only — 150 / 250 / 350 ms durations (`theme.duration`). No bouncy springs, no particles.
-- **Progressive disclosure** — primary action visible; secondary actions revealed on interaction
+- **Generous whitespace**: when in doubt, add more
+- **Subtle motion** only: 150 / 220 / 320 ms duration tokens plus a 600ms counter tally (`theme.motion.duration`), and three damped Reanimated springs (`snappy` / `settle` / `rebound`). No particles, no parallax.
+- **Progressive disclosure**: primary action visible; secondary actions revealed on interaction
 
 ## Styling Rules
 
-All tokens live in `src/ui/theme.ts` as a plain TypeScript object. There are **no CSS files in the mobile app**. Styling happens via `StyleSheet.create` at the bottom of the component file.
+Tokens live in the modules under `src/ui/`: `colors.ts` / `skins.ts` (palette), `typography.ts`, `motion.ts`, plus the `space` / `radius` / `touch` scales in `useTheme.ts`. Consume them through the `useTheme()` hook with a memoized `makeStyles(theme)` factory. The legacy static `src/ui/theme.ts` is a deprecated shim kept only for the pre-hydration boot overlay and the `brand` constants; do not use it in new code. There are **no CSS files in the mobile app**.
 
 ### Always use tokens
 
-```ts
+```tsx
 // Correct
-import { theme } from '@/ui/theme';
+import { useMemo } from 'react';
+import { StyleSheet, View } from 'react-native';
 
-const styles = StyleSheet.create({
-  card: {
-    padding: theme.space.s4,
-    backgroundColor: theme.color.surface,
-    borderRadius: theme.radius.md,
-  },
-  title: {
-    fontSize: theme.font.section,
-    fontWeight: theme.font.weight.semibold,
-    color: theme.color.text,
-  },
-});
+import { Text } from '@/ui/Text';
+import { useTheme, type Theme } from '@/ui/useTheme';
+
+export function Card({ title }: { title: string }) {
+  const theme = useTheme();
+  const styles = useMemo(() => makeStyles(theme), [theme]);
+  return (
+    <View style={styles.card}>
+      <Text variant="card">{title}</Text>
+    </View>
+  );
+}
+
+const makeStyles = (theme: Theme) =>
+  StyleSheet.create({
+    card: {
+      padding: theme.space.s4,
+      backgroundColor: theme.color.surface,
+      borderRadius: theme.radius.md,
+    },
+  });
 ```
 
 ```ts
-// Wrong — hard-coded values
+// Wrong: hard-coded values, static theme shim
 const styles = StyleSheet.create({
   card: { padding: 16, backgroundColor: '#FFFFFF', borderRadius: 12 },
 });
 ```
 
-### Token surface (from `src/ui/theme.ts`)
+### Token surface (via `useTheme()`)
 
 | Category | Tokens                                                                                                  |
 | -------- | ------------------------------------------------------------------------------------------------------- |
-| Color    | `bg`, `surface`, `text`, `textSecondary`, `textTertiary`, `border`, `borderStrong`, `accent`, `accentMuted`, `success`, `danger`, `pr`, `onAccent`, `overlay` |
-| Space    | `s1` (4) → `s12` (48), `page` (20), `section` (32), `half` (2)                                          |
-| Radius   | `sm` (8), `md` (12), `lg` (16), `full` (9999)                                                           |
-| Font     | `display`, `title`, `section`, `card`, `body`, `meta`, `micro`; `weight.medium/semibold/bold`           |
-| Touch    | `min` (44), `navHeight` (64)                                                                            |
-| Duration | `fast` (150), `normal` (250), `slow` (350)                                                              |
+| Color    | `bg`, `surface`, `surface2`, `border`, `borderStrong`, `ink`, `inkSecondary`, `inkTertiary`, `inkHero`, `accent`, `accentSoft`, `success`, `successSoft`, `danger`, `dangerSoft`, `onAccent`, `overlay` |
+| Space    | `half` (2), `s1` (4) → `s12` (48), `page` (20), `section` (32)                                          |
+| Radius   | `sm` (8), `md` (12), `lg` (16), `full` (9999), `card` (14), `button` (8)                                |
+| Font     | `size.hero/display/title/card/body/meta/micro`; `family.sans/sansMedium/sansSemibold/mono/monoMedium`; `weight.regular/medium/semibold` (there is no 700) |
+| Touch    | `min` (44), `navHeight` (64), `cta` (52), `avatar` (56), `avatarRadius` (28)                            |
+| Motion   | `duration.fast` (150), `duration.base` (220), `duration.slow` (320), `duration.counter` (600); `spring.snappy/settle/rebound` |
 
 ## Components and Interactions
 
@@ -87,21 +97,21 @@ Use `Pressable` for everything interactive. Express pressed state via a function
   onPress={onStart}
   style={({ pressed }) => [styles.cta, pressed && styles.ctaPressed]}
 >
-  <Text style={styles.ctaText}>Start workout</Text>
+  <Text variant="card" color={theme.color.onAccent}>Start workout</Text>
 </Pressable>
 ```
 
-Keep the pressed effect subtle — a lighter background or `opacity: 0.9`. No scale-on-press bounces.
+Keep the pressed effect subtle: a lighter background or `opacity: 0.9`. No scale-on-press bounces.
 
 ### Feedback
 
-- Haptics via `expo-haptics` for meaningful events: set completed (`ImpactFeedbackStyle.Medium`), PR achieved (`NotificationFeedbackType.Success`), destructive confirmation (`ImpactFeedbackStyle.Heavy`)
+- Haptics via the wrappers in `src/ui/haptics.ts`; never call `expo-haptics` directly. Trigger map: `haptics.light` (stepper increments, sheet actions, skip-rest), `haptics.medium` (set banked / last set of exercise), `haptics.rigid` (swipe crosses completion threshold), `haptics.success` (rest timer hits target, PR achieved)
 - Background rest cue via the local notification in `src/lib/restNotifications.ts`
-- Toasts via `ToastProvider` (`useToast()`) — do NOT use `Alert.alert` for transient feedback
+- Toasts via `ToastProvider` (`useToast()` from `src/ui/ToastContext.tsx`); do NOT use `Alert.alert` for transient feedback
 
 ### Charts
 
-Charts are in-house SVG. Use `src/ui/LineChart.tsx` or extend it — do not add Recharts or `victory-native`. Axes, ticks, and labels use `theme.color.chartAxis` / `textTertiary`.
+Charts are in-house SVG. Use `src/ui/LineChart.tsx` or extend it; do not add Recharts or `victory-native`. Axes, ticks, and labels use `theme.color.inkTertiary`.
 
 ### Icons
 

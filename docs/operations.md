@@ -50,6 +50,8 @@ npm run format
 
 Run typecheck + tests after substantive changes. The integration test [src/__tests__/offline-workout.test.ts](../src/__tests__/offline-workout.test.ts) is the canary for sync correctness.
 
+CI ([.github/workflows/ci.yml](../.github/workflows/ci.yml)) enforces typecheck, lint, and the full Jest suite on every PR and push to main; the commands above are the same checks run locally.
+
 ## Environment Variables
 
 Copy `.env.example` to `.env` and fill as needed. All variables prefixed with `EXPO_PUBLIC_` are embedded in the JS bundle; treat them as public.
@@ -81,7 +83,7 @@ npx eas env:create --name SENTRY_AUTH_TOKEN --scope project --visibility secret
 ```
 
 > `eas.json` deliberately contains **no** `env` blocks. The previous `"$VAR"`
-> placeholders were NOT interpolated by EAS — they baked the literal string
+> placeholders were NOT interpolated by EAS: they baked the literal string
 > `"$EXPO_PUBLIC_SUPABASE_URL"` into the binary as the Supabase URL, so any store
 > build pointed at a garbage backend (#120).
 
@@ -97,13 +99,14 @@ Run in order against your Supabase database:
 1. `supabase/migrations/00001_initial_schema.sql`
 2. `supabase/migrations/00002_constraints_and_improvements.sql`
 3. `supabase/migrations/00003_training_plans.sql`
-4. `supabase/migrations/00004_sync_support.sql` — **required**; the sync engine depends on `updated_at`, `deleted_at`, triggers, and indexes
+4. `supabase/migrations/00004_sync_support.sql` (**required**: the sync engine depends on `updated_at`, `deleted_at`, triggers, and indexes)
 5. `supabase/migrations/00005_seed_beyond_strength_phase1.sql`
-6. `supabase/migrations/00006_plan_presets.sql` — read-only catalog tables for the Plan Setup wizard
+6. `supabase/migrations/00006_plan_presets.sql` (read-only catalog tables for the Plan Setup wizard)
 7. `supabase/migrations/00007_seed_global_exercises.sql`
 8. `supabase/migrations/00008_seed_plan_presets.sql`
-9. `supabase/migrations/00009_security_hardening.sql` — **required**; locks down RLS (`WITH CHECK`), moves `updated_at` to a server-owned trigger, hardens `handle_new_user`, and adds the missing `personal_records.set_id` FK
-10. `supabase/migrations/00010_perf_indexes.sql` — performance indexes for PR-history (`sets`) and recent-PR (`personal_records`) queries
+9. `supabase/migrations/00009_security_hardening.sql` (**required**: locks down RLS (`WITH CHECK`), moves `updated_at` to a server-owned trigger, hardens `handle_new_user`, and adds the missing `personal_records.set_id` FK)
+10. `supabase/migrations/00010_perf_indexes.sql` (performance indexes for PR-history (`sets`) and recent-PR (`personal_records`) queries)
+11. `supabase/migrations/00011_set_units.sql` (records the unit (kg/lb) per set so toggling profile units no longer reinterprets historical weights)
 
 Optionally run `supabase/seed.sql` for any extra bootstrapping data.
 
@@ -112,7 +115,7 @@ Optionally run `supabase/seed.sql` for any extra bootstrapping data.
 - File name: next sequential number + underscore + descriptive snake_case (e.g. `00005_add_workout_notes.sql`)
 - Make it idempotent: `CREATE TABLE IF NOT EXISTS`, `ALTER TABLE ... ADD COLUMN IF NOT EXISTS`, `DROP TRIGGER IF EXISTS` before `CREATE TRIGGER`
 - Add RLS policies for every new table, scoped to `auth.uid()`
-- For any synced table: add `updated_at`, `deleted_at`, the `public.touch_updated_at()` BEFORE INSERT OR UPDATE trigger (the client never sets `updated_at`), and the `idx_<table>_updated_at` index — see `00009_security_hardening.sql` for the template
+- For any synced table: add `updated_at`, `deleted_at`, the `public.touch_updated_at()` BEFORE INSERT OR UPDATE trigger (the client never sets `updated_at`), and the `idx_<table>_updated_at` index; see `00009_security_hardening.sql` for the template
 - Mirror the schema in [src/db/schema.ts](../src/db/schema.ts) and add the name to `SYNCED_TABLES`
 - Update [src/db/types.ts](../src/db/types.ts) with Row / Insert / Update types
 - Add the table's React Query root prefix to `syncInvalidationRoots` in [src/queries/keys.ts](../src/queries/keys.ts) so screens refresh after pull
@@ -135,7 +138,7 @@ Uses `supabase/config.toml` (API on 54321, DB on 54322, Studio on 54323). Auth e
 | ------------- | ------------ | ------------------------------------------------------------ |
 | `development` | Internal     | Dev client with `developmentClient: true`                    |
 | `preview`     | Internal     | QR-installable preview; iOS simulator build enabled          |
-| `production`  | Store        | TestFlight / Play Store; auto-increment version; Sentry wired |
+| `production`  | Store        | TestFlight; auto-increment build number; Sentry wired         |
 
 > **Platform: iOS-only for v0.x.** There is no `android/` native project and the
 > Android build/submit path has never been exercised, so the commands below
@@ -157,7 +160,7 @@ npx eas build --profile production --platform ios
 ```
 
 Env vars come from the EAS environment-variable store (see Environment Variables
-above) — `eas.json` has no `env` blocks.
+above); `eas.json` has no `env` blocks.
 
 ## EAS Submit
 
@@ -173,8 +176,8 @@ iOS pulls `APPLE_ID`, `ASC_APP_ID`, `APPLE_TEAM_ID` from the EAS env store.
 SQLite on-device is the source of truth during a session; Supabase is the
 durable mirror. Protect it:
 
-- **Enable PITR** (point-in-time recovery) on the Supabase project, or — on the
-  free tier — schedule a `pg_dump` to object storage via a cron (GitHub Actions
+- **Enable PITR** (point-in-time recovery) on the Supabase project, or, on the
+  free tier, schedule a `pg_dump` to object storage via a cron (GitHub Actions
   or a Supabase scheduled function).
 - Record the plan's backup window and the restore procedure here once chosen.
 - A user who reinstalls before their outbox drained loses only un-pushed local
@@ -184,7 +187,7 @@ durable mirror. Protect it:
 
 [src/lib/errorReporting.ts](../src/lib/errorReporting.ts) is a thin wrapper around `@sentry/react-native`:
 
-- `initErrorReporting()` runs at module load in [app/_layout.tsx](../app/_layout.tsx). It returns early if `EXPO_PUBLIC_SENTRY_DSN` is not set — local dev runs without any crash reporting.
+- `initErrorReporting()` runs at module load in [app/_layout.tsx](../app/_layout.tsx). It returns early if `EXPO_PUBLIC_SENTRY_DSN` is not set; local dev runs without any crash reporting.
 - The root [src/ui/ErrorBoundary.tsx](../src/ui/ErrorBoundary.tsx) calls `captureException(err, { boundary: 'root' })` for render-time errors.
 - `setUser()` is called on `onAuthStateChange` so reports carry identity.
 
@@ -202,7 +205,7 @@ The notification icon used on Android is configured via the `expo-notifications`
 | -------------------------------------------------------------- | ------------------------------------------------------------- |
 | [src/core/__tests__/pr-detection.test.ts](../src/core/__tests__/pr-detection.test.ts) | Pure PR computation                                       |
 | [src/__tests__/offline-workout.test.ts](../src/__tests__/offline-workout.test.ts) | Local-first write path, outbox drain on reconnect, retry + quarantine, cascade soft-delete |
-| [src/__tests__/pull.test.ts](../src/__tests__/pull.test.ts) | Incremental pull — column-merge with pending outbox, cursor advance, tombstones |
+| [src/__tests__/pull.test.ts](../src/__tests__/pull.test.ts) | Incremental pull: column-merge with pending outbox, cursor advance, tombstones |
 | [src/__tests__/sync-state.test.ts](../src/__tests__/sync-state.test.ts) | `deriveSyncState` enum reduction                              |
 
 `expo-sqlite` is mocked via [src/db/__mocks__/expo-sqlite.ts](../src/db/__mocks__/expo-sqlite.ts), which swaps in an in-memory `better-sqlite3` backend. `expo-crypto` is mocked in [src/db/__mocks__/expo-crypto.ts](../src/db/__mocks__/expo-crypto.ts) so UUIDs work in Node.
@@ -215,14 +218,13 @@ Jest config lives under the `"jest"` key in [package.json](../package.json):
 
 ## Release checklist
 
-Before pushing a build to TestFlight or Play Internal:
+Before pushing a build to TestFlight:
 
-1. `npm run typecheck`
-2. `npm test`
-3. `npm run lint`
+1. `npm run typecheck` (also enforced by CI)
+2. `npm test` (also enforced by CI)
+3. `npm run lint` (also enforced by CI)
 4. Bump `version` in [app.config.ts](../app.config.ts) and tag the git commit
-5. `npx eas build --profile production --platform all`
+5. `npx eas build --profile production --platform ios`
 6. `npx eas submit --profile production --platform ios`
-7. `npx eas submit --profile production --platform android`
-8. Smoke-test the new build on a real device (log a workout offline, toggle airplane mode, verify sync on reconnect)
-9. Announce the build in your beta channel with release notes
+7. Smoke-test the new build on a real device (log a workout offline, toggle airplane mode, verify sync on reconnect)
+8. Announce the build in your beta channel with release notes
