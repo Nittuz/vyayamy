@@ -126,6 +126,36 @@ test('repeatLastWorkout clones exercises in order with seeded sets', async () =>
   expect(newSets[0]!.completed).toBe(0); // not completed yet
 });
 
+test('repeatLastWorkout is atomic — a mid-clone failure leaves no partial workout (#20)', async () => {
+  // Source: two exercises, each with a completed set (→ two cloned sets).
+  const wPrev = await createWorkout({ userId: USER_ID, title: 'Push' });
+  const we1 = await addExerciseToWorkout({ workoutId: wPrev, exerciseId: EX_BENCH });
+  await updateSet(await addSet(we1), { weight: 100, reps: 5, completed: true });
+  const we2 = await addExerciseToWorkout({ workoutId: wPrev, exerciseId: EX_OHP });
+  await updateSet(await addSet(we2), { weight: 60, reps: 5, completed: true });
+  await finishWorkout(wPrev); // source becomes finished → no active workouts
+
+  const db = await getDb();
+  const realRun = db.runAsync.bind(db);
+  let setInserts = 0;
+  const spy = jest.spyOn(db, 'runAsync').mockImplementation((sql: string, params?: unknown) => {
+    if (typeof sql === 'string' && sql.startsWith('INSERT INTO sets')) {
+      setInserts += 1;
+      if (setInserts === 2) throw new Error('boom mid-clone');
+    }
+    return realRun(sql, params as never);
+  });
+
+  await expect(repeatLastWorkout(USER_ID)).rejects.toThrow('boom');
+  spy.mockRestore();
+
+  // The whole clone must have rolled back — no half-built active workout remains.
+  const active = await db.getFirstAsync<{ c: number }>(
+    `SELECT COUNT(*) AS c FROM workouts WHERE ended_at IS NULL AND deleted_at IS NULL`,
+  );
+  expect(active?.c).toBe(0);
+});
+
 test('repeatLastWorkout returns null when there is no last workout', async () => {
   const result = await repeatLastWorkout(USER_ID);
   expect(result).toBeNull();
