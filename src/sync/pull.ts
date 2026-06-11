@@ -65,17 +65,23 @@ export async function pullOnce(): Promise<void> {
   const db = await getDb();
   setSyncState({ pullInFlight: true });
   try {
-    // Per-table fault isolation: one table's failure must not starve the rest
-    // (#2). Record the first error for the UI and report each to Sentry.
-    let firstError: string | null = null;
-    for (const table of SYNCED_TABLES) {
-      try {
-        await pullTable(table);
-      } catch (err) {
-        if (firstError === null) firstError = errorMessage(err);
-        Sentry.captureException(err, { tags: { pull_table: table } });
-      }
-    }
+    // Pull every table concurrently — the network fetches are independent and
+    // local writes still serialize through the withTransaction mutex, so this
+    // collapses 13 sequential round-trips into ~1 (#51). Per-table fault
+    // isolation is preserved: a table's failure is caught, reported, and does
+    // not starve the rest (#2).
+    const errors = await Promise.all(
+      SYNCED_TABLES.map(async (table) => {
+        try {
+          await pullTable(table);
+          return null;
+        } catch (err) {
+          Sentry.captureException(err, { tags: { pull_table: table } });
+          return errorMessage(err);
+        }
+      }),
+    );
+    const firstError = errors.find((e) => e != null) ?? null;
     setSyncState({ lastPulledAt: new Date().toISOString(), lastError: firstError });
   } finally {
     setSyncState({ pullInFlight: false });
