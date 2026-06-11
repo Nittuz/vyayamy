@@ -1,0 +1,37 @@
+name: CI
+
+# The release gate used to be a human reading a checklist; nothing enforced
+# typecheck/lint/tests before a store build (#126). This runs them on every push
+# to main and every PR.
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  check:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version-file: .nvmrc
+          cache: npm
+
+      # --legacy-peer-deps: the Expo SDK 56 / RN 0.85 peer graph is not strict-clean.
+      - run: npm ci --legacy-peer-deps
+
+      - name: Typecheck
+        run: npm run typecheck
+
+      - name: Lint
+        run: npm run lint
+
+      - name: Test
+        run: npm test -- --ci
