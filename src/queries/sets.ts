@@ -11,7 +11,7 @@ import { enqueueMutation } from '@/db/mutations';
 import { withTransaction } from '@/db/transaction';
 import type { Set as SetRow } from '@/db/types';
 import { nowIso, uuidv4 } from '@/db/uuid';
-import { triggerPush } from '@/sync/engine';
+import { emitMutationCommitted } from '@/db/mutationEvents';
 
 
 import { queryKeys, setWriteInvalidationKeys } from './keys';
@@ -93,7 +93,7 @@ export async function addSet(
       ],
     );
   });
-  void triggerPush();
+  emitMutationCommitted();
   return id;
 }
 
@@ -105,12 +105,12 @@ export async function updateSet(
   if (patch.completed === true) merged.completed_at = nowIso();
   if (patch.completed === false) merged.completed_at = null;
   await enqueueMutation({ table: 'sets', op: 'update', rowId: setId, payload: merged });
-  void triggerPush();
+  emitMutationCommitted();
 }
 
 export async function deleteSet(setId: string): Promise<void> {
   await enqueueMutation({ table: 'sets', op: 'delete', rowId: setId });
-  void triggerPush();
+  emitMutationCommitted();
 }
 
 export function useAddSet(onError?: (msg: string) => void) {

@@ -16,6 +16,7 @@
  * outbox and are retried; the UI stays responsive regardless.
  */
 import { getDb } from './client';
+import { emitMutationCommitted } from './mutationEvents';
 import type { SyncedTable } from './schema';
 import { withTransaction } from './transaction';
 import { nowIso } from './uuid';
@@ -87,6 +88,10 @@ export async function enqueueMutation(args: EnqueueArgs): Promise<void> {
       [args.table, args.op, args.rowId, JSON.stringify(payloadForServer)],
     );
   });
+
+  // The write committed — let the sync engine schedule a push (#34). Queries no
+  // longer call triggerPush themselves.
+  emitMutationCommitted();
 
   async function cascadeSoftDelete(parent: SyncedTable, parentId: string, ts: string): Promise<void> {
     const children = SOFT_DELETE_CASCADE[parent];

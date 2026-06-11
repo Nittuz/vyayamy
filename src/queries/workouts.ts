@@ -10,7 +10,7 @@ import { enqueueMutation } from '@/db/mutations';
 import type { Workout } from '@/db/types';
 import { nowIso, uuidv4 } from '@/db/uuid';
 import { recordWorkoutPRs } from '@/queries/personalRecords';
-import { triggerPush } from '@/sync/engine';
+import { emitMutationCommitted } from '@/db/mutationEvents';
 import { compositionTitle } from '@/lib/compositionTitle';
 import { dayOfWeek } from '@/lib/dayOfWeek';
 
@@ -71,7 +71,7 @@ export async function createWorkout(args: {
       ended_at: null,
     },
   });
-  void triggerPush();
+  emitMutationCommitted();
   return id;
 }
 
@@ -106,7 +106,7 @@ export async function finishWorkout(workoutId: string, userId?: string): Promise
       // swallow — finishing the workout is the critical path
     }
   }
-  void triggerPush();
+  emitMutationCommitted();
 }
 
 export async function updateWorkoutTitle(workoutId: string, title: string): Promise<void> {
@@ -116,7 +116,7 @@ export async function updateWorkoutTitle(workoutId: string, title: string): Prom
     rowId: workoutId,
     payload: { title },
   });
-  void triggerPush();
+  emitMutationCommitted();
 }
 
 /**
@@ -155,7 +155,7 @@ export async function maybeUpdateAutoTitle(workoutId: string): Promise<void> {
 
 export async function deleteWorkoutLocal(workoutId: string): Promise<void> {
   await enqueueMutation({ table: 'workouts', op: 'delete', rowId: workoutId });
-  void triggerPush();
+  emitMutationCommitted();
 }
 
 export function useCreateWorkout(onError?: (msg: string) => void) {

@@ -9,7 +9,7 @@ import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { getDb } from '@/db/client';
 import { withTransaction } from '@/db/transaction';
 import { nowIso, uuidv4 } from '@/db/uuid';
-import { triggerPush } from '@/sync/engine';
+import { emitMutationCommitted } from '@/db/mutationEvents';
 
 import { queryKeys } from './keys';
 
@@ -170,7 +170,7 @@ export async function repeatLastWorkout(userId: string): Promise<string | null> 
     }
   });
 
-  void triggerPush();
+  emitMutationCommitted();
   return newWorkoutId;
 }
 
