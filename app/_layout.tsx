@@ -6,7 +6,7 @@ import { useFonts as useGeist, Geist_400Regular, Geist_500Medium, Geist_600SemiB
 import { GeistMono_400Regular, GeistMono_500Medium } from '@expo-google-fonts/geist-mono';
 import * as Linking from 'expo-linking';
 import * as Notifications from 'expo-notifications';
-import { router, Stack } from 'expo-router';
+import { router, Stack, useSegments } from 'expo-router';
 import * as SplashScreen from 'expo-splash-screen';
 import { StatusBar } from 'expo-status-bar';
 import { useEffect, useRef, useState } from 'react';
@@ -16,6 +16,7 @@ import { SafeAreaProvider, SafeAreaView } from 'react-native-safe-area-context';
 
 import { AuthProvider } from '@/auth/AuthContext';
 import { exchangeCodeForSession } from '@/auth/authActions';
+import { useAuth } from '@/auth/useAuth';
 import { initDb } from '@/db/client';
 import { initErrorReporting } from '@/lib/errorReporting';
 import { hydrateSnapshot } from '@/ui/todaySnapshot';
@@ -166,6 +167,19 @@ export default function RootLayout() {
  */
 function AppNavigator() {
   const theme = useTheme();
+  const { session, loading } = useAuth();
+  const segments = useSegments();
+
+  // Single root-level auth gate. The (tabs) layout gated only the tabs, leaving
+  // every sibling stack route (workout/active, history/[id], profile/plan/*)
+  // reachable by deep link with no session. Redirect any non-auth route to /login
+  // until a session exists (#91).
+  useEffect(() => {
+    if (loading) return;
+    const onLoginScreen = segments[0] === 'login';
+    if (!session && !onLoginScreen) router.replace('/login');
+  }, [session, loading, segments]);
+
   const screenOptions = {
     headerStyle: { backgroundColor: theme.color.bg },
     headerTitleStyle: { fontWeight: '600' as const, color: theme.color.inkHero },
