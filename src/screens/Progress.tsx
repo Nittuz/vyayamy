@@ -13,7 +13,9 @@ import {
 
 import { useAuth } from '@/auth/useAuth';
 import { formatRelativeDate } from '@/core/format';
+import { DEFAULT_UNITS } from '@/core/units';
 import { queryKeys } from '@/queries/keys';
+import { useProfile } from '@/queries/profile';
 import { useGroupedPRs, getHeaviestWeightHistory, recomputeAllPRs } from '@/queries/personalRecords';
 import { FadeInView } from '@/ui/FadeInView';
 import { LineChart } from '@/ui/LineChart';
@@ -34,7 +36,9 @@ let prBackfilledFor: string | null = null;
 export default function ProgressScreen() {
   const { user } = useAuth();
   const userId = user?.id;
-  const { data: prs, isLoading } = useGroupedPRs(userId);
+  const profileQuery = useProfile(userId);
+  const units = profileQuery.data?.units ?? DEFAULT_UNITS;
+  const { data: prs, isLoading } = useGroupedPRs(userId, units);
   const [selectedExercise, setSelectedExercise] = useState<string | null>(null);
   const theme = useTheme();
   const styles = useMemo(() => makeStyles(theme), [theme]);
@@ -59,11 +63,11 @@ export default function ProgressScreen() {
   const { data: series = [] } = useQuery({
     queryKey:
       userId && active
-        ? queryKeys.sets.weightHistory(userId, active)
+        ? [...queryKeys.sets.weightHistory(userId, active), units]
         : ['sets', 'weight-history', 'none'],
     queryFn: async () => {
       if (!userId || !active) return [];
-      const rows = await getHeaviestWeightHistory(userId, active);
+      const rows = await getHeaviestWeightHistory(userId, active, units);
       return rows.map((r) => ({ x: new Date(r.achievedAt).getTime(), y: r.weight }));
     },
     enabled: !!userId && !!active,

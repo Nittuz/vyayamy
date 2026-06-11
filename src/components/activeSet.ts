@@ -11,6 +11,8 @@ export interface SetShape {
   orderIndex: number;
   weight: number | null;
   reps: number | null;
+  /** Unit the weight was logged in; null only for empty staged sets (#131). */
+  units: 'kg' | 'lb' | null;
   completed: boolean;
 }
 

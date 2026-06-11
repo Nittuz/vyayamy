@@ -14,7 +14,7 @@ import { uuidv4 } from '@/db/uuid';
 import { createWorkout, deleteWorkoutLocal, finishWorkout } from '@/queries/workouts';
 import { addExerciseToWorkout } from '@/queries/exercises';
 import { addSet, updateSet } from '@/queries/sets';
-import { __setPushSleepForTests, pushOutbox } from '@/sync/push';
+import { pushOutbox } from '@/sync/push';
 import { setSyncState } from '@/sync/state';
 
 interface ServerRow {
@@ -48,13 +48,17 @@ jest.mock('@/auth/supabase', () => {
       },
       eq(_col: string, val: string) {
         this._eqId = val;
+        return this;
+      },
+      // push.ts chains .select('id') on update/delete to verify a row matched (#0).
+      select(_cols: string) {
         serverLog.push({
           table,
           op: this._op,
-          row_id: val,
+          row_id: this._eqId as string,
           payload: this._payload,
         });
-        return Promise.resolve({ error: null });
+        return Promise.resolve({ data: [{ id: this._eqId }], error: null });
       },
     };
     return chain;
@@ -74,13 +78,8 @@ beforeEach(async () => {
   await resetDbForTests();
   await initDb();
   setSyncState({ online: false, pendingOutbox: 0, lastError: null });
-  // Eliminate real timers from backoff so retry/quarantine tests run in ms.
-  __setPushSleepForTests(() => Promise.resolve());
 });
 
-afterAll(() => {
-  __setPushSleepForTests(null);
-});
 
 test('offline workout end-to-end → outbox drain matches local state', async () => {
   const exerciseId = uuidv4();
@@ -127,11 +126,18 @@ test('offline workout end-to-end → outbox drain matches local state', async ()
   expect(outbox.length).toBeGreaterThan(0);
 
   setSyncState({ online: true });
-  await pushOutbox();
+  // Per-row ordering (#0) holds a row's update behind its still-queued insert,
+  // so a full drain now spans multiple cycles. Drain until the outbox is empty,
+  // exactly as the live engine does across repeated triggers.
+  for (let i = 0; i < 5; i++) {
+    await pushOutbox();
+    const left = await db.getFirstAsync<{ c: number }>('SELECT COUNT(*) AS c FROM outbox');
+    if ((left?.c ?? 0) === 0) break;
+  }
 
   // Inserts now go through upsert(by-id) for kill-mid-ack idempotency, so the
   // server sees an `upsert` op for any outbox `insert`. row_ids and order are
-  // still preserved 1:1.
+  // still preserved 1:1 (inserts ship first, then each row's later update).
   expect(serverLog.length).toBe(outbox.length);
   expect(serverLog.map((r) => r.row_id)).toEqual(outbox.map((r) => r.row_id));
   for (let i = 0; i < outbox.length; i++) {

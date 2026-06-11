@@ -4,6 +4,10 @@ export const queryKeys = {
     active: (userId: string) => ['workouts', 'active', userId] as const,
     recent: (userId: string) => ['workouts', 'recent', userId] as const,
     withExercises: (workoutId: string) => ['workouts', 'detail', workoutId] as const,
+    // Prefix matching every mounted workout-detail query, regardless of id.
+    // Invalidating this refreshes WorkoutActive/HistoryDetail without needing
+    // the workout id threaded through every set mutation's call site.
+    detailRoot: ['workouts', 'detail'] as const,
   },
   exercises: {
     all: ['exercises'] as const,
@@ -30,6 +34,20 @@ export const queryKeys = {
     list: () => ['plan_presets', 'list'] as const,
   },
 };
+
+/**
+ * Query keys a set write must invalidate so local readers refresh WITHOUT a
+ * network round-trip (deep-review #11). A set write changes both the
+ * per-workout-exercise list AND the composite workout-detail query that
+ * WorkoutActive/HistoryDetail actually render from; invalidating only the
+ * former left the active screen frozen offline until a sync push happened to
+ * land. Keep this the single source of truth for set-write invalidation.
+ */
+export function setWriteInvalidationKeys(
+  weId: string,
+): readonly (readonly (string)[])[] {
+  return [queryKeys.sets.byWorkoutExercise(weId), queryKeys.workouts.detailRoot];
+}
 
 /** Prefixes matching React Query keys for domains touched by sync (see SYNCED_TABLES). */
 export const syncInvalidationRoots = [

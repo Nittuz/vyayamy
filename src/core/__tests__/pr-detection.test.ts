@@ -1,65 +1,40 @@
-import { computeBestMetrics, detectNewPRs } from '@/core/pr-detection';
+import { computePRs } from '@/core/pr-detection';
 
-describe('computeBestMetrics', () => {
-  it('returns nulls for no completed sets', () => {
-    const m = computeBestMetrics([{ weight: 100, reps: 5, completed: false }]);
-    expect(m.bestWeight).toBeNull();
-    expect(m.bestVolume).toBe(0);
-    expect(m.bestRepsAtWeight).toBeNull();
+const at = (d: string) => `2026-0${d}`;
+
+describe('computePRs', () => {
+  it('returns no PRs when nothing is completed', () => {
+    expect(computePRs([{ weight: 100, reps: 5, units: 'kg', completed: false, completedAt: at('1-01') }])).toEqual([]);
   });
 
-  it('finds the heaviest weight', () => {
-    const m = computeBestMetrics([
-      { weight: 80, reps: 5, completed: true },
-      { weight: 100, reps: 3, completed: true },
-      { weight: 90, reps: 4, completed: true },
+  it('emits heaviest, volume and most-reps with the achieving timestamp', () => {
+    const prs = computePRs([
+      { weight: 140, reps: 5, units: 'kg', completed: true, completedAt: at('1-01') }, // heaviest 140
+      { weight: 100, reps: 10, units: 'kg', completed: true, completedAt: at('1-02') }, // volume 1000, reps 10@100
     ]);
-    expect(m.bestWeight).toBe(100);
+    const byType = Object.fromEntries(prs.map((p) => [p.type, p]));
+    expect(byType.heaviest_weight).toEqual({ type: 'heaviest_weight', value: 140, achievedAt: at('1-01') });
+    expect(byType.best_volume).toEqual({ type: 'best_volume', value: 1000, achievedAt: at('1-02') });
+    expect(byType.most_reps_at_weight).toEqual({
+      type: 'most_reps_at_weight',
+      value: { weight: 100, reps: 10 },
+      achievedAt: at('1-02'),
+    });
   });
 
-  it('calculates best volume', () => {
-    const m = computeBestMetrics([
-      { weight: 80, reps: 10, completed: true },
-      { weight: 100, reps: 5, completed: true },
+  it('normalizes weights to kg so units are comparable (#132)', () => {
+    // 225 lb (~102.06 kg) beats 100 kg, even though raw 100 > 225-as-number is false.
+    const prs = computePRs([
+      { weight: 100, reps: 1, units: 'kg', completed: true, completedAt: at('1-01') },
+      { weight: 225, reps: 1, units: 'lb', completed: true, completedAt: at('1-02') },
     ]);
-    expect(m.bestVolume).toBe(800);
+    const heaviest = prs.find((p) => p.type === 'heaviest_weight')!;
+    expect(heaviest.value).toBeCloseTo(102.06, 1);
+    expect(heaviest.achievedAt).toBe(at('1-02'));
   });
 
-  it('most reps wins; ties go to heavier weight', () => {
-    const m = computeBestMetrics([
-      { weight: 80, reps: 5, completed: true },
-      { weight: 100, reps: 5, completed: true },
-    ]);
-    expect(m.bestRepsAtWeight).toEqual({ weight: 100, reps: 5 });
-  });
-
-  it('ignores incomplete sets', () => {
-    const m = computeBestMetrics([
-      { weight: 200, reps: 1, completed: false },
-      { weight: 80, reps: 5, completed: true },
-    ]);
-    expect(m.bestWeight).toBe(80);
-  });
-});
-
-describe('detectNewPRs', () => {
-  it('emits all three candidates on a cold exercise', () => {
-    const m = computeBestMetrics([{ weight: 100, reps: 5, completed: true }]);
-    const cands = detectNewPRs(m, new Map());
-    expect(cands.map((c) => c.type).sort()).toEqual([
-      'best_volume',
-      'heaviest_weight',
-      'most_reps_at_weight',
-    ]);
-  });
-
-  it('skips candidates that do not beat the existing PR', () => {
-    const m = computeBestMetrics([{ weight: 100, reps: 5, completed: true }]);
-    const existing = new Map<string, unknown>([
-      ['heaviest_weight', 200],
-      ['best_volume', 999],
-      ['most_reps_at_weight', { weight: 120, reps: 8 }],
-    ]);
-    expect(detectNewPRs(m, existing)).toEqual([]);
+  it('treats a null unit as kg (legacy rows)', () => {
+    const prs = computePRs([{ weight: 80, reps: 5, units: null, completed: true, completedAt: at('1-01') }]);
+    expect(prs.find((p) => p.type === 'heaviest_weight')!.value).toBe(80);
   });
 });

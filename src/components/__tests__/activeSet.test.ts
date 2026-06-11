@@ -17,6 +17,7 @@ const ex = (id: string, setIds: string[]): ExerciseShape => ({
     orderIndex: i,
     weight: 100,
     reps: 5,
+    units: 'kg' as const,
     completed: false,
   })),
 });
@@ -64,6 +65,7 @@ const exWithGroup = (id: string, group: string | null, setIds: string[] = []): E
     orderIndex: i,
     weight: 100,
     reps: 5,
+    units: 'kg' as const,
     completed: false,
   })),
 });

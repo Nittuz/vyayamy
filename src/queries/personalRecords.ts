@@ -1,11 +1,25 @@
+/**
+ * Personal records — a LOCAL DERIVED CACHE, not synced data (#138–145).
+ *
+ * personal_records is recomputed from the user's completed sets (which DO sync),
+ * so it is never pushed or pulled — that removes the cross-device PK collision,
+ * the lower-value-wins LWW regression, and the zero-row-update loss. Recompute
+ * is authoritative: it writes a PR down as well as up, and deletes a PR whose
+ * backing set is gone, so a deleted set can never leave a phantom record.
+ *
+ * Values are stored in canonical kg (so a unit switch can't mint fake PRs) and
+ * converted to the user's display unit on read. achieved_at is the completed_at
+ * of the achieving set. Only sets from FINISHED workouts count.
+ */
 import { useQuery } from '@tanstack/react-query';
 
-import { computeBestMetrics, detectNewPRs } from '@/core/pr-detection';
+import { computePRs } from '@/core/pr-detection';
 import { getDb } from '@/db/client';
-import { enqueueMutation } from '@/db/mutations';
+import { withTransaction } from '@/db/transaction';
 import { nowIso, uuidv4 } from '@/db/uuid';
-import { parsePRValue, type GroupedPR } from '@/core/domain';
-import type { Exercise, PersonalRecord } from '@/db/types';
+import { parsePRValue, type GroupedPR, type Units } from '@/core/domain';
+import { convertWeight, DEFAULT_UNITS } from '@/core/units';
+import type { PersonalRecord } from '@/db/types';
 
 import { queryKeys } from './keys';
 
@@ -14,74 +28,99 @@ interface Row extends PersonalRecord {
   muscle_group: string | null;
 }
 
+const PR_TYPES = ['heaviest_weight', 'best_volume', 'most_reps_at_weight'] as const;
+
+// Recompute is serialized through one promise chain so concurrent triggers
+// (finish + Progress mount + post-pull) can't race into UNIQUE-constraint
+// failures on first-ever PRs (#141).
+let prChain: Promise<unknown> = Promise.resolve();
+function serialize<T>(fn: () => Promise<T>): Promise<T> {
+  const run = prChain.then(fn, fn);
+  prChain = run.catch(() => undefined);
+  return run;
+}
+
 /**
- * Recompute an exercise's all-time PRs from every completed set the user has
- * logged for it, and upsert only genuine improvements over the stored records.
- * Writes go through the outbox like any other mutation.
+ * Recompute one exercise's PRs from every completed set in a FINISHED workout
+ * and write the result authoritatively into the local cache.
  */
-async function upsertExercisePRs(
+async function recomputeExercisePRsInternal(
   db: Awaited<ReturnType<typeof getDb>>,
   userId: string,
   exerciseId: string,
-  workoutId: string | null,
 ): Promise<void> {
-  const sets = await db.getAllAsync<{ weight: number | null; reps: number | null; completed: number }>(
-    `SELECT s.weight, s.reps, s.completed
+  const sets = await db.getAllAsync<{
+    weight: number | null;
+    reps: number | null;
+    units: Units | null;
+    completed: number;
+    completed_at: string | null;
+  }>(
+    `SELECT s.weight, s.reps, s.units, s.completed, s.completed_at
        FROM sets s
        JOIN workout_exercises we ON we.id = s.workout_exercise_id
        JOIN workouts w ON w.id = we.workout_id
       WHERE w.user_id = ? AND we.exercise_id = ?
         AND s.completed = 1 AND s.deleted_at IS NULL
-        AND we.deleted_at IS NULL AND w.deleted_at IS NULL`,
+        AND we.deleted_at IS NULL AND w.deleted_at IS NULL
+        AND w.ended_at IS NOT NULL`,
     [userId, exerciseId],
   );
 
-  const metrics = computeBestMetrics(sets.map((s) => ({ ...s, completed: Boolean(s.completed) })));
-
-  const existing = await db.getAllAsync<{ id: string; type: string; value: string }>(
-    `SELECT id, type, value FROM personal_records
-      WHERE user_id = ? AND exercise_id = ? AND deleted_at IS NULL`,
-    [userId, exerciseId],
+  const prs = computePRs(
+    sets.map((s) => ({
+      weight: s.weight,
+      reps: s.reps,
+      units: s.units,
+      completed: Boolean(s.completed),
+      completedAt: s.completed_at,
+    })),
   );
-  const existingIdByType = new Map(existing.map((r) => [r.type, r.id]));
-  const existingValueByType = new Map(existing.map((r) => [r.type, decodePRValue(r.value)]));
-
-  const candidates = detectNewPRs(metrics, existingValueByType);
+  const byType = new Map(prs.map((p) => [p.type, p]));
   const now = nowIso();
 
-  for (const c of candidates) {
-    const value = JSON.stringify(c.value);
-    const id = existingIdByType.get(c.type);
-    if (id) {
-      await enqueueMutation({
-        table: 'personal_records',
-        op: 'update',
-        rowId: id,
-        payload: { value, achieved_at: now, workout_id: workoutId },
-      });
-    } else {
-      await enqueueMutation({
-        table: 'personal_records',
-        op: 'insert',
-        rowId: uuidv4(),
-        payload: {
-          user_id: userId,
-          exercise_id: exerciseId,
-          type: c.type,
-          value,
-          achieved_at: now,
-          ...(workoutId ? { workout_id: workoutId } : {}),
-        },
-      });
+  await withTransaction(db, async () => {
+    const existing = await db.getAllAsync<{ id: string; type: string }>(
+      `SELECT id, type FROM personal_records WHERE user_id = ? AND exercise_id = ? AND deleted_at IS NULL`,
+      [userId, exerciseId],
+    );
+    const idByType = new Map(existing.map((r) => [r.type, r.id]));
+
+    for (const type of PR_TYPES) {
+      const pr = byType.get(type);
+      const id = idByType.get(type);
+      if (pr) {
+        const value = JSON.stringify(pr.value);
+        const achievedAt = pr.achievedAt ?? now;
+        if (id) {
+          await db.runAsync(
+            `UPDATE personal_records SET value = ?, achieved_at = ?, updated_at = ? WHERE id = ?`,
+            [value, achievedAt, now, id],
+          );
+        } else {
+          await db.runAsync(
+            `INSERT INTO personal_records (id, user_id, exercise_id, type, value, achieved_at, created_at, updated_at)
+               VALUES (?, ?, ?, ?, ?, ?, ?, ?)`,
+            [uuidv4(), userId, exerciseId, type, value, achievedAt, now, now],
+          );
+        }
+      } else if (id) {
+        // No qualifying set left for this type → drop the stale PR (#138). It is
+        // a local cache, so a hard delete is correct.
+        await db.runAsync(`DELETE FROM personal_records WHERE id = ?`, [id]);
+      }
     }
-  }
+  });
+}
+
+export async function recomputeExercisePRs(userId: string, exerciseId: string): Promise<void> {
+  const db = await getDb();
+  return serialize(() => recomputeExercisePRsInternal(db, userId, exerciseId));
 }
 
 /**
- * Detect and persist personal records for every exercise in a finished workout.
- *
- * PR detection lives in `@/core/pr-detection` but was never wired into the app,
- * so `personal_records` stayed empty and Progress showed nothing. Runs on finish.
+ * Recompute PRs for every exercise in a just-finished workout. Called from the
+ * finish flow (after ended_at is set, so the workout's sets now count).
  */
 export async function recordWorkoutPRs(userId: string, workoutId: string): Promise<void> {
   const db = await getDb();
@@ -91,14 +130,14 @@ export async function recordWorkoutPRs(userId: string, workoutId: string): Promi
     [workoutId],
   );
   for (const { exercise_id } of exerciseRows) {
-    await upsertExercisePRs(db, userId, exercise_id, workoutId);
+    await recomputeExercisePRs(userId, exercise_id);
   }
 }
 
 /**
- * One-time backfill: recompute PRs across every exercise the user has ever
- * completed a set for. Lets existing history surface PRs without re-finishing
- * old workouts. Idempotent — only writes improvements.
+ * Recompute PRs across every exercise the user has finished a set for. Used on
+ * Progress mount and after a pull, so deleted/edited/cross-device sets are
+ * reflected. Authoritative, so it self-heals phantom records.
  */
 export async function recomputeAllPRs(userId: string): Promise<void> {
   const db = await getDb();
@@ -108,15 +147,15 @@ export async function recomputeAllPRs(userId: string): Promise<void> {
        JOIN workout_exercises we ON we.id = s.workout_exercise_id
        JOIN workouts w ON w.id = we.workout_id
       WHERE w.user_id = ? AND s.completed = 1
-        AND s.deleted_at IS NULL AND we.deleted_at IS NULL AND w.deleted_at IS NULL`,
+        AND s.deleted_at IS NULL AND we.deleted_at IS NULL AND w.deleted_at IS NULL
+        AND w.ended_at IS NOT NULL`,
     [userId],
   );
   for (const { exercise_id } of exerciseRows) {
-    await upsertExercisePRs(db, userId, exercise_id, null);
+    await recomputeExercisePRs(userId, exercise_id);
   }
 }
 
-/** Postgres ships `value` as JSONB; SQLite stores the JSON as TEXT. Decode here. */
 function decodePRValue(raw: unknown): unknown {
   if (raw == null) return raw;
   if (typeof raw !== 'string') return raw;
@@ -127,23 +166,27 @@ function decodePRValue(raw: unknown): unknown {
   }
 }
 
-function formatDisplay(type: string, value: unknown): string {
-  const decoded = decodePRValue(value);
-  const parsed = parsePRValue(type, decoded as never);
-  if (!parsed) return String(decoded);
+function show(n: number): string {
+  return String(Math.round(n * 10) / 10);
+}
+
+/** Format a stored (kg) PR value for display in the user's unit. */
+function formatDisplay(type: string, value: unknown, units: Units): string {
+  const parsed = parsePRValue(type, decodePRValue(value) as never);
+  if (!parsed) return String(decodePRValue(value));
   switch (parsed.type) {
     case 'heaviest_weight':
-      return `${parsed.value}`;
+      return show(convertWeight(parsed.value, 'kg', units));
     case 'best_volume':
-      return `${parsed.value}`;
+      return show(convertWeight(parsed.value, 'kg', units));
     case 'most_reps_at_weight':
-      return `${parsed.value.reps} × ${parsed.value.weight}`;
+      return `${parsed.value.reps} × ${show(convertWeight(parsed.value.weight, 'kg', units))}`;
   }
 }
 
 type GroupedPRItem = GroupedPR extends { records: Array<infer R> } ? R : never;
 
-export async function getGroupedPRs(userId: string): Promise<GroupedPR[]> {
+export async function getGroupedPRs(userId: string, units: Units = DEFAULT_UNITS): Promise<GroupedPR[]> {
   const db = await getDb();
   const rows = await db.getAllAsync<Row>(
     `SELECT pr.*, ex.name AS exercise_name, ex.muscle_group AS muscle_group
@@ -173,7 +216,7 @@ export async function getGroupedPRs(userId: string): Promise<GroupedPR[]> {
     const rec: GroupedPRItem = {
       id: r.id,
       type: r.type as GroupedPRItem['type'],
-      displayValue: formatDisplay(r.type, r.value),
+      displayValue: formatDisplay(r.type, r.value, units),
       achievedAt: r.achieved_at,
       isRecent,
     };
@@ -181,15 +224,13 @@ export async function getGroupedPRs(userId: string): Promise<GroupedPR[]> {
     if (isRecent) bucket.hasRecent = true;
   }
 
-  return Array.from(grouped.values()).sort((a, b) =>
-    a.exerciseName.localeCompare(b.exerciseName),
-  );
+  return Array.from(grouped.values()).sort((a, b) => a.exerciseName.localeCompare(b.exerciseName));
 }
 
-export function useGroupedPRs(userId: string | undefined) {
+export function useGroupedPRs(userId: string | undefined, units: Units = DEFAULT_UNITS) {
   return useQuery({
-    queryKey: userId ? queryKeys.personalRecords(userId) : ['personal_records', 'none'],
-    queryFn: () => (userId ? getGroupedPRs(userId) : Promise.resolve([])),
+    queryKey: userId ? [...queryKeys.personalRecords(userId), units] : ['personal_records', 'none'],
+    queryFn: () => (userId ? getGroupedPRs(userId, units) : Promise.resolve([])),
     enabled: !!userId,
   });
 }
@@ -199,19 +240,21 @@ export type WeightPoint = { achievedAt: string; weight: number };
 export async function getHeaviestWeightHistory(
   userId: string,
   exerciseId: string,
+  units: Units = DEFAULT_UNITS,
 ): Promise<WeightPoint[]> {
   const db = await getDb();
   const rows = await db.getAllAsync<{
     achieved_at: string;
     weight: number | null;
-    reps: number | null;
+    units: Units | null;
   }>(
-    `SELECT s.completed_at AS achieved_at, s.weight AS weight, s.reps AS reps
+    `SELECT s.completed_at AS achieved_at, s.weight AS weight, s.units AS units
        FROM sets s
        JOIN workout_exercises we ON we.id = s.workout_exercise_id
        JOIN workouts w ON w.id = we.workout_id
        WHERE w.user_id = ? AND we.exercise_id = ?
-         AND s.completed = 1 AND s.deleted_at IS NULL AND w.deleted_at IS NULL
+         AND s.completed = 1 AND s.deleted_at IS NULL
+         AND we.deleted_at IS NULL AND w.deleted_at IS NULL
          AND s.weight IS NOT NULL
        ORDER BY s.completed_at ASC`,
     [userId, exerciseId],
@@ -219,11 +262,13 @@ export async function getHeaviestWeightHistory(
   const seen = new Map<string, number>();
   for (const r of rows) {
     if (r.weight == null || !r.achieved_at) continue;
+    // Convert into the display unit so a mixed-unit history charts on one axis.
+    const w = convertWeight(r.weight, r.units ?? DEFAULT_UNITS, units);
     const key = r.achieved_at.slice(0, 10);
     const prev = seen.get(key) ?? 0;
-    if (r.weight > prev) seen.set(key, r.weight);
+    if (w > prev) seen.set(key, w);
   }
   return Array.from(seen.entries())
     .sort(([a], [b]) => a.localeCompare(b))
-    .map(([achievedAt, weight]) => ({ achievedAt, weight }));
+    .map(([achievedAt, weight]) => ({ achievedAt, weight: Math.round(weight * 10) / 10 }));
 }

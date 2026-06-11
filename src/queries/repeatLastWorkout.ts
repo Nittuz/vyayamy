@@ -18,6 +18,7 @@ export interface ExerciseSeed {
   exerciseName: string;
   seedWeight: number | null;
   seedReps: number | null;
+  seedUnits: 'kg' | 'lb' | null;
 }
 
 export interface LastWorkoutWithSeeds {
@@ -63,8 +64,12 @@ export async function getLastFinishedWorkoutWithSeeds(
 
   const seeds: ExerciseSeed[] = [];
   for (const row of exerciseRows) {
-    const lastSet = await db.getFirstAsync<{ weight: number | null; reps: number | null }>(
-      `SELECT weight, reps FROM sets
+    const lastSet = await db.getFirstAsync<{
+      weight: number | null;
+      reps: number | null;
+      units: 'kg' | 'lb' | null;
+    }>(
+      `SELECT weight, reps, units FROM sets
          WHERE workout_exercise_id = ? AND completed = 1 AND deleted_at IS NULL
          ORDER BY order_index DESC LIMIT 1`,
       [row.we_id],
@@ -74,6 +79,8 @@ export async function getLastFinishedWorkoutWithSeeds(
       exerciseName: row.exercise_name,
       seedWeight: lastSet?.weight ?? null,
       seedReps: lastSet?.reps ?? null,
+      // Carry provenance so a repeated set keeps the unit it was logged in.
+      seedUnits: lastSet?.units ?? null,
     });
   }
 
@@ -134,6 +141,7 @@ export async function repeatLastWorkout(userId: string): Promise<string | null> 
         order_index: 0,
         weight: seed.seedWeight,
         reps: seed.seedReps,
+        units: seed.seedUnits,
         completed: 0,
         completed_at: null,
       },

@@ -1,3 +1,4 @@
+import { useQueryClient } from '@tanstack/react-query';
 import { router, Stack } from 'expo-router';
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import {
@@ -32,9 +33,11 @@ import { VoiceMicButton } from '@/components/VoiceMicButton';
 import { useVoiceSession } from '@/voice/useVoiceSession';
 import { useAddExerciseToWorkout } from '@/queries/exercises';
 import { useProfile } from '@/queries/profile';
+import { queryKeys } from '@/queries/keys';
 import { addSet, useUpdateSet } from '@/queries/sets';
 import { useActiveWorkout, useFinishWorkout, useUpdateWorkoutTitle } from '@/queries/workouts';
 import { useWorkoutDetail } from '@/queries/workoutDetail';
+import { DEFAULT_UNITS, sumVolume } from '@/core/units';
 import { dayOfWeek } from '@/lib/dayOfWeek';
 import { haptics } from '@/ui/haptics';
 import { useRestTimer } from '@/ui/hooks/useRestTimer';
@@ -51,10 +54,18 @@ export default function WorkoutActiveScreen() {
   const toastError = useCallback((msg: string) => syncAwareError(msg), [syncAwareError]);
 
   const theme = useTheme();
+  const qc = useQueryClient();
+  // Direct addSet() calls below bypass the mutation hooks, so they must refresh
+  // the composite detail query themselves — otherwise, offline, the staged set
+  // never appears and the screen hangs on a spinner (deep-review #11).
+  const refreshDetail = useCallback(
+    () => void qc.invalidateQueries({ queryKey: queryKeys.workouts.detailRoot }),
+    [qc],
+  );
   const activeQuery = useActiveWorkout(userId);
   const detail = useWorkoutDetail(activeQuery.data?.id);
   const profileQuery = useProfile(userId);
-  const units: 'kg' | 'lb' = profileQuery.data?.units ?? 'lb';
+  const units: 'kg' | 'lb' = profileQuery.data?.units ?? DEFAULT_UNITS;
   const weightUnit = units === 'kg' ? 'KG' : 'LB';
   const weightStep = units === 'kg' ? 2.5 : 5;
 
@@ -91,6 +102,7 @@ export default function WorkoutActiveScreen() {
         orderIndex: s.order_index,
         weight: s.weight,
         reps: s.reps,
+        units: s.units,
         completed: Boolean(s.completed),
       })),
     }));
@@ -146,9 +158,10 @@ export default function WorkoutActiveScreen() {
   const onChangeWeight = useCallback(
     (next: number | null) => {
       if (!cursor) return;
-      updateSet.mutate({ setId: cursor.setId, weId: cursor.weId, patch: { weight: next } });
+      // Stamp the unit the weight is being logged in (per-set provenance, #131).
+      updateSet.mutate({ setId: cursor.setId, weId: cursor.weId, patch: { weight: next, units } });
     },
-    [cursor, updateSet],
+    [cursor, updateSet, units],
   );
 
   const onChangeReps = useCallback(
@@ -169,9 +182,12 @@ export default function WorkoutActiveScreen() {
     const newSetId = await addSet(cursor.weId, {
       weight: currentSetData?.weight ?? null,
       reps: currentSetData?.reps ?? null,
+      // Same session → same logging unit as the set just completed.
+      units: currentSetData?.weight != null ? units : null,
     });
+    refreshDetail();
     setCursor({ weId: cursor.weId, setId: newSetId });
-  }, [cursor, currentExForRest, updateSet, timer]);
+  }, [cursor, currentExForRest, updateSet, timer, refreshDetail, units]);
 
   const onFinish = useCallback(async () => {
     if (!activeQuery.data) return;
@@ -207,6 +223,7 @@ export default function WorkoutActiveScreen() {
         let nextSetId = nextEx.sets.find((s) => !s.completed)?.id;
         if (!nextSetId) {
           nextSetId = await addSet(nextEx.id);
+          refreshDetail();
         }
         setCursor({ weId: nextEx.id, setId: nextSetId });
         haptics.medium();
@@ -223,7 +240,7 @@ export default function WorkoutActiveScreen() {
         { text: 'Skip', style: 'destructive', onPress: () => void advance() },
       ]);
     }
-  }, [cursor, currentExForRest, exercises]);
+  }, [cursor, currentExForRest, exercises, refreshDetail]);
 
   const onPrevExercise = useCallback(() => {
     if (!cursor) return;
@@ -370,7 +387,7 @@ export default function WorkoutActiveScreen() {
             Workout complete.
           </Text>
           <SessionRecap
-            volume={totalVolume(exercises)}
+            volume={totalVolume(exercises, units)}
             setCount={totalSetsCompleted(exercises)}
             durationMs={
               activeQuery.data.started_at
@@ -453,7 +470,7 @@ export default function WorkoutActiveScreen() {
         onSkip={timer.stop}
         onOpenOverride={() => setOverrideSheetOpen(true)}
       />
-      <SessionVolumeBar volume={totalVolume(exercises)} units={units} />
+      <SessionVolumeBar volume={totalVolume(exercises, units)} units={units} />
       <ScrollView contentContainerStyle={styles.scroll}>
         <ActiveSetCard
           key={currentSet.id}
@@ -537,15 +554,12 @@ function totalSetsCompleted(exs: ExerciseShape[]): number {
   return exs.reduce((acc, ex) => acc + ex.sets.filter((s) => s.completed).length, 0);
 }
 
-function totalVolume(exs: ExerciseShape[]): number {
-  return exs.reduce(
-    (acc, ex) =>
-      acc +
-      ex.sets.reduce(
-        (a2, s) => (s.completed && s.weight != null && s.reps != null ? a2 + s.weight * s.reps : a2),
-        0,
-      ),
-    0,
+function totalVolume(exs: ExerciseShape[], displayUnits: 'kg' | 'lb'): number {
+  // Convert every completed set into the display unit before summing so a
+  // mixed-unit history aggregates honestly (#131/#135).
+  return sumVolume(
+    exs.flatMap((ex) => ex.sets.filter((s) => s.completed)),
+    displayUnits,
   );
 }
 

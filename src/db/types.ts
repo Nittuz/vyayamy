@@ -98,6 +98,7 @@ export interface Database {
           order_index: number;
           weight: number | null;
           reps: number | null;
+          units: 'kg' | 'lb' | null;
           completed: boolean;
           completed_at: string | null;
           created_at: string;
@@ -108,6 +109,7 @@ export interface Database {
           order_index: number;
           weight?: number | null;
           reps?: number | null;
+          units?: 'kg' | 'lb' | null;
           completed?: boolean;
           completed_at?: string | null;
           created_at?: string;

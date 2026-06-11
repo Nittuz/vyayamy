@@ -9,7 +9,8 @@ import {
   View,
 } from 'react-native';
 
-import { formatDuration, formatShortDate } from '@/core/format';
+import { formatDuration, formatShortDate, formatWeight } from '@/core/format';
+import { DEFAULT_UNITS } from '@/core/units';
 import { useWorkoutDetail } from '@/queries/workoutDetail';
 import { useTheme } from '@/ui/useTheme';
 
@@ -100,7 +101,8 @@ export default function HistoryDetailScreen() {
               <View key={s.id} style={styles.setRow}>
                 <Text style={styles.setIndex}>{idx + 1}</Text>
                 <Text style={styles.setCell}>
-                  {s.weight != null ? s.weight : '–'} × {s.reps != null ? s.reps : '–'}
+                  {/* Each set shows the unit it was logged in (#131/#135). */}
+                  {formatWeight(s.weight, s.units ?? DEFAULT_UNITS)} × {s.reps != null ? s.reps : '–'}
                 </Text>
                 <Text style={[styles.setDone, s.completed && styles.setDoneOn]}>
                   {s.completed ? '✓' : '·'}

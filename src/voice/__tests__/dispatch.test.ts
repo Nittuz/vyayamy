@@ -43,6 +43,22 @@ test('setValues writes weight and reps to the active set', async () => {
   expect(sets[0]!.reps).toBe(5);
 });
 
+test('setValues stamps the spoken unit, overriding the profile unit (#133)', async () => {
+  const ctx = await setup(); // ctx.units = 'lb'
+  // "100 kilos for 5" under an lb profile must record kg, not lb.
+  await dispatchCommand({ kind: 'setValues', weight: 100, reps: 5, unit: 'kg' }, ctx);
+  const sets = await listSetsForWorkoutExercise(ctx.activeWeId!);
+  expect(sets[0]!.weight).toBe(100);
+  expect(sets[0]!.units).toBe('kg');
+});
+
+test('setValues with no spoken unit falls back to the profile unit', async () => {
+  const ctx = await setup(); // ctx.units = 'lb'
+  await dispatchCommand({ kind: 'setValues', weight: 185, reps: 5 }, ctx);
+  const sets = await listSetsForWorkoutExercise(ctx.activeWeId!);
+  expect(sets[0]!.units).toBe('lb');
+});
+
 test('setValues undo restores prior values', async () => {
   const ctx = await setup();
   const res = await dispatchCommand({ kind: 'setValues', weight: 185, reps: 5 }, ctx);
