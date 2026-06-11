@@ -80,7 +80,7 @@ Key properties:
 | Auth                | Supabase GoTrue, OTP + PKCE, `expo-linking` deep link exchange          |
 | Remote persistence  | Supabase Postgres + PostgREST, reached only by the sync engine          |
 | Authorization       | Row Level Security in Postgres                                          |
-| Styling             | `StyleSheet.create` + tokens in [src/ui/theme.ts](src/ui/theme.ts)      |
+| Styling             | `useTheme()` + `makeStyles(theme)`; tokens in [src/ui/colors.ts](src/ui/colors.ts) / [src/ui/typography.ts](src/ui/typography.ts) |
 | Charts              | `react-native-svg` via [src/ui/LineChart.tsx](src/ui/LineChart.tsx)     |
 | Haptics             | `expo-haptics`                                                          |
 | Timers              | `setInterval` foreground, `expo-notifications` for background rest cue  |
@@ -169,7 +169,7 @@ React Query still earns its keep: cache, dedup, and hook ergonomics across the s
 
 ### Mutations
 
-Mutations wrap `enqueueMutation` and invalidate query keys on success. They never call `supabase.from()` directly — that boundary is enforced by convention and by the lint rule that only [src/sync/](src/sync/) imports from [src/auth/supabase.ts](src/auth/supabase.ts) (outside of auth itself).
+Mutations go through `enqueueMutation` and never call `supabase.from()` directly. That boundary is now genuinely enforced: a `no-restricted-imports` rule forbids importing [src/auth/supabase.ts](src/auth/supabase.ts) anywhere except [src/sync/](src/sync/) and [src/auth/](src/auth/) — everything else uses the auth facade [src/auth/authActions.ts](src/auth/authActions.ts). Pushing is structural too: a write emits a mutation-committed event ([src/db/mutationEvents.ts](src/db/mutationEvents.ts)) and the engine debounces a push — the queries layer no longer imports the sync engine.
 
 ---
 
@@ -304,7 +304,12 @@ Every table also has an `idx_<table>_updated_at` index; incremental pull always 
 
 ## Authentication
 
-Passwordless email OTP via Supabase GoTrue with PKCE flow. Session tokens persist in `AsyncStorage`; deep link callbacks are handled by `expo-linking`.
+Supabase GoTrue with two supported sign-in paths: email **magic-link OTP** (PKCE
+flow, the primary path) and **email + password** as a fallback. Both go through
+the auth facade ([src/auth/authActions.ts](src/auth/authActions.ts)); the
+Supabase client is import-restricted to `src/auth` + `src/sync`. Session tokens
+persist in `AsyncStorage` (see the threat model for the accepted risk); deep-link
+callbacks are handled by `expo-linking`.
 
 ```mermaid
 sequenceDiagram
@@ -375,25 +380,40 @@ EAS production builds upload source maps via the `@sentry/react-native/expo` con
 
 ## Design System
 
-All visual tokens live in [src/ui/theme.ts](src/ui/theme.ts) as a plain TypeScript object (color, space, radius, font, touch, duration). Styles are built with `StyleSheet.create`. No CSS files ship in the mobile app.
+Visual tokens live in [src/ui/colors.ts](src/ui/colors.ts) (four skins × light/dark
+palettes) and [src/ui/typography.ts](src/ui/typography.ts), exposed through the
+[`useTheme()`](src/ui/useTheme.ts) hook. Components build styles with a
+`makeStyles(theme)` factory memoized on `[theme]` (the hook returns a stable
+reference per skin × scheme). Text renders through the
+[`<Text variant>`](src/ui/Text.tsx) primitive so the Geist family is always
+applied. `src/ui/theme.ts` is a deprecated static shim, kept only for the
+pre-skin-hydration boot overlay. No CSS files ship in the mobile app. See
+[docs/design-system.md](docs/design-system.md) for the canonical token reference.
 
-```ts
-const styles = StyleSheet.create({
-  card: {
-    backgroundColor: theme.color.surface,
-    borderRadius: theme.radius.md,
-    padding: theme.space.s4,
-    borderWidth: 1,
-    borderColor: theme.color.border,
-  },
-});
+```tsx
+function Card() {
+  const theme = useTheme();
+  const styles = useMemo(() => makeStyles(theme), [theme]);
+  return <View style={styles.card} />;
+}
+
+const makeStyles = (theme: Theme) =>
+  StyleSheet.create({
+    card: {
+      backgroundColor: theme.color.surface,
+      borderRadius: theme.radius.md,
+      padding: theme.space.s4,
+      borderWidth: 1,
+      borderColor: theme.color.border,
+    },
+  });
 ```
 
 Rules:
 
 - Single column, phone-first; no tablet-specific layouts yet
 - 44pt minimum touch target (`theme.touch.min`) on everything interactive
-- Warm-neutral palette (stone/amber); dark palette is defined but not toggled yet
+- Four skins (Forge/Iron/Ember/Chalk) × light/dark, picked in Profile; tokens use `ink`/`inkSecondary`, not the legacy `text`/`textSecondary`
 - System font (React Native default → San Francisco on iOS, Roboto on Android)
 - Motion is subtle: 150–350 ms tokens in `theme.duration`
 

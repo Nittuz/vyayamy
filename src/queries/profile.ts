@@ -3,7 +3,7 @@ import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { getDb } from '@/db/client';
 import { enqueueMutation } from '@/db/mutations';
 import type { Profile } from '@/db/types';
-import { triggerPush } from '@/sync/engine';
+import { emitMutationCommitted } from '@/db/mutationEvents';
 
 import { queryKeys } from './keys';
 
@@ -33,7 +33,7 @@ export async function updateProfile(
     rowId: userId,
     payload: { ...patch, id: userId },
   });
-  void triggerPush();
+  emitMutationCommitted();
 }
 
 export function useUpdateProfile(userId: string | undefined, onError?: (msg: string) => void) {

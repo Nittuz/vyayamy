@@ -11,7 +11,7 @@
  * Staleness: snapshots older than 7 days are discarded on hydrate.
  */
 import type { ExerciseSeed } from '@/queries/repeatLastWorkout';
-import { getKv, removeKv, setKv } from '@/lib/kvStore';
+import { getKv, registerUserScopedKv, removeKv, setKv } from '@/lib/kvStore';
 
 const STORAGE_KEY = '@flexyug/today-snapshot/v1';
 const STALE_MS = 7 * 24 * 60 * 60 * 1000;
@@ -28,6 +28,12 @@ export interface TodaySnapshot {
 }
 
 let cached: TodaySnapshot | null = null;
+
+// Wiped on sign-out via the user-scoped KV registry — also reset the in-memory
+// cache so the next account never sees the previous one's snapshot (#36).
+registerUserScopedKv(STORAGE_KEY, () => {
+  cached = null;
+});
 
 export function getCachedSnapshot(): TodaySnapshot | null {
   return cached;

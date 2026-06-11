@@ -11,7 +11,7 @@ import { enqueueMutation } from '@/db/mutations';
 import { withTransaction } from '@/db/transaction';
 import type { Exercise } from '@/db/types';
 import { uuidv4 } from '@/db/uuid';
-import { triggerPush } from '@/sync/engine';
+import { emitMutationCommitted } from '@/db/mutationEvents';
 import { addSet } from '@/queries/sets';
 
 import { maybeUpdateAutoTitle } from './workouts';
@@ -56,7 +56,7 @@ export async function createCustomExercise(args: {
       user_id: args.userId,
     },
   });
-  void triggerPush();
+  emitMutationCommitted();
   return id;
 }
 
@@ -103,7 +103,7 @@ export async function addExerciseToWorkout(args: {
       ],
     );
   });
-  void triggerPush();
+  emitMutationCommitted();
   // Phase 3: every exercise starts with one empty set staged so the user
   // never sees an empty card. Auto-stage on completion handles subsequent.
   await addSet(id);

@@ -1,5 +1,5 @@
-import { router, Tabs } from 'expo-router';
-import { useEffect, useMemo } from 'react';
+import { Tabs } from 'expo-router';
+import { useMemo } from 'react';
 import { StyleSheet, View, type ColorValue } from 'react-native';
 
 import { useAuth } from '@/auth/useAuth';
@@ -63,11 +63,9 @@ export default function TabsLayout() {
     [theme],
   );
 
-  useEffect(() => {
-    if (!loading && !session) {
-      router.replace('/login');
-    }
-  }, [loading, session]);
+  // Redirect for unauthenticated users is owned by the single root-level gate in
+  // app/_layout.tsx (#91). Here we only suppress the flash of empty tabs until a
+  // session is confirmed, via the overlay below.
 
   // Always render Tabs — never conditionally swap it with a non-navigator element.
   // The Stack navigator reacts badly to its child route switching between a navigator

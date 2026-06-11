@@ -5,7 +5,7 @@ import { enqueueMutation } from '@/db/mutations';
 import type { Template, TrainingPlan, TrainingPlanSlot } from '@/db/types';
 import { uuidv4 } from '@/db/uuid';
 import type { HydratedPreset } from '@/queries/planPresets';
-import { triggerPush } from '@/sync/engine';
+import { emitMutationCommitted } from '@/db/mutationEvents';
 
 import { queryKeys } from './keys';
 
@@ -151,7 +151,7 @@ export async function saveActivePlan(args: SavePlanArgs): Promise<string> {
     });
   }
 
-  void triggerPush();
+  emitMutationCommitted();
   return planId;
 }
 
