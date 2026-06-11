@@ -14,7 +14,7 @@ import { uuidv4 } from '@/db/uuid';
 import { createWorkout, deleteWorkoutLocal, finishWorkout } from '@/queries/workouts';
 import { addExerciseToWorkout } from '@/queries/exercises';
 import { addSet, updateSet } from '@/queries/sets';
-import { __setPushSleepForTests, pushOutbox } from '@/sync/push';
+import { pushOutbox } from '@/sync/push';
 import { setSyncState } from '@/sync/state';
 
 interface ServerRow {
@@ -78,13 +78,8 @@ beforeEach(async () => {
   await resetDbForTests();
   await initDb();
   setSyncState({ online: false, pendingOutbox: 0, lastError: null });
-  // Eliminate real timers from backoff so retry/quarantine tests run in ms.
-  __setPushSleepForTests(() => Promise.resolve());
 });
 
-afterAll(() => {
-  __setPushSleepForTests(null);
-});
 
 test('offline workout end-to-end → outbox drain matches local state', async () => {
   const exerciseId = uuidv4();

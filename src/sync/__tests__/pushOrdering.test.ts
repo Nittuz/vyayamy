@@ -17,7 +17,7 @@ import { uuidv4 } from '@/db/uuid';
 import { addExerciseToWorkout } from '@/queries/exercises';
 import { addSet, updateSet } from '@/queries/sets';
 import { createWorkout } from '@/queries/workouts';
-import { __setPushSleepForTests, pushOutbox } from '@/sync/push';
+import { pushOutbox } from '@/sync/push';
 import { setSyncState } from '@/sync/state';
 
 interface LogRow {
@@ -29,12 +29,18 @@ interface LogRow {
 var mockServerLog: LogRow[];
 // eslint-disable-next-line no-var
 var mockUpdateRowCount: number;
+// eslint-disable-next-line no-var
+var mockFailUpsertId: string | null;
 
 jest.mock('@/auth/supabase', () => {
   const builder = (table: string) => ({
     _op: '' as string,
     _eq: '' as string,
     upsert(p: Record<string, unknown>) {
+      if (mockFailUpsertId && String(p.id) === mockFailUpsertId) {
+        // Non-transient failure → the insert backs off and stays queued.
+        return Promise.resolve({ error: { message: 'check constraint failed' } });
+      }
       mockServerLog.push({ table, op: 'upsert', row_id: String(p.id) });
       return Promise.resolve({ error: null });
     },
@@ -60,15 +66,14 @@ const USER = 'user-ordering';
 beforeEach(async () => {
   mockServerLog = [];
   mockUpdateRowCount = 1;
+  mockFailUpsertId = null;
   await resetDbForTests();
   await initDb();
   // Offline during seeding so per-mutation triggerPush() does not drain the
   // outbox out from under the explicit pushOutbox() calls below.
   setSyncState({ online: false, pendingOutbox: 0, lastError: null });
-  __setPushSleepForTests(() => Promise.resolve());
 });
 
-afterAll(() => __setPushSleepForTests(null));
 
 async function seedWe(): Promise<string> {
   const db = await getDb();
@@ -81,28 +86,34 @@ async function seedWe(): Promise<string> {
   return addExerciseToWorkout({ workoutId, exerciseId });
 }
 
-test('an update never ships ahead of the same row\'s queued insert (#0 ordering)', async () => {
+test('an update never ships while the same row\'s insert is still failing (#0 ordering)', async () => {
   const weId = await seedWe();
   const setId = await addSet(weId, { weight: 100, reps: 5, units: 'kg' }); // insert queued
   await updateSet(setId, { reps: 6 }); // update queued behind it
+  mockFailUpsertId = setId; // the insert keeps failing (backs off)
 
   setSyncState({ online: true });
   await pushOutbox();
 
-  // The insert shipped; the update for the same row did NOT (it waits behind it).
-  expect(mockServerLog.some((r) => r.row_id === setId && r.op === 'upsert')).toBe(true);
+  // The insert never succeeded, so the update for the same row must NOT have
+  // shipped ahead of it — without per-row ordering it would have.
   expect(mockServerLog.some((r) => r.row_id === setId && r.op === 'update')).toBe(false);
 
   const db = await getDb();
-  const stillQueued = await db.getFirstAsync<{ c: number }>(
+  const queued = await db.getFirstAsync<{ c: number }>(
     `SELECT COUNT(*) AS c FROM outbox WHERE row_id = ? AND op = 'update'`,
     [setId],
   );
-  expect(stillQueued?.c).toBe(1);
+  expect(queued?.c).toBe(1); // update still waiting behind its insert
 
-  // Next cycle: the insert is gone, so the update is now free to ship in order.
+  // Once the insert can succeed, a later push ships insert THEN update, in order.
+  mockFailUpsertId = null;
+  await db.runAsync(`UPDATE outbox SET next_attempt_at = NULL WHERE row_id = ?`, [setId]);
   await pushOutbox();
-  expect(mockServerLog.some((r) => r.row_id === setId && r.op === 'update')).toBe(true);
+  const idxInsert = mockServerLog.findIndex((r) => r.row_id === setId && r.op === 'upsert');
+  const idxUpdate = mockServerLog.findIndex((r) => r.row_id === setId && r.op === 'update');
+  expect(idxInsert).toBeGreaterThanOrEqual(0);
+  expect(idxUpdate).toBeGreaterThan(idxInsert);
 });
 
 test('an update matching zero server rows is a failure, not a silent success (#0 row-count)', async () => {

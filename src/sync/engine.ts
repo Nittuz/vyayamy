@@ -25,8 +25,10 @@ import { REST_TIMER_KEY } from '@/ui/hooks/restTimerPolicy';
 import { REST_OVERRIDES_KEY } from '@/ui/restOverrides';
 
 import { pullOnce } from './pull';
-import { pushOutbox } from './push';
+import { __setRetryScheduler, pushOutbox } from './push';
 import { getSyncState, setSyncState } from './state';
+
+let retryTimer: ReturnType<typeof setTimeout> | null = null;
 
 /**
  * Wrap a listener callback so a thrown exception doesn't propagate
@@ -64,6 +66,16 @@ let currentPull: Promise<void> | null = null;
 
 export function startSyncEngine(queryClient: QueryClient) {
   client = queryClient;
+
+  // Let push schedule a single follow-up drain for the earliest backed-off row,
+  // so a transient failure recovers without waiting for the next user action (#5).
+  __setRetryScheduler((delayMs) => {
+    if (retryTimer) clearTimeout(retryTimer);
+    retryTimer = setTimeout(() => {
+      retryTimer = null;
+      if (getSyncState().online) void triggerPush();
+    }, delayMs);
+  });
   netSub = NetInfo.addEventListener(safeListener('network', (state) => {
     const online = Boolean(state.isConnected && state.isInternetReachable !== false);
     setSyncState({ online });
@@ -95,6 +107,11 @@ export function startSyncEngine(queryClient: QueryClient) {
 }
 
 export function stopSyncEngine() {
+  __setRetryScheduler(null);
+  if (retryTimer) {
+    clearTimeout(retryTimer);
+    retryTimer = null;
+  }
   netSub?.();
   netSub = null;
   authSub?.unsubscribe();

@@ -56,11 +56,14 @@ function backoffMs(attempts: number): number {
   return Math.min(1000 * Math.pow(2, attempts), 30_000);
 }
 
-/** Sleep abstracted so tests can drive backoff without real timers. */
-let sleepImpl: (ms: number) => Promise<void> = (ms) =>
-  new Promise((r) => setTimeout(r, ms));
-export function __setPushSleepForTests(impl: ((ms: number) => Promise<void>) | null): void {
-  sleepImpl = impl ?? ((ms) => new Promise((r) => setTimeout(r, ms)));
+/**
+ * Schedule a follow-up drain for a backed-off row, injected by the sync engine
+ * (push must not import the engine). Defaults to a no-op so push stays usable in
+ * isolation and in tests that don't care about retries.
+ */
+let scheduleRetry: (delayMs: number) => void = () => {};
+export function __setRetryScheduler(fn: ((delayMs: number) => void) | null): void {
+  scheduleRetry = fn ?? (() => {});
 }
 
 export function isTransientError(err: unknown): boolean {
@@ -102,26 +105,73 @@ export async function pushOutbox(): Promise<void> {
   const db = await getDb();
   setSyncState({ pushInFlight: true });
   try {
-    const nowIso = new Date().toISOString();
-    const rows = await db.getAllAsync<OutboxRow>(
-      `SELECT * FROM outbox o
-         WHERE o.attempts < ?
-           AND (o.next_attempt_at IS NULL OR o.next_attempt_at <= ?)
-           AND NOT EXISTS (
-             SELECT 1 FROM outbox e
-              WHERE e.table_name = o.table_name AND e.row_id = o.row_id AND e.id < o.id
-           )
-         ORDER BY o.id ASC LIMIT ?`,
-      [MAX_ATTEMPTS, nowIso, BATCH_LIMIT],
-    );
-
+    // Drain in passes: a row's later op becomes eligible only once its earlier
+    // sibling ships (#0 ordering), and a large outbox exceeds one batch — so keep
+    // going while a pass makes progress instead of stopping after 50 (#5). Each
+    // successful pass removes ≥1 row from a finite outbox, so this terminates.
     let firstError: string | null = null;
+    for (;;) {
+      const { succeeded, firstError: passError } = await drainBatch(db);
+      if (firstError === null) firstError = passError;
+      if (succeeded === 0) break;
+    }
 
-    for (const row of rows) {
-      const rawPayload = JSON.parse(row.payload_json) as Record<string, unknown>;
-      const payload = stripServerOwned(rawPayload);
+    const pending = await db.getFirstAsync<{ c: number }>(
+      'SELECT COUNT(*) AS c FROM outbox WHERE attempts < ?',
+      [MAX_ATTEMPTS],
+    );
+    const quarantined = await db.getFirstAsync<{ c: number }>(
+      'SELECT COUNT(*) AS c FROM outbox WHERE attempts >= ?',
+      [MAX_ATTEMPTS],
+    );
+    setSyncState({
+      pendingOutbox: pending?.c ?? 0,
+      quarantinedOutbox: quarantined?.c ?? 0,
+      lastPushedAt: new Date().toISOString(),
+      lastError: firstError,
+    });
 
-      try {
+    // Wake backed-off rows: schedule one follow-up drain for the earliest
+    // next_attempt_at so a transient failure recovers on its own (#5).
+    const nextRetry = await db.getFirstAsync<{ at: string | null }>(
+      `SELECT MIN(next_attempt_at) AS at FROM outbox
+         WHERE attempts < ? AND next_attempt_at IS NOT NULL`,
+      [MAX_ATTEMPTS],
+    );
+    if (nextRetry?.at) {
+      scheduleRetry(Math.max(0, new Date(nextRetry.at).getTime() - Date.now()));
+    }
+  } finally {
+    setSyncState({ pushInFlight: false });
+  }
+}
+
+/** Process one eligible batch. Returns how many rows shipped (for the drain
+ *  loop) and the first error seen (for the UI). */
+async function drainBatch(
+  db: Awaited<ReturnType<typeof getDb>>,
+): Promise<{ succeeded: number; firstError: string | null }> {
+  const nowIso = new Date().toISOString();
+  const rows = await db.getAllAsync<OutboxRow>(
+    `SELECT * FROM outbox o
+       WHERE o.attempts < ?
+         AND (o.next_attempt_at IS NULL OR o.next_attempt_at <= ?)
+         AND NOT EXISTS (
+           SELECT 1 FROM outbox e
+            WHERE e.table_name = o.table_name AND e.row_id = o.row_id AND e.id < o.id
+         )
+       ORDER BY o.id ASC LIMIT ?`,
+    [MAX_ATTEMPTS, nowIso, BATCH_LIMIT],
+  );
+
+  let firstError: string | null = null;
+  let succeeded = 0;
+
+  for (const row of rows) {
+    const rawPayload = JSON.parse(row.payload_json) as Record<string, unknown>;
+    const payload = stripServerOwned(rawPayload);
+
+    try {
         const tbl = fromDynamic(row.table_name);
         if (row.op === 'delete') {
           // Send only the tombstone marker; server overwrites updated_at.
@@ -167,6 +217,7 @@ export async function pushOutbox(): Promise<void> {
         }
 
         await db.runAsync('DELETE FROM outbox WHERE id = ?', [row.id]);
+        succeeded += 1;
       } catch (err) {
         const msg = errorMessage(err);
         if (firstError === null) firstError = msg;
@@ -190,29 +241,7 @@ export async function pushOutbox(): Promise<void> {
       }
     }
 
-    const pending = await db.getFirstAsync<{ c: number }>(
-      'SELECT COUNT(*) AS c FROM outbox WHERE attempts < ?',
-      [MAX_ATTEMPTS],
-    );
-    const quarantined = await db.getFirstAsync<{ c: number }>(
-      'SELECT COUNT(*) AS c FROM outbox WHERE attempts >= ?',
-      [MAX_ATTEMPTS],
-    );
-    setSyncState({
-      pendingOutbox: pending?.c ?? 0,
-      quarantinedOutbox: quarantined?.c ?? 0,
-      lastPushedAt: new Date().toISOString(),
-      lastError: firstError,
-    });
-
-    // If any rows are still pending and we're due to retry, schedule a follow-up
-    // sleep+drain so callers don't have to poll. Bound to a single retry window.
-    if ((pending?.c ?? 0) > 0 && firstError && !isTransientError({ message: firstError })) {
-      await sleepImpl(0); // yield; retry happens on next external trigger
-    }
-  } finally {
-    setSyncState({ pushInFlight: false });
-  }
+  return { succeeded, firstError };
 }
 
 /**
