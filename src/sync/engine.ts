@@ -18,11 +18,8 @@ import * as Sentry from '@sentry/react-native';
 
 import { supabase } from '@/auth/supabase';
 import { resetLocalDb } from '@/db/client';
-import { removeKv } from '@/lib/kvStore';
+import { clearAllUserScopedKv } from '@/lib/kvStore';
 import { syncInvalidationRoots } from '@/queries/keys';
-import { clearSnapshot } from '@/ui/todaySnapshot';
-import { REST_TIMER_KEY } from '@/ui/hooks/restTimerPolicy';
-import { REST_OVERRIDES_KEY } from '@/ui/restOverrides';
 
 import { pullOnce } from './pull';
 import { __setRetryScheduler, pushOutbox } from './push';
@@ -143,13 +140,10 @@ export async function handleSignOut(): Promise<void> {
     lastPushedAt: null,
     lastPulledAt: null,
   });
-  // Clear Phase 2 KV state so a follow-up sign-in doesn't see the previous
-  // user's Today snapshot or active rest timer.
-  await Promise.all([
-    clearSnapshot(),
-    removeKv(REST_TIMER_KEY),
-    removeKv(REST_OVERRIDES_KEY),
-  ]);
+  // Clear all per-user KV state (Today snapshot + its in-memory cache, rest
+  // timer, rest overrides) so a follow-up sign-in starts clean. The UI modules
+  // register their own keys; the engine no longer imports them (#36).
+  await clearAllUserScopedKv();
   client?.clear();
   await resetLocalDb();
 }

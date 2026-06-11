@@ -5,12 +5,15 @@
  * rest target for the current exercise. Overrides take precedence over
  * the muscle-group defaults from restDefaults.ts.
  */
-import { getKv, setKv } from '@/lib/kvStore';
+import { getKv, registerUserScopedKv, setKv } from '@/lib/kvStore';
 
 import { restForMuscleGroup } from './restDefaults';
 
 export const REST_OVERRIDES_KEY = '@flexyug/rest-overrides/v1';
 const SCHEMA_VERSION = 1 as const;
+
+// Per-user — wiped on sign-out via the registry (#36).
+registerUserScopedKv(REST_OVERRIDES_KEY);
 
 interface PersistedOverrides {
   schemaVersion: typeof SCHEMA_VERSION;

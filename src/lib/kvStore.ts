@@ -52,3 +52,37 @@ export async function removeKv(key: string): Promise<void> {
     // give up — KV is best-effort
   }
 }
+
+// --- User-scoped KV registry (#36) ----------------------------------------
+//
+// Per-user UI state (Today snapshot, rest overrides, the live rest timer) lives
+// in AsyncStorage and must be wiped on sign-out so the next account never sees
+// it. Previously the sync engine imported each UI module to clear its key — a
+// layering violation. Instead, UI modules register their own keys here, and the
+// engine just calls clearAllUserScopedKv(). The dependency now points the right
+// way (sync → lib, never sync → ui).
+
+type ClearHook = () => void;
+const userScopedKeys: { key: string; onClear?: ClearHook }[] = [];
+
+/** Register a per-user KV key (plus an optional in-memory reset) to be wiped on
+ *  sign-out. Idempotent per key. Call at module load. */
+export function registerUserScopedKv(key: string, onClear?: ClearHook): void {
+  if (!userScopedKeys.some((e) => e.key === key)) {
+    userScopedKeys.push({ key, onClear });
+  }
+}
+
+/** Wipe every registered per-user key and run its in-memory reset. */
+export async function clearAllUserScopedKv(): Promise<void> {
+  await Promise.all(
+    userScopedKeys.map(async ({ key, onClear }) => {
+      await removeKv(key);
+      try {
+        onClear?.();
+      } catch {
+        // best-effort
+      }
+    }),
+  );
+}

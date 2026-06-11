@@ -1,6 +1,6 @@
 import AsyncStorage from '@react-native-async-storage/async-storage';
 
-import { getKv, setKv, removeKv } from '@/lib/kvStore';
+import { clearAllUserScopedKv, getKv, registerUserScopedKv, removeKv, setKv } from '@/lib/kvStore';
 
 const store: Record<string, string> = {};
 
@@ -48,4 +48,28 @@ test('removeKv deletes the key', async () => {
   store['test:key'] = JSON.stringify({ schemaVersion: 1, payload: 'x' });
   await removeKv('test:key');
   expect(store['test:key']).toBeUndefined();
+});
+
+describe('user-scoped KV registry (#36)', () => {
+  test('clearAllUserScopedKv wipes every registered key and fires onClear', async () => {
+    const reset = jest.fn();
+    store['@reg/a'] = 'x';
+    store['@reg/b'] = 'y';
+    registerUserScopedKv('@reg/a');
+    registerUserScopedKv('@reg/b', reset);
+
+    await clearAllUserScopedKv();
+
+    expect(store['@reg/a']).toBeUndefined();
+    expect(store['@reg/b']).toBeUndefined();
+    expect(reset).toHaveBeenCalledTimes(1);
+  });
+
+  test('registering the same key twice does not double-register', async () => {
+    const reset = jest.fn();
+    registerUserScopedKv('@reg/dup', reset);
+    registerUserScopedKv('@reg/dup', reset);
+    await clearAllUserScopedKv();
+    expect(reset).toHaveBeenCalledTimes(1);
+  });
 });
