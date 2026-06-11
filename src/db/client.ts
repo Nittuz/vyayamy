@@ -87,12 +87,37 @@ export async function resetLocalDb(): Promise<void> {
     // Ignore — we're about to delete the file regardless.
   }
   dbPromise = null;
-  await SQLite.deleteDatabaseAsync(DATABASE_NAME).catch(() => undefined);
+  let deleted = true;
+  try {
+    await SQLite.deleteDatabaseAsync(DATABASE_NAME);
+  } catch {
+    // The OS may refuse to delete a file whose handle is still held. Don't
+    // swallow it silently — fall back to an explicit table wipe below so the
+    // previous user's data can never survive a sign-out (#1).
+    deleted = false;
+  }
   // Recreate the schema immediately. initDb() only runs once at app startup, so
   // without this a sign-out (which deletes the file) followed by a sign-in in the
   // same session would leave an empty database — every query then throws
   // "no such table". Re-bootstrapping here keeps the next sign-in fully usable.
   await initDb();
+  if (!deleted) {
+    await wipeAllTables();
+  }
+}
+
+/** Defensive wipe of every table — used only when file deletion failed, so a
+ *  reopened (still-populated) database cannot leak data across accounts. */
+async function wipeAllTables(): Promise<void> {
+  const db = await getDb();
+  const tables = await db.getAllAsync<{ name: string }>(
+    `SELECT name FROM sqlite_master WHERE type = 'table' AND name NOT LIKE 'sqlite_%'`,
+  );
+  await db.execAsync('PRAGMA foreign_keys = OFF;');
+  for (const { name } of tables) {
+    await db.runAsync(`DELETE FROM ${name}`);
+  }
+  await db.execAsync('PRAGMA foreign_keys = ON;');
 }
 
 async function tryAlter(db: SQLite.SQLiteDatabase, sql: string): Promise<void> {

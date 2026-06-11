@@ -1,7 +1,8 @@
-import { triggerPush, triggerPull, runSyncCycle } from '@/sync/engine';
+import { triggerPush, triggerPull, runSyncCycle, handleSignOut } from '@/sync/engine';
 import { getSyncState, setSyncState } from '@/sync/state';
 import { pushOutbox } from '@/sync/push';
 import { pullOnce } from '@/sync/pull';
+import { getDb, initDb, resetDbForTests } from '@/db/client';
 
 jest.mock('@/sync/push', () => ({ pushOutbox: jest.fn(async () => {}), MAX_ATTEMPTS: 5 }));
 jest.mock('@/sync/pull', () => ({ pullOnce: jest.fn(async () => {}) }));
@@ -73,6 +74,48 @@ describe('triggerPull', () => {
     mockPull.mockRejectedValueOnce(new Error('pull boom'));
     await triggerPull();
     expect(getSyncState().lastError).toBe('pull boom');
+  });
+});
+
+describe('handleSignOut (#1)', () => {
+  const tick = (ms = 15) => new Promise((r) => setTimeout(r, ms));
+
+  test('waits for an in-flight push to settle before wiping the database', async () => {
+    let release: () => void = () => {};
+    mockPush.mockImplementationOnce(() => new Promise<void>((r) => (release = r)));
+
+    const push = triggerPush(); // in flight, not yet resolved
+    let signedOut = false;
+    const signOut = handleSignOut().then(() => {
+      signedOut = true;
+    });
+
+    await tick();
+    expect(signedOut).toBe(false); // blocked on the in-flight push
+
+    release();
+    await Promise.all([push, signOut]);
+    expect(signedOut).toBe(true);
+  });
+
+  test('leaves a fresh, usable, empty database (no "no such table", outbox empty)', async () => {
+    await resetDbForTests();
+    await initDb();
+    const db = await getDb();
+    await db.runAsync(
+      `INSERT INTO workouts (id, user_id, started_at, title, created_at, updated_at)
+         VALUES ('w1', 'prev-user', ?, 'W', ?, ?)`,
+      ['2026-01-01', '2026-01-01', '2026-01-01'],
+    );
+    await db.runAsync(`INSERT INTO outbox (table_name, op, row_id, payload_json) VALUES ('workouts','insert','w1','{}')`);
+
+    await handleSignOut();
+
+    const db2 = await getDb(); // reopened after wipe
+    const workouts = await db2.getFirstAsync<{ c: number }>('SELECT COUNT(*) AS c FROM workouts');
+    const outbox = await db2.getFirstAsync<{ c: number }>('SELECT COUNT(*) AS c FROM outbox');
+    expect(workouts?.c).toBe(0); // previous user's data gone
+    expect(outbox?.c).toBe(0);
   });
 });
 

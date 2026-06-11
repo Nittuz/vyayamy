@@ -56,6 +56,11 @@ let appStateSub: NativeEventSubscription | null = null;
 let client: QueryClient | null = null;
 let pushInFlight = false;
 let pullInFlight = false;
+// The actual in-flight cycle promises, so sign-out can await them before wiping
+// the database (a push/pull that resolves after the wipe would otherwise write
+// to — or recreate rows in — the fresh database, #1).
+let currentPush: Promise<void> | null = null;
+let currentPull: Promise<void> | null = null;
 
 export function startSyncEngine(queryClient: QueryClient) {
   client = queryClient;
@@ -99,12 +104,18 @@ export function stopSyncEngine() {
   client = null;
 }
 
-async function handleSignOut(): Promise<void> {
-  // Cancel any in-flight cycles by zeroing the engine state, drop React Query
-  // caches so screens don't render the previous user's data while we wait, and
-  // delete the on-device SQLite file so a follow-up sign-in starts clean.
+export async function handleSignOut(): Promise<void> {
+  // Wait for any in-flight push/pull to settle FIRST, so a cycle that resolves
+  // mid-wipe can't write to (or recreate rows in) the fresh database (#1).
+  await Promise.allSettled(
+    [currentPush, currentPull].filter((p): p is Promise<void> => p != null),
+  );
+  // Then drop React Query caches so screens don't render the previous user's
+  // data, and delete the on-device SQLite file so a follow-up sign-in starts clean.
   pushInFlight = false;
   pullInFlight = false;
+  currentPush = null;
+  currentPull = null;
   setSyncState({
     pushInFlight: false,
     pullInFlight: false,
@@ -133,34 +144,44 @@ function invalidateAfterSync(): void {
   }
 }
 
-export async function triggerPush(): Promise<void> {
-  if (!getSyncState().online) return;
-  if (pushInFlight) return;
+export function triggerPush(): Promise<void> {
+  if (!getSyncState().online) return Promise.resolve();
+  if (pushInFlight) return currentPush ?? Promise.resolve();
   pushInFlight = true;
-  try {
-    await pushOutbox();
-    setSyncState({ lastError: null, lastErrorAt: null });
-    invalidateAfterSync();
-  } catch (err) {
-    setSyncState({ lastError: errorMessage(err), lastErrorAt: new Date().toISOString() });
-  } finally {
-    pushInFlight = false;
-  }
+  const run = (async () => {
+    try {
+      await pushOutbox();
+      setSyncState({ lastError: null, lastErrorAt: null });
+      invalidateAfterSync();
+    } catch (err) {
+      setSyncState({ lastError: errorMessage(err), lastErrorAt: new Date().toISOString() });
+    } finally {
+      pushInFlight = false;
+      currentPush = null;
+    }
+  })();
+  currentPush = run;
+  return run;
 }
 
-export async function triggerPull(): Promise<void> {
-  if (!getSyncState().online) return;
-  if (pullInFlight) return;
+export function triggerPull(): Promise<void> {
+  if (!getSyncState().online) return Promise.resolve();
+  if (pullInFlight) return currentPull ?? Promise.resolve();
   pullInFlight = true;
-  try {
-    await pullOnce();
-    setSyncState({ lastError: null, lastErrorAt: null });
-    invalidateAfterSync();
-  } catch (err) {
-    setSyncState({ lastError: errorMessage(err), lastErrorAt: new Date().toISOString() });
-  } finally {
-    pullInFlight = false;
-  }
+  const run = (async () => {
+    try {
+      await pullOnce();
+      setSyncState({ lastError: null, lastErrorAt: null });
+      invalidateAfterSync();
+    } catch (err) {
+      setSyncState({ lastError: errorMessage(err), lastErrorAt: new Date().toISOString() });
+    } finally {
+      pullInFlight = false;
+      currentPull = null;
+    }
+  })();
+  currentPull = run;
+  return run;
 }
 
 export async function runSyncCycle(): Promise<void> {
