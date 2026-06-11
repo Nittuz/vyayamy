@@ -25,12 +25,18 @@ export async function dispatchCommand(command: Command, ctx: DispatchContext): P
     case 'setValues': {
       if (!ctx.activeSetId) return { ok: false, message: 'No active set' };
       const db = await getDb();
-      const prior = await db.getFirstAsync<{ weight: number | null; reps: number | null }>(
-        'SELECT weight, reps FROM sets WHERE id = ?',
-        [ctx.activeSetId],
-      );
-      const patch: { weight?: number; reps?: number } = {};
-      if (command.weight != null) patch.weight = command.weight;
+      const prior = await db.getFirstAsync<{
+        weight: number | null;
+        reps: number | null;
+        units: 'kg' | 'lb' | null;
+      }>('SELECT weight, reps, units FROM sets WHERE id = ?', [ctx.activeSetId]);
+      const patch: { weight?: number; reps?: number; units?: 'kg' | 'lb' } = {};
+      if (command.weight != null) {
+        patch.weight = command.weight;
+        // A spoken unit ("100 kilos") overrides the profile preference; otherwise
+        // the weight is logged in the profile's unit (#133).
+        patch.units = command.unit ?? ctx.units;
+      }
       if (command.reps != null) patch.reps = command.reps;
       await updateSet(ctx.activeSetId, patch);
       const setId = ctx.activeSetId;
@@ -38,7 +44,11 @@ export async function dispatchCommand(command: Command, ctx: DispatchContext): P
         ok: true,
         message: `${command.weight ?? prior?.weight ?? '—'} × ${command.reps ?? prior?.reps ?? '—'}`,
         undo: async () => {
-          await updateSet(setId, { weight: prior?.weight ?? null, reps: prior?.reps ?? null });
+          await updateSet(setId, {
+            weight: prior?.weight ?? null,
+            reps: prior?.reps ?? null,
+            units: prior?.units ?? null,
+          });
         },
       };
     }

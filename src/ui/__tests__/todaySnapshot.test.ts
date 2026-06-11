@@ -30,7 +30,7 @@ const sample: TodaySnapshot = {
   repeatTitle: 'Push',
   repeatDaysAgo: 2,
   repeatSeeds: [
-    { exerciseId: 'ex-1', exerciseName: 'Bench', seedWeight: 185, seedReps: 5 },
+    { exerciseId: 'ex-1', exerciseName: 'Bench', seedWeight: 185, seedReps: 5, seedUnits: 'lb' },
   ],
   recentRows: [{ id: 'w-1', title: 'Pull', daysAgo: 4 }],
 };

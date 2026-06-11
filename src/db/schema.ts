@@ -63,6 +63,10 @@ CREATE TABLE IF NOT EXISTS sets (
   order_index INTEGER NOT NULL,
   weight REAL,
   reps INTEGER,
+  -- Unit the weight was logged in ('kg' | 'lb'). Per-set, so toggling the
+  -- profile preference never reinterprets historical sets. Null only while a
+  -- set is staged empty; stamped the moment a weight is written.
+  units TEXT,
   completed INTEGER NOT NULL DEFAULT 0,
   completed_at TEXT,
   created_at TEXT NOT NULL DEFAULT (strftime('%Y-%m-%dT%H:%M:%fZ','now')),

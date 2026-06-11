@@ -17,7 +17,7 @@ import { LOCAL_SCHEMA_SQL } from './schema';
 const DATABASE_NAME = 'flexyug.db';
 
 /** Bump when LOCAL_SCHEMA_SQL adds columns or tables that need a migration step. */
-const SCHEMA_VERSION = 3;
+const SCHEMA_VERSION = 4;
 
 let dbPromise: Promise<SQLite.SQLiteDatabase> | null = null;
 
@@ -37,6 +37,21 @@ export async function initDb(): Promise<void> {
   // Lightweight in-place migrations. Each is wrapped in try/catch because
   // expo-sqlite (unlike Postgres) has no IF NOT EXISTS for ALTER TABLE.
   await tryAlter(db, 'ALTER TABLE outbox ADD COLUMN next_attempt_at TEXT');
+
+  // Per-set units (#131). Existing installs need the column added; weight-
+  // bearing rows logged before this column existed are backfilled with the
+  // owner's current display unit — the unit the number was entered and shown
+  // in — so no historical weight is silently reinterpreted. Empty staged sets
+  // (no weight) stay null and get their unit when a weight is first written.
+  // The backfill is naturally idempotent: after the first run no weight-bearing
+  // row has a null unit, so subsequent runs are a no-op.
+  await tryAlter(db, 'ALTER TABLE sets ADD COLUMN units TEXT');
+  const prof = await db
+    .getFirstAsync<{ units: string }>('SELECT units FROM profiles WHERE deleted_at IS NULL LIMIT 1')
+    .catch(() => null);
+  await db.runAsync('UPDATE sets SET units = ? WHERE units IS NULL AND weight IS NOT NULL', [
+    prof?.units ?? 'kg',
+  ]);
 
   const v = await db.getFirstAsync<{ user_version: number }>('PRAGMA user_version');
   const current = v?.user_version ?? 0;

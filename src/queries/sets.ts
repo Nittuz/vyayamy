@@ -36,7 +36,10 @@ export async function listSetsForWorkoutExercise(weId: string): Promise<SetRow[]
   );
 }
 
-export async function addSet(weId: string, args: { weight?: number | null; reps?: number | null } = {}): Promise<string> {
+export async function addSet(
+  weId: string,
+  args: { weight?: number | null; reps?: number | null; units?: 'kg' | 'lb' | null } = {},
+): Promise<string> {
   const db = await getDb();
   const id = uuidv4();
   // Compute next order_index inside the same transaction as the insert so two
@@ -54,6 +57,7 @@ export async function addSet(weId: string, args: { weight?: number | null; reps?
       order_index: nextOrder,
       weight: args.weight ?? null,
       reps: args.reps ?? null,
+      units: args.units ?? null,
       completed: 0,
       completed_at: null,
       updated_at: nowIso(),
@@ -82,6 +86,7 @@ export async function addSet(weId: string, args: { weight?: number | null; reps?
           order_index: nextOrder,
           weight: args.weight ?? null,
           reps: args.reps ?? null,
+          units: args.units ?? null,
           completed: false,
           completed_at: null,
         }),
@@ -92,7 +97,10 @@ export async function addSet(weId: string, args: { weight?: number | null; reps?
   return id;
 }
 
-export async function updateSet(setId: string, patch: Partial<Pick<SetRow, 'weight' | 'reps' | 'completed'>>): Promise<void> {
+export async function updateSet(
+  setId: string,
+  patch: Partial<Pick<SetRow, 'weight' | 'reps' | 'completed' | 'units'>>,
+): Promise<void> {
   const merged: Record<string, unknown> = { ...patch };
   if (patch.completed === true) merged.completed_at = nowIso();
   if (patch.completed === false) merged.completed_at = null;
@@ -121,7 +129,7 @@ export function useUpdateSet(onError?: (msg: string) => void) {
     mutationFn: (args: {
       setId: string;
       weId: string;
-      patch: Partial<Pick<SetRow, 'weight' | 'reps' | 'completed'>>;
+      patch: Partial<Pick<SetRow, 'weight' | 'reps' | 'completed' | 'units'>>;
     }) => updateSet(args.setId, args.patch),
     // Optimistic update — toggling a set is the hottest interaction in the app
     // and round-tripping through invalidate-then-refetch causes a visible

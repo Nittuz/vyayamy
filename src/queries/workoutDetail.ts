@@ -50,6 +50,7 @@ interface JoinedRow {
   s_order_index: number | null;
   s_weight: number | null;
   s_reps: number | null;
+  s_units: 'kg' | 'lb' | null;
   s_completed: number | null;
   s_completed_at: string | null;
   s_created_at: string | null;
@@ -70,6 +71,7 @@ SELECT
   e.updated_at AS e_updated_at, e.deleted_at AS e_deleted_at,
   s.id AS s_id, s.workout_exercise_id AS s_workout_exercise_id,
   s.order_index AS s_order_index, s.weight AS s_weight, s.reps AS s_reps,
+  s.units AS s_units,
   s.completed AS s_completed, s.completed_at AS s_completed_at,
   s.created_at AS s_created_at, s.updated_at AS s_updated_at, s.deleted_at AS s_deleted_at
 FROM workouts w
@@ -139,6 +141,7 @@ export async function getWorkoutDetail(workoutId: string): Promise<WorkoutDetail
           order_index: row.s_order_index!,
           weight: row.s_weight,
           reps: row.s_reps,
+          units: row.s_units,
           completed: Boolean(row.s_completed),
           completed_at: row.s_completed_at,
           created_at: row.s_created_at!,

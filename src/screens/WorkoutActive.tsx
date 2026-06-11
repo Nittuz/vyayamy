@@ -156,9 +156,10 @@ export default function WorkoutActiveScreen() {
   const onChangeWeight = useCallback(
     (next: number | null) => {
       if (!cursor) return;
-      updateSet.mutate({ setId: cursor.setId, weId: cursor.weId, patch: { weight: next } });
+      // Stamp the unit the weight is being logged in (per-set provenance, #131).
+      updateSet.mutate({ setId: cursor.setId, weId: cursor.weId, patch: { weight: next, units } });
     },
-    [cursor, updateSet],
+    [cursor, updateSet, units],
   );
 
   const onChangeReps = useCallback(
@@ -179,10 +180,12 @@ export default function WorkoutActiveScreen() {
     const newSetId = await addSet(cursor.weId, {
       weight: currentSetData?.weight ?? null,
       reps: currentSetData?.reps ?? null,
+      // Same session → same logging unit as the set just completed.
+      units: currentSetData?.weight != null ? units : null,
     });
     refreshDetail();
     setCursor({ weId: cursor.weId, setId: newSetId });
-  }, [cursor, currentExForRest, updateSet, timer, refreshDetail]);
+  }, [cursor, currentExForRest, updateSet, timer, refreshDetail, units]);
 
   const onFinish = useCallback(async () => {
     if (!activeQuery.data) return;
