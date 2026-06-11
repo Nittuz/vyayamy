@@ -25,11 +25,12 @@ export default function HistoryDetailScreen() {
     scroll: { padding: theme.space.page, gap: theme.space.s4 },
     header: { gap: theme.space.s1 },
     title: {
+      fontFamily: theme.font.family.sansSemibold,
       fontSize: theme.font.size.title,
       fontWeight: theme.font.weight.semibold,
       color: theme.color.ink,
     },
-    subtitle: { fontSize: theme.font.size.meta, color: theme.color.inkSecondary },
+    subtitle: { fontFamily: theme.font.family.sans, fontSize: theme.font.size.meta, color: theme.color.inkSecondary },
     card: {
       backgroundColor: theme.color.surface,
       borderRadius: theme.radius.md,
@@ -39,6 +40,7 @@ export default function HistoryDetailScreen() {
       gap: theme.space.s2,
     },
     exName: {
+      fontFamily: theme.font.family.sansSemibold,
       fontSize: theme.font.size.card,
       fontWeight: theme.font.weight.semibold,
       color: theme.color.ink,
@@ -51,18 +53,20 @@ export default function HistoryDetailScreen() {
     },
     setIndex: {
       width: 24,
+      fontFamily: theme.font.family.sans,
       fontSize: theme.font.size.meta,
       color: theme.color.inkTertiary,
       fontVariant: ['tabular-nums'],
     },
     setCell: {
       flex: 1,
+      fontFamily: theme.font.family.sans,
       fontSize: theme.font.size.body,
       color: theme.color.ink,
       fontVariant: ['tabular-nums'],
     },
     setDone: { width: 20, textAlign: 'center', color: theme.color.inkTertiary },
-    setDoneOn: { color: theme.color.success, fontWeight: theme.font.weight.semibold },
+    setDoneOn: { fontFamily: theme.font.family.sansSemibold, color: theme.color.success, fontWeight: theme.font.weight.semibold },
     empty: { color: theme.color.inkSecondary },
   }), [theme]);
 

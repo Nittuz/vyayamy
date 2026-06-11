@@ -177,6 +177,7 @@ const makeStyles = (theme: Theme) =>
   title: {
     flex: 1,
     fontSize: theme.font.size.display,
+    fontFamily: theme.font.family.sansSemibold,
     fontWeight: theme.font.weight.semibold,
     color: theme.color.ink,
     letterSpacing: -0.5,
@@ -201,20 +202,23 @@ const makeStyles = (theme: Theme) =>
   avatarText: {
     color: theme.color.onAccent,
     fontSize: theme.font.size.title,
+    fontFamily: theme.font.family.sansSemibold,
     fontWeight: theme.font.weight.semibold,
   },
   email: {
     textAlign: 'center',
     fontSize: theme.font.size.body,
     color: theme.color.ink,
+    fontFamily: theme.font.family.sansMedium,
     fontWeight: theme.font.weight.medium,
   },
-  meta: { textAlign: 'center', fontSize: theme.font.size.meta, color: theme.color.inkSecondary },
+  meta: { textAlign: 'center', fontSize: theme.font.size.meta, fontFamily: theme.font.family.sans, color: theme.color.inkSecondary },
   fieldLabel: {
     fontSize: theme.font.size.micro,
     textTransform: 'uppercase',
     letterSpacing: 0.5,
     color: theme.color.inkTertiary,
+    fontFamily: theme.font.family.sansMedium,
     fontWeight: theme.font.weight.medium,
   },
   input: {
@@ -223,6 +227,7 @@ const makeStyles = (theme: Theme) =>
     borderRadius: theme.radius.sm,
     backgroundColor: theme.color.bg,
     fontSize: theme.font.size.body,
+    fontFamily: theme.font.family.sans,
     color: theme.color.ink,
   },
   segment: {
@@ -243,6 +248,7 @@ const makeStyles = (theme: Theme) =>
   segmentText: {
     fontSize: theme.font.size.meta,
     color: theme.color.inkSecondary,
+    fontFamily: theme.font.family.sansMedium,
     fontWeight: theme.font.weight.medium,
   },
   segmentTextActive: { color: theme.color.ink },
@@ -282,10 +288,11 @@ const makeStyles = (theme: Theme) =>
   skinName: {
     fontSize: theme.font.size.body,
     color: theme.color.ink,
+    fontFamily: theme.font.family.sansMedium,
     fontWeight: theme.font.weight.medium,
   },
-  skinBlurb: { fontSize: theme.font.size.meta, color: theme.color.inkSecondary, marginTop: 1 },
-  skinCheck: { fontSize: theme.font.size.title, color: theme.color.accent },
+  skinBlurb: { fontSize: theme.font.size.meta, fontFamily: theme.font.family.sans, color: theme.color.inkSecondary, marginTop: 1 },
+  skinCheck: { fontSize: theme.font.size.title, fontFamily: theme.font.family.sans, color: theme.color.accent },
   row: {
     flexDirection: 'row',
     alignItems: 'center',
@@ -295,8 +302,8 @@ const makeStyles = (theme: Theme) =>
     borderWidth: 1,
     borderColor: theme.color.border,
   },
-  rowLabel: { flex: 1, fontSize: theme.font.size.body, color: theme.color.ink },
-  rowChevron: { fontSize: theme.font.size.title, color: theme.color.inkTertiary },
+  rowLabel: { flex: 1, fontSize: theme.font.size.body, fontFamily: theme.font.family.sans, color: theme.color.ink },
+  rowChevron: { fontSize: theme.font.size.title, fontFamily: theme.font.family.sans, color: theme.color.inkTertiary },
   signOut: {
     padding: theme.space.s4,
     alignItems: 'center',
@@ -305,6 +312,7 @@ const makeStyles = (theme: Theme) =>
   signOutText: {
     fontSize: theme.font.size.body,
     color: theme.color.danger,
+    fontFamily: theme.font.family.sansMedium,
     fontWeight: theme.font.weight.medium,
   },
   });

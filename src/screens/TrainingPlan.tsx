@@ -104,11 +104,17 @@ const makeStyles = (theme: Theme) =>
   scroll: { padding: theme.space.page, gap: theme.space.s4 },
   headerRow: { flexDirection: 'row', alignItems: 'center', gap: theme.space.s3 },
   planName: {
+    fontFamily: theme.font.family.sansSemibold,
     fontSize: theme.font.size.title,
     fontWeight: theme.font.weight.semibold,
     color: theme.color.ink,
   },
-  planType: { fontSize: theme.font.size.meta, color: theme.color.inkSecondary, marginTop: 2 },
+  planType: {
+    fontFamily: theme.font.family.sans,
+    fontSize: theme.font.size.meta,
+    color: theme.color.inkSecondary,
+    marginTop: 2,
+  },
   editBtn: {
     paddingHorizontal: theme.space.s4,
     paddingVertical: theme.space.s3,
@@ -120,6 +126,7 @@ const makeStyles = (theme: Theme) =>
     justifyContent: 'center',
   },
   editBtnText: {
+    fontFamily: theme.font.family.sansMedium,
     fontSize: theme.font.size.meta,
     fontWeight: theme.font.weight.medium,
     color: theme.color.ink,
@@ -140,18 +147,21 @@ const makeStyles = (theme: Theme) =>
   },
   slotDay: {
     width: 60,
+    fontFamily: theme.font.family.sansMedium,
     fontSize: theme.font.size.meta,
     color: theme.color.inkSecondary,
     fontWeight: theme.font.weight.medium,
   },
   slotTemplate: {
     flex: 1,
+    fontFamily: theme.font.family.sansMedium,
     fontSize: theme.font.size.body,
     color: theme.color.ink,
     fontWeight: theme.font.weight.medium,
   },
   slotRest: {
     flex: 1,
+    fontFamily: theme.font.family.sans,
     fontSize: theme.font.size.body,
     color: theme.color.inkSecondary,
     fontStyle: 'italic',
@@ -166,11 +176,13 @@ const makeStyles = (theme: Theme) =>
     borderColor: theme.color.border,
   },
   emptyTitle: {
+    fontFamily: theme.font.family.sansSemibold,
     fontSize: theme.font.size.title,
     fontWeight: theme.font.weight.semibold,
     color: theme.color.ink,
   },
   emptyBody: {
+    fontFamily: theme.font.family.sans,
     fontSize: theme.font.size.meta,
     color: theme.color.inkSecondary,
     textAlign: 'center',
@@ -183,6 +195,7 @@ const makeStyles = (theme: Theme) =>
     borderRadius: theme.radius.sm,
   },
   primaryBtnText: {
+    fontFamily: theme.font.family.sansSemibold,
     color: theme.color.onAccent,
     fontSize: theme.font.size.body,
     fontWeight: theme.font.weight.semibold,
