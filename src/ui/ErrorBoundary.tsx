@@ -2,6 +2,7 @@ import { Component, type ReactNode, useMemo } from 'react';
 import { Pressable, SafeAreaView, StyleSheet, Text, View } from 'react-native';
 
 import { captureException } from '@/lib/errorReporting';
+
 import { useTheme, type Theme } from './useTheme';
 
 type Props = { children: ReactNode };

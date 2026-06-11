@@ -15,7 +15,7 @@ import { GestureHandlerRootView } from 'react-native-gesture-handler';
 import { SafeAreaProvider, SafeAreaView } from 'react-native-safe-area-context';
 
 import { AuthProvider } from '@/auth/AuthContext';
-import { supabase } from '@/auth/supabase';
+import { exchangeCodeForSession } from '@/auth/authActions';
 import { initDb } from '@/db/client';
 import { initErrorReporting } from '@/lib/errorReporting';
 import { hydrateSnapshot } from '@/ui/todaySnapshot';
@@ -106,7 +106,7 @@ export default function RootLayout() {
         const parsed = Linking.parse(url);
         const code = (parsed.queryParams?.code as string | undefined) ?? null;
         if (!code) return;
-        const { error } = await supabase.auth.exchangeCodeForSession(code);
+        const { error } = await exchangeCodeForSession(code);
         if (!error) router.replace('/');
       } catch {
         // Swallow — we surface auth errors via the AuthProvider state, not here.

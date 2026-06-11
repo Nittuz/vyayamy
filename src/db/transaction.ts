@@ -24,7 +24,7 @@ interface Transactable {
 }
 
 let locked = false;
-const waiters: Array<() => void> = [];
+const waiters: (() => void)[] = [];
 
 function release(): void {
   const next = waiters.shift();

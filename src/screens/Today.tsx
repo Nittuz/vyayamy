@@ -1,5 +1,4 @@
 import { router } from 'expo-router';
-import { safeRoute } from '@/lib/safeRoute';
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import {
   Pressable,
@@ -12,6 +11,7 @@ import {
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useQueryClient } from '@tanstack/react-query';
 
+import { safeRoute } from '@/lib/safeRoute';
 import { useAuth } from '@/auth/useAuth';
 import { localDaysBetween } from '@/core/format';
 import { CollisionSheet } from '@/components/CollisionSheet';

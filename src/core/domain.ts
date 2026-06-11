@@ -64,13 +64,13 @@ export type GroupedPR = {
   exerciseId: string;
   exerciseName: string;
   muscleGroup: string | null;
-  records: Array<{
+  records: {
     id: string;
     type: PRType;
     displayValue: string;
     achievedAt: string;
     isRecent: boolean;
-  }>;
+  }[];
   hasRecent: boolean;
 };
 

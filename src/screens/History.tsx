@@ -1,5 +1,4 @@
 import { router } from 'expo-router';
-import { safeRoute } from '@/lib/safeRoute';
 import { useCallback, useMemo } from 'react';
 import {
   ActivityIndicator,
@@ -12,6 +11,7 @@ import {
   View,
 } from 'react-native';
 
+import { safeRoute } from '@/lib/safeRoute';
 import { useAuth } from '@/auth/useAuth';
 import { formatDuration, getDateGroup } from '@/core/format';
 import { useHistoryInfinite, type HistoryRow } from '@/queries/history';

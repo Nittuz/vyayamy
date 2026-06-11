@@ -1,5 +1,4 @@
 import { router } from 'expo-router';
-import { safeRoute } from '@/lib/safeRoute';
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import {
   ActivityIndicator,
@@ -12,7 +11,8 @@ import {
   View,
 } from 'react-native';
 
-import { supabase } from '@/auth/supabase';
+import { safeRoute } from '@/lib/safeRoute';
+import { signOut } from '@/auth/authActions';
 import { useAuth } from '@/auth/useAuth';
 import { formatMemberSince, getInitials } from '@/core/format';
 import { useProfile, useUpdateProfile } from '@/queries/profile';
@@ -42,7 +42,7 @@ export default function ProfileScreen() {
   const handleSignOut = useCallback(async () => {
     setSigningOut(true);
     try {
-      await supabase.auth.signOut();
+      await signOut();
     } finally {
       setSigningOut(false);
     }

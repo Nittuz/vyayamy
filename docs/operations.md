@@ -67,7 +67,26 @@ Copy `.env.example` to `.env` and fill as needed. All variables prefixed with `E
 | `ASC_APP_ID`                        | Submit    | App Store Connect app id                          |
 | `APPLE_TEAM_ID`                     | Submit    | Apple developer team id                           |
 
-The `production` build profile in [eas.json](../eas.json) forwards Sentry and Supabase vars from the EAS environment at build time.
+EAS builds read these from the **EAS environment-variable store**, not from
+`eas.json`. Create them once per project:
+
+```bash
+npx eas env:create --name EXPO_PUBLIC_SUPABASE_URL --scope project --visibility plaintext
+npx eas env:create --name EXPO_PUBLIC_SUPABASE_ANON_KEY --scope project --visibility plaintext
+npx eas env:create --name EXPO_PUBLIC_SENTRY_DSN --scope project --visibility plaintext
+# Sentry source-map upload (production):
+npx eas env:create --name SENTRY_ORG --scope project
+npx eas env:create --name SENTRY_PROJECT --scope project
+npx eas env:create --name SENTRY_AUTH_TOKEN --scope project --visibility secret
+```
+
+> `eas.json` deliberately contains **no** `env` blocks. The previous `"$VAR"`
+> placeholders were NOT interpolated by EAS — they baked the literal string
+> `"$EXPO_PUBLIC_SUPABASE_URL"` into the binary as the Supabase URL, so any store
+> build pointed at a garbage backend (#120).
+
+Build numbers are owned by EAS (`appVersionSource: "remote"` + `autoIncrement`
+on production); the marketing `version` stays in `app.config.ts` (#121).
 
 ## Supabase
 
@@ -118,34 +137,48 @@ Uses `supabase/config.toml` (API on 54321, DB on 54322, Studio on 54323). Auth e
 | `preview`     | Internal     | QR-installable preview; iOS simulator build enabled          |
 | `production`  | Store        | TestFlight / Play Store; auto-increment version; Sentry wired |
 
+> **Platform: iOS-only for v0.x.** There is no `android/` native project and the
+> Android build/submit path has never been exercised, so the commands below
+> target iOS. Android is a deliberate future effort, not a supported target today
+> (#125).
+
 ```bash
 # One-time setup
 npx eas init
 
 # Dev client
 npx eas build --profile development --platform ios
-npx eas build --profile development --platform android
 
-# Preview build (QR installable)
-npx eas build --profile preview --platform all
+# Preview build (QR installable / simulator)
+npx eas build --profile preview --platform ios
 
 # Production
-npx eas build --profile production --platform all
+npx eas build --profile production --platform ios
 ```
 
-Each profile forwards env vars via the `env` block in `eas.json`; make sure they are defined in your EAS project's secrets (`npx eas secret:create`) before triggering a build.
+Env vars come from the EAS environment-variable store (see Environment Variables
+above) — `eas.json` has no `env` blocks.
 
 ## EAS Submit
 
 ```bash
 # iOS → TestFlight
 npx eas submit --profile production --platform ios
-
-# Android → internal track
-npx eas submit --profile production --platform android
 ```
 
-iOS pulls `APPLE_ID`, `ASC_APP_ID`, `APPLE_TEAM_ID` from env. Android expects `./android-service-account.json` next to `eas.json` — generate it in Google Cloud Console (Play service account with API access) and DO NOT commit it.
+iOS pulls `APPLE_ID`, `ASC_APP_ID`, `APPLE_TEAM_ID` from the EAS env store.
+
+## Data durability (Supabase backups)
+
+SQLite on-device is the source of truth during a session; Supabase is the
+durable mirror. Protect it:
+
+- **Enable PITR** (point-in-time recovery) on the Supabase project, or — on the
+  free tier — schedule a `pg_dump` to object storage via a cron (GitHub Actions
+  or a Supabase scheduled function).
+- Record the plan's backup window and the restore procedure here once chosen.
+- A user who reinstalls before their outbox drained loses only un-pushed local
+  writes; everything acked to Supabase is recoverable from the mirror (#127).
 
 ## Sentry
 

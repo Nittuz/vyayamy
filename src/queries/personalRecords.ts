@@ -185,7 +185,7 @@ function formatDisplay(type: string, value: unknown, units: Units): string {
   }
 }
 
-type GroupedPRItem = GroupedPR extends { records: Array<infer R> } ? R : never;
+type GroupedPRItem = GroupedPR extends { records: (infer R)[] } ? R : never;
 
 export async function getGroupedPRs(userId: string, units: Units = DEFAULT_UNITS): Promise<GroupedPR[]> {
   const db = await getDb();

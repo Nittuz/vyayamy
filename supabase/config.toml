@@ -20,13 +20,29 @@ enabled = true
 site_url = "http://localhost:5173"
 additional_redirect_urls = [
   "http://localhost:5173",
-  "flexyug://*",
+  # Pin the app-scheme redirect to the EXACT callback the app requests
+  # (Linking.createURL('/login') → flexyug://login) — a `flexyug://*` wildcard let
+  # a phishing email redirect the magic-link code anywhere under the scheme (#89).
+  "flexyug://login",
+  # exp://* is required for Expo Go during LOCAL development ONLY. It must NEVER
+  # reach the hosted (production) project: a wildcard there lets an attacker
+  # redirect the magic-link code to their own exp:// dev URL → account takeover.
+  # Production redirect URLs live in the Supabase DASHBOARD (pinned to
+  # flexyug://login) — do NOT `supabase config push` this file to prod.
   "exp://*",
 ]
+
+# Magic-link / OTP abuse limits (codified so they're reviewable, #93).
+[auth.rate_limit]
+email_sent = 4
+token_verifications = 30
+sign_in_sign_ups = 30
 
 [auth.email]
 enable_signup = true
 double_confirm_changes = false
+otp_expiry = 900
+max_frequency = "1m"
 # Require email confirmation before a session is issued. Without this, anyone
 # can sign up with any email and immediately have authenticated access.
 enable_confirmations = true

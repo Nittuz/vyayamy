@@ -1,40 +1,22 @@
 {
   "cli": {
     "version": ">= 10.0.0",
-    "appVersionSource": "local"
+    "appVersionSource": "remote"
   },
   "build": {
     "development": {
       "developmentClient": true,
       "distribution": "internal",
-      "channel": "development",
-      "env": {
-        "EXPO_PUBLIC_SUPABASE_URL": "$EXPO_PUBLIC_SUPABASE_URL",
-        "EXPO_PUBLIC_SUPABASE_ANON_KEY": "$EXPO_PUBLIC_SUPABASE_ANON_KEY",
-        "EXPO_PUBLIC_SENTRY_DSN": "$EXPO_PUBLIC_SENTRY_DSN"
-      }
+      "channel": "development"
     },
     "preview": {
       "distribution": "internal",
       "channel": "preview",
-      "ios": { "simulator": true },
-      "env": {
-        "EXPO_PUBLIC_SUPABASE_URL": "$EXPO_PUBLIC_SUPABASE_URL",
-        "EXPO_PUBLIC_SUPABASE_ANON_KEY": "$EXPO_PUBLIC_SUPABASE_ANON_KEY",
-        "EXPO_PUBLIC_SENTRY_DSN": "$EXPO_PUBLIC_SENTRY_DSN"
-      }
+      "ios": { "simulator": true }
     },
     "production": {
       "channel": "production",
-      "autoIncrement": true,
-      "env": {
-        "EXPO_PUBLIC_SUPABASE_URL": "$EXPO_PUBLIC_SUPABASE_URL",
-        "EXPO_PUBLIC_SUPABASE_ANON_KEY": "$EXPO_PUBLIC_SUPABASE_ANON_KEY",
-        "EXPO_PUBLIC_SENTRY_DSN": "$EXPO_PUBLIC_SENTRY_DSN",
-        "SENTRY_ORG": "$SENTRY_ORG",
-        "SENTRY_PROJECT": "$SENTRY_PROJECT",
-        "SENTRY_AUTH_TOKEN": "$SENTRY_AUTH_TOKEN"
-      }
+      "autoIncrement": true
     }
   },
   "submit": {
@@ -43,11 +25,6 @@
         "appleId": "$APPLE_ID",
         "ascAppId": "$ASC_APP_ID",
         "appleTeamId": "$APPLE_TEAM_ID"
-      },
-      "android": {
-        "serviceAccountKeyPath": "./android-service-account.json",
-        "track": "internal",
-        "releaseStatus": "draft"
       }
     }
   }

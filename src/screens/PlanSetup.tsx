@@ -1,5 +1,4 @@
 import { router } from 'expo-router';
-import { safeRoute } from '@/lib/safeRoute';
 import { useEffect, useMemo, useRef, useState } from 'react';
 import {
   ActivityIndicator,
@@ -12,6 +11,7 @@ import {
   View,
 } from 'react-native';
 
+import { safeRoute } from '@/lib/safeRoute';
 import { useAuth } from '@/auth/useAuth';
 import type { SlotDraft } from '@/core/domain';
 import {
