@@ -23,7 +23,8 @@ export type VoiceUiState =
   | { phase: 'idle' }
   | { phase: 'listening'; partial: string }
   | { phase: 'pending'; command: Command; label: string }
-  | { phase: 'applied'; label: string };
+  | { phase: 'applied'; label: string }
+  | { phase: 'error'; label: string };
 
 export interface VoiceSessionDeps {
   engine?: SpeechEngine;
@@ -65,6 +66,9 @@ export function useVoiceSession(deps: VoiceSessionDeps) {
       if (res.ok) {
         lastUndo.current = res.undo ?? null;
         setUi({ phase: 'applied', label: res.message });
+      } else {
+        // Don't fail silently — show what went wrong (#104).
+        setUi({ phase: 'error', label: res.message });
       }
     },
     [deps],
@@ -145,7 +149,12 @@ export function useVoiceSession(deps: VoiceSessionDeps) {
     // Re-entrancy guard: a second start() while already listening would register
     // a second result listener and every command would dispatch twice (#97).
     if (listeningRef.current) return;
-    if (!(await engine.requestPermissions())) return;
+    if (!(await engine.requestPermissions())) {
+      // Surface the denial (the screen can route to Settings) instead of a
+      // dead mic button (#104).
+      setUi({ phase: 'error', label: 'Microphone access needed' });
+      return;
+    }
     listeningRef.current = true;
     setUi({ phase: 'listening', partial: '' });
     resetSilence();
@@ -154,7 +163,10 @@ export function useVoiceSession(deps: VoiceSessionDeps) {
         if (e.isFinal) onFinal(e.transcript);
         else setUi({ phase: 'listening', partial: e.transcript });
       },
-      () => stop(),
+      () => {
+        stop(); // resets ui to idle...
+        setUi({ phase: 'error', label: 'Voice unavailable' }); // ...so surface after
+      },
     );
   }, [engine, onFinal, resetSilence, stop]);
 

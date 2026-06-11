@@ -76,6 +76,34 @@ test('undo does not revert a setValues once the set was completed (#99)', async 
   expect(undo).not.toHaveBeenCalled();
 });
 
+test('denied microphone permission surfaces an error instead of failing silently (#104)', async () => {
+  const fake = makeFakeEngine();
+  fake.engine.requestPermissions = async () => false;
+  const { result } = renderHook(() => useVoiceSession(deps(fake.engine)));
+
+  await act(async () => {
+    await result.current.start();
+  });
+
+  expect(result.current.ui.phase).toBe('error');
+});
+
+test('a failed dispatch surfaces an error (#104)', async () => {
+  dispatchCommand.mockResolvedValue({ ok: false, message: 'No active set' });
+  const fake = makeFakeEngine();
+  const { result } = renderHook(() => useVoiceSession(deps(fake.engine)));
+
+  await act(async () => {
+    await result.current.start();
+  });
+  await act(async () => {
+    fake.emit('225 for 5');
+  });
+
+  expect(result.current.ui.phase).toBe('error');
+  if (result.current.ui.phase === 'error') expect(result.current.ui.label).toBe('No active set');
+});
+
 test('re-entrant start() does not re-subscribe the engine (#97)', async () => {
   const fake = makeFakeEngine();
   const { result } = renderHook(() => useVoiceSession(deps(fake.engine)));

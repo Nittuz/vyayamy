@@ -17,7 +17,7 @@ import type { ExerciseShape, SetShape } from './activeSet';
 
 /** Live voice state for the inline-morph display. `idle` renders nothing extra. */
 export interface VoiceCardState {
-  phase: 'idle' | 'listening' | 'pending' | 'applied';
+  phase: 'idle' | 'listening' | 'pending' | 'applied' | 'error';
   partial?: string;
   feedback?: string;
 }
