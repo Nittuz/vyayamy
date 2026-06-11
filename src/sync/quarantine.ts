@@ -67,6 +67,36 @@ export async function retryAllQuarantined(): Promise<void> {
   void triggerPush();
 }
 
+/** FK children to cascade when discarding an insert/upsert. Mirrors the
+ *  soft-delete cascade in db/mutations.ts. table -> [(child, fk)]. */
+const DISCARD_CASCADE: Record<string, { table: string; fk: string }[]> = {
+  workouts: [{ table: 'workout_exercises', fk: 'workout_id' }],
+  workout_exercises: [{ table: 'sets', fk: 'workout_exercise_id' }],
+  training_plans: [{ table: 'training_plan_slots', fk: 'plan_id' }],
+};
+
+/** Hard-delete a discarded row's FK children and every outbox op that targets
+ *  them, depth-first, so nothing is left pointing at a row we removed (#6). */
+async function cascadeDiscard(
+  db: Awaited<ReturnType<typeof getDb>>,
+  parentTable: string,
+  parentId: string,
+): Promise<void> {
+  const children = DISCARD_CASCADE[parentTable];
+  if (!children) return;
+  for (const { table, fk } of children) {
+    const rows = await db.getAllAsync<{ id: string }>(
+      `SELECT id FROM ${table} WHERE ${fk} = ?`,
+      [parentId],
+    );
+    for (const child of rows) {
+      await cascadeDiscard(db, table, child.id);
+      await db.runAsync(`DELETE FROM ${table} WHERE id = ?`, [child.id]);
+      await db.runAsync('DELETE FROM outbox WHERE table_name = ? AND row_id = ?', [table, child.id]);
+    }
+  }
+}
+
 const SAFE_TABLES = new Set([
   'workouts',
   'workout_exercises',
@@ -91,16 +121,22 @@ export async function discardQuarantinedRow(id: number): Promise<void> {
   const { table_name: table, op, row_id: rowId } = outboxRow;
 
   await withTransaction(db, async () => {
-    await db.runAsync('DELETE FROM outbox WHERE id = ?', [id]);
-
-    if (!SAFE_TABLES.has(table)) return;
-
-    if (op === 'insert' || op === 'upsert') {
-      await db.runAsync(`DELETE FROM ${table} WHERE id = ?`, [rowId]);
-    } else if (op === 'delete') {
-      await db.runAsync(`UPDATE ${table} SET deleted_at = NULL WHERE id = ?`, [rowId]);
+    if (SAFE_TABLES.has(table)) {
+      if (op === 'insert' || op === 'upsert') {
+        // Discarding an insert abandons the row — its FK children (and their
+        // outbox ops) must go too, or they dangle pointing at a deleted parent.
+        await cascadeDiscard(db, table, rowId);
+        await db.runAsync(`DELETE FROM ${table} WHERE id = ?`, [rowId]);
+      } else if (op === 'delete') {
+        await db.runAsync(`UPDATE ${table} SET deleted_at = NULL WHERE id = ?`, [rowId]);
+      }
+      // op === 'update': leave the local row alone
     }
-    // op === 'update': leave local row alone
+
+    // Remove EVERY outbox op for this row, not just the discarded one — a sibling
+    // update/insert left behind would try to touch a row we just removed and
+    // fail forever (#6).
+    await db.runAsync('DELETE FROM outbox WHERE table_name = ? AND row_id = ?', [table, rowId]);
   });
 }
 
