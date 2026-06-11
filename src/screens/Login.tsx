@@ -19,7 +19,10 @@ import { FBarMark } from '@/ui/Logo';
 import { brand } from '@/ui/theme';
 import { useTheme, type Theme } from '@/ui/useTheme';
 
-const GENERIC_AUTH_ERROR = "Couldn't sign in. Check your email and password and try again.";
+// Two paths are supported (magic link + password). Keep the copy path-specific
+// and generic enough not to leak whether an account exists (#92).
+const MAGIC_LINK_ERROR = "Couldn't send your magic link. Check the email address and try again.";
+const PASSWORD_ERROR = "Couldn't sign in. Check your email and password and try again.";
 
 export default function LoginScreen() {
   const { session, loading } = useAuth();
@@ -44,7 +47,7 @@ export default function LoginScreen() {
     if (err) {
       // Map raw Supabase errors to a single neutral string so the UI doesn't
       // leak whether the email exists or whether signup is disabled.
-      setError(GENERIC_AUTH_ERROR);
+      setError(MAGIC_LINK_ERROR);
       return;
     }
     setSent(true);
@@ -55,7 +58,7 @@ export default function LoginScreen() {
     setSigningIn(true);
     const { error: err } = await signInWithPassword(email.trim(), password);
     setSigningIn(false);
-    if (err) setError(GENERIC_AUTH_ERROR);
+    if (err) setError(PASSWORD_ERROR);
   }
 
   return (

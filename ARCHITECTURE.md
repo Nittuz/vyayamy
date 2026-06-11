@@ -304,7 +304,12 @@ Every table also has an `idx_<table>_updated_at` index; incremental pull always 
 
 ## Authentication
 
-Passwordless email OTP via Supabase GoTrue with PKCE flow. Session tokens persist in `AsyncStorage`; deep link callbacks are handled by `expo-linking`.
+Supabase GoTrue with two supported sign-in paths: email **magic-link OTP** (PKCE
+flow, the primary path) and **email + password** as a fallback. Both go through
+the auth facade ([src/auth/authActions.ts](src/auth/authActions.ts)); the
+Supabase client is import-restricted to `src/auth` + `src/sync`. Session tokens
+persist in `AsyncStorage` (see the threat model for the accepted risk); deep-link
+callbacks are handled by `expo-linking`.
 
 ```mermaid
 sequenceDiagram
