@@ -23,14 +23,20 @@ export function initErrorReporting(): void {
     // Magic-link callbacks include a single-use auth code in the URL fragment.
     // Even single-use, it shouldn't end up in an indexed crash log.
     beforeBreadcrumb: (breadcrumb) => {
-      if (breadcrumb.category === 'navigation' || breadcrumb.category === 'fetch') {
-        const data = breadcrumb.data as Record<string, unknown> | undefined;
-        if (data && typeof data.url === 'string') {
-          breadcrumb.data = { ...data, url: scrubUrl(data.url) };
+      // Scrub the URL on ANY breadcrumb that carries one, not just navigation/
+      // fetch — xhr/http and native-layer breadcrumbs use other categories, and
+      // the magic-link code rides in the URL query/fragment (#90).
+      const data = breadcrumb.data as Record<string, unknown> | undefined;
+      if (data) {
+        const scrubbed = { ...data };
+        let changed = false;
+        for (const key of ['url', 'to', 'from'] as const) {
+          if (typeof scrubbed[key] === 'string') {
+            scrubbed[key] = scrubUrl(scrubbed[key] as string);
+            changed = true;
+          }
         }
-        if (data && typeof data.to === 'string') {
-          breadcrumb.data = { ...breadcrumb.data, to: scrubUrl(data.to) };
-        }
+        if (changed) breadcrumb.data = scrubbed;
       }
       return breadcrumb;
     },
