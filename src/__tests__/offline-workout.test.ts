@@ -135,14 +135,17 @@ test('offline workout end-to-end → outbox drain matches local state', async ()
     if ((left?.c ?? 0) === 0) break;
   }
 
-  // Inserts now go through upsert(by-id) for kill-mid-ack idempotency, so the
-  // server sees an `upsert` op for any outbox `insert`. row_ids and order are
-  // still preserved 1:1 (inserts ship first, then each row's later update).
+  // Inserts go through upsert(by-id) for kill-mid-ack idempotency, and soft-
+  // deletes go over the wire as update({deleted_at}); so an outbox `insert` is
+  // seen as `upsert` and a `delete` as `update`. row_ids and order are preserved
+  // 1:1 (inserts ship first, then each row's later update/delete).
+  // finishWorkout also tombstones the auto-staged incomplete set (#12), which
+  // adds one such delete.
+  const onWire = (op: string) => (op === 'insert' ? 'upsert' : op === 'delete' ? 'update' : op);
   expect(serverLog.length).toBe(outbox.length);
   expect(serverLog.map((r) => r.row_id)).toEqual(outbox.map((r) => r.row_id));
   for (let i = 0; i < outbox.length; i++) {
-    const expected = outbox[i]!.op === 'insert' ? 'upsert' : outbox[i]!.op;
-    expect(serverLog[i]!.op).toBe(expected);
+    expect(serverLog[i]!.op).toBe(onWire(outbox[i]!.op));
   }
 
   const remaining = await db.getFirstAsync<{ c: number }>('SELECT COUNT(*) AS c FROM outbox');

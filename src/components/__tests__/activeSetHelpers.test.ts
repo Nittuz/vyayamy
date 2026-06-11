@@ -76,14 +76,14 @@ describe('findSet', () => {
 });
 
 describe('completedSetsBeforeCursor', () => {
-  test('returns sets before the cursor in the current exercise', () => {
+  test('returns only COMPLETED sets before the cursor (#16 — no incomplete ghost shows a check)', () => {
     const exercise = ex('a', [
       { id: 'a1', completed: true },
-      { id: 'a2', completed: false },
+      { id: 'a2', completed: false }, // skipped/incomplete — must NOT appear as a ghost
       { id: 'a3', completed: false },
     ]);
     const before = completedSetsBeforeCursor(exercise, { weId: 'a', setId: 'a3' });
-    expect(before.map((s) => s.id)).toEqual(['a1', 'a2']);
+    expect(before.map((s) => s.id)).toEqual(['a1']);
   });
 
   test('returns only completed sets when the cursor is in a different exercise', () => {

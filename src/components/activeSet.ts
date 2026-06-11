@@ -80,7 +80,9 @@ export function completedSetsBeforeCursor(ex: ExerciseShape, cursor: ActiveCurso
   if (ex.id !== cursor.weId) return ex.sets.filter((s) => s.completed);
   const cursorIdx = ex.sets.findIndex((s) => s.id === cursor.setId);
   if (cursorIdx === -1) return ex.sets.filter((s) => s.completed);
-  return ex.sets.slice(0, cursorIdx);
+  // Only completed sets render as ghosts (with a ✓); a skipped/incomplete set
+  // before the cursor must not show as done (#16).
+  return ex.sets.slice(0, cursorIdx).filter((s) => s.completed);
 }
 
 export function findNextExercise(
