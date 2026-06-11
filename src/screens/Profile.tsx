@@ -1,5 +1,4 @@
 import { router } from 'expo-router';
-import { safeRoute } from '@/lib/safeRoute';
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import {
   ActivityIndicator,
@@ -12,6 +11,7 @@ import {
   View,
 } from 'react-native';
 
+import { safeRoute } from '@/lib/safeRoute';
 import { supabase } from '@/auth/supabase';
 import { useAuth } from '@/auth/useAuth';
 import { formatMemberSince, getInitials } from '@/core/format';

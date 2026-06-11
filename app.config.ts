@@ -1,4 +1,5 @@
 import path from 'node:path';
+
 import { config as loadDotenv } from 'dotenv';
 import type { ExpoConfig } from 'expo/config';
 

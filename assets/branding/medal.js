@@ -6,6 +6,7 @@
  * buildMedal({ metal, laurel, ringText, sunburst, fInk }) -> 1024 SVG string.
  */
 const fs = require('fs');
+
 const opentype = require('opentype.js');
 
 const SERIF = '/tmp/node_modules/@expo-google-fonts/instrument-serif/400Regular/InstrumentSerif_400Regular.ttf';

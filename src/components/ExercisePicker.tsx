@@ -11,8 +11,8 @@ import {
   View,
 } from 'react-native';
 import Animated, { useAnimatedStyle, useSharedValue, withSpring, withTiming } from 'react-native-reanimated';
-import { motion } from '@/ui/motion';
 
+import { motion } from '@/ui/motion';
 import { useExercisesSearch } from '@/queries/exercises';
 import { useTheme } from '@/ui/useTheme';
 

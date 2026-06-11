@@ -4,6 +4,7 @@
  * is needed — the local write IS the source of truth.
  */
 import { useMutation, useQueryClient } from '@tanstack/react-query';
+import type { QueryClient } from '@tanstack/react-query';
 
 import { getDb } from '@/db/client';
 import { enqueueMutation } from '@/db/mutations';
@@ -12,7 +13,6 @@ import type { Set as SetRow } from '@/db/types';
 import { nowIso, uuidv4 } from '@/db/uuid';
 import { triggerPush } from '@/sync/engine';
 
-import type { QueryClient } from '@tanstack/react-query';
 
 import { queryKeys, setWriteInvalidationKeys } from './keys';
 

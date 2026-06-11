@@ -1,5 +1,4 @@
 import { router } from 'expo-router';
-import { safeRoute } from '@/lib/safeRoute';
 import { useMemo } from 'react';
 import {
   ActivityIndicator,
@@ -11,6 +10,7 @@ import {
   View,
 } from 'react-native';
 
+import { safeRoute } from '@/lib/safeRoute';
 import { useAuth } from '@/auth/useAuth';
 import { useActivePlan } from '@/queries/plans';
 import { useTheme, type Theme } from '@/ui/useTheme';

@@ -19,4 +19,13 @@ module.exports = {
     'react-hooks/purity': 'warn',
     'react-hooks/set-state-in-effect': 'warn',
   },
+  overrides: [
+    {
+      // Jest globals (jest/describe/test/expect/beforeEach/...) in the setup file
+      // and test suites. Without this, `npm run lint` is red on jest references
+      // and any CI gate built on it is dead on arrival (#82).
+      files: ['jest.setup.js', '**/__tests__/**', '**/*.test.{ts,tsx}'],
+      env: { jest: true, node: true },
+    },
+  ],
 };
