@@ -12,7 +12,20 @@ import type { Set as SetRow } from '@/db/types';
 import { nowIso, uuidv4 } from '@/db/uuid';
 import { triggerPush } from '@/sync/engine';
 
-import { queryKeys } from './keys';
+import type { QueryClient } from '@tanstack/react-query';
+
+import { queryKeys, setWriteInvalidationKeys } from './keys';
+
+/**
+ * Refresh every local reader of a set after a write — crucially the composite
+ * workout-detail query that WorkoutActive/HistoryDetail render from — WITHOUT
+ * waiting on a network push (deep-review #11). See setWriteInvalidationKeys.
+ */
+function invalidateSetWrite(qc: QueryClient, weId: string): void {
+  for (const key of setWriteInvalidationKeys(weId)) {
+    void qc.invalidateQueries({ queryKey: key as unknown as readonly unknown[] });
+  }
+}
 
 export async function listSetsForWorkoutExercise(weId: string): Promise<SetRow[]> {
   const db = await getDb();
@@ -97,7 +110,7 @@ export function useAddSet(onError?: (msg: string) => void) {
   return useMutation({
     mutationFn: (args: { weId: string; weight?: number | null; reps?: number | null }) =>
       addSet(args.weId, args),
-    onSuccess: (_id, vars) => qc.invalidateQueries({ queryKey: queryKeys.sets.byWorkoutExercise(vars.weId) }),
+    onSuccess: (_id, vars) => invalidateSetWrite(qc, vars.weId),
     onError: (err) => onError?.(err instanceof Error ? err.message : 'Failed to add set'),
   });
 }
@@ -134,8 +147,7 @@ export function useUpdateSet(onError?: (msg: string) => void) {
       if (ctx?.prev) qc.setQueryData(queryKeys.sets.byWorkoutExercise(vars.weId), ctx.prev);
       onError?.(err instanceof Error ? err.message : 'Failed to update set');
     },
-    onSettled: (_r, _err, vars) =>
-      qc.invalidateQueries({ queryKey: queryKeys.sets.byWorkoutExercise(vars.weId) }),
+    onSettled: (_r, _err, vars) => invalidateSetWrite(qc, vars.weId),
   });
 }
 
@@ -143,7 +155,7 @@ export function useDeleteSet(onError?: (msg: string) => void) {
   const qc = useQueryClient();
   return useMutation({
     mutationFn: (args: { setId: string; weId: string }) => deleteSet(args.setId),
-    onSuccess: (_r, vars) => qc.invalidateQueries({ queryKey: queryKeys.sets.byWorkoutExercise(vars.weId) }),
+    onSuccess: (_r, vars) => invalidateSetWrite(qc, vars.weId),
     onError: (err) => onError?.(err instanceof Error ? err.message : 'Failed to delete set'),
   });
 }

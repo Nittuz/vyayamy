@@ -1,3 +1,4 @@
+import { useQueryClient } from '@tanstack/react-query';
 import { router, Stack } from 'expo-router';
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import {
@@ -32,6 +33,7 @@ import { VoiceMicButton } from '@/components/VoiceMicButton';
 import { useVoiceSession } from '@/voice/useVoiceSession';
 import { useAddExerciseToWorkout } from '@/queries/exercises';
 import { useProfile } from '@/queries/profile';
+import { queryKeys } from '@/queries/keys';
 import { addSet, useUpdateSet } from '@/queries/sets';
 import { useActiveWorkout, useFinishWorkout, useUpdateWorkoutTitle } from '@/queries/workouts';
 import { useWorkoutDetail } from '@/queries/workoutDetail';
@@ -51,6 +53,14 @@ export default function WorkoutActiveScreen() {
   const toastError = useCallback((msg: string) => syncAwareError(msg), [syncAwareError]);
 
   const theme = useTheme();
+  const qc = useQueryClient();
+  // Direct addSet() calls below bypass the mutation hooks, so they must refresh
+  // the composite detail query themselves — otherwise, offline, the staged set
+  // never appears and the screen hangs on a spinner (deep-review #11).
+  const refreshDetail = useCallback(
+    () => void qc.invalidateQueries({ queryKey: queryKeys.workouts.detailRoot }),
+    [qc],
+  );
   const activeQuery = useActiveWorkout(userId);
   const detail = useWorkoutDetail(activeQuery.data?.id);
   const profileQuery = useProfile(userId);
@@ -170,8 +180,9 @@ export default function WorkoutActiveScreen() {
       weight: currentSetData?.weight ?? null,
       reps: currentSetData?.reps ?? null,
     });
+    refreshDetail();
     setCursor({ weId: cursor.weId, setId: newSetId });
-  }, [cursor, currentExForRest, updateSet, timer]);
+  }, [cursor, currentExForRest, updateSet, timer, refreshDetail]);
 
   const onFinish = useCallback(async () => {
     if (!activeQuery.data) return;
@@ -207,6 +218,7 @@ export default function WorkoutActiveScreen() {
         let nextSetId = nextEx.sets.find((s) => !s.completed)?.id;
         if (!nextSetId) {
           nextSetId = await addSet(nextEx.id);
+          refreshDetail();
         }
         setCursor({ weId: nextEx.id, setId: nextSetId });
         haptics.medium();
@@ -223,7 +235,7 @@ export default function WorkoutActiveScreen() {
         { text: 'Skip', style: 'destructive', onPress: () => void advance() },
       ]);
     }
-  }, [cursor, currentExForRest, exercises]);
+  }, [cursor, currentExForRest, exercises, refreshDetail]);
 
   const onPrevExercise = useCallback(() => {
     if (!cursor) return;
