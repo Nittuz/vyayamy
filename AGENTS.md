@@ -18,12 +18,12 @@ Before implementing a non-trivial feature, check [docs/specs/](docs/specs/) for 
 
 Do **not** introduce, remove, or migrate away from any of these without explicit approval:
 
-- **Expo SDK 55**, **React Native 0.83**, **React 19**, **TypeScript** strict
+- **Expo SDK 56**, **React Native 0.85**, **React 19.2**, **TypeScript** strict
 - **Expo Router** for navigation (file-based under [app/](app/))
 - **`expo-sqlite`** as the local source of truth; schema mirrored in [src/db/schema.ts](src/db/schema.ts)
-- **Supabase** (Postgres + GoTrue + PostgREST) as the sync target only — reached from [src/sync/](src/sync/) and from auth code in [src/auth/](src/auth/), nowhere else
+- **Supabase** (Postgres + GoTrue + PostgREST) as the sync target only — the client ([src/auth/supabase.ts](src/auth/supabase.ts)) may be imported ONLY from [src/sync/](src/sync/) and [src/auth/](src/auth/); everything else uses the auth facade [src/auth/authActions.ts](src/auth/authActions.ts) or the queries layer. This is enforced by `no-restricted-imports`.
 - **TanStack React Query 5** for all server state (reads SQLite, not HTTP)
-- **`StyleSheet.create`** + tokens in [src/ui/theme.ts](src/ui/theme.ts) for styling
+- **`useTheme()` + `makeStyles(theme)`** for styling — tokens in [src/ui/colors.ts](src/ui/colors.ts) / [src/ui/typography.ts](src/ui/typography.ts), exposed via [src/ui/useTheme.ts](src/ui/useTheme.ts). Text uses the [src/ui/Text.tsx](src/ui/Text.tsx) primitive. (`src/ui/theme.ts` is a deprecated static shim kept only for the pre-hydration boot overlay — do NOT use it in new code.)
 - **`react-native-svg`** for charts ([src/ui/LineChart.tsx](src/ui/LineChart.tsx))
 - **`expo-haptics`** and **`expo-notifications`** for haptic + timer feedback
 - **`@sentry/react-native`** for error reporting (gated by `EXPO_PUBLIC_SENTRY_DSN`)
@@ -59,7 +59,7 @@ Explicitly forbidden:
 
 ### Add a new mutation
 
-1. Go through `enqueueMutation` in [src/db/mutations.ts](src/db/mutations.ts) — never call `supabase.from(...).insert/update/delete()` from a query hook or component
+1. Go through `enqueueMutation` in [src/db/mutations.ts](src/db/mutations.ts) — never call `supabase.from(...).insert/update/delete()` from a query hook or component (the `@/auth/supabase` import is lint-restricted to src/sync + src/auth)
 2. The mutation applies the change to SQLite and writes to `outbox` in one transaction
 3. Add a `useMutation` wrapper in the appropriate file under [src/queries/](src/queries/) that invalidates affected query keys on success
 4. The sync engine drains the outbox automatically
@@ -81,7 +81,7 @@ Explicitly forbidden:
 3. Update [src/db/types.ts](src/db/types.ts) with Row / Insert / Update typings
 4. Add the table's React Query root prefix to `syncInvalidationRoots` in [src/queries/keys.ts](src/queries/keys.ts) — without this, screens won't refresh after sync touches the new table
 5. If the new table is a parent of any other synced table, add the relationship to `SOFT_DELETE_CASCADE` in [src/db/mutations.ts](src/db/mutations.ts) so soft-deletes propagate locally + into the outbox in one transaction
-6. If multiple devices may produce duplicates that should collapse on a unique index (à la `personal_records`), add a conflict target to `UPSERT_CONFLICT_TARGET` in [src/sync/push.ts](src/sync/push.ts)
+6. Derived data that is fully recomputable from synced rows should NOT be synced — keep it as a local cache and recompute it (à la `personal_records`, which is recomputed from `sets`; see [src/queries/personalRecords.ts](src/queries/personalRecords.ts)). Only sync source-of-truth rows.
 
 ### Add a new query hook
 
@@ -92,9 +92,9 @@ Explicitly forbidden:
 
 ### Add styling
 
-1. Import `theme` from [src/ui/theme.ts](src/ui/theme.ts)
-2. Build styles with `StyleSheet.create` at the bottom of the component file
-3. Never hard-code colors, spacing, radii, or font sizes — use tokens (`theme.color.text`, `theme.space.s4`, `theme.radius.md`, `theme.font.body`, ...)
+1. Call `const theme = useTheme()` ([src/ui/useTheme.ts](src/ui/useTheme.ts)) and build styles with a `makeStyles(theme)` factory memoized on `[theme]` (`useTheme` returns a stable reference per skin × scheme, so the memo actually caches)
+2. Render text through the [`<Text variant>`](src/ui/Text.tsx) primitive so the Geist family is always applied — don't hand-set `fontFamily` per `<Text>`
+3. Never hard-code colors, spacing, radii, or font sizes — use tokens (`theme.color.ink`, `theme.color.inkSecondary`, `theme.space.s4`, `theme.radius.md`, `theme.font.size.body`, ...). Note the palette uses `ink`/`inkSecondary`, not the old `text`/`textSecondary`.
 4. Ensure interactive elements meet `theme.touch.min` (44pt)
 
 ## Testing and typecheck
