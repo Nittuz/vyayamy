@@ -64,10 +64,15 @@ export function __setPushSleepForTests(impl: ((ms: number) => Promise<void>) | n
   sleepImpl = impl ?? ((ms) => new Promise((r) => setTimeout(r, ms)));
 }
 
-function isTransientError(err: unknown): boolean {
+export function isTransientError(err: unknown): boolean {
   if (!err || typeof err !== 'object') return false;
   const e = err as { status?: number; code?: string; message?: string };
   if (e.status === 401 || e.status === 403) return true;
+  // A brief Supabase/gateway outage (5xx) or a rate-limit (429) is transient:
+  // incrementing attempts here marches valid local writes to quarantine within
+  // ~30s of backoff windows for an outage that resolves on its own (#3).
+  if (typeof e.status === 'number' && e.status >= 500) return true;
+  if (e.status === 429) return true;
   if (e.code === 'PGRST301' || e.code === 'PGRST302') return true; // JWT expired/missing
   const msg = (e.message ?? '').toLowerCase();
   if (
@@ -75,7 +80,11 @@ function isTransientError(err: unknown): boolean {
     msg.includes('fetch') ||
     msg.includes('timeout') ||
     msg.includes('econn') ||
-    msg.includes('jwt')
+    msg.includes('jwt') ||
+    msg.includes('rate limit') ||
+    msg.includes('too many requests') ||
+    msg.includes('temporarily unavailable') ||
+    msg.includes('service unavailable')
   ) {
     return true;
   }
