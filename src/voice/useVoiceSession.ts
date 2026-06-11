@@ -11,7 +11,8 @@
  * unit-tested in the ts-jest/Node harness. The pure pieces it composes
  * (GrammarParser, dispatchCommand) are unit-tested.
  */
-import { useCallback, useRef, useState } from 'react';
+import { useCallback, useEffect, useRef, useState } from 'react';
+import { AppState } from 'react-native';
 
 import type { Command, VoiceContext } from './commands';
 import { dispatchCommand, type DispatchContext } from './dispatch';
@@ -80,6 +81,7 @@ export function useVoiceSession(deps: VoiceSessionDeps) {
     async (command: Command, confidence: 'high' | 'low') => {
       switch (command.kind) {
         case 'stop':
+          lastUndo.current = null;
           return stop();
         case 'undo': {
           if (lastUndo.current) {
@@ -92,14 +94,20 @@ export function useVoiceSession(deps: VoiceSessionDeps) {
         case 'confirm':
           return applyPending();
         case 'finishWorkout':
+          // A non-data command invalidates the pending undo — "undo" must never
+          // reach back past it and revert a set the user already moved on from (#99).
+          lastUndo.current = null;
           return deps.onFinishWorkout();
         case 'startRest':
           return deps.onStartRest(command.seconds);
         case 'nextExercise':
+          lastUndo.current = null;
           return deps.onNextExercise();
         case 'prevExercise':
+          lastUndo.current = null;
           return deps.onPrevExercise();
         case 'completeSet':
+          lastUndo.current = null;
           if (deps.onCompleteSet) {
             deps.onCompleteSet();
             setUi({ phase: 'applied', label: 'Set complete' });
@@ -129,8 +137,13 @@ export function useVoiceSession(deps: VoiceSessionDeps) {
     [deps, handleCommand, resetSilence],
   );
 
+  const listeningRef = useRef(false);
   const start = useCallback(async () => {
+    // Re-entrancy guard: a second start() while already listening would register
+    // a second result listener and every command would dispatch twice (#97).
+    if (listeningRef.current) return;
     if (!(await engine.requestPermissions())) return;
+    listeningRef.current = true;
     setUi({ phase: 'listening', partial: '' });
     resetSilence();
     engine.start(
@@ -141,6 +154,23 @@ export function useVoiceSession(deps: VoiceSessionDeps) {
       () => stop(),
     );
   }, [engine, onFinal, resetSilence, stop]);
+
+  // Keep the listening flag in sync when stop() runs (silence timeout, command, etc.).
+  useEffect(() => {
+    if (ui.phase === 'idle') listeningRef.current = false;
+  }, [ui.phase]);
+
+  // Stop the mic when the screen unmounts or the app backgrounds — otherwise the
+  // engine keeps listening (and dispatching) after the user leaves (#96).
+  useEffect(() => {
+    const sub = AppState.addEventListener('change', (next) => {
+      if (next !== 'active') stop();
+    });
+    return () => {
+      sub.remove();
+      stop();
+    };
+  }, [stop]);
 
   const available = engine.isAvailable();
 
