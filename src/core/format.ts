@@ -1,14 +1,32 @@
+/**
+ * Canonical local-day helpers (#149/#150). Storage is UTC instants; every
+ * "what day is it" decision in the UI uses the device's LOCAL calendar day, so
+ * an evening lift doesn't slide into the next/previous day. Keep all day
+ * bucketing and "N days ago" math routed through these two functions.
+ */
+export function localDayKey(dateStr: string): string {
+  const d = new Date(dateStr);
+  const y = d.getFullYear();
+  const m = String(d.getMonth() + 1).padStart(2, '0');
+  const day = String(d.getDate()).padStart(2, '0');
+  return `${y}-${m}-${day}`;
+}
+
+export function localDaysBetween(dateStr: string, now: Date = new Date()): number {
+  const then = new Date(dateStr);
+  const a = new Date(then.getFullYear(), then.getMonth(), then.getDate()).getTime();
+  const b = new Date(now.getFullYear(), now.getMonth(), now.getDate()).getTime();
+  return Math.round((b - a) / (24 * 60 * 60 * 1000));
+}
+
 export function formatRelativeDate(dateStr: string): string {
-  const date = new Date(dateStr);
-  const now = new Date();
-  const diffMs = now.getTime() - date.getTime();
-  const diffDays = Math.floor(diffMs / (24 * 60 * 60 * 1000));
-  if (diffDays === 0) return 'Today';
+  const diffDays = localDaysBetween(dateStr);
+  if (diffDays <= 0) return 'Today';
   if (diffDays === 1) return 'Yesterday';
   if (diffDays < 7) return `${diffDays} days ago`;
   if (diffDays < 14) return '1 week ago';
   if (diffDays < 30) return `${Math.floor(diffDays / 7)} weeks ago`;
-  return date.toLocaleDateString();
+  return new Date(dateStr).toLocaleDateString();
 }
 
 export function formatDuration(startedAt: string, endedAt: string | null): string {
@@ -31,16 +49,12 @@ export function formatShortDate(dateStr: string): string {
 }
 
 export function getDateGroup(dateStr: string): string {
-  const date = new Date(dateStr);
-  const now = new Date();
-  const today = new Date(now.getFullYear(), now.getMonth(), now.getDate());
-  const target = new Date(date.getFullYear(), date.getMonth(), date.getDate());
-  const diffDays = Math.round((today.getTime() - target.getTime()) / (24 * 60 * 60 * 1000));
+  const diffDays = localDaysBetween(dateStr);
   if (diffDays === 0) return 'Today';
   if (diffDays === 1) return 'Yesterday';
   if (diffDays < 7) return 'This week';
   if (diffDays < 30) return 'This month';
-  return date.toLocaleDateString(undefined, { month: 'long', year: 'numeric' });
+  return new Date(dateStr).toLocaleDateString(undefined, { month: 'long', year: 'numeric' });
 }
 
 export function getGreeting(): string {

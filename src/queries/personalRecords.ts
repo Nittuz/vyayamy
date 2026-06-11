@@ -14,6 +14,7 @@
 import { useQuery } from '@tanstack/react-query';
 
 import { computePRs } from '@/core/pr-detection';
+import { localDayKey } from '@/core/format';
 import { getDb } from '@/db/client';
 import { withTransaction } from '@/db/transaction';
 import { nowIso, uuidv4 } from '@/db/uuid';
@@ -264,7 +265,9 @@ export async function getHeaviestWeightHistory(
     if (r.weight == null || !r.achieved_at) continue;
     // Convert into the display unit so a mixed-unit history charts on one axis.
     const w = convertWeight(r.weight, r.units ?? DEFAULT_UNITS, units);
-    const key = r.achieved_at.slice(0, 10);
+    // Bucket by LOCAL calendar day, not a UTC slice — otherwise an evening lift
+    // lands on the wrong day and one workout can split across two points (#149).
+    const key = localDayKey(r.achieved_at);
     const prev = seen.get(key) ?? 0;
     if (w > prev) seen.set(key, w);
   }

@@ -13,6 +13,7 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import { useQueryClient } from '@tanstack/react-query';
 
 import { useAuth } from '@/auth/useAuth';
+import { localDaysBetween } from '@/core/format';
 import { CollisionSheet } from '@/components/CollisionSheet';
 import { QuarantineBanner } from '@/components/QuarantineBanner';
 import { SyncErrorStripe } from '@/components/SyncErrorStripe';
@@ -424,9 +425,9 @@ function greetingFor(now: Date): string {
 }
 
 function daysSince(iso: string): number {
-  const then = new Date(iso).getTime();
-  const now = Date.now();
-  return Math.max(0, Math.floor((now - then) / (24 * 60 * 60 * 1000)));
+  // Calendar days, not rolling 24h windows, so the Repeat card agrees with
+  // History about whether a session was "today" / "yesterday" (#150).
+  return Math.max(0, localDaysBetween(iso));
 }
 
 function recentMeta(w: { started_at: string; ended_at: string | null }): string {
