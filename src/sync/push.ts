@@ -105,10 +105,14 @@ export async function pushOutbox(): Promise<void> {
   try {
     const nowIso = new Date().toISOString();
     const rows = await db.getAllAsync<OutboxRow>(
-      `SELECT * FROM outbox
-         WHERE attempts < ?
-           AND (next_attempt_at IS NULL OR next_attempt_at <= ?)
-         ORDER BY id ASC LIMIT ?`,
+      `SELECT * FROM outbox o
+         WHERE o.attempts < ?
+           AND (o.next_attempt_at IS NULL OR o.next_attempt_at <= ?)
+           AND NOT EXISTS (
+             SELECT 1 FROM outbox e
+              WHERE e.table_name = o.table_name AND e.row_id = o.row_id AND e.id < o.id
+           )
+         ORDER BY o.id ASC LIMIT ?`,
       [MAX_ATTEMPTS, nowIso, BATCH_LIMIT],
     );
 
@@ -122,13 +126,22 @@ export async function pushOutbox(): Promise<void> {
         const tbl = fromDynamic(row.table_name);
         if (row.op === 'delete') {
           // Send only the tombstone marker; server overwrites updated_at.
-          const { error } = await tbl
+          // .select('id') lets us verify a row actually matched — a 0-row
+          // PostgREST update reports no error, which would otherwise delete the
+          // outbox row and silently drop the write (#0).
+          const { data, error } = await tbl
             .update({ deleted_at: new Date().toISOString() } as never)
-            .eq('id', row.row_id);
+            .eq('id', row.row_id)
+            .select('id');
           if (error) throw error;
+          assertServerRowMatched(data, row);
         } else if (row.op === 'update') {
-          const { error } = await tbl.update(payload as never).eq('id', row.row_id);
+          const { data, error } = await tbl
+            .update(payload as never)
+            .eq('id', row.row_id)
+            .select('id');
           if (error) throw error;
+          assertServerRowMatched(data, row);
         } else {
           // 'insert' is treated as upsert(by-id) for kill-mid-ack idempotency.
           // 'upsert' uses the table-specific composite target if set.
@@ -200,6 +213,20 @@ export async function pushOutbox(): Promise<void> {
     }
   } finally {
     setSyncState({ pushInFlight: false });
+  }
+}
+
+/**
+ * Throw (non-transient) if a PostgREST update/delete matched no server row.
+ * Without this a 0-row update returns `{ error: null }` and the outbox row is
+ * deleted, silently losing the write (#0). With per-row ordering in place a
+ * genuine miss means the row is unexpectedly absent server-side, so it should
+ * march toward quarantine rather than vanish.
+ */
+function assertServerRowMatched(data: unknown, row: OutboxRow): void {
+  const matched = Array.isArray(data) ? data.length : data ? 1 : 0;
+  if (matched === 0) {
+    throw new Error(`No server row matched ${row.table_name}#${row.row_id} (${row.op})`);
   }
 }
 
