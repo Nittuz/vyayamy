@@ -20,22 +20,26 @@ import { duration } from './motion';
 export function useCompleteSetAnimation() {
   const glowOpacity = useSharedValue(0);
 
-  /** Bloom the accent glow once, unless reduced motion is on. */
-  const pulse = useCallback(async () => {
-    let reduceMotion = false;
-    try {
-      reduceMotion = await AccessibilityInfo.isReduceMotionEnabled();
-    } catch {
-      /* default: motion allowed */
-    }
-    const c = computeChoreography({ reduceMotion, isPR: false });
-    if (c.glow) {
-      glowOpacity.value = withSequence(
-        withTiming(0.45, { duration: duration.base }),
-        withTiming(0, { duration: duration.base }),
-      );
-    }
-  }, [glowOpacity]);
+  /** Bloom the accent glow once, unless reduced motion is on. Pass isPR to give
+   *  a personal record a stronger bloom. */
+  const pulse = useCallback(
+    async (isPR = false) => {
+      let reduceMotion = false;
+      try {
+        reduceMotion = await AccessibilityInfo.isReduceMotionEnabled();
+      } catch {
+        /* default: motion allowed */
+      }
+      const c = computeChoreography({ reduceMotion, isPR });
+      if (c.glow) {
+        glowOpacity.value = withSequence(
+          withTiming(c.glowPeak, { duration: duration.base }),
+          withTiming(0, { duration: duration.base }),
+        );
+      }
+    },
+    [glowOpacity],
+  );
 
   return { glowOpacity, pulse };
 }

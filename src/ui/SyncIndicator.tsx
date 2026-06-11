@@ -7,7 +7,7 @@
  * sheet's "Review quarantined" link closes itself and opens the
  * QuarantineSheet (also managed here for self-containment).
  */
-import { useState } from 'react';
+import { useMemo, useState } from 'react';
 import { Pressable, StyleSheet, Text, View } from 'react-native';
 
 import { QuarantineSheet } from '@/components/QuarantineSheet';
@@ -16,9 +16,11 @@ import { useQuarantined } from '@/sync/quarantine';
 import { deriveSyncState, syncStateLabel } from '@/core/syncHelpers';
 import { useSyncStateLive } from '@/sync/useSyncStateLive';
 
-import { theme } from './theme';
+import { useTheme, type Theme } from './useTheme';
 
 export function SyncIndicator() {
+  const theme = useTheme();
+  const styles = useMemo(() => makeStyles(theme), [theme]);
   const state = useSyncStateLive();
   const quarantined = useQuarantined();
   const [diagOpen, setDiagOpen] = useState(false);
@@ -76,30 +78,32 @@ export function SyncIndicator() {
   );
 }
 
-const styles = StyleSheet.create({
-  pill: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: theme.space.s2,
-    paddingVertical: theme.space.s1,
-    paddingHorizontal: theme.space.s3,
-    borderRadius: theme.radius.full,
-    backgroundColor: theme.color.accentSoft,
-  },
-  pillOffline: { backgroundColor: theme.color.border },
-  pillError: { backgroundColor: theme.color.dangerSoft },
-  dot: {
-    width: 6,
-    height: 6,
-    borderRadius: 3,
-    backgroundColor: theme.color.accentMuted,
-  },
-  dotOffline: { backgroundColor: theme.color.textSecondary },
-  dotError: { backgroundColor: theme.color.danger },
-  dotSaved: { backgroundColor: theme.color.success },
-  label: {
-    fontSize: theme.font.micro,
-    color: theme.color.textSecondary,
-    fontWeight: theme.font.weight.medium,
-  },
-});
+const makeStyles = (theme: Theme) =>
+  StyleSheet.create({
+    pill: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      gap: theme.space.s2,
+      paddingVertical: theme.space.s1,
+      paddingHorizontal: theme.space.s3,
+      borderRadius: theme.radius.full,
+      backgroundColor: theme.color.accentSoft,
+    },
+    pillOffline: { backgroundColor: theme.color.border },
+    pillError: { backgroundColor: theme.color.dangerSoft },
+    dot: {
+      width: 6,
+      height: 6,
+      borderRadius: 3,
+      backgroundColor: theme.color.inkSecondary,
+    },
+    dotOffline: { backgroundColor: theme.color.inkSecondary },
+    dotError: { backgroundColor: theme.color.danger },
+    dotSaved: { backgroundColor: theme.color.success },
+    label: {
+      fontSize: theme.font.size.micro,
+      fontFamily: theme.font.family.sansMedium,
+      color: theme.color.inkSecondary,
+      fontWeight: theme.font.weight.medium,
+    },
+  });

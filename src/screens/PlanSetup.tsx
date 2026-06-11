@@ -475,6 +475,7 @@ const makeStyles = (theme: Theme) =>
     letterSpacing: 0.5,
     color: theme.color.inkTertiary,
     fontWeight: theme.font.weight.medium,
+    fontFamily: theme.font.family.sansMedium,
   },
   input: {
     height: 44,
@@ -483,6 +484,7 @@ const makeStyles = (theme: Theme) =>
     backgroundColor: theme.color.bg,
     fontSize: theme.font.size.body,
     color: theme.color.ink,
+    fontFamily: theme.font.family.sans,
   },
   segment: {
     flexDirection: 'row',
@@ -501,6 +503,7 @@ const makeStyles = (theme: Theme) =>
     fontSize: theme.font.size.meta,
     color: theme.color.inkSecondary,
     fontWeight: theme.font.weight.medium,
+    fontFamily: theme.font.family.sansMedium,
   },
   segmentTextActive: { color: theme.color.ink },
   section: { gap: theme.space.s2 },
@@ -509,9 +512,14 @@ const makeStyles = (theme: Theme) =>
     fontWeight: theme.font.weight.semibold,
     color: theme.color.ink,
     marginTop: theme.space.s2,
+    fontFamily: theme.font.family.sansSemibold,
   },
   presetSection: { gap: theme.space.s2 },
-  presetIntro: { fontSize: theme.font.size.meta, color: theme.color.inkSecondary },
+  presetIntro: {
+    fontSize: theme.font.size.meta,
+    color: theme.color.inkSecondary,
+    fontFamily: theme.font.family.sans,
+  },
   presetLoading: { alignItems: 'center', paddingVertical: theme.space.s6 },
   presetGroup: { gap: theme.space.s2, marginTop: theme.space.s2 },
   presetGroupTitle: {
@@ -520,6 +528,7 @@ const makeStyles = (theme: Theme) =>
     letterSpacing: 0.5,
     color: theme.color.inkTertiary,
     fontWeight: theme.font.weight.medium,
+    fontFamily: theme.font.family.sansMedium,
   },
   presetCard: {
     backgroundColor: theme.color.surface,
@@ -533,12 +542,18 @@ const makeStyles = (theme: Theme) =>
     fontSize: theme.font.size.card,
     fontWeight: theme.font.weight.semibold,
     color: theme.color.ink,
+    fontFamily: theme.font.family.sansSemibold,
   },
-  presetBlurb: { fontSize: theme.font.size.meta, color: theme.color.inkSecondary },
+  presetBlurb: {
+    fontSize: theme.font.size.meta,
+    color: theme.color.inkSecondary,
+    fontFamily: theme.font.family.sans,
+  },
   presetPreview: {
     fontSize: theme.font.size.micro,
     color: theme.color.inkTertiary,
     marginTop: theme.space.s1,
+    fontFamily: theme.font.family.sans,
   },
   stagedBanner: {
     flexDirection: 'row',
@@ -556,12 +571,14 @@ const makeStyles = (theme: Theme) =>
     letterSpacing: 0.5,
     color: theme.color.inkSecondary,
     fontWeight: theme.font.weight.medium,
+    fontFamily: theme.font.family.sansMedium,
   },
   stagedName: {
     fontSize: theme.font.size.body,
     fontWeight: theme.font.weight.semibold,
     color: theme.color.ink,
     marginTop: 2,
+    fontFamily: theme.font.family.sansSemibold,
   },
   clearBtn: {
     paddingHorizontal: theme.space.s3,
@@ -572,7 +589,11 @@ const makeStyles = (theme: Theme) =>
     minHeight: theme.touch.min,
     justifyContent: 'center',
   },
-  clearBtnText: { fontSize: theme.font.size.meta, color: theme.color.inkSecondary },
+  clearBtnText: {
+    fontSize: theme.font.size.meta,
+    color: theme.color.inkSecondary,
+    fontFamily: theme.font.family.sans,
+  },
   slotCard: {
     backgroundColor: theme.color.surface,
     borderRadius: theme.radius.md,
@@ -587,6 +608,7 @@ const makeStyles = (theme: Theme) =>
     fontSize: theme.font.size.body,
     fontWeight: theme.font.weight.semibold,
     color: theme.color.ink,
+    fontFamily: theme.font.family.sansSemibold,
   },
   toggle: {
     paddingHorizontal: theme.space.s3,
@@ -598,7 +620,11 @@ const makeStyles = (theme: Theme) =>
     justifyContent: 'center',
   },
   toggleOn: { borderColor: theme.color.accent, backgroundColor: theme.color.accent },
-  toggleText: { fontSize: theme.font.size.meta, color: theme.color.inkSecondary },
+  toggleText: {
+    fontSize: theme.font.size.meta,
+    color: theme.color.inkSecondary,
+    fontFamily: theme.font.family.sans,
+  },
   toggleTextOn: { color: theme.color.onAccent },
   templatePicker: { flexDirection: 'row', flexWrap: 'wrap', gap: theme.space.s2 },
   templatePill: {
@@ -610,7 +636,11 @@ const makeStyles = (theme: Theme) =>
     backgroundColor: theme.color.bg,
   },
   templatePillActive: { backgroundColor: theme.color.accent, borderColor: theme.color.accent },
-  templatePillText: { fontSize: theme.font.size.meta, color: theme.color.inkSecondary },
+  templatePillText: {
+    fontSize: theme.font.size.meta,
+    color: theme.color.inkSecondary,
+    fontFamily: theme.font.family.sans,
+  },
   templatePillTextActive: { color: theme.color.onAccent },
   addDay: {
     padding: theme.space.s3,
@@ -624,6 +654,7 @@ const makeStyles = (theme: Theme) =>
     fontSize: theme.font.size.meta,
     color: theme.color.inkSecondary,
     fontWeight: theme.font.weight.medium,
+    fontFamily: theme.font.family.sansMedium,
   },
   saveBtn: {
     height: theme.touch.cta,
@@ -637,5 +668,6 @@ const makeStyles = (theme: Theme) =>
     color: theme.color.onAccent,
     fontSize: theme.font.size.card,
     fontWeight: theme.font.weight.semibold,
+    fontFamily: theme.font.family.sansSemibold,
   },
   });

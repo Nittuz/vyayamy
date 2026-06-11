@@ -11,10 +11,23 @@ describe('computeChoreography', () => {
     expect(c.showPRPill).toBe(false);
   });
 
-  test('reduced motion: skips animation + glow, instant tally, keeps haptic', () => {
+  test('glow peak is a perceptible alpha — not the old ~5% (#25)', () => {
+    const c = computeChoreography({ reduceMotion: false, isPR: false });
+    expect(c.glowPeak).toBeGreaterThanOrEqual(0.28);
+    expect(c.glowPeak).toBeLessThanOrEqual(0.5);
+  });
+
+  test('a PR glows stronger than an ordinary set (#25)', () => {
+    const pr = computeChoreography({ reduceMotion: false, isPR: true });
+    const ordinary = computeChoreography({ reduceMotion: false, isPR: false });
+    expect(pr.glowPeak).toBeGreaterThan(ordinary.glowPeak);
+  });
+
+  test('reduced motion: skips animation + glow (peak 0), instant tally, keeps haptic', () => {
     const c = computeChoreography({ reduceMotion: true, isPR: false });
     expect(c.animateCheck).toBe(false);
     expect(c.glow).toBe(false);
+    expect(c.glowPeak).toBe(0);
     expect(c.tallyMs).toBe(0);
     expect(c.haptic).toBe('medium');
   });

@@ -46,7 +46,9 @@ export function SessionVolumeBar({ volume, units }: { volume: number; units: 'kg
     <View style={styles.wrap}>
       <Animated.View
         pointerEvents="none"
-        style={[styles.glow, { backgroundColor: theme.color.accentSoft }, glowStyle]}
+        // Full accent fill — the choreography's glowPeak IS the on-screen alpha.
+        // (Was accentSoft × 0.45 ≈ 5%, invisible, #25.)
+        style={[styles.glow, { backgroundColor: theme.color.accent }, glowStyle]}
       />
       <Text
         style={[

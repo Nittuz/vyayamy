@@ -129,12 +129,14 @@ const makeStyles = (theme: Theme) =>
   title: {
     flex: 1,
     fontSize: theme.font.size.display,
+    fontFamily: theme.font.family.sansSemibold,
     fontWeight: theme.font.weight.semibold,
     color: theme.color.ink,
     letterSpacing: -0.5,
   },
   sectionHeader: {
     fontSize: theme.font.size.micro,
+    fontFamily: theme.font.family.sansMedium,
     textTransform: 'uppercase',
     letterSpacing: 0.6,
     color: theme.color.inkTertiary,
@@ -154,17 +156,25 @@ const makeStyles = (theme: Theme) =>
   },
   rowTitle: {
     fontSize: theme.font.size.body,
+    fontFamily: theme.font.family.sansMedium,
     fontWeight: theme.font.weight.medium,
     color: theme.color.ink,
   },
-  rowMeta: { fontSize: theme.font.size.meta, color: theme.color.inkSecondary, marginTop: 2 },
+  rowMeta: {
+    fontSize: theme.font.size.meta,
+    fontFamily: theme.font.family.sans,
+    color: theme.color.inkSecondary,
+    marginTop: 2,
+  },
   rowDuration: {
     fontSize: theme.font.size.meta,
+    fontFamily: theme.font.family.sans,
     color: theme.color.inkSecondary,
     fontVariant: ['tabular-nums'],
   },
   empty: {
     textAlign: 'center',
+    fontFamily: theme.font.family.sans,
     color: theme.color.inkSecondary,
     marginTop: theme.space.s10,
   },

@@ -151,6 +151,7 @@ const makeStyles = (theme: Theme) =>
   title: {
     flex: 1,
     fontSize: theme.font.size.display,
+    fontFamily: theme.font.family.sansSemibold,
     fontWeight: theme.font.weight.semibold,
     color: theme.color.ink,
     letterSpacing: -0.5,
@@ -165,12 +166,14 @@ const makeStyles = (theme: Theme) =>
   },
   chartTitle: {
     fontSize: theme.font.size.card,
+    fontFamily: theme.font.family.sansSemibold,
     fontWeight: theme.font.weight.semibold,
     color: theme.color.ink,
   },
   section: { gap: theme.space.s2 },
   sectionTitle: {
     fontSize: theme.font.size.title,
+    fontFamily: theme.font.family.sansSemibold,
     fontWeight: theme.font.weight.semibold,
     color: theme.color.ink,
     marginBottom: theme.space.s2,
@@ -188,12 +191,14 @@ const makeStyles = (theme: Theme) =>
   prRowActive: { borderColor: theme.color.accent },
   prExercise: {
     fontSize: theme.font.size.body,
+    fontFamily: theme.font.family.sansMedium,
     fontWeight: theme.font.weight.medium,
     color: theme.color.ink,
   },
   prMetaRow: { flexDirection: 'row', flexWrap: 'wrap', gap: theme.space.s2, marginTop: 4 },
   prBadge: {
     fontSize: theme.font.size.micro,
+    fontFamily: theme.font.family.sans,
     color: theme.color.inkSecondary,
     backgroundColor: theme.color.bg,
     paddingVertical: 2,
@@ -202,6 +207,7 @@ const makeStyles = (theme: Theme) =>
   },
   prDate: {
     fontSize: theme.font.size.micro,
+    fontFamily: theme.font.family.sans,
     color: theme.color.inkTertiary,
   },
   recentDot: {
@@ -221,11 +227,13 @@ const makeStyles = (theme: Theme) =>
   },
   emptyTitle: {
     fontSize: theme.font.size.card,
+    fontFamily: theme.font.family.sansSemibold,
     fontWeight: theme.font.weight.semibold,
     color: theme.color.ink,
   },
   emptyBody: {
     fontSize: theme.font.size.meta,
+    fontFamily: theme.font.family.sans,
     color: theme.color.inkSecondary,
     textAlign: 'center',
   },

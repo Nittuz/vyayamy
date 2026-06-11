@@ -13,6 +13,13 @@ export interface Choreography {
   animateCheck: boolean;
   /** Bloom the accent glow once. */
   glow: boolean;
+  /**
+   * Peak ABSOLUTE alpha of the accent glow (0 = none). This is applied to a
+   * full-accent fill, so it is the on-screen opacity — previously the glow
+   * peaked at 0.45 over an already-soft (~0.12 alpha) fill, netting ~5% and
+   * rendering invisible (#25).
+   */
+  glowPeak: number;
   /** Volume count-up duration in ms (0 = jump straight to the new value). */
   tallyMs: number;
   /** Which haptic to fire. PR wins over last-set/mid-set. */
@@ -20,6 +27,9 @@ export interface Choreography {
   /** Show the PR pill (state, not motion — shown even under reduced motion). */
   showPRPill: boolean;
 }
+
+const GLOW_PEAK = 0.32;
+const GLOW_PEAK_PR = 0.45;
 
 export function computeChoreography(o: {
   reduceMotion: boolean;
@@ -29,6 +39,7 @@ export function computeChoreography(o: {
   return {
     animateCheck: !o.reduceMotion,
     glow: !o.reduceMotion,
+    glowPeak: o.reduceMotion ? 0 : o.isPR ? GLOW_PEAK_PR : GLOW_PEAK,
     tallyMs: o.reduceMotion ? 0 : duration.counter,
     haptic: o.isPR ? 'success' : 'medium',
     showPRPill: o.isPR,
