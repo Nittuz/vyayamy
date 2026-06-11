@@ -13,7 +13,7 @@ import {
   View,
 } from 'react-native';
 
-import { supabase } from '@/auth/supabase';
+import { signInWithOtp, signInWithPassword } from '@/auth/authActions';
 import { useAuth } from '@/auth/useAuth';
 import { FBarMark } from '@/ui/Logo';
 import { brand } from '@/ui/theme';
@@ -39,10 +39,7 @@ export default function LoginScreen() {
     setError(null);
     setSending(true);
     const redirectTo = Linking.createURL('/login');
-    const { error: err } = await supabase.auth.signInWithOtp({
-      email: email.trim(),
-      options: { emailRedirectTo: redirectTo },
-    });
+    const { error: err } = await signInWithOtp(email.trim(), redirectTo);
     setSending(false);
     if (err) {
       // Map raw Supabase errors to a single neutral string so the UI doesn't
@@ -56,10 +53,7 @@ export default function LoginScreen() {
   async function handlePasswordSignIn() {
     setError(null);
     setSigningIn(true);
-    const { error: err } = await supabase.auth.signInWithPassword({
-      email: email.trim(),
-      password,
-    });
+    const { error: err } = await signInWithPassword(email.trim(), password);
     setSigningIn(false);
     if (err) setError(GENERIC_AUTH_ERROR);
   }

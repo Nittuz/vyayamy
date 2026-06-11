@@ -18,6 +18,22 @@ module.exports = {
     'react-hooks/immutability': 'warn',
     'react-hooks/purity': 'warn',
     'react-hooks/set-state-in-effect': 'warn',
+    // Architectural boundary: the Supabase client lives behind src/auth and
+    // src/sync. Everything else uses the auth facade (src/auth/authActions) or
+    // the queries layer — so the network surface the app depends on stays small
+    // and auditable (#35). Allowed dirs opt out in overrides below.
+    'no-restricted-imports': [
+      'error',
+      {
+        paths: [
+          {
+            name: '@/auth/supabase',
+            message:
+              'Import the Supabase client only in src/auth or src/sync. Use the auth facade (@/auth/authActions) or the queries layer elsewhere.',
+          },
+        ],
+      },
+    ],
   },
   overrides: [
     {
@@ -26,6 +42,11 @@ module.exports = {
       // and any CI gate built on it is dead on arrival (#82).
       files: ['jest.setup.js', '**/__tests__/**', '**/*.test.{ts,tsx}'],
       env: { jest: true, node: true },
+    },
+    {
+      // src/auth and src/sync ARE the boundary — they may import the client.
+      files: ['src/auth/**', 'src/sync/**'],
+      rules: { 'no-restricted-imports': 'off' },
     },
   ],
 };

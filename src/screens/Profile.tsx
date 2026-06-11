@@ -12,7 +12,7 @@ import {
 } from 'react-native';
 
 import { safeRoute } from '@/lib/safeRoute';
-import { supabase } from '@/auth/supabase';
+import { signOut } from '@/auth/authActions';
 import { useAuth } from '@/auth/useAuth';
 import { formatMemberSince, getInitials } from '@/core/format';
 import { useProfile, useUpdateProfile } from '@/queries/profile';
@@ -42,7 +42,7 @@ export default function ProfileScreen() {
   const handleSignOut = useCallback(async () => {
     setSigningOut(true);
     try {
-      await supabase.auth.signOut();
+      await signOut();
     } finally {
       setSigningOut(false);
     }
