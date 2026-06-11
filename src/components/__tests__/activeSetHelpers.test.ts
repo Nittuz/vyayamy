@@ -1,6 +1,8 @@
 import {
   findInitialCursor,
   findExercise,
+  findPrevExercise,
+  firstIncompleteSet,
   findSet,
   completedSetsBeforeCursor,
   type ExerciseShape,
@@ -48,6 +50,33 @@ describe('findInitialCursor', () => {
   test('returns null when there are no sets at all', () => {
     expect(findInitialCursor([ex('empty', [])])).toBeNull();
     expect(findInitialCursor([])).toBeNull();
+  });
+});
+
+describe('findPrevExercise (#13)', () => {
+  const exercises = [
+    ex('a', [{ id: 'a1', completed: true }]),
+    ex('b', [{ id: 'b1', completed: false }]),
+    ex('c', [{ id: 'c1', completed: false }]),
+  ];
+  test('returns the exercise before the given one', () => {
+    expect(findPrevExercise(exercises, 'c')!.id).toBe('b');
+    expect(findPrevExercise(exercises, 'b')!.id).toBe('a');
+  });
+  test('returns null at the first exercise or for an unknown id', () => {
+    expect(findPrevExercise(exercises, 'a')).toBeNull();
+    expect(findPrevExercise(exercises, 'missing')).toBeNull();
+  });
+});
+
+describe('firstIncompleteSet (#13)', () => {
+  test('returns the first set that is not completed', () => {
+    const e = ex('a', [{ id: 'a1', completed: true }, { id: 'a2', completed: false }]);
+    expect(firstIncompleteSet(e)!.id).toBe('a2');
+  });
+  test('returns null when every set is complete (caller stages a fresh one)', () => {
+    const e = ex('a', [{ id: 'a1', completed: true }]);
+    expect(firstIncompleteSet(e)).toBeNull();
   });
 });
 

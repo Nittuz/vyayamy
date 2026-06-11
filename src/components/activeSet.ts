@@ -94,3 +94,17 @@ export function findNextExercise(
   if (idx + 1 >= exercises.length) return null;
   return exercises[idx + 1] ?? null;
 }
+
+export function findPrevExercise(
+  exercises: ExerciseShape[],
+  currentWeId: string,
+): ExerciseShape | null {
+  const idx = exercises.findIndex((e) => e.id === currentWeId);
+  if (idx <= 0) return null;
+  return exercises[idx - 1] ?? null;
+}
+
+/** First not-yet-completed set of an exercise, or null if all are done. */
+export function firstIncompleteSet(ex: ExerciseShape): SetShape | null {
+  return ex.sets.find((s) => !s.completed) ?? null;
+}

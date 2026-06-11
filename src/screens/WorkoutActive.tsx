@@ -21,7 +21,9 @@ import {
   findExercise,
   findInitialCursor,
   findNextExercise,
+  findPrevExercise,
   findSet,
+  firstIncompleteSet,
 } from '@/components/activeSet';
 import { EditableTitle } from '@/components/EditableTitle';
 import { ExercisePicker } from '@/components/ExercisePicker';
@@ -119,6 +121,9 @@ export default function WorkoutActiveScreen() {
   // Distinguishes "cursor is null because we haven't loaded yet" (→ initialize)
   // from "cursor is null because the user finished" (→ leave it, show the recap).
   const didInitCursor = useRef(false);
+  // When adding an exercise from the recap, drop the cursor onto THAT exercise's
+  // staged set once its data arrives — not the first incomplete set anywhere (#13).
+  const pendingTargetWeId = useRef<string | null>(null);
 
   // Initialize cursor when exercises first load, or reposition when the cursor
   // points at a set that no longer exists / is already completed. cursor is read
@@ -129,6 +134,19 @@ export default function WorkoutActiveScreen() {
       setCursor(null);
       didInitCursor.current = false;
       return;
+    }
+    // Add-from-recap: target the just-added exercise's staged set once it loads.
+    if (pendingTargetWeId.current) {
+      const target = findExercise(exercises, pendingTargetWeId.current);
+      if (target) {
+        const set = firstIncompleteSet(target);
+        if (set) {
+          pendingTargetWeId.current = null;
+          didInitCursor.current = true;
+          setCursor({ weId: target.id, setId: set.id });
+        }
+      }
+      return; // exercise not in the cached data yet → wait for the next render
     }
     if (cursor) {
       didInitCursor.current = true; // we have a real cursor → initialized
@@ -200,10 +218,12 @@ export default function WorkoutActiveScreen() {
     async (exerciseId: string) => {
       if (!activeQuery.data) return;
       setPickerOpen(false);
-      // Adding from the finish recap (cursor === null) should drop back into the
-      // working view on the new exercise — let the init effect reposition.
+      const weId = await addExercise.mutateAsync({ workoutId: activeQuery.data.id, exerciseId });
+      // Land the cursor on the new exercise (its auto-staged set), not the first
+      // incomplete set in the workout (#13). The init effect picks this up once
+      // the new exercise appears in the cached data.
+      pendingTargetWeId.current = weId;
       didInitCursor.current = false;
-      await addExercise.mutateAsync({ workoutId: activeQuery.data.id, exerciseId });
     },
     [activeQuery.data, addExercise],
   );
@@ -244,15 +264,20 @@ export default function WorkoutActiveScreen() {
 
   const onPrevExercise = useCallback(() => {
     if (!cursor) return;
-    const idx = exercises.findIndex((e) => e.id === cursor.weId);
-    if (idx <= 0) return;
-    const prev = exercises[idx - 1]!;
-    const setId = prev.sets[0]?.id;
-    if (setId) {
-      setCursor({ weId: prev.id, setId });
+    const prevEx = findPrevExercise(exercises, cursor.weId);
+    if (!prevEx) return;
+    // Mirror next-exercise: target prev's first INCOMPLETE set (not sets[0], which
+    // may be completed and would make the cursor-reset effect bounce away, #13).
+    void (async () => {
+      let setId = firstIncompleteSet(prevEx)?.id;
+      if (!setId) {
+        setId = await addSet(prevEx.id);
+        refreshDetail();
+      }
+      setCursor({ weId: prevEx.id, setId });
       haptics.medium();
-    }
-  }, [cursor, exercises]);
+    })();
+  }, [cursor, exercises, refreshDetail]);
 
   // Hands-free voice session. Data commands route through the tested dispatch
   // layer; "done" reuses the screen's canonical completion (timer + auto-stage);
