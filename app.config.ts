@@ -24,7 +24,9 @@ const config: ExpoConfig = {
     bundleIdentifier: 'com.mokshlabs.flexyug',
     infoPlist: {
       ITSAppUsesNonExemptEncryption: false,
-      UIBackgroundModes: ['fetch'],
+      // No UIBackgroundModes: sync runs on foreground (AppState) triggers, not a
+      // registered background-fetch task. Declaring 'fetch' without one is an App
+      // Review rejection risk (#122).
       // Mic + speech usage strings come from the expo-speech-recognition config
       // plugin below (microphonePermission / speechRecognitionPermission).
     },
