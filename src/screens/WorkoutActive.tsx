@@ -37,6 +37,7 @@ import { queryKeys } from '@/queries/keys';
 import { addSet, useUpdateSet } from '@/queries/sets';
 import { useActiveWorkout, useFinishWorkout, useUpdateWorkoutTitle } from '@/queries/workouts';
 import { useWorkoutDetail } from '@/queries/workoutDetail';
+import { DEFAULT_UNITS, sumVolume } from '@/core/units';
 import { dayOfWeek } from '@/lib/dayOfWeek';
 import { haptics } from '@/ui/haptics';
 import { useRestTimer } from '@/ui/hooks/useRestTimer';
@@ -64,7 +65,7 @@ export default function WorkoutActiveScreen() {
   const activeQuery = useActiveWorkout(userId);
   const detail = useWorkoutDetail(activeQuery.data?.id);
   const profileQuery = useProfile(userId);
-  const units: 'kg' | 'lb' = profileQuery.data?.units ?? 'lb';
+  const units: 'kg' | 'lb' = profileQuery.data?.units ?? DEFAULT_UNITS;
   const weightUnit = units === 'kg' ? 'KG' : 'LB';
   const weightStep = units === 'kg' ? 2.5 : 5;
 
@@ -101,6 +102,7 @@ export default function WorkoutActiveScreen() {
         orderIndex: s.order_index,
         weight: s.weight,
         reps: s.reps,
+        units: s.units,
         completed: Boolean(s.completed),
       })),
     }));
@@ -385,7 +387,7 @@ export default function WorkoutActiveScreen() {
             Workout complete.
           </Text>
           <SessionRecap
-            volume={totalVolume(exercises)}
+            volume={totalVolume(exercises, units)}
             setCount={totalSetsCompleted(exercises)}
             durationMs={
               activeQuery.data.started_at
@@ -468,7 +470,7 @@ export default function WorkoutActiveScreen() {
         onSkip={timer.stop}
         onOpenOverride={() => setOverrideSheetOpen(true)}
       />
-      <SessionVolumeBar volume={totalVolume(exercises)} units={units} />
+      <SessionVolumeBar volume={totalVolume(exercises, units)} units={units} />
       <ScrollView contentContainerStyle={styles.scroll}>
         <ActiveSetCard
           key={currentSet.id}
@@ -552,15 +554,12 @@ function totalSetsCompleted(exs: ExerciseShape[]): number {
   return exs.reduce((acc, ex) => acc + ex.sets.filter((s) => s.completed).length, 0);
 }
 
-function totalVolume(exs: ExerciseShape[]): number {
-  return exs.reduce(
-    (acc, ex) =>
-      acc +
-      ex.sets.reduce(
-        (a2, s) => (s.completed && s.weight != null && s.reps != null ? a2 + s.weight * s.reps : a2),
-        0,
-      ),
-    0,
+function totalVolume(exs: ExerciseShape[], displayUnits: 'kg' | 'lb'): number {
+  // Convert every completed set into the display unit before summing so a
+  // mixed-unit history aggregates honestly (#131/#135).
+  return sumVolume(
+    exs.flatMap((ex) => ex.sets.filter((s) => s.completed)),
+    displayUnits,
   );
 }
 

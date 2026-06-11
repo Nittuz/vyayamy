@@ -18,6 +18,7 @@ function ex(id: string, sets: { id: string; completed: boolean }[]): ExerciseSha
       orderIndex: i,
       weight: 100,
       reps: 5,
+      units: 'kg' as const,
       completed: s.completed,
     })),
   };
