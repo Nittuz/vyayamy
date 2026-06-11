@@ -5,6 +5,7 @@ import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { useFonts as useGeist, Geist_400Regular, Geist_500Medium, Geist_600SemiBold } from '@expo-google-fonts/geist';
 import { GeistMono_400Regular, GeistMono_500Medium } from '@expo-google-fonts/geist-mono';
 import * as Linking from 'expo-linking';
+import * as Notifications from 'expo-notifications';
 import { router, Stack } from 'expo-router';
 import * as SplashScreen from 'expo-splash-screen';
 import { StatusBar } from 'expo-status-bar';
@@ -118,6 +119,19 @@ export default function RootLayout() {
         if (url) void handleUrl(url);
       });
     }
+    return () => sub.remove();
+  }, []);
+
+  // Route a tapped "Rest complete" notification back into the workout, including
+  // when the tap cold-starts the app — otherwise the user is stranded on whatever
+  // screen launched (#159).
+  useEffect(() => {
+    const toWorkout = (response: Notifications.NotificationResponse | null) => {
+      const category = response?.notification.request.content.categoryIdentifier;
+      if (category === 'rest-timer') router.navigate('/workout/active');
+    };
+    const sub = Notifications.addNotificationResponseReceivedListener(toWorkout);
+    void Notifications.getLastNotificationResponseAsync().then(toWorkout);
     return () => sub.remove();
   }, []);
 

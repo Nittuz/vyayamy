@@ -2,7 +2,7 @@ import { useColorScheme } from 'react-native';
 
 import { type PaletteTokens } from './colors';
 import { motion } from './motion';
-import { skins } from './skins';
+import { skins, type SkinId } from './skins';
 import { useSkin } from './SkinContext';
 import { typography } from './typography';
 
@@ -48,10 +48,27 @@ export interface Theme {
   scheme: 'light' | 'dark';
 }
 
+// Cache one Theme per (skin, scheme). Because the palette + token objects are
+// all module-level constants, the cached Theme is referentially stable for the
+// life of the process — so useTheme returns the SAME object every render unless
+// the skin or scheme actually changes, and the nine useMemo(makeStyles,[theme])
+// sites finally cache instead of rebuilding StyleSheets every render (#48).
+const themeCache = new Map<string, Theme>();
+
+export function buildTheme(skin: SkinId, scheme: 'light' | 'dark'): Theme {
+  const key = `${skin}:${scheme}`;
+  let theme = themeCache.get(key);
+  if (!theme) {
+    const color: PaletteTokens = skins[skin][scheme];
+    theme = { color, space, radius, touch, font: typography, motion, scheme };
+    themeCache.set(key, theme);
+  }
+  return theme;
+}
+
 export function useTheme(): Theme {
   const raw = useColorScheme();
   const scheme: 'light' | 'dark' = raw === 'light' ? 'light' : 'dark';
   const { skin } = useSkin();
-  const color: PaletteTokens = skins[skin][scheme];
-  return { color, space, radius, touch, font: typography, motion, scheme };
+  return buildTheme(skin, scheme);
 }

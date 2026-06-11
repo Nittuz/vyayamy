@@ -4,7 +4,7 @@ import { Pressable, StyleSheet, Text, TextInput, View } from 'react-native';
 import { haptics } from '@/ui/haptics';
 import { useTheme } from '@/ui/useTheme';
 
-import { applyStep, formatValue, useDebouncedCommit } from './numericStepper';
+import { applyStep, formatValue, sanitizeNumber, useDebouncedCommit } from './numericStepper';
 
 interface Props {
   value: number | null;
@@ -34,9 +34,18 @@ export function NumericStepper({
 }: Props) {
   const theme = useTheme();
   const [editingText, setEditingText] = useState<string | null>(null);
-  const debounced = useDebouncedCommit(onChange, 250);
+  // Reps are whole numbers capped at 200; weight keeps decimals capped at 1500.
+  // Sanitizing here is the single choke point for both the keypad and the
+  // steppers, so no out-of-range value reaches SQLite + sync (#19).
+  const isReps = unit === 'REPS';
+  const sanitize = useCallback(
+    (n: number) => sanitizeNumber(n, { min: 0, max: isReps ? 200 : 1500, integer: isReps }),
+    [isReps],
+  );
+  const debounced = useDebouncedCommit(onChange, 250, sanitize);
   const rampTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const rampIntervalRef = useRef<ReturnType<typeof setInterval> | null>(null);
+  const rampAccRef = useRef<number | null>(null);
 
   // Sync external value into local edit state when not editing
   useEffect(() => {
@@ -48,26 +57,32 @@ export function NumericStepper({
   const handleStep = useCallback(
     (direction: 1 | -1) => {
       haptics.light();
-      const next = applyStep(value, step, direction);
-      onChange(next);
+      onChange(sanitize(applyStep(value, step, direction)));
     },
-    [value, step, onChange],
+    [value, step, onChange, sanitize],
   );
 
   const startRamp = useCallback(
     (direction: 1 | -1) => {
-      handleStep(direction);
+      // Accumulate from a ref so each tick actually advances the value (#14).
+      // Previously every tick recomputed from the gesture-start value, so the
+      // number moved once while haptics + a duplicate onChange fired each tick.
+      haptics.light();
+      const first = sanitize(applyStep(value, step, direction));
+      rampAccRef.current = first;
+      onChange(first);
       rampTimerRef.current = setTimeout(() => {
         rampIntervalRef.current = setInterval(() => {
+          const prev = rampAccRef.current ?? value ?? 0;
+          const next = sanitize(applyStep(prev, step, direction));
+          if (next === prev) return; // hit a bound — don't spam onChange/haptics
+          rampAccRef.current = next;
           haptics.light();
-          // Ramp computes from value at gesture-start (not live state).
-          // onChange does not accept a function-update callback; simplify to
-          // avoid TS error. User can release and re-press for further increments.
-          onChange(applyStep(value, step, direction));
+          onChange(next);
         }, RAMP_INTERVAL_MS);
       }, RAMP_DELAY_MS);
     },
-    [value, step, onChange, handleStep],
+    [value, step, onChange, sanitize],
   );
 
   const stopRamp = useCallback(() => {

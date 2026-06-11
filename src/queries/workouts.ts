@@ -82,6 +82,20 @@ export async function finishWorkout(workoutId: string, userId?: string): Promise
     rowId: workoutId,
     payload: { ended_at: nowIso() },
   });
+
+  // Soft-delete the workout's dangling incomplete sets (auto-staged "next set"
+  // rows the user never filled) so they don't pollute history (#12).
+  const db = await getDb();
+  const incomplete = await db.getAllAsync<{ id: string }>(
+    `SELECT s.id FROM sets s
+       JOIN workout_exercises we ON we.id = s.workout_exercise_id
+      WHERE we.workout_id = ? AND s.completed = 0
+        AND s.deleted_at IS NULL AND we.deleted_at IS NULL`,
+    [workoutId],
+  );
+  for (const s of incomplete) {
+    await enqueueMutation({ table: 'sets', op: 'delete', rowId: s.id });
+  }
   // Detect personal records from this workout's exercises before pushing, so the
   // PR rows ride the same sync cycle. Best-effort: a PR-detection failure must
   // not block finishing the workout.

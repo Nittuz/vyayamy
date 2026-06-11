@@ -62,10 +62,9 @@ export function findInitialCursor(exercises: ExerciseShape[]): ActiveCursor | nu
     const next = ex.sets.find((s) => !s.completed);
     if (next) return { weId: ex.id, setId: next.id };
   }
-  // No incomplete sets — fall back to the very first set if any
-  for (const ex of exercises) {
-    if (ex.sets.length > 0) return { weId: ex.id, setId: ex.sets[0]!.id };
-  }
+  // No incomplete set anywhere → the workout is done. Return null so the screen
+  // shows the recap; returning a completed set here made the cursor-reset effect
+  // reposition onto it every render (infinite setState loop, #15).
   return null;
 }
 
@@ -81,7 +80,9 @@ export function completedSetsBeforeCursor(ex: ExerciseShape, cursor: ActiveCurso
   if (ex.id !== cursor.weId) return ex.sets.filter((s) => s.completed);
   const cursorIdx = ex.sets.findIndex((s) => s.id === cursor.setId);
   if (cursorIdx === -1) return ex.sets.filter((s) => s.completed);
-  return ex.sets.slice(0, cursorIdx);
+  // Only completed sets render as ghosts (with a ✓); a skipped/incomplete set
+  // before the cursor must not show as done (#16).
+  return ex.sets.slice(0, cursorIdx).filter((s) => s.completed);
 }
 
 export function findNextExercise(
@@ -92,4 +93,18 @@ export function findNextExercise(
   if (idx === -1) return null;
   if (idx + 1 >= exercises.length) return null;
   return exercises[idx + 1] ?? null;
+}
+
+export function findPrevExercise(
+  exercises: ExerciseShape[],
+  currentWeId: string,
+): ExerciseShape | null {
+  const idx = exercises.findIndex((e) => e.id === currentWeId);
+  if (idx <= 0) return null;
+  return exercises[idx - 1] ?? null;
+}
+
+/** First not-yet-completed set of an exercise, or null if all are done. */
+export function firstIncompleteSet(ex: ExerciseShape): SetShape | null {
+  return ex.sets.find((s) => !s.completed) ?? null;
 }

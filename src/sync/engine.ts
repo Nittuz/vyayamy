@@ -169,7 +169,10 @@ export function triggerPush(): Promise<void> {
     try {
       await pushOutbox();
       setSyncState({ lastError: null, lastErrorAt: null });
-      invalidateAfterSync();
+      // No query invalidation after push: the local write already invalidated
+      // what the UI reads, and personal_records is a local cache (not reconciled
+      // on push), so a push changes nothing user-visible. Invalidating all nine
+      // roots here caused a whole-app refetch storm per set logged (#47).
     } catch (err) {
       setSyncState({ lastError: errorMessage(err), lastErrorAt: new Date().toISOString() });
     } finally {

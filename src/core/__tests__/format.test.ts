@@ -7,6 +7,8 @@ import {
   formatMemberSince,
   getInitials,
   formatWeight,
+  localDayKey,
+  localDaysBetween,
 } from '@/core/format';
 
 const DAY = 24 * 60 * 60 * 1000;
@@ -18,29 +20,55 @@ function daysAgo(days: number): string {
   return d.toISOString();
 }
 
+describe('localDayKey (#149)', () => {
+  test('keys by the LOCAL calendar day, not the UTC date', () => {
+    // 01:00Z on May 2 is 21:00 (9pm) on May 1 in America/New_York.
+    expect(localDayKey('2026-05-02T01:00:00.000Z')).toBe('2026-05-01');
+    expect(localDayKey('2026-05-02T16:00:00.000Z')).toBe('2026-05-02');
+  });
+});
+
+describe('localDaysBetween (#150)', () => {
+  afterEach(() => jest.useRealTimers());
+  test('counts calendar days crossed, not rolling 24h windows', () => {
+    jest.useFakeTimers();
+    jest.setSystemTime(new Date('2026-05-02T13:00:00.000Z')); // 9am ET, May 2
+    // 11pm ET May 1 — only ~10h earlier, but one calendar day ago.
+    expect(localDaysBetween('2026-05-02T03:00:00.000Z')).toBe(1);
+    // 8:30am ET May 2 — same calendar day.
+    expect(localDaysBetween('2026-05-02T12:30:00.000Z')).toBe(0);
+  });
+});
+
 describe('formatRelativeDate', () => {
+  afterEach(() => jest.useRealTimers());
+
   test('returns "Today" for now', () => {
     expect(formatRelativeDate(new Date().toISOString())).toBe('Today');
   });
 
-  test('returns "Yesterday" for ~1 day ago', () => {
-    expect(formatRelativeDate(new Date(Date.now() - DAY - 1000).toISOString())).toBe('Yesterday');
+  test('an evening workout reads "Yesterday" the next morning, by calendar (#150)', () => {
+    jest.useFakeTimers();
+    jest.setSystemTime(new Date('2026-05-02T13:00:00.000Z')); // 9am ET, May 2
+    // 11pm ET May 1 — a rolling-24h window would still say "Today" (~10h); the
+    // calendar says "Yesterday".
+    expect(formatRelativeDate('2026-05-02T03:00:00.000Z')).toBe('Yesterday');
   });
 
   test('returns "N days ago" for 2-6 days', () => {
-    expect(formatRelativeDate(new Date(Date.now() - 3 * DAY - 1000).toISOString())).toBe('3 days ago');
+    expect(formatRelativeDate(daysAgo(3))).toBe('3 days ago');
   });
 
   test('returns "1 week ago" for 7-13 days', () => {
-    expect(formatRelativeDate(new Date(Date.now() - 10 * DAY).toISOString())).toBe('1 week ago');
+    expect(formatRelativeDate(daysAgo(10))).toBe('1 week ago');
   });
 
   test('returns "N weeks ago" for 14-29 days', () => {
-    expect(formatRelativeDate(new Date(Date.now() - 20 * DAY).toISOString())).toBe('2 weeks ago');
+    expect(formatRelativeDate(daysAgo(20))).toBe('2 weeks ago');
   });
 
   test('falls back to a locale date string beyond 30 days', () => {
-    const out = formatRelativeDate(new Date(Date.now() - 60 * DAY).toISOString());
+    const out = formatRelativeDate(daysAgo(60));
     expect(out).not.toMatch(/ago|Today|Yesterday/);
     expect(typeof out).toBe('string');
   });

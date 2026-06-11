@@ -7,7 +7,7 @@
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 
 import { getDb } from '@/db/client';
-import { enqueueMutation } from '@/db/mutations';
+import { withTransaction } from '@/db/transaction';
 import { nowIso, uuidv4 } from '@/db/uuid';
 import { triggerPush } from '@/sync/engine';
 
@@ -97,46 +97,68 @@ export function useLastFinishedWorkoutWithSeeds(userId: string | undefined) {
   });
 }
 
+function toSqlite(v: unknown): string | number | null {
+  if (v === null || v === undefined) return null;
+  if (typeof v === 'boolean') return v ? 1 : 0;
+  if (typeof v === 'number') return v;
+  if (typeof v === 'string') return v;
+  return JSON.stringify(v);
+}
+
+/** Insert a row + its outbox entry directly, WITHOUT opening a transaction, so
+ *  the caller can batch the whole clone into one (mirrors enqueueMutation's
+ *  insert branch). */
+async function insertRowInTx(
+  db: Awaited<ReturnType<typeof getDb>>,
+  table: string,
+  rowId: string,
+  payload: Record<string, unknown>,
+  now: string,
+): Promise<void> {
+  const full: Record<string, unknown> = { id: rowId, updated_at: now, ...payload };
+  const cols = Object.keys(full);
+  const placeholders = cols.map(() => '?').join(', ');
+  const updateAssign = cols.filter((c) => c !== 'id').map((c) => `${c} = excluded.${c}`).join(', ');
+  await db.runAsync(
+    `INSERT INTO ${table} (${cols.join(', ')}) VALUES (${placeholders})
+       ON CONFLICT(id) DO UPDATE SET ${updateAssign}`,
+    cols.map((c) => toSqlite(full[c])),
+  );
+  await db.runAsync(
+    `INSERT INTO outbox (table_name, op, row_id, payload_json) VALUES (?, 'insert', ?, ?)`,
+    [table, rowId, JSON.stringify({ id: rowId, ...payload })],
+  );
+}
+
 export async function repeatLastWorkout(userId: string): Promise<string | null> {
   const source = await getLastFinishedWorkoutWithSeeds(userId);
   if (!source) return null;
 
-  // 1. Create the new workout (active — ended_at: null)
+  const db = await getDb();
   const newWorkoutId = uuidv4();
-  const startedAt = nowIso();
-  await enqueueMutation({
-    table: 'workouts',
-    op: 'insert',
-    rowId: newWorkoutId,
-    payload: {
+  const now = nowIso();
+
+  // Clone the whole workout (workout + exercises + seeded sets + their outbox
+  // rows) in ONE transaction, so a crash mid-clone can't leave a half-built —
+  // possibly empty — active workout behind (#20).
+  await withTransaction(db, async () => {
+    await insertRowInTx(db, 'workouts', newWorkoutId, {
       user_id: userId,
-      started_at: startedAt,
+      started_at: now,
       title: source.workout.title,
       template_id: null,
       ended_at: null,
-    },
-  });
+    }, now);
 
-  // 2. For each exercise seed, create workout_exercise + one seeded set
-  for (const [i, seed] of source.seeds.entries()) {
-    const weId = uuidv4();
-    await enqueueMutation({
-      table: 'workout_exercises',
-      op: 'insert',
-      rowId: weId,
-      payload: {
+    for (const [i, seed] of source.seeds.entries()) {
+      const weId = uuidv4();
+      await insertRowInTx(db, 'workout_exercises', weId, {
         workout_id: newWorkoutId,
         exercise_id: seed.exerciseId,
         order_index: i,
-      },
-    });
+      }, now);
 
-    const setId = uuidv4();
-    await enqueueMutation({
-      table: 'sets',
-      op: 'insert',
-      rowId: setId,
-      payload: {
+      await insertRowInTx(db, 'sets', uuidv4(), {
         workout_exercise_id: weId,
         order_index: 0,
         weight: seed.seedWeight,
@@ -144,9 +166,9 @@ export async function repeatLastWorkout(userId: string): Promise<string | null> 
         units: seed.seedUnits,
         completed: 0,
         completed_at: null,
-      },
-    });
-  }
+      }, now);
+    }
+  });
 
   void triggerPush();
   return newWorkoutId;

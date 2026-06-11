@@ -23,6 +23,19 @@ export function clampValue(value: number, min: number, max: number): number {
   return value;
 }
 
+/**
+ * Clamp a committed value to a sane range (and round to an integer for reps), so
+ * a fat-fingered keypad entry can't push a negative/huge/fractional value into
+ * SQLite and sync (#19). Weight keeps decimals; reps are whole numbers.
+ */
+export function sanitizeNumber(
+  n: number,
+  opts: { min: number; max: number; integer?: boolean },
+): number {
+  const rounded = opts.integer ? Math.round(n) : n;
+  return clampValue(rounded, opts.min, opts.max);
+}
+
 export function formatValue(value: number | null): string {
   if (value == null) return '–';
   if (Number.isInteger(value)) return String(value);
@@ -64,15 +77,18 @@ export interface DebouncedCommit {
 export function useDebouncedCommit(
   onChange: (next: number | null) => void,
   debounceMs: number,
+  sanitize: (n: number) => number = (n) => n,
 ): DebouncedCommit {
   const bufferRef = useRef<string>('');
   const timerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const onChangeRef = useRef(onChange);
+  const sanitizeRef = useRef(sanitize);
 
-  // Keep onChange fresh without re-creating the hook contract every render
+  // Keep onChange/sanitize fresh without re-creating the hook contract every render
   useEffect(() => {
     onChangeRef.current = onChange;
-  }, [onChange]);
+    sanitizeRef.current = sanitize;
+  }, [onChange, sanitize]);
 
   const commit = () => {
     const text = bufferRef.current;
@@ -82,7 +98,8 @@ export function useDebouncedCommit(
     }
     const n = Number(text.trim());
     if (Number.isFinite(n)) {
-      onChangeRef.current(n);
+      // Clamp/round before it reaches SQLite + sync (#19).
+      onChangeRef.current(sanitizeRef.current(n));
     }
     // invalid → no-op
   };
