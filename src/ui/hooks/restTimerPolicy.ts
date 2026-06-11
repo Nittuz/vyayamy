@@ -12,6 +12,9 @@ export interface PersistedTimer {
   schemaVersion: 1;
   startedAt: number; // epoch ms
   targetSeconds: number;
+  // Persisted so a timer restored after the screen remounts (or the app
+  // restarts) can still cancel/replace its OS-scheduled notification (#160/#17).
+  notificationId?: string | null;
 }
 
 export const REST_TIMER_KEY = '@flexyug/rest-timer/v1';

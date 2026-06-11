@@ -8,7 +8,7 @@
 import * as Haptics from 'expo-haptics';
 import { useCallback, useEffect, useRef, useState } from 'react';
 
-import { cancelRest, scheduleRestDone } from '@/lib/restNotifications';
+import { cancelRest, primeRestAlerts, scheduleRestDone } from '@/lib/restNotifications';
 import { getKv, removeKv, setKv } from '@/lib/kvStore';
 
 import {
@@ -43,8 +43,10 @@ export function useRestTimer(args: UseRestTimerArgs = {}) {
         void removeKv(REST_TIMER_KEY);
       }
       if (decision.restore && persisted) {
-        // Resume the timer from where it was
+        // Resume the timer from where it was, and re-adopt the scheduled
+        // notification id so stop() can still cancel it after a remount (#17/#160).
         setStartedAt(persisted.startedAt);
+        notificationIdRef.current = persisted.notificationId ?? null;
       }
     })();
   }, []);
@@ -74,13 +76,26 @@ export function useRestTimer(args: UseRestTimerArgs = {}) {
       schemaVersion: REST_TIMER_SCHEMA_VERSION,
       startedAt: now,
       targetSeconds,
+      notificationId: null,
     });
-    void cancelRest(notificationIdRef.current).then(() => {
-      notificationIdRef.current = null;
-      return scheduleRestDone(targetSeconds);
-    }).then((id) => {
-      notificationIdRef.current = id;
-    });
+    void cancelRest(notificationIdRef.current)
+      .then(() => {
+        notificationIdRef.current = null;
+        // Prime here — the first rest of a workout is a deliberate, contextual
+        // moment to ask, and iOS only shows the dialog once (#157).
+        return primeRestAlerts();
+      })
+      .then(() => scheduleRestDone(targetSeconds))
+      .then((id) => {
+        notificationIdRef.current = id;
+        // Persist the id so a restored timer can cancel the right notification.
+        void setKv<PersistedTimer>(REST_TIMER_KEY, {
+          schemaVersion: REST_TIMER_SCHEMA_VERSION,
+          startedAt: now,
+          targetSeconds,
+          notificationId: id,
+        });
+      });
   }, [targetSeconds]);
 
   const stop = useCallback(() => {
