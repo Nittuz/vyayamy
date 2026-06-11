@@ -37,7 +37,12 @@ import { useAddExerciseToWorkout } from '@/queries/exercises';
 import { useProfile } from '@/queries/profile';
 import { queryKeys } from '@/queries/keys';
 import { addSet, useUpdateSet } from '@/queries/sets';
-import { useActiveWorkout, useFinishWorkout, useUpdateWorkoutTitle } from '@/queries/workouts';
+import {
+  deleteWorkoutLocal,
+  useActiveWorkout,
+  useFinishWorkout,
+  useUpdateWorkoutTitle,
+} from '@/queries/workouts';
 import { useWorkoutDetail } from '@/queries/workoutDetail';
 import { DEFAULT_UNITS, sumVolume } from '@/core/units';
 import { dayOfWeek } from '@/lib/dayOfWeek';
@@ -190,22 +195,37 @@ export default function WorkoutActiveScreen() {
     [cursor, updateSet],
   );
 
+  // Guards against a swipe + voice "done" double-fire racing two completions /
+  // two staged sets onto the same cursor (#16).
+  const completingRef = useRef(false);
   const onComplete = useCallback(async () => {
-    if (!cursor) return;
-    // Mark the current set complete
-    updateSet.mutate({ setId: cursor.setId, weId: cursor.weId, patch: { completed: true } });
-    timer.start();
-    // Auto-stage the next set with the same weight × reps (Phase 3)
-    const currentSetData = currentExForRest && findSet(currentExForRest, cursor.setId);
-    const newSetId = await addSet(cursor.weId, {
-      weight: currentSetData?.weight ?? null,
-      reps: currentSetData?.reps ?? null,
-      // Same session → same logging unit as the set just completed.
-      units: currentSetData?.weight != null ? units : null,
-    });
-    refreshDetail();
-    setCursor({ weId: cursor.weId, setId: newSetId });
+    if (!cursor || completingRef.current) return;
+    completingRef.current = true;
+    try {
+      // Mark the current set complete
+      updateSet.mutate({ setId: cursor.setId, weId: cursor.weId, patch: { completed: true } });
+      timer.start();
+      // Auto-stage the next set with the same weight × reps (Phase 3)
+      const currentSetData = currentExForRest && findSet(currentExForRest, cursor.setId);
+      const newSetId = await addSet(cursor.weId, {
+        weight: currentSetData?.weight ?? null,
+        reps: currentSetData?.reps ?? null,
+        // Same session → same logging unit as the set just completed.
+        units: currentSetData?.weight != null ? units : null,
+      });
+      refreshDetail();
+      setCursor({ weId: cursor.weId, setId: newSetId });
+    } finally {
+      completingRef.current = false;
+    }
   }, [cursor, currentExForRest, updateSet, timer, refreshDetail, units]);
+
+  const onDiscardEmpty = useCallback(async () => {
+    if (!activeQuery.data) return;
+    await deleteWorkoutLocal(activeQuery.data.id);
+    void qc.invalidateQueries({ queryKey: queryKeys.workouts.all });
+    router.replace('/today');
+  }, [activeQuery.data, qc]);
 
   const onFinish = useCallback(async () => {
     if (!activeQuery.data) return;
@@ -385,6 +405,21 @@ export default function WorkoutActiveScreen() {
             <Text style={[styles.primaryBtnText, { color: theme.color.onAccent }]}>
               + Add exercise
             </Text>
+          </Pressable>
+          {/* Escape hatch: an exercise-less workout could otherwise be neither
+              finished nor discarded, stranding the user (#18). */}
+          <Pressable
+            onPress={() =>
+              Alert.alert('Discard workout?', 'This empty workout will be removed.', [
+                { text: 'Cancel', style: 'cancel' },
+                { text: 'Discard', style: 'destructive', onPress: () => void onDiscardEmpty() },
+              ])
+            }
+            accessibilityRole="button"
+            accessibilityLabel="Discard workout"
+            style={({ pressed }) => [styles.linkButton, { opacity: pressed ? 0.6 : 1 }]}
+          >
+            <Text style={[styles.linkText, { color: theme.color.inkSecondary }]}>Discard workout</Text>
           </Pressable>
         </View>
         <ExercisePicker
