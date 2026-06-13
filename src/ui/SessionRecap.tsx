@@ -1,22 +1,23 @@
 /**
- * Finish recap — a calm "progress earned" moment, not a celebratory takeover.
- * The session volume is the headline (mono, counts up over 600ms); set count and
- * duration settle in beneath it with the list-mount motion. Framed as a journey,
- * never a guilt-streak.
+ * Finish recap — a "progress earned" moment, not a celebratory takeover. The
+ * workout volume is the headline (big mono, counts up over 600ms); sets and
+ * duration settle in beneath with the list-mount motion. A PR is stamped onto
+ * an ember Plate. Framed as a journey, never a guilt-streak.
  *
- * PRs are accepted as an optional prop; live PR detection in the active flow is a
- * documented follow-up (it would require query plumbing that's out of scope), so
- * callers currently omit it and the PR line simply doesn't render.
+ * PRs are passed in by the active flow now that live detection exists (#25):
+ * the finish handler recomputes records and hands the labels here.
  */
-import { useEffect } from 'react';
-import { StyleSheet, Text, View } from 'react-native';
+import { useEffect, useMemo } from 'react';
+import { StyleSheet, Text as RNText, View } from 'react-native';
 import Animated, { Easing, useAnimatedProps, useSharedValue, withTiming } from 'react-native-reanimated';
 
 import { FadeInView } from './FadeInView';
 import { motion } from './motion';
-import { useTheme } from './useTheme';
+import { Plate } from './Plate';
+import { Text } from './Text';
+import { useTheme, type Theme } from './useTheme';
 
-const AnimatedText = Animated.createAnimatedComponent(Text);
+const AnimatedText = Animated.createAnimatedComponent(RNText);
 
 function formatDuration(ms: number): string {
   const totalMin = Math.max(0, Math.round(ms / 60000));
@@ -40,6 +41,7 @@ export function SessionRecap({
   prs?: string[];
 }) {
   const theme = useTheme();
+  const styles = useMemo(() => makeStyles(theme), [theme]);
   const v = useSharedValue(0);
 
   useEffect(() => {
@@ -51,81 +53,74 @@ export function SessionRecap({
 
   const volumeProps = useAnimatedProps(() => ({ text: `${Math.round(v.value)}` }) as never);
 
-  const mono = theme.font.family.mono;
-  const labelFont = theme.font.family.sansMedium;
-
   return (
     <View style={styles.wrap}>
       <FadeInView style={styles.headlineWrap}>
-        <Text style={[styles.headlineLabel, { color: theme.color.accent, fontFamily: labelFont }]}>
-          SESSION VOLUME
+        <Text variant="label" color={theme.color.accent}>
+          Workout volume
         </Text>
         <View style={styles.headlineRow}>
-          <AnimatedText
-            animatedProps={volumeProps}
-            style={[styles.headlineValue, { color: theme.color.inkHero, fontFamily: mono }]}
-          />
-          <Text style={[styles.headlineUnit, { color: theme.color.inkSecondary, fontFamily: mono }]}>
-            {' '}
-            {units}
-          </Text>
+          <AnimatedText animatedProps={volumeProps} style={styles.headlineValue} />
+          <RNText style={styles.headlineUnit}> {units}</RNText>
         </View>
       </FadeInView>
 
       <View style={styles.statRow}>
         <FadeInView delay={80} style={styles.stat}>
-          <Text style={[styles.statValue, { color: theme.color.inkHero, fontFamily: mono }]}>
+          <Text variant="numeralLg" color={theme.color.inkHero}>
             {setCount}
           </Text>
-          <Text style={[styles.statLabel, { color: theme.color.inkTertiary, fontFamily: labelFont }]}>
-            SETS
+          <Text variant="label" color={theme.color.inkTertiary}>
+            Sets
           </Text>
         </FadeInView>
         <FadeInView delay={140} style={styles.stat}>
-          <Text style={[styles.statValue, { color: theme.color.inkHero, fontFamily: mono }]}>
+          <Text variant="numeralLg" color={theme.color.inkHero}>
             {formatDuration(durationMs)}
           </Text>
-          <Text style={[styles.statLabel, { color: theme.color.inkTertiary, fontFamily: labelFont }]}>
-            DURATION
+          <Text variant="label" color={theme.color.inkTertiary}>
+            Duration
           </Text>
         </FadeInView>
       </View>
 
       {prs.length > 0 ? (
-        <FadeInView delay={200} style={[styles.prCard, { backgroundColor: theme.color.accentSoft }]}>
-          <Text style={[styles.prLabel, { color: theme.color.accent, fontFamily: labelFont }]}>
-            {prs.length === 1 ? 'NEW PERSONAL RECORD' : `${prs.length} NEW PERSONAL RECORDS`}
-          </Text>
-          {prs.map((p) => (
-            <Text key={p} style={[styles.prItem, { color: theme.color.inkHero, fontFamily: labelFont }]}>
-              {p}
+        <FadeInView delay={200} style={styles.prWrap}>
+          <Plate tone="accent" offset="md" faceStyle={styles.prFace}>
+            <Text variant="label" color={theme.color.onAccent}>
+              {prs.length === 1 ? 'New personal record' : `${prs.length} new personal records`}
             </Text>
-          ))}
+            {prs.map((p) => (
+              <Text key={p} variant="card" color={theme.color.onAccent} style={styles.prItem}>
+                {p}
+              </Text>
+            ))}
+          </Plate>
         </FadeInView>
       ) : null}
     </View>
   );
 }
 
-const styles = StyleSheet.create({
-  wrap: { alignItems: 'center', gap: 20, width: '100%' },
-  headlineWrap: { alignItems: 'center' },
-  headlineLabel: { fontSize: 10, letterSpacing: 1.6, marginBottom: 4 },
-  headlineRow: { flexDirection: 'row', alignItems: 'baseline' },
-  headlineValue: { fontSize: 52, letterSpacing: -2 },
-  headlineUnit: { fontSize: 16 },
-  statRow: { flexDirection: 'row', gap: 40 },
-  stat: { alignItems: 'center', gap: 2 },
-  statValue: { fontSize: 22, letterSpacing: -0.5 },
-  statLabel: { fontSize: 10, letterSpacing: 1.4 },
-  prCard: {
-    alignSelf: 'stretch',
-    marginHorizontal: 8,
-    padding: 14,
-    borderRadius: 14,
-    alignItems: 'center',
-    gap: 4,
-  },
-  prLabel: { fontSize: 10, letterSpacing: 1.4 },
-  prItem: { fontSize: 14 },
-});
+const makeStyles = (theme: Theme) =>
+  StyleSheet.create({
+    wrap: { alignItems: 'center', gap: theme.space.s5, width: '100%' },
+    headlineWrap: { alignItems: 'center', gap: theme.space.s1 },
+    headlineRow: { flexDirection: 'row', alignItems: 'baseline' },
+    headlineValue: {
+      color: theme.color.inkHero,
+      fontFamily: theme.font.family.monoMedium,
+      fontSize: 52,
+      letterSpacing: -2,
+    },
+    headlineUnit: {
+      color: theme.color.inkSecondary,
+      fontFamily: theme.font.family.mono,
+      fontSize: theme.font.size.card,
+    },
+    statRow: { flexDirection: 'row', gap: theme.space.s10 },
+    stat: { alignItems: 'center', gap: theme.space.half },
+    prWrap: { alignSelf: 'stretch', marginHorizontal: theme.space.s2 },
+    prFace: { alignItems: 'center', gap: theme.space.s1, paddingVertical: theme.space.s4 },
+    prItem: { textAlign: 'center' },
+  });
