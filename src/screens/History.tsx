@@ -2,12 +2,10 @@ import { router } from 'expo-router';
 import { useCallback, useMemo } from 'react';
 import {
   ActivityIndicator,
-  Pressable,
   RefreshControl,
   SafeAreaView,
   SectionList,
   StyleSheet,
-  Text,
   View,
 } from 'react-native';
 
@@ -16,7 +14,9 @@ import { useAuth } from '@/auth/useAuth';
 import { formatDuration, getDateGroup } from '@/core/format';
 import { useHistoryInfinite, type HistoryRow } from '@/queries/history';
 import { triggerPull } from '@/sync/engine';
+import { Plate } from '@/ui/Plate';
 import { SyncIndicator } from '@/ui/SyncIndicator';
+import { Text } from '@/ui/Text';
 import { useTheme, type Theme } from '@/ui/useTheme';
 
 export default function HistoryScreen() {
@@ -66,24 +66,30 @@ export default function HistoryScreen() {
         }
         ListHeaderComponent={
           <View style={styles.headerRow}>
-            <Text style={styles.title}>History</Text>
+            <Text variant="display" color={theme.color.ink} style={styles.title}>
+              History
+            </Text>
             <SyncIndicator />
           </View>
         }
         ListEmptyComponent={
           historyQuery.isLoading ? (
-            <ActivityIndicator style={{ marginTop: theme.space.s10 }} />
+            <ActivityIndicator style={styles.loading} />
           ) : (
-            <Text style={styles.empty}>No workouts logged yet.</Text>
+            <Text variant="meta" color={theme.color.inkSecondary} style={styles.empty}>
+              No workouts logged yet.
+            </Text>
           )
         }
         ListFooterComponent={
           historyQuery.isFetchingNextPage ? (
-            <ActivityIndicator style={{ marginVertical: theme.space.s4 }} />
+            <ActivityIndicator style={styles.footerLoading} />
           ) : null
         }
         renderSectionHeader={({ section }) => (
-          <Text style={styles.sectionHeader}>{section.title}</Text>
+          <Text variant="label" color={theme.color.inkTertiary} style={styles.sectionHeader}>
+            {section.title}
+          </Text>
         )}
         renderItem={renderItem}
         onEndReached={onEndReached}
@@ -99,83 +105,56 @@ function HistoryItem({ row }: { row: HistoryRow }) {
   const theme = useTheme();
   const styles = useMemo(() => makeStyles(theme), [theme]);
   return (
-    <Pressable
+    <Plate
+      offset="sm"
       onPress={() => router.push(safeRoute(`/history/${row.id}`))}
       accessibilityRole="button"
       accessibilityLabel={`View workout ${row.title}`}
-      style={({ pressed }) => [styles.row, pressed && { opacity: 0.85 }]}
+      style={styles.row}
+      faceStyle={styles.rowFace}
     >
-      <View style={{ flex: 1 }}>
-        <Text style={styles.rowTitle}>{row.title}</Text>
-        <Text style={styles.rowMeta}>
+      <View style={styles.rowBody}>
+        <Text variant="card" color={theme.color.ink}>
+          {row.title}
+        </Text>
+        <Text variant="meta" color={theme.color.inkSecondary}>
           {row.completed_set_count}/{row.set_count} sets · {row.exercise_count} exercises
           {row.volume > 0 ? ` · ${Math.round(row.volume)} vol` : ''}
         </Text>
       </View>
-      <Text style={styles.rowDuration}>{formatDuration(row.started_at, row.ended_at)}</Text>
-    </Pressable>
+      <Text variant="numeral" color={theme.color.inkSecondary}>
+        {formatDuration(row.started_at, row.ended_at)}
+      </Text>
+    </Plate>
   );
 }
 
 const makeStyles = (theme: Theme) =>
   StyleSheet.create({
-  container: { flex: 1, backgroundColor: theme.color.bg },
-  scroll: { padding: theme.space.page, gap: theme.space.s2, paddingBottom: theme.space.s12 },
-  headerRow: {
-    flexDirection: 'row',
-    alignItems: 'flex-end',
-    marginBottom: theme.space.s4,
-  },
-  title: {
-    flex: 1,
-    fontSize: theme.font.size.display,
-    fontFamily: theme.font.family.sansSemibold,
-    fontWeight: theme.font.weight.semibold,
-    color: theme.color.ink,
-    letterSpacing: -0.5,
-  },
-  sectionHeader: {
-    fontSize: theme.font.size.micro,
-    fontFamily: theme.font.family.sansMedium,
-    textTransform: 'uppercase',
-    letterSpacing: 0.6,
-    color: theme.color.inkTertiary,
-    fontWeight: theme.font.weight.medium,
-    marginTop: theme.space.s4,
-    marginBottom: theme.space.s2,
-  },
-  row: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    backgroundColor: theme.color.surface,
-    borderRadius: theme.radius.md,
-    padding: theme.space.s4,
-    gap: theme.space.s3,
-    borderWidth: 1,
-    borderColor: theme.color.border,
-  },
-  rowTitle: {
-    fontSize: theme.font.size.body,
-    fontFamily: theme.font.family.sansMedium,
-    fontWeight: theme.font.weight.medium,
-    color: theme.color.ink,
-  },
-  rowMeta: {
-    fontSize: theme.font.size.meta,
-    fontFamily: theme.font.family.sans,
-    color: theme.color.inkSecondary,
-    marginTop: 2,
-  },
-  rowDuration: {
-    fontSize: theme.font.size.meta,
-    fontFamily: theme.font.family.sans,
-    color: theme.color.inkSecondary,
-    fontVariant: ['tabular-nums'],
-  },
-  empty: {
-    textAlign: 'center',
-    fontFamily: theme.font.family.sans,
-    color: theme.color.inkSecondary,
-    marginTop: theme.space.s10,
-  },
+    container: { flex: 1, backgroundColor: theme.color.bg },
+    scroll: { padding: theme.space.page, gap: theme.space.s2, paddingBottom: theme.space.s12 },
+    headerRow: {
+      flexDirection: 'row',
+      alignItems: 'flex-end',
+      marginBottom: theme.space.s4,
+    },
+    title: { flex: 1 },
+    sectionHeader: {
+      marginTop: theme.space.s4,
+      marginBottom: theme.space.s2,
+    },
+    row: { marginBottom: theme.space.s1 },
+    rowFace: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      padding: theme.space.s4,
+      gap: theme.space.s3,
+    },
+    rowBody: { flex: 1, gap: theme.space.half },
+    loading: { marginTop: theme.space.s10 },
+    footerLoading: { marginVertical: theme.space.s4 },
+    empty: {
+      textAlign: 'center',
+      marginTop: theme.space.s10,
+    },
   });

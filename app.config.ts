@@ -18,10 +18,19 @@ const config: ExpoConfig = {
   orientation: 'portrait',
   icon: './assets/icon.png',
   userInterfaceStyle: 'automatic',
+  // Kills the white cold-start flash before the splash/boot overlay paints.
+  backgroundColor: '#0B0B0D',
   assetBundlePatterns: ['**/*'],
   ios: {
     supportsTablet: false,
     bundleIdentifier: 'com.mokshlabs.flexyug',
+    // iOS 18 home-screen variants: full-color default, dark, and a grayscale
+    // tinted layer the system recolors.
+    icon: {
+      light: './assets/icon.png',
+      dark: './assets/icon-dark.png',
+      tinted: './assets/icon-tinted.png',
+    },
     infoPlist: {
       ITSAppUsesNonExemptEncryption: false,
       // No UIBackgroundModes: sync runs on foreground (AppState) triggers, not a
@@ -33,9 +42,11 @@ const config: ExpoConfig = {
   },
   android: {
     package: 'com.mokshlabs.flexyug',
+    backgroundColor: '#0B0B0D',
     adaptiveIcon: {
       foregroundImage: './assets/adaptive-icon.png',
-      backgroundColor: '#0E1411',
+      monochromeImage: './assets/adaptive-icon-mono.png',
+      backgroundColor: '#0B0B0D',
     },
   },
   web: {
@@ -48,9 +59,13 @@ const config: ExpoConfig = {
     [
       'expo-splash-screen',
       {
-        image: './assets/splash.png',
+        image: './assets/splash-light.png',
         resizeMode: 'contain',
-        backgroundColor: '#0E1411',
+        backgroundColor: '#ECEAE4',
+        dark: {
+          image: './assets/splash-dark.png',
+          backgroundColor: '#0B0B0D',
+        },
       },
     ],
     'expo-sqlite',
@@ -59,7 +74,7 @@ const config: ExpoConfig = {
       'expo-notifications',
       {
         icon: './assets/notification-icon.png',
-        color: '#D8AB92',
+        color: '#E8602F',
       },
     ],
     [

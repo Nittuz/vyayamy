@@ -48,5 +48,11 @@ module.exports = {
       files: ['src/auth/**', 'src/sync/**'],
       rules: { 'no-restricted-imports': 'off' },
     },
+    {
+      // Node build scripts (brand-mark generator, icon rasterizer) — they run
+      // under Node, not the RN/web runtime, so __dirname/require/process exist.
+      files: ['assets/branding/*.js'],
+      env: { node: true },
+    },
   ],
 };

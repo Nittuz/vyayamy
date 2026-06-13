@@ -1,5 +1,11 @@
-import { useCallback, useEffect, useState } from 'react';
-import { Dimensions, Pressable, StyleSheet, Text, View } from 'react-native';
+import { useCallback, useEffect, useMemo, useState } from 'react';
+import {
+  type AccessibilityActionEvent,
+  Dimensions,
+  Pressable,
+  StyleSheet,
+  View,
+} from 'react-native';
 import { GestureDetector, Gesture } from 'react-native-gesture-handler';
 import Animated, {
   runOnJS,
@@ -10,8 +16,10 @@ import Animated, {
 
 import { NumericStepper } from '@/components/NumericStepperView';
 import { haptics } from '@/ui/haptics';
+import { Icon } from '@/ui/icons';
 import { motion } from '@/ui/motion';
-import { useTheme } from '@/ui/useTheme';
+import { Text } from '@/ui/Text';
+import { useTheme, type Theme } from '@/ui/useTheme';
 
 import type { ExerciseShape, SetShape } from './activeSet';
 
@@ -39,6 +47,8 @@ interface Props {
 
 type FocusedField = 'weight' | 'reps' | null;
 
+const COMPLETE_ACTION = [{ name: 'activate', label: 'Complete set' }];
+
 export function ActiveSetCard({
   exercise,
   set,
@@ -54,6 +64,7 @@ export function ActiveSetCard({
   voice,
 }: Props) {
   const theme = useTheme();
+  const styles = useMemo(() => makeStyles(theme), [theme]);
   const [focused, setFocused] = useState<FocusedField>(null);
 
   const canComplete = set.weight != null && set.reps != null;
@@ -83,9 +94,14 @@ export function ActiveSetCard({
     onComplete();
   }, [canComplete, onComplete]);
 
-  const fireCompletion = useCallback(() => {
-    handleComplete();
-  }, [handleComplete]);
+  // VoiceOver/TalkBack can't perform the swipe — expose completion as an
+  // accessibility action so the screen is operable without the gesture (#9.1).
+  const onAccessibilityAction = useCallback(
+    (e: AccessibilityActionEvent) => {
+      if (e.nativeEvent.actionName === 'activate') handleComplete();
+    },
+    [handleComplete],
+  );
 
   const pan = Gesture.Pan()
     .activeOffsetY([-10, 10])
@@ -108,7 +124,7 @@ export function ActiveSetCard({
       if (thresholdCrossed.value) {
         translateY.value = withSpring(-600, motion.spring.snappy);
         thresholdCrossed.value = false;
-        runOnJS(fireCompletion)();
+        runOnJS(handleComplete)();
       } else {
         translateY.value = withSpring(0, motion.spring.rebound);
       }
@@ -118,38 +134,25 @@ export function ActiveSetCard({
     transform: [{ translateY: translateY.value + entryY.value }],
   }));
 
-  const labelStyle = [
-    styles.label,
-    { color: theme.color.inkTertiary, fontFamily: theme.font.family.sansMedium },
-  ];
-
   return (
     <GestureDetector gesture={pan}>
       <Animated.View
-        style={[
-          styles.container,
-          { backgroundColor: theme.color.surface2, borderColor: theme.color.border },
-          animatedStyle,
-        ]}
+        style={[styles.container, animatedStyle]}
         accessibilityLabel={`Set ${setIndex}, ${set.weight ?? 'no weight'} by ${set.reps ?? 'no reps'} reps. Swipe up to complete.`}
         accessibilityHint="Swipe up to mark this set complete"
+        accessibilityActions={canComplete ? COMPLETE_ACTION : undefined}
+        onAccessibilityAction={onAccessibilityAction}
       >
-        <Text style={labelStyle}>EXERCISE {exerciseIndex} OF {totalExercises}</Text>
-        <Text
-          style={[
-            styles.exerciseName,
-            {
-              color: theme.color.inkHero,
-              fontFamily: theme.font.family.sansSemibold,
-              fontSize: theme.font.size.title,
-              letterSpacing: theme.font.tracking.title,
-            },
-          ]}
-        >
+        <Text variant="label" color={theme.color.inkTertiary}>
+          Exercise {exerciseIndex} of {totalExercises}
+        </Text>
+        <Text variant="title" color={theme.color.inkHero} style={styles.exerciseName}>
           {exercise.exerciseName}
         </Text>
 
-        <Text style={labelStyle}>SET {setIndex}</Text>
+        <Text variant="label" color={theme.color.inkTertiary}>
+          Set {setIndex}
+        </Text>
 
         <Pressable
           onPress={() => setFocused(null)} // tap empty area clears focus
@@ -193,50 +196,39 @@ export function ActiveSetCard({
         </Pressable>
 
         {ghostSets.length > 0 ? (
-          <>
-            <View style={[styles.divider, { borderTopColor: theme.color.border }]} />
-            <View style={styles.ghostList}>
-              {ghostSets.map((g, i) => (
-                <View
-                  key={g.id}
-                  style={styles.ghostRow}
-                  accessibilityLabel={`Set ${i + 1}, ${g.weight ?? 'no weight'} by ${g.reps ?? 'no reps'} reps, completed`}
-                >
-                  <View style={styles.ghostLeft}>
-                    <Text
-                      style={[
-                        styles.ghostLabel,
-                        { color: theme.color.inkTertiary, fontFamily: theme.font.family.sansMedium },
-                      ]}
-                    >
-                      SET {i + 1}
-                    </Text>
-                    <Text
-                      style={[
-                        styles.ghostValue,
-                        { color: theme.color.inkSecondary, fontFamily: theme.font.family.mono },
-                      ]}
-                    >
-                      {g.weight ?? '–'} × {g.reps ?? '–'}
-                    </Text>
-                  </View>
-                  <Text style={[styles.ghostCheck, { color: theme.color.accent }]}>✓</Text>
+          <View style={styles.ghostList}>
+            {ghostSets.map((g, i) => (
+              <View
+                key={g.id}
+                style={styles.ghostRow}
+                accessibilityLabel={`Set ${i + 1}, ${g.weight ?? 'no weight'} by ${g.reps ?? 'no reps'} reps, completed`}
+              >
+                <View style={styles.ghostLeft}>
+                  <Text variant="label" color={theme.color.inkTertiary}>
+                    Set {i + 1}
+                  </Text>
+                  <Text variant="numeral" color={theme.color.inkSecondary}>
+                    {g.weight ?? '–'} × {g.reps ?? '–'}
+                  </Text>
                 </View>
-              ))}
-            </View>
-          </>
+                <Icon name="check" size={16} color={theme.color.accent} />
+              </View>
+            ))}
+          </View>
         ) : null}
 
         {voice && voice.phase !== 'idle' ? (
           <View style={styles.voiceRow}>
             <Text
-              style={[
-                styles.voiceText,
-                {
-                  color: voice.phase === 'applied' ? theme.color.accent : theme.color.inkSecondary,
-                  fontFamily: theme.font.family.sansMedium,
-                },
-              ]}
+              variant="meta"
+              color={
+                voice.phase === 'error'
+                  ? theme.color.danger
+                  : voice.phase === 'applied'
+                    ? theme.color.accent
+                    : theme.color.inkSecondary
+              }
+              style={styles.voiceText}
             >
               {voice.phase === 'listening'
                 ? voice.partial
@@ -244,18 +236,15 @@ export function ActiveSetCard({
                   : 'Listening…'
                 : voice.phase === 'pending'
                   ? `Heard ${voice.feedback ?? ''}. Say “yes” to confirm`
-                  : `✓ ${voice.feedback ?? ''}`}
+                  : voice.phase === 'error'
+                    ? (voice.feedback ?? 'Didn’t catch that')
+                    : `✓ ${voice.feedback ?? ''}`}
             </Text>
           </View>
         ) : null}
 
         <View style={styles.swipeHintRow}>
-          <Text
-            style={[
-              styles.swipeHint,
-              { color: theme.color.inkTertiary, fontFamily: theme.font.family.sans },
-            ]}
-          >
+          <Text variant="meta" color={theme.color.inkTertiary}>
             {canComplete ? '↑ Swipe up to complete' : 'Set weight and reps to continue'}
           </Text>
         </View>
@@ -264,57 +253,44 @@ export function ActiveSetCard({
   );
 }
 
-const styles = StyleSheet.create({
-  container: {
-    paddingHorizontal: 20,
-    paddingTop: 24,
-    paddingBottom: 8,
-    gap: 6,
-    marginHorizontal: 16,
-    marginTop: 12,
-    borderRadius: 18,
-    borderWidth: 1,
-  },
-  label: {
-    fontSize: 10,
-    letterSpacing: 1.5,
-    textTransform: 'uppercase',
-    paddingTop: 8,
-  },
-  exerciseName: { marginBottom: 18 },
-  heroRow: {
-    flexDirection: 'row',
-    alignItems: 'baseline',
-    paddingVertical: 8,
-  },
-  heroX: {
-    paddingHorizontal: 6,
-    opacity: 0.4,
-  },
-  divider: {
-    borderTopWidth: StyleSheet.hairlineWidth,
-    marginVertical: 18,
-  },
-  ghostList: { gap: 8 },
-  ghostRow: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-  },
-  ghostLeft: { flexDirection: 'row', alignItems: 'baseline', gap: 12 },
-  ghostLabel: {
-    fontSize: 10,
-    letterSpacing: 1.5,
-    textTransform: 'uppercase',
-  },
-  ghostValue: {
-    fontSize: 13,
-  },
-  ghostCheck: {
-    fontSize: 14,
-  },
-  swipeHintRow: { marginTop: 28, alignItems: 'center' },
-  swipeHint: { fontSize: 13 },
-  voiceRow: { marginTop: 16, alignItems: 'center' },
-  voiceText: { fontSize: 13, fontStyle: 'italic' },
-});
+const makeStyles = (theme: Theme) =>
+  StyleSheet.create({
+    container: {
+      paddingHorizontal: theme.space.s5,
+      paddingTop: theme.space.s6,
+      paddingBottom: theme.space.s2,
+      gap: theme.space.half,
+      marginHorizontal: theme.space.s4,
+      marginTop: theme.space.s3,
+      borderRadius: theme.radius.card,
+      borderWidth: theme.depth.rule,
+      backgroundColor: theme.color.surface2,
+      borderColor: theme.color.borderStrong,
+    },
+    exerciseName: { marginBottom: theme.space.s4 },
+    heroRow: {
+      flexDirection: 'row',
+      alignItems: 'baseline',
+      paddingVertical: theme.space.s2,
+    },
+    heroX: {
+      paddingHorizontal: theme.space.s1,
+      opacity: 0.4,
+    },
+    ghostList: {
+      gap: theme.space.s2,
+      marginTop: theme.space.s4,
+      paddingTop: theme.space.s4,
+      borderTopWidth: theme.depth.rule,
+      borderTopColor: theme.color.border,
+    },
+    ghostRow: {
+      flexDirection: 'row',
+      justifyContent: 'space-between',
+      alignItems: 'center',
+    },
+    ghostLeft: { flexDirection: 'row', alignItems: 'baseline', gap: theme.space.s3 },
+    swipeHintRow: { marginTop: theme.space.s6, alignItems: 'center' },
+    voiceRow: { marginTop: theme.space.s4, alignItems: 'center' },
+    voiceText: { fontStyle: 'italic' },
+  });

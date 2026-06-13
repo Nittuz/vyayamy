@@ -92,3 +92,14 @@ export function formatWeight(weight: number | null, units: 'kg' | 'lb'): string 
   if (weight == null) return '—';
   return `${weight} ${units}`;
 }
+
+/**
+ * Seconds → m:ss for the rest countdown (e.g. 83 → "1:23", 9 → "0:09").
+ * Clamps negatives to zero so an overrun never shows a minus.
+ */
+export function formatClock(totalSeconds: number): string {
+  const s = Math.max(0, Math.round(totalSeconds));
+  const m = Math.floor(s / 60);
+  const rem = s % 60;
+  return `${m}:${String(rem).padStart(2, '0')}`;
+}

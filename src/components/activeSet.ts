@@ -108,3 +108,39 @@ export function findPrevExercise(
 export function firstIncompleteSet(ex: ExerciseShape): SetShape | null {
   return ex.sets.find((s) => !s.completed) ?? null;
 }
+
+/** Identity + pre-filled values of the speculative set staged on completion. */
+export interface AutoStagedSet {
+  id: string;
+  weight: number | null;
+  reps: number | null;
+}
+
+/**
+ * Whether advancing past the current set (next exercise / finish) should warn
+ * before discarding it.
+ *
+ * Completing a set auto-stages the next one pre-filled with the same weight ×
+ * reps, so "has values" cannot tell a set the user actually entered from the
+ * speculative one they never touched. A warning is only meaningful for a set the
+ * user edited and left un-completed. The empty first set and the untouched
+ * auto-staged set carry no intent, so they advance silently (the trailing staged
+ * set is pruned on finish regardless).
+ */
+export function shouldConfirmLeavingSet(
+  set: SetShape | null,
+  autoStaged: AutoStagedSet | null,
+): boolean {
+  if (!set || set.completed) return false;
+  if (set.weight == null && set.reps == null) return false;
+  // Untouched auto-staged set: same id and still holding the values we pre-filled.
+  if (
+    autoStaged != null &&
+    set.id === autoStaged.id &&
+    set.weight === autoStaged.weight &&
+    set.reps === autoStaged.reps
+  ) {
+    return false;
+  }
+  return true;
+}

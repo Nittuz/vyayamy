@@ -1,10 +1,14 @@
-import { useState } from 'react';
-import { Modal, Pressable, ScrollView, StyleSheet, Text, TextInput, View } from 'react-native';
+import { useMemo, useState } from 'react';
+import { ScrollView, StyleSheet, TextInput, View } from 'react-native';
 
+import { Button } from '@/ui/Button';
+import { haptics } from '@/ui/haptics';
+import { Plate } from '@/ui/Plate';
 import { restForMuscleGroup } from '@/ui/restDefaults';
 import { clearOverride, setOverride } from '@/ui/restOverrides';
-import { useTheme } from '@/ui/useTheme';
-import { haptics } from '@/ui/haptics';
+import { Sheet } from '@/ui/Sheet';
+import { Text } from '@/ui/Text';
+import { useTheme, type Theme } from '@/ui/useTheme';
 
 interface Props {
   visible: boolean;
@@ -28,6 +32,7 @@ export function RestOverrideSheet({
   onChanged,
 }: Props) {
   const theme = useTheme();
+  const styles = useMemo(() => makeStyles(theme), [theme]);
   const defaultSeconds = restForMuscleGroup(muscleGroup);
   const [selected, setSelected] = useState<number>(currentOverride ?? defaultSeconds);
   const [customText, setCustomText] = useState<string>('');
@@ -51,171 +56,98 @@ export function RestOverrideSheet({
   };
 
   return (
-    <Modal visible={visible} transparent animationType="fade" onRequestClose={onClose}>
-      <Pressable style={[styles.backdrop, { backgroundColor: theme.color.overlay }]} onPress={onClose}>
-        <Pressable
-          style={[styles.sheet, { backgroundColor: theme.color.bg }]}
-          onPress={(e) => e.stopPropagation()}
-        >
-          <Text
-            style={[
-              styles.title,
-              {
-                color: theme.color.inkHero,
-                fontFamily: theme.font.family.sansSemibold,
-                fontSize: theme.font.size.title,
-                letterSpacing: theme.font.tracking.title,
-              },
-            ]}
-          >
-            Rest for {exerciseName}
-          </Text>
-          <Text
-            style={[
-              styles.body,
-              { color: theme.color.inkSecondary, fontFamily: theme.font.family.sans },
-            ]}
-          >
-            Default for {muscleGroup ?? 'this'}: {defaultSeconds}s
-          </Text>
-          <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.chipRow}>
-            {PRESETS.map((preset) => {
-              const isSelected = selected === preset && customText.trim() === '';
-              return (
-                <Pressable
-                  key={preset}
-                  onPress={() => {
-                    haptics.light();
-                    setSelected(preset);
-                    setCustomText('');
-                  }}
-                  style={({ pressed }) => [
-                    styles.chip,
-                    {
-                      backgroundColor: isSelected ? theme.color.accent : 'transparent',
-                      borderColor: isSelected ? theme.color.accent : theme.color.borderStrong,
-                      opacity: pressed ? 0.7 : 1,
-                    },
-                  ]}
-                >
-                  <Text
-                    style={[
-                      styles.chipText,
-                      {
-                        color: isSelected ? theme.color.onAccent : theme.color.ink,
-                        fontFamily: theme.font.family.mono,
-                      },
-                    ]}
-                  >
-                    {preset}s
-                  </Text>
-                </Pressable>
-              );
-            })}
-          </ScrollView>
-          <View style={styles.customRow}>
-            <Text
-              style={[
-                styles.label,
-                { color: theme.color.inkTertiary, fontFamily: theme.font.family.sansMedium },
-              ]}
-            >
-              CUSTOM
-            </Text>
-            <TextInput
-              value={customText}
-              onChangeText={setCustomText}
-              keyboardType="number-pad"
-              placeholder="seconds"
-              placeholderTextColor={theme.color.inkTertiary}
-              style={[
-                styles.input,
-                {
-                  borderColor: theme.color.borderStrong,
-                  color: theme.color.ink,
-                  fontFamily: theme.font.family.mono,
-                },
-              ]}
+    <Sheet
+      visible={visible}
+      onClose={onClose}
+      title={`Rest for ${exerciseName}`}
+      footer={
+        <>
+          <Button label="Save" kind="primary" size="row" onPress={() => void handleSave()} />
+          {currentOverride != null ? (
+            <Button
+              label="Reset to default"
+              kind="danger"
+              size="row"
+              onPress={() => void handleReset()}
             />
-          </View>
-          <View style={styles.actions}>
-            <Pressable
-              onPress={() => void handleSave()}
-              style={({ pressed }) => [
-                styles.saveBtn,
-                { backgroundColor: theme.color.accent, opacity: pressed ? 0.85 : 1 },
-              ]}
+          ) : null}
+          <Button label="Close" kind="ghost" size="row" onPress={onClose} />
+        </>
+      }
+    >
+      <Text variant="body" color={theme.color.inkSecondary}>
+        Default for {muscleGroup ?? 'this'}: {defaultSeconds}s
+      </Text>
+      <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.chipRow}>
+        {PRESETS.map((preset) => {
+          const isSelected = selected === preset && customText.trim() === '';
+          return (
+            <Plate
+              key={preset}
+              offset="none"
+              tone={isSelected ? 'accent' : 'surface'}
+              border="strong"
+              radius="sm"
+              onPress={() => {
+                haptics.light();
+                setSelected(preset);
+                setCustomText('');
+              }}
+              accessibilityState={{ selected: isSelected }}
+              faceStyle={styles.chipFace}
             >
-              <Text
-                style={[
-                  styles.saveText,
-                  { color: theme.color.onAccent, fontFamily: theme.font.family.sansSemibold },
-                ]}
-              >
-                Save
+              <Text variant="numeral" color={isSelected ? theme.color.onAccent : theme.color.ink}>
+                {preset}s
               </Text>
-            </Pressable>
-            {currentOverride != null ? (
-              <Pressable
-                onPress={() => void handleReset()}
-                style={({ pressed }) => [styles.resetBtn, { opacity: pressed ? 0.5 : 1 }]}
-              >
-                <Text
-                  style={[
-                    styles.resetText,
-                    { color: theme.color.danger, fontFamily: theme.font.family.sansMedium },
-                  ]}
-                >
-                  Reset to default
-                </Text>
-              </Pressable>
-            ) : null}
-            <Pressable onPress={onClose} style={styles.closeBtn}>
-              <Text style={[styles.closeText, { color: theme.color.inkSecondary, fontFamily: theme.font.family.sansMedium }]}>
-                Close
-              </Text>
-            </Pressable>
-          </View>
-        </Pressable>
-      </Pressable>
-    </Modal>
+            </Plate>
+          );
+        })}
+      </ScrollView>
+      <View style={styles.customRow}>
+        <Text variant="label" color={theme.color.inkTertiary}>
+          CUSTOM
+        </Text>
+        <TextInput
+          value={customText}
+          onChangeText={setCustomText}
+          keyboardType="number-pad"
+          placeholder="seconds"
+          placeholderTextColor={theme.color.inkTertiary}
+          style={styles.input}
+        />
+      </View>
+    </Sheet>
   );
 }
 
-const styles = StyleSheet.create({
-  backdrop: { flex: 1, justifyContent: 'flex-end' },
-  sheet: {
-    borderTopLeftRadius: 16,
-    borderTopRightRadius: 16,
-    paddingHorizontal: 20,
-    paddingTop: 24,
-    paddingBottom: 32,
-  },
-  title: { marginBottom: 8 },
-  body: { fontSize: 13, marginBottom: 16, lineHeight: 19 },
-  chipRow: { gap: 8, paddingVertical: 8 },
-  chip: {
-    paddingHorizontal: 14,
-    paddingVertical: 10,
-    borderRadius: 8,
-    borderWidth: 1,
-  },
-  chipText: { fontSize: 13 },
-  customRow: { marginTop: 16, flexDirection: 'row', alignItems: 'center', gap: 12 },
-  label: { fontSize: 10, letterSpacing: 1.5, textTransform: 'uppercase' },
-  input: {
-    flex: 1,
-    borderWidth: 1,
-    borderRadius: 8,
-    paddingHorizontal: 12,
-    paddingVertical: 10,
-    fontSize: 14,
-  },
-  actions: { marginTop: 20, gap: 8 },
-  saveBtn: { paddingVertical: 14, borderRadius: 10, alignItems: 'center' },
-  saveText: { fontSize: 14 },
-  resetBtn: { paddingVertical: 12, alignItems: 'center' },
-  resetText: { fontSize: 12 },
-  closeBtn: { paddingVertical: 10, alignItems: 'center' },
-  closeText: { fontSize: 12 },
-});
+const makeStyles = (theme: Theme) =>
+  StyleSheet.create({
+    chipRow: {
+      gap: theme.space.s2,
+      paddingVertical: theme.space.s2,
+      marginTop: theme.space.s2,
+    },
+    chipFace: {
+      minHeight: theme.touch.min,
+      justifyContent: 'center',
+      paddingHorizontal: theme.space.s4,
+    },
+    customRow: {
+      marginTop: theme.space.s4,
+      flexDirection: 'row',
+      alignItems: 'center',
+      gap: theme.space.s3,
+    },
+    input: {
+      flex: 1,
+      height: theme.touch.min,
+      backgroundColor: theme.color.bg,
+      borderWidth: theme.depth.rule,
+      borderColor: theme.color.border,
+      borderRadius: theme.radius.sm,
+      paddingHorizontal: theme.space.s3,
+      color: theme.color.ink,
+      fontFamily: theme.font.family.mono,
+      fontSize: theme.font.size.body,
+    },
+  });

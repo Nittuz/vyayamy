@@ -28,8 +28,11 @@ export interface Choreography {
   showPRPill: boolean;
 }
 
-const GLOW_PEAK = 0.32;
-const GLOW_PEAK_PR = 0.45;
+// Tuned for the ember accent: it is more luminous than the old muted sage, so
+// the same alpha reads brighter. An ordinary set gets a restrained bloom; a PR
+// gets a noticeably hotter one.
+const GLOW_PEAK = 0.3;
+const GLOW_PEAK_PR = 0.44;
 
 export function computeChoreography(o: {
   reduceMotion: boolean;

@@ -2,6 +2,7 @@ import 'react-native-gesture-handler';
 import 'react-native-url-polyfill/auto';
 
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
+import { Anton_400Regular } from '@expo-google-fonts/anton';
 import { useFonts as useGeist, Geist_400Regular, Geist_500Medium, Geist_600SemiBold } from '@expo-google-fonts/geist';
 import { GeistMono_400Regular, GeistMono_500Medium } from '@expo-google-fonts/geist-mono';
 import * as Linking from 'expo-linking';
@@ -10,7 +11,7 @@ import { router, Stack, useSegments } from 'expo-router';
 import * as SplashScreen from 'expo-splash-screen';
 import { StatusBar } from 'expo-status-bar';
 import { useEffect, useRef, useState } from 'react';
-import { ActivityIndicator, Platform, StyleSheet, Text, View } from 'react-native';
+import { ActivityIndicator, Platform, StyleSheet, Text, useColorScheme, View } from 'react-native';
 import { GestureHandlerRootView } from 'react-native-gesture-handler';
 import { SafeAreaProvider, SafeAreaView } from 'react-native-safe-area-context';
 
@@ -21,11 +22,12 @@ import { initDb } from '@/db/client';
 import { initErrorReporting } from '@/lib/errorReporting';
 import { hydrateSnapshot } from '@/ui/todaySnapshot';
 import { startSyncEngine, stopSyncEngine } from '@/sync/engine';
+import { darkPalette, lightPalette, type PaletteTokens } from '@/ui/colors';
 import { ErrorBoundary } from '@/ui/ErrorBoundary';
 import { SkinProvider, useSkin } from '@/ui/SkinContext';
 import { ToastProvider } from '@/ui/ToastContext';
-import { theme } from '@/ui/theme';
-import { useTheme } from '@/ui/useTheme';
+import { typography } from '@/ui/typography';
+import { space, useTheme } from '@/ui/useTheme';
 
 initErrorReporting();
 void SplashScreen.preventAutoHideAsync();
@@ -62,6 +64,7 @@ export default function RootLayout() {
     Geist_600SemiBold,
     GeistMono_400Regular,
     GeistMono_500Medium,
+    Anton_400Regular,
   });
 
   useEffect(() => {
@@ -141,7 +144,7 @@ export default function RootLayout() {
   // which prevents the "no navigator in root layout" +not-found redirect.
   return (
     <ErrorBoundary>
-      <GestureHandlerRootView style={bootStyles.gestureRoot}>
+      <GestureHandlerRootView style={rootStyles.gestureRoot}>
         <SafeAreaProvider>
           <SkinProvider>
             <QueryClientProvider client={queryClient}>
@@ -182,7 +185,9 @@ function AppNavigator() {
 
   const screenOptions = {
     headerStyle: { backgroundColor: theme.color.bg },
-    headerTitleStyle: { fontWeight: '600' as const, color: theme.color.inkHero },
+    // Header titles are user/workout text, so they stay in the Geist voice
+    // (not the Anton display face used for chrome screen titles).
+    headerTitleStyle: { fontFamily: theme.font.family.sansSemibold, color: theme.color.inkHero },
     headerTintColor: theme.color.accent,
     headerShadowVisible: false,
     headerBackButtonDisplayMode: 'minimal' as const,
@@ -206,8 +211,8 @@ function AppNavigator() {
 /**
  * Boot overlay rendered inside SkinProvider so it can gate first paint on skin
  * hydration — this prevents a flash of the default skin before the stored one
- * loads from AsyncStorage. Uses the legacy theme shim (Forge dark) for the
- * brief loading state only.
+ * loads from AsyncStorage. Resolves the Forged Iron palette from the system
+ * color scheme so light-mode users don't get a dark flash (#7.7).
  */
 function BootOverlay({
   ready,
@@ -219,54 +224,54 @@ function BootOverlay({
   bootError: string | null;
 }) {
   const { hydrated } = useSkin();
+  const scheme = useColorScheme();
+  const palette = scheme === 'light' ? lightPalette : darkPalette;
+  const styles = bootStyles(palette);
   if (bootError) {
     return (
-      <SafeAreaView style={bootStyles.overlay} edges={['top', 'bottom', 'left', 'right']}>
-        <Text style={bootStyles.title}>Cannot start</Text>
-        <Text style={bootStyles.body}>{bootError}</Text>
+      <SafeAreaView style={styles.overlay} edges={['top', 'bottom', 'left', 'right']}>
+        <Text style={styles.title}>Cannot start</Text>
+        <Text style={styles.body}>{bootError}</Text>
       </SafeAreaView>
     );
   }
   if (!ready || !fontsLoaded || !hydrated) {
     return (
-      <View style={bootStyles.overlay}>
-        <ActivityIndicator color={theme.color.accent} />
+      <View style={styles.overlay}>
+        <ActivityIndicator color={palette.accent} />
       </View>
     );
   }
   return null;
 }
 
-const bootStyles = StyleSheet.create({
-  gestureRoot: { flex: 1 },
-  overlay: {
-    position: 'absolute',
-    top: 0,
-    left: 0,
-    right: 0,
-    bottom: 0,
-    alignItems: 'center',
-    justifyContent: 'center',
-    backgroundColor: theme.color.bg,
-  },
-  screen: {
-    flex: 1,
-    alignItems: 'center',
-    justifyContent: 'center',
-    padding: theme.space.page,
-    backgroundColor: theme.color.bg,
-  },
-  title: {
-    fontSize: theme.font.title,
-    fontWeight: '600',
-    color: theme.color.text,
-    marginBottom: theme.space.s4,
-    textAlign: 'center',
-  },
-  body: {
-    fontSize: theme.font.body,
-    color: theme.color.textSecondary,
-    lineHeight: 22,
-    textAlign: 'center',
-  },
-});
+const rootStyles = StyleSheet.create({ gestureRoot: { flex: 1 } });
+
+const bootStyles = (c: PaletteTokens) =>
+  StyleSheet.create({
+    overlay: {
+      position: 'absolute',
+      top: 0,
+      left: 0,
+      right: 0,
+      bottom: 0,
+      alignItems: 'center',
+      justifyContent: 'center',
+      padding: space.page,
+      backgroundColor: c.bg,
+    },
+    title: {
+      fontFamily: typography.family.sansSemibold,
+      fontSize: typography.size.title,
+      color: c.ink,
+      marginBottom: space.s4,
+      textAlign: 'center',
+    },
+    body: {
+      fontFamily: typography.family.sans,
+      fontSize: typography.size.body,
+      color: c.inkSecondary,
+      lineHeight: 22,
+      textAlign: 'center',
+    },
+  });

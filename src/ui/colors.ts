@@ -1,9 +1,12 @@
 /**
- * Brutalist-lifter color tokens.
- * Two coordinated palettes — dark (default-feeling) and light (warm-paper inverse).
+ * Forged Iron color tokens.
+ * Two coordinated palettes — iron dark (default-feeling) and bone-paper light.
+ * One hot ember accent per scheme; everything else is neutral iron and bone.
  * Consumed via `src/ui/useTheme.ts` which selects based on system color scheme.
  *
- * Phase 1 introduces these; src/ui/theme.ts shims old token names onto them.
+ * Accent is tuned per scheme for WCAG: #E8602F clears 4.5 on the dark surfaces,
+ * but raw ember fails on bone, so light uses the deeper #B83E14.
+ * `src/ui/__tests__/contrast.test.ts` is the merge gate for any change here.
  */
 
 export interface PaletteTokens {
@@ -24,44 +27,48 @@ export interface PaletteTokens {
   dangerSoft: string;
   onAccent: string;
   overlay: string;
+  /** The hard offset slab behind Plate faces — the palette's deepest value. */
+  slab: string;
 }
 
 export const darkPalette: PaletteTokens = {
-  bg: '#0F1411',
-  surface: '#161B18',
-  surface2: '#1A211C',
-  border: '#1A2420',
-  borderStrong: '#1F2925',
-  ink: '#C9D4CC',
-  inkSecondary: '#8C9A92',
-  inkTertiary: '#5E6862',
-  inkHero: '#E8F0EA',
-  accent: '#6DA37E',
-  accentSoft: 'rgba(109, 163, 126, 0.12)',
-  success: '#6DA37E',
-  successSoft: 'rgba(109, 163, 126, 0.12)',
-  danger: '#C76B58',
-  dangerSoft: 'rgba(199, 107, 88, 0.12)',
-  onAccent: '#0F1411',
-  overlay: 'rgba(0, 0, 0, 0.55)',
+  bg: '#0B0B0D',
+  surface: '#131316',
+  surface2: '#1B1B1F',
+  border: '#26262B',
+  borderStrong: '#404048',
+  ink: '#E8E5DE',
+  inkSecondary: '#A6A39B',
+  inkTertiary: '#74716A',
+  inkHero: '#F4F1E9',
+  accent: '#E8602F',
+  accentSoft: 'rgba(232, 96, 47, 0.14)',
+  success: '#E8602F',
+  successSoft: 'rgba(232, 96, 47, 0.14)',
+  danger: '#D6524A',
+  dangerSoft: 'rgba(214, 82, 74, 0.14)',
+  onAccent: '#0B0B0D',
+  overlay: 'rgba(0, 0, 0, 0.6)',
+  slab: '#000000',
 };
 
 export const lightPalette: PaletteTokens = {
-  bg: '#F4F1EB',
-  surface: '#FFFFFF',
-  surface2: '#F1F4F0',
-  border: '#E5DFD3',
-  borderStrong: '#D6CFC0',
-  ink: '#1A1F1C',
-  inkSecondary: '#5A625C',
-  inkTertiary: '#7E847F',
-  inkHero: '#0A0E0B',
-  accent: '#3D6E52',
-  accentSoft: 'rgba(61, 110, 82, 0.10)',
-  success: '#3D6E52',
-  successSoft: 'rgba(61, 110, 82, 0.10)',
-  danger: '#8A4030',
-  dangerSoft: 'rgba(138, 64, 48, 0.10)',
+  bg: '#ECEAE4',
+  surface: '#F7F5F0',
+  surface2: '#E0DED7',
+  border: '#C8C6BE',
+  borderStrong: '#17171A',
+  ink: '#1A1A1D',
+  inkSecondary: '#53524D',
+  inkTertiary: '#71706A',
+  inkHero: '#0C0C0E',
+  accent: '#B83E14',
+  accentSoft: 'rgba(184, 62, 20, 0.10)',
+  success: '#B83E14',
+  successSoft: 'rgba(184, 62, 20, 0.10)',
+  danger: '#A8312B',
+  dangerSoft: 'rgba(168, 49, 43, 0.10)',
   onAccent: '#FFFFFF',
-  overlay: 'rgba(40, 30, 20, 0.30)',
+  overlay: 'rgba(12, 12, 14, 0.4)',
+  slab: '#17171A',
 };

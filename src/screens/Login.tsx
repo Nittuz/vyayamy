@@ -2,21 +2,21 @@ import * as Linking from 'expo-linking';
 import { Redirect } from 'expo-router';
 import { useMemo, useState } from 'react';
 import {
-  ActivityIndicator,
   KeyboardAvoidingView,
   Platform,
-  Pressable,
   SafeAreaView,
   StyleSheet,
-  Text,
   TextInput,
   View,
 } from 'react-native';
 
 import { signInWithOtp, signInWithPassword } from '@/auth/authActions';
 import { useAuth } from '@/auth/useAuth';
+import { brand } from '@/ui/brand';
+import { Button } from '@/ui/Button';
 import { FBarMark } from '@/ui/Logo';
-import { brand } from '@/ui/theme';
+import { Plate } from '@/ui/Plate';
+import { Text } from '@/ui/Text';
 import { useTheme, type Theme } from '@/ui/useTheme';
 
 // Two paths are supported (magic link + password). Keep the copy path-specific
@@ -28,6 +28,7 @@ export default function LoginScreen() {
   const { session, loading } = useAuth();
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
+  const [usePassword, setUsePassword] = useState(false);
   const [sending, setSending] = useState(false);
   const [signingIn, setSigningIn] = useState(false);
   const [sent, setSent] = useState(false);
@@ -61,32 +62,60 @@ export default function LoginScreen() {
     if (err) setError(PASSWORD_ERROR);
   }
 
+  const emailEmpty = email.trim().length === 0;
+
   return (
     <SafeAreaView style={styles.container}>
       <KeyboardAvoidingView
         behavior={Platform.OS === 'ios' ? 'padding' : undefined}
         style={styles.kav}
       >
-        <View style={styles.card}>
-          <View style={styles.header}>
-            <FBarMark size={104} />
-            <Text style={styles.title}>{brand.name}</Text>
-            <Text style={styles.tagline}>{brand.tagline}</Text>
-          </View>
+        <View style={styles.header}>
+          <FBarMark size={96} />
+          <Text variant="displayXL" color={theme.color.inkHero}>
+            {brand.name}
+          </Text>
+          <Text variant="label" color={theme.color.inkSecondary}>
+            {brand.tagline}
+          </Text>
+        </View>
 
+        <Plate faceStyle={styles.cardFace}>
           {sent ? (
             <View style={styles.sent}>
-              <Text style={styles.sentHeading}>Check your email</Text>
-              <Text style={styles.sentBody}>
-                We sent a sign-in link to <Text style={styles.bold}>{email}</Text>
+              <Text variant="title" color={theme.color.inkHero}>
+                Check your email
               </Text>
-              <Text style={styles.meta}>
+              <Text variant="body" color={theme.color.ink} style={styles.centerText}>
+                We sent a sign-in link to {email}
+              </Text>
+              <Text variant="meta" color={theme.color.inkSecondary} style={styles.centerText}>
                 Open the link on this device; it&apos;ll bring you back to the app.
               </Text>
+              <View style={styles.actions}>
+                <Button
+                  label="Resend link"
+                  kind="secondary"
+                  size="row"
+                  loading={sending}
+                  onPress={handleSubmit}
+                />
+                <Button
+                  label="Use a different email"
+                  kind="ghost"
+                  size="row"
+                  onPress={() => {
+                    setSent(false);
+                    setError(null);
+                  }}
+                />
+              </View>
             </View>
           ) : (
             <View style={styles.form}>
-              <Text style={styles.label}>Email address</Text>
+              <Text variant="label" color={theme.color.inkTertiary}>
+                Email address
+              </Text>
               <TextInput
                 value={email}
                 onChangeText={setEmail}
@@ -99,57 +128,63 @@ export default function LoginScreen() {
                 editable={!sending}
                 style={styles.input}
               />
-              <Text style={styles.label}>Password</Text>
-              <TextInput
-                value={password}
-                onChangeText={setPassword}
-                placeholder="Optional, for direct sign-in"
-                placeholderTextColor={theme.color.inkTertiary}
-                secureTextEntry
-                autoCapitalize="none"
-                autoCorrect={false}
-                textContentType="password"
-                editable={!sending && !signingIn}
-                style={styles.input}
+              {usePassword ? (
+                <>
+                  <Text variant="label" color={theme.color.inkTertiary}>
+                    Password
+                  </Text>
+                  <TextInput
+                    value={password}
+                    onChangeText={setPassword}
+                    placeholder="Your password"
+                    placeholderTextColor={theme.color.inkTertiary}
+                    secureTextEntry
+                    autoCapitalize="none"
+                    autoCorrect={false}
+                    textContentType="password"
+                    editable={!signingIn}
+                    style={styles.input}
+                  />
+                </>
+              ) : null}
+
+              {error ? (
+                <Text variant="meta" color={theme.color.danger}>
+                  {error}
+                </Text>
+              ) : null}
+
+              {usePassword ? (
+                <Button
+                  label="Sign in"
+                  size="cta"
+                  loading={signingIn}
+                  disabled={emailEmpty || password.length === 0}
+                  onPress={handlePasswordSignIn}
+                  style={styles.fullBtn}
+                />
+              ) : (
+                <Button
+                  label="Email me a sign-in link"
+                  size="cta"
+                  loading={sending}
+                  disabled={emailEmpty}
+                  onPress={handleSubmit}
+                  style={styles.fullBtn}
+                />
+              )}
+              <Button
+                label={usePassword ? 'Use a sign-in link instead' : 'Use a password instead'}
+                kind="ghost"
+                size="row"
+                onPress={() => {
+                  setUsePassword((v) => !v);
+                  setError(null);
+                }}
               />
-              {error ? <Text style={styles.error}>{error}</Text> : null}
-              <Pressable
-                onPress={handlePasswordSignIn}
-                disabled={signingIn || email.trim().length === 0 || password.length === 0}
-                style={({ pressed }) => [
-                  styles.button,
-                  (signingIn || email.trim().length === 0 || password.length === 0) &&
-                    styles.buttonDisabled,
-                  pressed && styles.buttonPressed,
-                ]}
-              >
-                {signingIn ? (
-                  <ActivityIndicator color={theme.color.onAccent} />
-                ) : (
-                  <Text style={styles.buttonText}>Sign in</Text>
-                )}
-              </Pressable>
-              <Pressable
-                onPress={handleSubmit}
-                disabled={sending || email.trim().length === 0}
-                style={({ pressed }) => [
-                  styles.buttonSecondary,
-                  (sending || email.trim().length === 0) && styles.buttonDisabled,
-                  pressed && styles.buttonPressed,
-                ]}
-              >
-                {sending ? (
-                  <ActivityIndicator color={theme.color.ink} />
-                ) : (
-                  <Text style={styles.buttonSecondaryText}>Send magic link instead</Text>
-                )}
-              </Pressable>
-              <Text style={styles.hint}>
-                Use your password, or get a one-time email sign-in link.
-              </Text>
             </View>
           )}
-        </View>
+        </Plate>
       </KeyboardAvoidingView>
     </SafeAreaView>
   );
@@ -158,109 +193,23 @@ export default function LoginScreen() {
 const makeStyles = (theme: Theme) =>
   StyleSheet.create({
     container: { flex: 1, backgroundColor: theme.color.bg },
-    kav: { flex: 1, justifyContent: 'center', padding: theme.space.s5 },
-    card: {
-      backgroundColor: theme.color.surface,
-      borderRadius: theme.radius.lg,
-      padding: theme.space.s8,
-      gap: theme.space.s6,
-    },
+    kav: { flex: 1, justifyContent: 'center', padding: theme.space.page, gap: theme.space.s8 },
     header: { alignItems: 'center', gap: theme.space.s3 },
-    title: {
-      fontSize: theme.font.size.title,
-      fontWeight: theme.font.weight.semibold,
-      fontFamily: theme.font.family.sansSemibold,
-      color: theme.color.ink,
-      letterSpacing: -0.5,
-    },
-    tagline: {
-      fontSize: theme.font.size.meta,
-      fontFamily: theme.font.family.sans,
-      color: theme.color.inkSecondary,
-      textAlign: 'center',
-    },
+    cardFace: { padding: theme.space.s6, gap: theme.space.s5 },
+    centerText: { textAlign: 'center' },
     form: { gap: theme.space.s3 },
-    label: {
-      fontSize: theme.font.size.meta,
-      color: theme.color.inkSecondary,
-      fontWeight: theme.font.weight.medium,
-      fontFamily: theme.font.family.sansMedium,
-    },
     input: {
       height: theme.touch.min + 4,
       paddingHorizontal: theme.space.s4,
       borderRadius: theme.radius.sm,
-      borderWidth: 1,
+      borderWidth: theme.depth.rule,
       borderColor: theme.color.borderStrong,
       fontSize: theme.font.size.body,
       fontFamily: theme.font.family.sans,
       color: theme.color.ink,
       backgroundColor: theme.color.bg,
     },
-    button: {
-      height: theme.touch.min + 4,
-      borderRadius: theme.radius.sm,
-      backgroundColor: theme.color.accent,
-      alignItems: 'center',
-      justifyContent: 'center',
-      marginTop: theme.space.s2,
-    },
-    buttonSecondary: {
-      height: theme.touch.min + 4,
-      borderRadius: theme.radius.sm,
-      backgroundColor: 'transparent',
-      borderWidth: 1,
-      borderColor: theme.color.borderStrong,
-      alignItems: 'center',
-      justifyContent: 'center',
-    },
-    buttonDisabled: { opacity: 0.4 },
-    buttonPressed: { opacity: 0.85 },
-    buttonText: {
-      color: theme.color.onAccent,
-      fontSize: theme.font.size.card,
-      fontWeight: theme.font.weight.semibold,
-      fontFamily: theme.font.family.sansSemibold,
-    },
-    buttonSecondaryText: {
-      color: theme.color.ink,
-      fontSize: theme.font.size.card,
-      fontWeight: theme.font.weight.medium,
-      fontFamily: theme.font.family.sansMedium,
-    },
-    hint: {
-      fontSize: theme.font.size.micro,
-      fontFamily: theme.font.family.sans,
-      color: theme.color.inkTertiary,
-      textAlign: 'center',
-    },
-    error: {
-      color: theme.color.danger,
-      fontSize: theme.font.size.meta,
-      fontFamily: theme.font.family.sans,
-    },
+    fullBtn: { alignSelf: 'stretch', marginTop: theme.space.s2 },
     sent: { alignItems: 'center', gap: theme.space.s2 },
-    sentHeading: {
-      fontSize: theme.font.size.title,
-      fontWeight: theme.font.weight.semibold,
-      fontFamily: theme.font.family.sansSemibold,
-      color: theme.color.ink,
-    },
-    sentBody: {
-      fontSize: theme.font.size.body,
-      fontFamily: theme.font.family.sans,
-      color: theme.color.ink,
-      textAlign: 'center',
-    },
-    bold: {
-      fontWeight: theme.font.weight.semibold,
-      fontFamily: theme.font.family.sansSemibold,
-    },
-    meta: {
-      fontSize: theme.font.size.meta,
-      fontFamily: theme.font.family.sans,
-      color: theme.color.inkSecondary,
-      textAlign: 'center',
-      marginTop: theme.space.s2,
-    },
+    actions: { alignSelf: 'stretch', gap: theme.space.s2, marginTop: theme.space.s4 },
   });

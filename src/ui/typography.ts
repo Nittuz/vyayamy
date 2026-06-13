@@ -1,10 +1,15 @@
 /**
- * Brutalist-lifter typography tokens.
+ * Forged Iron typography tokens.
  *
- * Family: Geist Sans for chrome/labels, Geist Mono for numerals + data.
+ * Families: Anton (condensed industrial display) for screen-defining headlines,
+ * Geist Sans for chrome/labels/body, Geist Mono for numerals + data.
  * Sizes are React Native `fontSize` (sp on Android, pt on iOS).
  * Tracking is in pt for `letterSpacing`.
  * Line-heights are multipliers (multiply by fontSize for RN `lineHeight`).
+ *
+ * Display variants are uppercase Anton and reserved for app chrome — user
+ * content (workout titles, exercise names) stays on title/card so it is never
+ * force-uppercased into a poster face.
  */
 
 export const fontFamily = {
@@ -13,16 +18,19 @@ export const fontFamily = {
   sansSemibold: 'Geist_600SemiBold',
   mono: 'GeistMono_400Regular',
   monoMedium: 'GeistMono_500Medium',
+  condensed: 'Anton_400Regular',
 } as const;
 
 export const fontSize = {
   hero: 82,
-  display: 28,
+  displayXL: 44,
+  display: 34,
   title: 20,
   card: 16,
   body: 14,
   meta: 12,
   micro: 12,
+  numeralLg: 28,
 } as const;
 
 export const fontWeight = {
@@ -33,14 +41,24 @@ export const fontWeight = {
 
 export const tracking = {
   hero: -3.5,
+  // Anton is tight by design; a touch of positive tracking keeps uppercase
+  // headlines from welding into a single slab.
+  condensed: 0.5,
   display: -0.5,
   title: -0.3,
   body: 0,
-  micro: 1.5,
+  numeralLg: -1,
+  micro: 2,
 } as const;
 
 export const lineHeightMul = {
-  hero: 0.92,
+  // Must stay >= 1.0: a sub-1 line height shrinks the line box below the font
+  // size and iOS clips the tops of tall glyphs — the 82pt mono hero numerals
+  // and equally the condensed Anton display caps. Horizontal tightness comes
+  // from tracking, never from the line box.
+  hero: 1.2,
+  displayXL: 1.05,
+  display: 1.1,
   title: 1.2,
   body: 1.4,
   meta: 1.6,

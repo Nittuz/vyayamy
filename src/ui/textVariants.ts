@@ -1,8 +1,11 @@
 /**
  * Pure text-variant → style resolver (no react-native runtime import, so it is
- * testable). The <Text> primitive in Text.tsx binds these so the Geist family,
- * size, tracking, and transform are applied consistently — a screen can never
- * forget the fontFamily and silently render the system font (#22).
+ * testable). The <Text> primitive in Text.tsx binds these so the family, size,
+ * tracking, and transform are applied consistently — a screen can never forget
+ * the fontFamily and silently render the system font (#22).
+ *
+ * Display variants (display/displayXL) are uppercase Anton — app chrome only.
+ * User content stays on title/card so it is never force-uppercased.
  */
 import type { TextStyle } from 'react-native';
 
@@ -11,8 +14,10 @@ import { typography as t } from './typography';
 export type TextVariant =
   | 'hero' // 82pt mono numerals — the active-set headline
   | 'numeral' // mono data figures inline
-  | 'display' // 28pt sans — screen-defining numbers/headlines
-  | 'title' // 20pt sans — screen titles
+  | 'numeralLg' // 28pt mono — rest countdown, volume tally, recap stats
+  | 'displayXL' // 44pt condensed uppercase — wordmark, recap headline, brand moments
+  | 'display' // 34pt condensed uppercase — screen titles
+  | 'title' // 20pt sans — in-content headings (user text safe)
   | 'card' // 16pt sans — card headings
   | 'body' // 14pt sans — body copy
   | 'label' // 12pt sans, tracked + uppercase — eyebrows/labels
@@ -21,6 +26,8 @@ export type TextVariant =
 export const TEXT_VARIANTS: TextVariant[] = [
   'hero',
   'numeral',
+  'numeralLg',
+  'displayXL',
   'display',
   'title',
   'card',
@@ -28,6 +35,22 @@ export const TEXT_VARIANTS: TextVariant[] = [
   'label',
   'meta',
 ];
+
+/**
+ * Display-class variants cap Dynamic Type scaling: Anton at 34–44pt with
+ * unlimited scaling overflows headers long before it helps legibility.
+ * Body-class variants scale freely.
+ */
+export function resolveMaxFontSizeMultiplier(variant: TextVariant): number | undefined {
+  switch (variant) {
+    case 'hero':
+    case 'displayXL':
+    case 'display':
+      return 1.2;
+    default:
+      return undefined;
+  }
+}
 
 const lh = (size: number, mul: number) => Math.round(size * mul);
 
@@ -47,12 +70,28 @@ export function resolveTextStyle(variant: TextVariant): TextStyle {
         letterSpacing: 0,
         lineHeight: lh(t.size.card, t.lineHeightMul.body),
       };
+    case 'numeralLg':
+      return {
+        fontFamily: t.family.monoMedium,
+        fontSize: t.size.numeralLg,
+        letterSpacing: t.tracking.numeralLg,
+        lineHeight: lh(t.size.numeralLg, t.lineHeightMul.title),
+      };
+    case 'displayXL':
+      return {
+        fontFamily: t.family.condensed,
+        fontSize: t.size.displayXL,
+        letterSpacing: t.tracking.condensed,
+        lineHeight: lh(t.size.displayXL, t.lineHeightMul.displayXL),
+        textTransform: 'uppercase',
+      };
     case 'display':
       return {
-        fontFamily: t.family.sansSemibold,
+        fontFamily: t.family.condensed,
         fontSize: t.size.display,
-        letterSpacing: t.tracking.display,
-        lineHeight: lh(t.size.display, t.lineHeightMul.title),
+        letterSpacing: t.tracking.condensed,
+        lineHeight: lh(t.size.display, t.lineHeightMul.display),
+        textTransform: 'uppercase',
       };
     case 'title':
       return {

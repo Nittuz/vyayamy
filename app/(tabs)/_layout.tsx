@@ -35,14 +35,19 @@ export default function TabsLayout() {
       tabBarInactiveTintColor: theme.color.inkSecondary,
       tabBarStyle: {
         backgroundColor: theme.color.surface,
-        borderTopColor: theme.color.border,
+        borderTopColor: theme.color.borderStrong,
+        borderTopWidth: theme.depth.ruleHeavy,
         height: theme.touch.navHeight,
         paddingTop: 6,
         paddingBottom: 8,
       },
       headerStyle: { backgroundColor: theme.color.bg },
       headerShadowVisible: false,
-      headerTitleStyle: { fontWeight: '600' as const, fontSize: theme.font.size.card + 1 },
+      headerTitleStyle: {
+        fontFamily: theme.font.family.sansSemibold,
+        fontSize: theme.font.size.card + 1,
+        color: theme.color.inkHero,
+      },
     }),
     [theme],
   );

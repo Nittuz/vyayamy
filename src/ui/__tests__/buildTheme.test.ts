@@ -11,16 +11,19 @@ import { skins } from '@/ui/skins';
 
 test('returns a STABLE reference for the same skin and scheme (#48)', () => {
   expect(buildTheme('forge', 'dark')).toBe(buildTheme('forge', 'dark'));
-  expect(buildTheme('iron', 'light')).toBe(buildTheme('iron', 'light'));
+  expect(buildTheme('forge', 'light')).toBe(buildTheme('forge', 'light'));
 });
 
-test('returns distinct objects for different skin or scheme', () => {
+test('returns distinct objects for different schemes', () => {
   expect(buildTheme('forge', 'dark')).not.toBe(buildTheme('forge', 'light'));
-  expect(buildTheme('forge', 'dark')).not.toBe(buildTheme('iron', 'dark'));
 });
 
-test('carries the right palette and scheme', () => {
-  const t = buildTheme('ember', 'light');
+test('carries the right palette, scheme, and depth tokens', () => {
+  const t = buildTheme('forge', 'light');
   expect(t.scheme).toBe('light');
-  expect(t.color).toBe(skins.ember.light);
+  expect(t.color).toBe(skins.forge.light);
+  // Forged Iron z-axis tokens ride on the theme.
+  expect(t.depth.slab).toBeGreaterThan(0);
+  expect(t.depth.rule).toBeGreaterThanOrEqual(2);
+  expect(t.press.translate).toBeGreaterThan(0);
 });

@@ -275,3 +275,48 @@ export async function getHeaviestWeightHistory(
     .sort(([a], [b]) => a.localeCompare(b))
     .map(([achievedAt, weight]) => ({ achievedAt, weight: Math.round(weight * 10) / 10 }));
 }
+
+export type VolumePoint = { achievedAt: string; volume: number };
+
+/**
+ * Best single-set volume (weight × reps) per LOCAL calendar day for one exercise.
+ * Mirrors getHeaviestWeightHistory: canonical math is done in the display unit so
+ * a mixed-unit history charts on one axis, the value is bucketed by local day so
+ * an evening lift doesn't split across two points (#149), and only completed sets
+ * from non-deleted rows count.
+ */
+export async function getBestSetVolumeHistory(
+  userId: string,
+  exerciseId: string,
+  units: Units = DEFAULT_UNITS,
+): Promise<VolumePoint[]> {
+  const db = await getDb();
+  const rows = await db.getAllAsync<{
+    achieved_at: string;
+    weight: number | null;
+    reps: number | null;
+    units: Units | null;
+  }>(
+    `SELECT s.completed_at AS achieved_at, s.weight AS weight, s.reps AS reps, s.units AS units
+       FROM sets s
+       JOIN workout_exercises we ON we.id = s.workout_exercise_id
+       JOIN workouts w ON w.id = we.workout_id
+       WHERE w.user_id = ? AND we.exercise_id = ?
+         AND s.completed = 1 AND s.deleted_at IS NULL
+         AND we.deleted_at IS NULL AND w.deleted_at IS NULL
+         AND s.weight IS NOT NULL AND s.reps IS NOT NULL
+       ORDER BY s.completed_at ASC`,
+    [userId, exerciseId],
+  );
+  const seen = new Map<string, number>();
+  for (const r of rows) {
+    if (r.weight == null || r.reps == null || !r.achieved_at) continue;
+    const vol = convertWeight(r.weight, r.units ?? DEFAULT_UNITS, units) * r.reps;
+    const key = localDayKey(r.achieved_at);
+    const prev = seen.get(key) ?? 0;
+    if (vol > prev) seen.set(key, vol);
+  }
+  return Array.from(seen.entries())
+    .sort(([a], [b]) => a.localeCompare(b))
+    .map(([achievedAt, volume]) => ({ achievedAt, volume: Math.round(volume * 10) / 10 }));
+}

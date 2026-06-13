@@ -1,21 +1,14 @@
 import { useQueryClient } from '@tanstack/react-query';
 import { router, Stack } from 'expo-router';
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
-import {
-  ActivityIndicator,
-  Alert,
-  Pressable,
-  ScrollView,
-  StyleSheet,
-  Text,
-  View,
-} from 'react-native';
+import { ActivityIndicator, ScrollView, StyleSheet, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
 import { useAuth } from '@/auth/useAuth';
 import { ActiveSetCard } from '@/components/ActiveSetCard';
 import {
   type ActiveCursor,
+  type AutoStagedSet,
   completedSetsBeforeCursor,
   type ExerciseShape,
   findExercise,
@@ -24,18 +17,25 @@ import {
   findPrevExercise,
   findSet,
   firstIncompleteSet,
+  shouldConfirmLeavingSet,
 } from '@/components/activeSet';
 import { EditableTitle } from '@/components/EditableTitle';
 import { ExercisePicker } from '@/components/ExercisePicker';
 import { RestOverrideSheet } from '@/components/RestOverrideSheet';
 import { RestProgressBar } from '@/components/RestProgressBar';
-import { SessionVolumeBar } from '@/components/SessionVolumeBar';
+import { SessionVolumeBar, type BankSignal } from '@/components/SessionVolumeBar';
 import { SyncErrorStripe } from '@/components/SyncErrorStripe';
 import { VoiceMicButton } from '@/components/VoiceMicButton';
 import { useVoiceSession } from '@/voice/useVoiceSession';
 import { useAddExerciseToWorkout } from '@/queries/exercises';
 import { useProfile } from '@/queries/profile';
 import { queryKeys } from '@/queries/keys';
+import {
+  createSessionPRTracker,
+  registerBankedSet,
+  useAllTimeHeaviestKg,
+  type SessionPRTracker,
+} from '@/queries/sessionPRs';
 import { addSet, useUpdateSet } from '@/queries/sets';
 import {
   deleteWorkoutLocal,
@@ -46,11 +46,15 @@ import {
 import { useWorkoutDetail } from '@/queries/workoutDetail';
 import { DEFAULT_UNITS, sumVolume } from '@/core/units';
 import { dayOfWeek } from '@/lib/dayOfWeek';
+import { Button } from '@/ui/Button';
+import { ConfirmSheet } from '@/ui/ConfirmSheet';
 import { haptics } from '@/ui/haptics';
 import { useRestTimer } from '@/ui/hooks/useRestTimer';
+import { Icon } from '@/ui/icons';
 import { effectiveRest, getOverrides } from '@/ui/restOverrides';
 import { SessionRecap } from '@/ui/SessionRecap';
 import { SyncIndicator } from '@/ui/SyncIndicator';
+import { Text } from '@/ui/Text';
 import { useSyncAwareErrorToast } from '@/ui/ToastContext';
 import { useTheme } from '@/ui/useTheme';
 
@@ -85,6 +89,18 @@ export default function WorkoutActiveScreen() {
   const [cursor, setCursor] = useState<ActiveCursor | null>(null);
   const [overrides, setOverridesState] = useState<Record<string, number>>({});
   const [overrideSheetOpen, setOverrideSheetOpen] = useState(false);
+
+  // Live PR detection (#25): seed a running per-exercise heaviest tracker from
+  // the all-time records, then test each banked set against it. The result
+  // drives the volume bar's PR pulse + pill and the finish recap.
+  const heaviestQuery = useAllTimeHeaviestKg(userId);
+  const prTracker = useRef<SessionPRTracker | null>(null);
+  const [bankSignal, setBankSignal] = useState<BankSignal>({ nonce: 0, isPR: false });
+  const [sessionPRs, setSessionPRs] = useState<string[]>([]);
+
+  // Confirm decisions go through the themed ConfirmSheet, never OS Alert.
+  const [leaveConfirm, setLeaveConfirm] = useState<null | (() => void)>(null);
+  const [discardConfirm, setDiscardConfirm] = useState(false);
 
   useEffect(() => {
     void getOverrides().then(setOverridesState);
@@ -129,6 +145,11 @@ export default function WorkoutActiveScreen() {
   // When adding an exercise from the recap, drop the cursor onto THAT exercise's
   // staged set once its data arrives — not the first incomplete set anywhere (#13).
   const pendingTargetWeId = useRef<string | null>(null);
+  // The next set auto-staged on completion is pre-filled with the prior set's
+  // weight × reps, so "has values" can't tell it apart from a set the user
+  // entered. Remember its identity + pre-filled values so leaving an untouched
+  // staged set doesn't trigger the "Skip this set?" prompt every time (#12).
+  const autoStaged = useRef<AutoStagedSet | null>(null);
 
   // Initialize cursor when exercises first load, or reposition when the cursor
   // points at a set that no longer exists / is already completed. cursor is read
@@ -207,18 +228,40 @@ export default function WorkoutActiveScreen() {
       timer.start();
       // Auto-stage the next set with the same weight × reps (Phase 3)
       const currentSetData = currentExForRest && findSet(currentExForRest, cursor.setId);
+      const stagedWeight = currentSetData?.weight ?? null;
+      const stagedReps = currentSetData?.reps ?? null;
+
+      // Did the set just banked beat the all-time heaviest for this exercise?
+      if (prTracker.current == null) {
+        prTracker.current = createSessionPRTracker(heaviestQuery.data ?? {});
+      }
+      const isPR =
+        currentExForRest != null &&
+        registerBankedSet(prTracker.current, {
+          exerciseId: currentExForRest.exerciseId,
+          weight: currentSetData ? currentSetData.weight : null,
+          units: currentSetData?.units ?? units,
+        });
+      setBankSignal((s) => ({ nonce: s.nonce + 1, isPR }));
+      if (isPR && currentExForRest) {
+        const name = currentExForRest.exerciseName;
+        setSessionPRs((prev) => (prev.includes(name) ? prev : [...prev, name]));
+      }
+
       const newSetId = await addSet(cursor.weId, {
-        weight: currentSetData?.weight ?? null,
-        reps: currentSetData?.reps ?? null,
+        weight: stagedWeight,
+        reps: stagedReps,
         // Same session → same logging unit as the set just completed.
-        units: currentSetData?.weight != null ? units : null,
+        units: stagedWeight != null ? units : null,
       });
+      // Record what we pre-filled so an untouched staged set advances silently.
+      autoStaged.current = { id: newSetId, weight: stagedWeight, reps: stagedReps };
       refreshDetail();
       setCursor({ weId: cursor.weId, setId: newSetId });
     } finally {
       completingRef.current = false;
     }
-  }, [cursor, currentExForRest, updateSet, timer, refreshDetail, units]);
+  }, [cursor, currentExForRest, updateSet, timer, refreshDetail, units, heaviestQuery.data]);
 
   const onDiscardEmpty = useCallback(async () => {
     if (!activeQuery.data) return;
@@ -252,7 +295,9 @@ export default function WorkoutActiveScreen() {
     if (!cursor || !currentExForRest) return;
     const nextEx = findNextExercise(exercises, cursor.weId);
     const currentSet = findSet(currentExForRest, cursor.setId);
-    const isUnmodified = !currentSet || (currentSet.weight == null && currentSet.reps == null);
+    // Only warn when leaving a set the user actually entered. The untouched
+    // auto-staged set (and the empty first set) carry no intent (#12).
+    const needsConfirm = shouldConfirmLeavingSet(currentSet, autoStaged.current);
     const advance = async () => {
       if (nextEx) {
         // Target the next exercise's first INCOMPLETE set — not sets[0], which
@@ -272,13 +317,10 @@ export default function WorkoutActiveScreen() {
         haptics.medium();
       }
     };
-    if (isUnmodified) {
+    if (!needsConfirm) {
       void advance();
     } else {
-      Alert.alert('Skip this set?', undefined, [
-        { text: 'Cancel', style: 'cancel' },
-        { text: 'Skip', style: 'destructive', onPress: () => void advance() },
-      ]);
+      setLeaveConfirm(() => () => void advance());
     }
   }, [cursor, currentExForRest, exercises, refreshDetail]);
 
@@ -320,7 +362,6 @@ export default function WorkoutActiveScreen() {
   });
 
   const hasNextExercise = currentExForRest ? findNextExercise(exercises, currentExForRest.id) !== null : false;
-  const nextLabel = hasNextExercise ? 'next →' : 'finish →';
 
   const screenOptions = useMemo(
     () => ({
@@ -334,32 +375,11 @@ export default function WorkoutActiveScreen() {
           }}
         />
       ),
-      headerRight: () => (
-        <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8 }}>
-          {cursor ? (
-            <Pressable
-              onPress={onNextExercise}
-              hitSlop={8}
-              accessibilityRole="button"
-              accessibilityLabel={hasNextExercise ? 'Next exercise' : 'Finish workout'}
-              accessibilityHint={hasNextExercise ? 'Move to the next exercise' : 'Complete the workout'}
-            >
-              <Text
-                style={{
-                  color: theme.color.accent,
-                  fontFamily: theme.font.family.sansMedium,
-                  fontSize: 13,
-                }}
-              >
-                {nextLabel}
-              </Text>
-            </Pressable>
-          ) : null}
-          <SyncIndicator />
-        </View>
-      ),
+      // The next/finish control lives in the bottom action row now, in the thumb
+      // zone — not stranded in the top-right header (#1.5).
+      headerRight: () => <SyncIndicator />,
     }),
-    [activeQuery.data, cursor, hasNextExercise, nextLabel, onNextExercise, theme, updateTitle],
+    [activeQuery.data, updateTitle],
   );
 
   if (!userId) return null;
@@ -375,15 +395,16 @@ export default function WorkoutActiveScreen() {
   if (!activeQuery.data || !detail.data) {
     return (
       <SafeAreaView style={[styles.container, styles.center, { backgroundColor: theme.color.bg }]}>
-        <Text style={[styles.empty, { color: theme.color.inkSecondary }]}>No active workout.</Text>
-        <Pressable
+        <Text variant="body" color={theme.color.inkSecondary}>
+          No active workout.
+        </Text>
+        <Button
+          label="Back to Today"
+          kind="ghost"
+          size="row"
           onPress={() => router.replace('/today')}
-          style={styles.linkButton}
-          accessibilityRole="link"
           accessibilityLabel="Back to today"
-        >
-          <Text style={[styles.linkText, { color: theme.color.accent }]}>Back to Today</Text>
-        </Pressable>
+        />
       </SafeAreaView>
     );
   }
@@ -393,36 +414,37 @@ export default function WorkoutActiveScreen() {
     return (
       <SafeAreaView style={[styles.container, { backgroundColor: theme.color.bg }]}>
         <Stack.Screen options={screenOptions} />
-        <View style={[styles.center, { flex: 1, gap: theme.space.s4 }]}>
-          <Text style={[styles.empty, { color: theme.color.inkSecondary }]}>
+        <View style={[styles.center, { flex: 1, gap: theme.space.s4, paddingHorizontal: theme.space.page }]}>
+          <Text variant="body" color={theme.color.inkSecondary} style={styles.centerText}>
             Add your first exercise to begin.
           </Text>
-          <Pressable
+          <Button
+            label="Add exercise"
+            icon="plus"
+            size="cta"
             onPress={() => setPickerOpen(true)}
-            accessibilityRole="button"
             accessibilityLabel="Add your first exercise"
-            style={({ pressed }) => [styles.primaryBtn, { backgroundColor: theme.color.accent, opacity: pressed ? 0.85 : 1 }]}
-          >
-            <Text style={[styles.primaryBtnText, { color: theme.color.onAccent }]}>
-              + Add exercise
-            </Text>
-          </Pressable>
+            style={styles.fullBtn}
+          />
           {/* Escape hatch: an exercise-less workout could otherwise be neither
               finished nor discarded, stranding the user (#18). */}
-          <Pressable
-            onPress={() =>
-              Alert.alert('Discard workout?', 'This empty workout will be removed.', [
-                { text: 'Cancel', style: 'cancel' },
-                { text: 'Discard', style: 'destructive', onPress: () => void onDiscardEmpty() },
-              ])
-            }
-            accessibilityRole="button"
+          <Button
+            label="Discard workout"
+            kind="ghost"
+            size="row"
+            onPress={() => setDiscardConfirm(true)}
             accessibilityLabel="Discard workout"
-            style={({ pressed }) => [styles.linkButton, { opacity: pressed ? 0.6 : 1 }]}
-          >
-            <Text style={[styles.linkText, { color: theme.color.inkSecondary }]}>Discard workout</Text>
-          </Pressable>
+          />
         </View>
+        <ConfirmSheet
+          visible={discardConfirm}
+          onClose={() => setDiscardConfirm(false)}
+          title="Discard workout?"
+          message="This empty workout will be removed."
+          confirmLabel="Discard"
+          destructive
+          onConfirm={() => void onDiscardEmpty()}
+        />
         <ExercisePicker
           userId={userId}
           visible={pickerOpen}
@@ -438,14 +460,9 @@ export default function WorkoutActiveScreen() {
     return (
       <SafeAreaView style={[styles.container, { backgroundColor: theme.color.bg }]}>
         <Stack.Screen options={screenOptions} />
-        <View style={[styles.center, { flex: 1, gap: theme.space.s4, paddingHorizontal: 20 }]}>
-          <Text
-            style={[
-              styles.finishTitle,
-              { color: theme.color.inkHero, fontFamily: theme.font.family.sansSemibold },
-            ]}
-          >
-            Workout complete.
+        <View style={[styles.center, { flex: 1, gap: theme.space.s6, paddingHorizontal: theme.space.page }]}>
+          <Text variant="display" color={theme.color.inkHero} style={styles.centerText}>
+            Workout complete
           </Text>
           <SessionRecap
             volume={totalVolume(exercises, units)}
@@ -456,42 +473,27 @@ export default function WorkoutActiveScreen() {
                 : 0
             }
             units={units}
+            prs={sessionPRs}
           />
-          <Pressable
-            onPress={onFinish}
-            disabled={finishWorkout.isPending}
-            accessibilityRole="button"
-            accessibilityLabel="Finish workout"
-            accessibilityState={{ disabled: finishWorkout.isPending, busy: finishWorkout.isPending }}
-            style={({ pressed }) => [
-              styles.primaryBtn,
-              { backgroundColor: theme.color.accent, opacity: pressed ? 0.85 : 1 },
-            ]}
-          >
-            {finishWorkout.isPending ? (
-              <ActivityIndicator color={theme.color.onAccent} />
-            ) : (
-              <Text style={[styles.primaryBtnText, { color: theme.color.onAccent }]}>
-                → Finish workout
-              </Text>
-            )}
-          </Pressable>
-          <Pressable
-            onPress={() => setPickerOpen(true)}
-            accessibilityRole="button"
-            accessibilityLabel="Add exercise to workout"
-            style={({ pressed }) => [
-              styles.secondaryBtn,
-              {
-                borderColor: theme.color.borderStrong,
-                opacity: pressed ? 0.7 : 1,
-              },
-            ]}
-          >
-            <Text style={[styles.secondaryBtnText, { color: theme.color.ink }]}>
-              + Add exercise
-            </Text>
-          </Pressable>
+          <View style={styles.finishActions}>
+            <Button
+              label="Finish workout"
+              size="cta"
+              loading={finishWorkout.isPending}
+              onPress={onFinish}
+              accessibilityLabel="Finish workout"
+              style={styles.fullBtn}
+            />
+            <Button
+              label="Add exercise"
+              kind="secondary"
+              size="row"
+              icon="plus"
+              onPress={() => setPickerOpen(true)}
+              accessibilityLabel="Add exercise to workout"
+              style={styles.fullBtn}
+            />
+          </View>
         </View>
         <ExercisePicker
           userId={userId}
@@ -531,8 +533,12 @@ export default function WorkoutActiveScreen() {
         onSkip={timer.stop}
         onOpenOverride={() => setOverrideSheetOpen(true)}
       />
-      <SessionVolumeBar volume={totalVolume(exercises, units)} units={units} />
-      <ScrollView contentContainerStyle={styles.scroll}>
+      <SessionVolumeBar
+        volume={totalVolume(exercises, units)}
+        units={units}
+        bankSignal={bankSignal}
+      />
+      <ScrollView style={styles.scrollFlex} contentContainerStyle={styles.scroll}>
         <ActiveSetCard
           key={currentSet.id}
           exercise={currentEx}
@@ -555,7 +561,7 @@ export default function WorkoutActiveScreen() {
                 : undefined,
           }}
         />
-        <View style={{ marginTop: theme.space.s4, gap: theme.space.s3 }}>
+        <View style={styles.voiceArea}>
           <VoiceMicButton
             phase={!voice.available ? 'disabled' : voice.ui.phase === 'idle' ? 'idle' : 'listening'}
             onTap={() => (voice.ui.phase === 'idle' ? void voice.start() : voice.stop())}
@@ -563,35 +569,35 @@ export default function WorkoutActiveScreen() {
             onHoldEnd={() => voice.stop()}
           />
           {voice.ui.phase === 'pending' ? (
-            <Pressable
+            <Button
+              label="Confirm"
+              kind="ghost"
+              size="row"
               onPress={() => void voice.confirmPending()}
-              accessibilityRole="button"
               accessibilityLabel="Confirm voice command"
-              style={({ pressed }) => [styles.addExercise, { opacity: pressed ? 0.7 : 1 }]}
-            >
-              <Text style={{ color: theme.color.accent, fontFamily: theme.font.family.sansMedium, fontSize: 13 }}>
-                Confirm
-              </Text>
-            </Pressable>
+            />
           ) : null}
         </View>
-        <Pressable
+        <Button
+          label="Add exercise"
+          kind="ghost"
+          size="row"
+          icon="plus"
           onPress={() => setPickerOpen(true)}
-          accessibilityRole="button"
           accessibilityLabel="Add exercise to workout"
-          style={({ pressed }) => [styles.addExercise, { opacity: pressed ? 0.7 : 1, marginTop: theme.space.s4 }]}
-        >
-          <Text
-            style={{
-              color: theme.color.accent,
-              fontFamily: theme.font.family.sansMedium,
-              fontSize: theme.font.size.body,
-            }}
-          >
-            + Add exercise
-          </Text>
-        </Pressable>
+        />
       </ScrollView>
+      {/* Primary progression control in the thumb zone, not the top header (#1.5). */}
+      <View style={styles.bottomBar}>
+        <Button
+          label={hasNextExercise ? 'Next exercise' : 'Finish workout'}
+          size="cta"
+          icon="arrow-right"
+          onPress={onNextExercise}
+          accessibilityLabel={hasNextExercise ? 'Next exercise' : 'Finish workout'}
+          accessibilityHint={hasNextExercise ? 'Move to the next exercise' : 'Complete the workout'}
+        />
+      </View>
       <ExercisePicker
         userId={userId}
         visible={pickerOpen}
@@ -609,6 +615,15 @@ export default function WorkoutActiveScreen() {
           onChanged={() => void reloadOverrides()}
         />
       ) : null}
+      <ConfirmSheet
+        visible={!!leaveConfirm}
+        onClose={() => setLeaveConfirm(null)}
+        title="Leave this set?"
+        message="It has values but isn’t completed. Swipe up to log it, or leave it."
+        confirmLabel="Leave"
+        destructive
+        onConfirm={() => leaveConfirm?.()}
+      />
     </SafeAreaView>
   );
 }
@@ -629,37 +644,15 @@ function totalVolume(exs: ExerciseShape[], displayUnits: 'kg' | 'lb'): number {
 const styles = StyleSheet.create({
   container: { flex: 1 },
   center: { alignItems: 'center', justifyContent: 'center', gap: 12 },
-  scroll: { paddingBottom: 64 },
-  empty: { fontSize: 14, lineHeight: 20 },
-  linkButton: { padding: 12 },
-  linkText: { fontSize: 14 },
-  primaryBtn: {
-    paddingHorizontal: 24,
-    paddingVertical: 14,
-    borderRadius: 10,
-    alignItems: 'center',
-  },
-  primaryBtnText: { fontSize: 14, fontWeight: '600' },
-  secondaryBtn: {
-    paddingHorizontal: 16,
-    paddingVertical: 12,
-    borderRadius: 10,
-    borderWidth: 1,
-    alignItems: 'center',
-  },
-  secondaryBtnText: { fontSize: 12, fontWeight: '500' },
-  addExercise: {
-    paddingVertical: 12,
+  centerText: { textAlign: 'center' },
+  scrollFlex: { flex: 1 },
+  scroll: { paddingBottom: 24 },
+  voiceArea: { marginTop: 16, gap: 12 },
+  finishActions: { alignSelf: 'stretch', gap: 12 },
+  fullBtn: { alignSelf: 'stretch' },
+  bottomBar: {
     paddingHorizontal: 20,
-    alignItems: 'center',
-  },
-  finishTitle: {
-    fontSize: 24,
-    letterSpacing: -0.5,
-  },
-  finishBody: {
-    fontSize: 14,
-    lineHeight: 20,
-    textAlign: 'center',
+    paddingTop: 8,
+    paddingBottom: 8,
   },
 });
