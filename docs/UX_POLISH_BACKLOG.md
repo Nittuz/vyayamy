@@ -8,6 +8,17 @@ Priorities: P0 ship-blocker (none open), P1 broken or data-losing path in a core
 
 ---
 
+## Resolution log — Forged Iron redesign (2026-06-12, branch `redesign/forged-iron`)
+
+The "Forged Iron" visual + experiential uplevel resolved or advanced the items below. Each remaining open item keeps its full entry further down.
+
+- **Resolved:** 1.4 (leave-set confirm only when edited), 2.1 (voice error no longer renders as success), 3.1 (rest timer is now a mono `m:ss` countdown with a 44pt skip, not a 2px hairline), 7.1 (`<Text variant>` migration completed across screens), 7.2 (legacy static-StyleSheet screens — Today, WorkoutActive — moved to `makeStyles`), 7.3 (one `Sheet`/`ConfirmSheet` primitive replaces the five divergent modals; `Alert.alert` decisions migrated), 7.4 (light/dark splash + iOS 18 light/dark/tinted icon variants + ember notification color), 7.5 (TabIcon consumes `focused`), 8.2 (Today empty state is a start CTA; Login leads with magic-link + sent-state recovery), 8.4 (Quarantine "Discard all" gated behind a destructive confirm), 10.1 (live PR detection fires the glow/pill/recap).
+- **Partially resolved:** 1.5 (next/finish moved to a thumb-zone bottom bar), 7.6 (contrast suite extended with accent/danger/onAccent/surface2 pairs), 7.7 (BootOverlay resolves palette by scheme), 9.1 (VoiceOver complete-set accessibility action added; full device QA still open), 9.3 (44pt audit applied on touched controls).
+- **Superseded:** the four-skin system and the brand-medal items — the skin picker was retired for a single Forged Iron identity, and the rose-gold medal was replaced by the "loaded-end" mark with new store assets.
+- **Still open** (not in redesign scope): 1.1, 1.2, 1.3, 6.1, 8.1 (partial), 8.3.
+
+---
+
 ## 1. Core workout flow
 
 **1.1 Banked sets cannot be corrected (new: journey 6 re-rating)**
