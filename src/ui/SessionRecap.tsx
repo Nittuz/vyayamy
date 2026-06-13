@@ -7,7 +7,7 @@
  * PRs are passed in by the active flow now that live detection exists (#25):
  * the finish handler recomputes records and hands the labels here.
  */
-import { useEffect, useMemo } from 'react';
+import { useEffect, useMemo, useRef } from 'react';
 import { StyleSheet, Text as RNText, View } from 'react-native';
 import Animated, { Easing, useAnimatedProps, useSharedValue, withTiming } from 'react-native-reanimated';
 
@@ -52,6 +52,9 @@ export function SessionRecap({
   }, [volume, v]);
 
   const volumeProps = useAnimatedProps(() => ({ text: `${Math.round(v.value)}` }) as never);
+  // Static first-paint content so the headline never flashes blank before
+  // Reanimated applies the animated text; the count-up runs from 0.
+  const mountText = useRef('0').current;
 
   return (
     <View style={styles.wrap}>
@@ -60,7 +63,9 @@ export function SessionRecap({
           Workout volume
         </Text>
         <View style={styles.headlineRow}>
-          <AnimatedText animatedProps={volumeProps} style={styles.headlineValue} />
+          <AnimatedText animatedProps={volumeProps} style={styles.headlineValue}>
+            {mountText}
+          </AnimatedText>
           <RNText style={styles.headlineUnit}> {units}</RNText>
         </View>
       </FadeInView>

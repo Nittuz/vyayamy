@@ -79,6 +79,12 @@ export function SessionVolumeBar({
   const counterProps = useAnimatedProps(() => ({ text: `${Math.round(v.value)}` }) as never);
   const glowStyle = useAnimatedStyle(() => ({ opacity: glowOpacity.value }));
 
+  // Reanimated only applies the animated `text` prop after the first frame, so
+  // a cold-opened in-progress workout would flash a blank tally. Freeze the
+  // mount value as static children for the first paint; the worklet's native
+  // text takes over for the count-up (children never re-renders, so no flicker).
+  const mountText = useRef(`${Math.round(volume)}`).current;
+
   return (
     <View style={styles.wrap}>
       <Animated.View
@@ -99,7 +105,9 @@ export function SessionVolumeBar({
         ) : null}
       </View>
       <View style={styles.valueRow}>
-        <AnimatedText animatedProps={counterProps} style={styles.value} />
+        <AnimatedText animatedProps={counterProps} style={styles.value}>
+          {mountText}
+        </AnimatedText>
         <RNText style={styles.unit}> {units}</RNText>
       </View>
     </View>
