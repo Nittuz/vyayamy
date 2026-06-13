@@ -21,13 +21,28 @@ export const space = {
   page: 20,
 } as const;
 
+// Forged Iron corners are near-sharp: the slab + 2px rule carry the form,
+// not rounding. Token names survive so consumers don't change.
 export const radius = {
-  sm: 8,
-  md: 12,
-  lg: 16,
+  sm: 2,
+  md: 4,
+  lg: 6,
   full: 9999,
-  card: 14,
-  button: 8,
+  card: 4,
+  button: 2,
+} as const;
+
+/** Hard-offset slab depths and rule weights — the Forged Iron z-axis. */
+export const depth = {
+  slab: 4,
+  slabSm: 2,
+  rule: 2,
+  ruleHeavy: 3,
+} as const;
+
+/** Pressed faces translate this far toward their slab (direct manipulation, not animation). */
+export const press = {
+  translate: 3,
 } as const;
 
 export const touch = {
@@ -42,6 +57,8 @@ export interface Theme {
   color: PaletteTokens;
   space: typeof space;
   radius: typeof radius;
+  depth: typeof depth;
+  press: typeof press;
   touch: typeof touch;
   font: typeof typography;
   motion: typeof motion;
@@ -60,7 +77,7 @@ export function buildTheme(skin: SkinId, scheme: 'light' | 'dark'): Theme {
   let theme = themeCache.get(key);
   if (!theme) {
     const color: PaletteTokens = skins[skin][scheme];
-    theme = { color, space, radius, touch, font: typography, motion, scheme };
+    theme = { color, space, radius, depth, press, touch, font: typography, motion, scheme };
     themeCache.set(key, theme);
   }
   return theme;

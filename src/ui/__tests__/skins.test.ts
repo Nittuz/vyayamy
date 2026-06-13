@@ -19,14 +19,15 @@ const TOKEN_KEYS: (keyof PaletteTokens)[] = [
   'dangerSoft',
   'onAccent',
   'overlay',
+  'slab',
 ];
 
-describe('skin registry', () => {
-  test('exposes all four skins', () => {
-    expect(SKIN_IDS).toEqual(['forge', 'iron', 'ember', 'chalk']);
+describe('skin registry (collapsed to the single Forged Iron identity)', () => {
+  test('exposes exactly the one skin', () => {
+    expect(SKIN_IDS).toEqual(['forge']);
   });
 
-  test('every skin has dark+light with the full token shape', () => {
+  test('the skin has dark+light with the full token shape', () => {
     for (const id of SKIN_IDS) {
       for (const scheme of ['dark', 'light'] as const) {
         const tokens = skins[id][scheme];
@@ -37,10 +38,8 @@ describe('skin registry', () => {
     }
   });
 
-  test('every skin has a display name', () => {
-    for (const id of SKIN_IDS) {
-      expect(SKIN_META[id].name.length).toBeGreaterThan(0);
-    }
+  test('the skin has a display name', () => {
+    expect(SKIN_META.forge.name.length).toBeGreaterThan(0);
   });
 });
 
@@ -49,11 +48,18 @@ describe('coerceSkin / isSkinId', () => {
     expect(DEFAULT_SKIN).toBe('forge');
   });
 
-  test('accepts every valid skin id', () => {
-    for (const id of SKIN_IDS) {
-      expect(isSkinId(id)).toBe(true);
-      expect(coerceSkin(id)).toBe(id);
-    }
+  test('accepts the valid skin id', () => {
+    expect(isSkinId('forge')).toBe(true);
+    expect(coerceSkin('forge')).toBe('forge');
+  });
+
+  test('migrates legacy persisted skin ids to the default', () => {
+    // Existing installs may have 'iron' | 'ember' | 'chalk' in AsyncStorage —
+    // they must coerce silently, never crash.
+    expect(coerceSkin('iron')).toBe('forge');
+    expect(coerceSkin('ember')).toBe('forge');
+    expect(coerceSkin('chalk')).toBe('forge');
+    expect(isSkinId('ember')).toBe(false);
   });
 
   test('coerces unknown / null / wrong-type values to the default', () => {

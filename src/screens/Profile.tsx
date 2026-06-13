@@ -16,8 +16,6 @@ import { signOut } from '@/auth/authActions';
 import { useAuth } from '@/auth/useAuth';
 import { formatMemberSince, getInitials } from '@/core/format';
 import { useProfile, useUpdateProfile } from '@/queries/profile';
-import { skins, SKIN_IDS, SKIN_META } from '@/ui/skins';
-import { useSkin } from '@/ui/SkinContext';
 import { SyncIndicator } from '@/ui/SyncIndicator';
 import { useToast } from '@/ui/ToastContext';
 import { useTheme, type Theme } from '@/ui/useTheme';
@@ -31,7 +29,6 @@ export default function ProfileScreen() {
   const updateProfile = useUpdateProfile(userId, toastError);
   const theme = useTheme();
   const styles = useMemo(() => makeStyles(theme), [theme]);
-  const { skin: activeSkin, setSkin } = useSkin();
 
   const [displayName, setDisplayName] = useState('');
   const [signingOut, setSigningOut] = useState(false);
@@ -112,38 +109,6 @@ export default function ProfileScreen() {
               </Pressable>
             ))}
           </View>
-        </View>
-
-        <View style={styles.card}>
-          <Text style={styles.fieldLabel}>Appearance</Text>
-          {SKIN_IDS.map((id) => {
-            const preview = skins[id][theme.scheme];
-            const selected = id === activeSkin;
-            return (
-              <Pressable
-                key={id}
-                onPress={() => void setSkin(id)}
-                accessibilityRole="button"
-                accessibilityLabel={`${SKIN_META[id].name} appearance`}
-                accessibilityState={{ selected }}
-                style={({ pressed }) => [
-                  styles.skinRow,
-                  selected && styles.skinRowActive,
-                  pressed && { opacity: 0.85 },
-                ]}
-              >
-                <View style={[styles.skinSwatch, { backgroundColor: preview.bg }]}>
-                  <View style={[styles.skinSwatchSurface, { backgroundColor: preview.surface }]} />
-                  <View style={[styles.skinSwatchDot, { backgroundColor: preview.accent }]} />
-                </View>
-                <View style={{ flex: 1 }}>
-                  <Text style={styles.skinName}>{SKIN_META[id].name}</Text>
-                  <Text style={styles.skinBlurb}>{SKIN_META[id].blurb}</Text>
-                </View>
-                {selected ? <Text style={styles.skinCheck}>✓</Text> : null}
-              </Pressable>
-            );
-          })}
         </View>
 
         <Pressable
@@ -252,47 +217,6 @@ const makeStyles = (theme: Theme) =>
     fontWeight: theme.font.weight.medium,
   },
   segmentTextActive: { color: theme.color.ink },
-  skinRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: theme.space.s3,
-    paddingVertical: theme.space.s2,
-    paddingHorizontal: theme.space.s2,
-    borderRadius: theme.radius.sm,
-    borderWidth: 1,
-    borderColor: 'transparent',
-  },
-  skinRowActive: {
-    borderColor: theme.color.accent,
-    backgroundColor: theme.color.bg,
-  },
-  skinSwatch: {
-    width: 40,
-    height: 40,
-    borderRadius: theme.radius.sm,
-    borderWidth: 1,
-    borderColor: theme.color.border,
-    overflow: 'hidden',
-    justifyContent: 'flex-end',
-    padding: 4,
-  },
-  skinSwatchSurface: {
-    position: 'absolute',
-    top: 4,
-    left: 4,
-    right: 12,
-    height: 10,
-    borderRadius: 3,
-  },
-  skinSwatchDot: { width: 12, height: 12, borderRadius: 6 },
-  skinName: {
-    fontSize: theme.font.size.body,
-    color: theme.color.ink,
-    fontFamily: theme.font.family.sansMedium,
-    fontWeight: theme.font.weight.medium,
-  },
-  skinBlurb: { fontSize: theme.font.size.meta, fontFamily: theme.font.family.sans, color: theme.color.inkSecondary, marginTop: 1 },
-  skinCheck: { fontSize: theme.font.size.title, fontFamily: theme.font.family.sans, color: theme.color.accent },
   row: {
     flexDirection: 'row',
     alignItems: 'center',

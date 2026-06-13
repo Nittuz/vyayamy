@@ -36,15 +36,26 @@ const palettes: { name: string; tokens: PaletteTokens }[] = SKIN_IDS.flatMap((id
 const BODY_RATIO = 4.5;
 const LARGE_RATIO = 3.0;
 
-const pairs: Pair[] = palettes.flatMap(({ name, tokens: _ }) => [
+const pairs: Pair[] = palettes.flatMap(({ name }) => [
   { paletteName: name, ink: 'ink', bg: 'bg', minRatio: BODY_RATIO },
   { paletteName: name, ink: 'ink', bg: 'surface', minRatio: BODY_RATIO },
+  { paletteName: name, ink: 'ink', bg: 'surface2', minRatio: BODY_RATIO },
   { paletteName: name, ink: 'inkSecondary', bg: 'bg', minRatio: BODY_RATIO },
   { paletteName: name, ink: 'inkSecondary', bg: 'surface', minRatio: BODY_RATIO },
+  { paletteName: name, ink: 'inkSecondary', bg: 'surface2', minRatio: BODY_RATIO },
   { paletteName: name, ink: 'inkTertiary', bg: 'bg', minRatio: LARGE_RATIO },
   { paletteName: name, ink: 'inkTertiary', bg: 'surface', minRatio: LARGE_RATIO },
+  { paletteName: name, ink: 'inkTertiary', bg: 'surface2', minRatio: LARGE_RATIO },
   { paletteName: name, ink: 'inkHero', bg: 'bg', minRatio: BODY_RATIO },
   { paletteName: name, ink: 'inkHero', bg: 'surface', minRatio: BODY_RATIO },
+  // Accent and danger carry body-sized interactive text (CTAs, links, errors).
+  { paletteName: name, ink: 'accent', bg: 'bg', minRatio: BODY_RATIO },
+  { paletteName: name, ink: 'accent', bg: 'surface', minRatio: BODY_RATIO },
+  { paletteName: name, ink: 'danger', bg: 'bg', minRatio: BODY_RATIO },
+  { paletteName: name, ink: 'danger', bg: 'surface', minRatio: BODY_RATIO },
+  // Text on filled accent/danger controls (primary Button, error toasts) — #7.6.
+  { paletteName: name, ink: 'onAccent', bg: 'accent', minRatio: BODY_RATIO },
+  { paletteName: name, ink: 'onAccent', bg: 'danger', minRatio: BODY_RATIO },
 ]);
 
 describe('palette contrast (WCAG)', () => {
