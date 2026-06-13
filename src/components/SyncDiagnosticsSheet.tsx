@@ -1,12 +1,15 @@
-import { useEffect, useState } from 'react';
-import { Modal, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
+import { useEffect, useMemo, useState } from 'react';
+import { ScrollView, StyleSheet, View } from 'react-native';
 
 import { useQuarantined } from '@/sync/quarantine';
 import { runSyncCycle } from '@/sync/engine';
 import { getOutboxPreview, relativeAge, type OutboxPreviewRow } from '@/sync/outboxPreview';
 import { useSyncStateLive } from '@/sync/useSyncStateLive';
+import { Button } from '@/ui/Button';
 import { haptics } from '@/ui/haptics';
-import { useTheme } from '@/ui/useTheme';
+import { Sheet } from '@/ui/Sheet';
+import { Text } from '@/ui/Text';
+import { useTheme, type Theme } from '@/ui/useTheme';
 
 interface Props {
   visible: boolean;
@@ -16,6 +19,7 @@ interface Props {
 
 export function SyncDiagnosticsSheet({ visible, onClose, onOpenQuarantine }: Props) {
   const theme = useTheme();
+  const styles = useMemo(() => makeStyles(theme), [theme]);
   const sync = useSyncStateLive();
   const quarantined = useQuarantined();
   const [preview, setPreview] = useState<OutboxPreviewRow[]>([]);
@@ -43,122 +47,76 @@ export function SyncDiagnosticsSheet({ visible, onClose, onOpenQuarantine }: Pro
       : 'idle'
     : 'offline';
 
+  const quarantinedCount = quarantined.data?.length ?? 0;
+
   return (
-    <Modal visible={visible} transparent animationType="fade" onRequestClose={onClose}>
-      <Pressable style={[styles.backdrop, { backgroundColor: theme.color.overlay }]} onPress={onClose}>
-        <Pressable
-          style={[styles.sheet, { backgroundColor: theme.color.bg }]}
-          onPress={(e) => e.stopPropagation()}
-        >
-          <Text
-            style={[
-              styles.title,
-              {
-                color: theme.color.inkHero,
-                fontFamily: theme.font.family.sansSemibold,
-                fontSize: theme.font.size.title,
-                letterSpacing: theme.font.tracking.title,
-              },
-            ]}
-          >
-            Sync diagnostics
-          </Text>
-          <Text
-            style={[
-              styles.body,
-              { color: theme.color.inkSecondary, fontFamily: theme.font.family.sans },
-            ]}
-          >
-            Read-only view of the sync engine's state.
-          </Text>
+    <Sheet
+      visible={visible}
+      onClose={onClose}
+      title="Sync diagnostics"
+      footer={
+        <>
+          <Button
+            label={syncingNow ? 'Syncing…' : 'Force sync now'}
+            kind="primary"
+            size="row"
+            loading={syncingNow}
+            disabled={syncingNow}
+            onPress={() => void handleForceSync()}
+          />
+          {quarantinedCount > 0 ? (
+            <Button
+              label={`Review quarantined (${quarantinedCount})`}
+              kind="danger"
+              size="row"
+              onPress={onOpenQuarantine}
+            />
+          ) : null}
+          <Button label="Close" kind="ghost" size="row" onPress={onClose} />
+        </>
+      }
+    >
+      <Text variant="body" color={theme.color.inkSecondary} style={styles.intro}>
+        Read-only view of the sync engine's state.
+      </Text>
 
-          <ScrollView style={styles.content}>
-            <Section label="STATUS" theme={theme}>
-              <Row k="State" v={statusLabel} theme={theme} mono />
-              <Row k="Last error" v={sync.lastError ?? 'none'} theme={theme} mono />
-            </Section>
+      <ScrollView style={styles.content}>
+        <Section label="STATUS" theme={theme}>
+          <Row k="State" v={statusLabel} theme={theme} mono />
+          <Row k="Last error" v={sync.lastError ?? 'none'} theme={theme} mono />
+        </Section>
 
-            <Section label="OUTBOX" theme={theme}>
-              <Row k="Pending" v={String(sync.pendingOutbox)} theme={theme} mono />
-              <Row k="Quarantined" v={String(quarantined.data?.length ?? 0)} theme={theme} mono />
-              {preview.length > 0 ? (
-                <View style={{ marginTop: 8 }}>
-                  <Text
-                    style={[
-                      styles.smallLabel,
-                      { color: theme.color.inkTertiary, fontFamily: theme.font.family.sansMedium },
-                    ]}
-                  >
-                    MOST RECENT
-                  </Text>
-                  {preview.map((row) => (
-                    <Text
-                      key={row.id}
-                      style={[
-                        styles.previewRow,
-                        { color: theme.color.ink, fontFamily: theme.font.family.mono },
-                      ]}
-                    >
-                      {row.table_name} · {row.op} · {relativeAge(row.created_at)}
-                    </Text>
-                  ))}
-                </View>
-              ) : null}
-            </Section>
-
-            <Section label="LAST SYNC" theme={theme}>
-              <Row k="Pushed" v={sync.lastPushedAt ? relativeAge(sync.lastPushedAt) : 'never'} theme={theme} mono />
-              <Row k="Pulled" v={sync.lastPulledAt ? relativeAge(sync.lastPulledAt) : 'never'} theme={theme} mono />
-            </Section>
-          </ScrollView>
-
-          <View style={styles.actions}>
-            <Pressable
-              onPress={() => void handleForceSync()}
-              disabled={syncingNow}
-              style={({ pressed }) => [
-                styles.forceBtn,
-                {
-                  backgroundColor: theme.color.accent,
-                  opacity: pressed ? 0.85 : syncingNow ? 0.5 : 1,
-                },
-              ]}
-            >
-              <Text style={[styles.forceText, { color: theme.color.onAccent, fontFamily: theme.font.family.sansSemibold }]}>
-                {syncingNow ? 'Syncing…' : 'Force sync now'}
+        <Section label="OUTBOX" theme={theme}>
+          <Row k="Pending" v={String(sync.pendingOutbox)} theme={theme} mono />
+          <Row k="Quarantined" v={String(quarantinedCount)} theme={theme} mono />
+          {preview.length > 0 ? (
+            <View style={styles.previewBlock}>
+              <Text variant="label" color={theme.color.inkTertiary}>
+                MOST RECENT
               </Text>
-            </Pressable>
-            {(quarantined.data?.length ?? 0) > 0 ? (
-              <Pressable
-                onPress={onOpenQuarantine}
-                style={({ pressed }) => [styles.linkBtn, { opacity: pressed ? 0.7 : 1 }]}
-              >
-                <Text style={[styles.linkText, { color: theme.color.danger, fontFamily: theme.font.family.sansMedium }]}>
-                  Review quarantined ({quarantined.data?.length ?? 0})
+              {preview.map((row) => (
+                <Text key={row.id} variant="numeral" color={theme.color.ink} style={styles.previewRow}>
+                  {row.table_name} · {row.op} · {relativeAge(row.created_at)}
                 </Text>
-              </Pressable>
-            ) : null}
-            <Pressable onPress={onClose} style={styles.closeBtn}>
-              <Text style={[styles.closeText, { color: theme.color.inkSecondary, fontFamily: theme.font.family.sansMedium }]}>
-                Close
-              </Text>
-            </Pressable>
-          </View>
-        </Pressable>
-      </Pressable>
-    </Modal>
+              ))}
+            </View>
+          ) : null}
+        </Section>
+
+        <Section label="LAST SYNC" theme={theme}>
+          <Row k="Pushed" v={sync.lastPushedAt ? relativeAge(sync.lastPushedAt) : 'never'} theme={theme} mono />
+          <Row k="Pulled" v={sync.lastPulledAt ? relativeAge(sync.lastPulledAt) : 'never'} theme={theme} mono />
+        </Section>
+      </ScrollView>
+    </Sheet>
   );
 }
 
-function Section({ label, theme, children }: { label: string; theme: ReturnType<typeof useTheme>; children: React.ReactNode }) {
+function Section({ label, theme, children }: { label: string; theme: Theme; children: React.ReactNode }) {
+  const styles = useMemo(() => makeStyles(theme), [theme]);
   return (
-    <View style={[styles.section, { borderColor: theme.color.border }]}>
-      <Text
-        style={[
-          styles.sectionLabel,
-          { color: theme.color.inkTertiary, fontFamily: theme.font.family.sansMedium },
-        ]}
-      >
+    <View style={styles.section}>
+      <Text variant="label" color={theme.color.inkTertiary} style={styles.sectionLabel}>
         {label}
       </Text>
       {children}
@@ -166,62 +124,35 @@ function Section({ label, theme, children }: { label: string; theme: ReturnType<
   );
 }
 
-function Row({ k, v, theme, mono }: { k: string; v: string; theme: ReturnType<typeof useTheme>; mono?: boolean }) {
+function Row({ k, v, theme, mono }: { k: string; v: string; theme: Theme; mono?: boolean }) {
+  const styles = useMemo(() => makeStyles(theme), [theme]);
   return (
     <View style={styles.row}>
-      <Text style={[styles.rowKey, { color: theme.color.inkSecondary, fontFamily: theme.font.family.sans }]}>
+      <Text variant="body" color={theme.color.inkSecondary}>
         {k}
       </Text>
-      <Text
-        style={[
-          styles.rowValue,
-          {
-            color: theme.color.ink,
-            fontFamily: mono ? theme.font.family.mono : theme.font.family.sans,
-          },
-        ]}
-      >
+      <Text variant={mono ? 'numeral' : 'body'} color={theme.color.ink}>
         {v}
       </Text>
     </View>
   );
 }
 
-const styles = StyleSheet.create({
-  backdrop: { flex: 1, justifyContent: 'flex-end' },
-  sheet: {
-    borderTopLeftRadius: 16,
-    borderTopRightRadius: 16,
-    paddingHorizontal: 20,
-    paddingTop: 24,
-    paddingBottom: 32,
-    maxHeight: '85%',
-  },
-  title: { marginBottom: 8 },
-  body: { fontSize: 13, marginBottom: 16, lineHeight: 19 },
-  content: { maxHeight: 380 },
-  section: { paddingVertical: 12, borderTopWidth: StyleSheet.hairlineWidth },
-  sectionLabel: {
-    fontSize: 10,
-    letterSpacing: 1.5,
-    textTransform: 'uppercase',
-    marginBottom: 8,
-  },
-  smallLabel: {
-    fontSize: 10,
-    letterSpacing: 1.2,
-    textTransform: 'uppercase',
-    marginBottom: 4,
-  },
-  row: { flexDirection: 'row', justifyContent: 'space-between', paddingVertical: 4 },
-  rowKey: { fontSize: 12 },
-  rowValue: { fontSize: 12 },
-  previewRow: { fontSize: 11, paddingVertical: 2 },
-  actions: { marginTop: 16, gap: 8 },
-  forceBtn: { paddingVertical: 14, borderRadius: 10, alignItems: 'center' },
-  forceText: { fontSize: 14 },
-  linkBtn: { paddingVertical: 12, alignItems: 'center' },
-  linkText: { fontSize: 13 },
-  closeBtn: { paddingVertical: 10, alignItems: 'center' },
-  closeText: { fontSize: 12 },
-});
+const makeStyles = (theme: Theme) =>
+  StyleSheet.create({
+    intro: { marginBottom: theme.space.s4 },
+    content: { maxHeight: 380 },
+    section: {
+      paddingVertical: theme.space.s3,
+      borderTopWidth: theme.depth.rule,
+      borderTopColor: theme.color.border,
+    },
+    sectionLabel: { marginBottom: theme.space.s2 },
+    previewBlock: { marginTop: theme.space.s2, gap: theme.space.half },
+    previewRow: { paddingVertical: theme.space.half },
+    row: {
+      flexDirection: 'row',
+      justifyContent: 'space-between',
+      paddingVertical: theme.space.s1,
+    },
+  });

@@ -1,6 +1,9 @@
-import { Pressable, StyleSheet, Text } from 'react-native';
+import { useMemo } from 'react';
+import { Pressable, StyleSheet } from 'react-native';
 
-import { useTheme } from '@/ui/useTheme';
+import { Icon } from '@/ui/icons';
+import { Text } from '@/ui/Text';
+import { useTheme, type Theme } from '@/ui/useTheme';
 
 interface Props {
   phase: 'idle' | 'listening' | 'disabled';
@@ -15,7 +18,9 @@ interface Props {
  */
 export function VoiceMicButton({ phase, onTap, onHoldStart, onHoldEnd }: Props) {
   const theme = useTheme();
+  const styles = useMemo(() => makeStyles(theme), [theme]);
   const listening = phase === 'listening';
+  const labelColor = listening ? theme.color.onAccent : theme.color.inkSecondary;
   return (
     <Pressable
       accessibilityRole="button"
@@ -34,29 +39,24 @@ export function VoiceMicButton({ phase, onTap, onHoldStart, onHoldEnd }: Props) 
         },
       ]}
     >
-      <Text
-        style={[
-          styles.label,
-          {
-            color: listening ? theme.color.onAccent : theme.color.inkSecondary,
-            fontFamily: theme.font.family.sansMedium,
-          },
-        ]}
-      >
-        {listening ? '◉  Listening · tap to stop' : '🎙  Voice'}
+      <Icon name="mic" size={16} color={labelColor} />
+      <Text variant="label" color={labelColor}>
+        {listening ? 'Listening · tap to stop' : 'Voice'}
       </Text>
     </Pressable>
   );
 }
 
-const styles = StyleSheet.create({
-  btn: {
-    height: 44,
-    borderRadius: 22,
-    borderWidth: 1,
-    alignItems: 'center',
-    justifyContent: 'center',
-    marginHorizontal: 20,
-  },
-  label: { fontSize: 13 },
-});
+const makeStyles = (theme: Theme) =>
+  StyleSheet.create({
+    btn: {
+      height: 44,
+      borderRadius: theme.radius.full,
+      borderWidth: theme.depth.rule,
+      flexDirection: 'row',
+      alignItems: 'center',
+      justifyContent: 'center',
+      gap: theme.space.s2,
+      marginHorizontal: theme.space.s5,
+    },
+  });

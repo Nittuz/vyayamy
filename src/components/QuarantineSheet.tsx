@@ -1,4 +1,5 @@
-import { Modal, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
+import { useMemo, useState } from 'react';
+import { ScrollView, StyleSheet, View } from 'react-native';
 
 import {
   type QuarantinedRow,
@@ -8,8 +9,13 @@ import {
   retryQuarantinedRow,
   summarizeRow,
 } from '@/sync/quarantine';
+import { Button } from '@/ui/Button';
+import { ConfirmSheet } from '@/ui/ConfirmSheet';
+import { Plate } from '@/ui/Plate';
+import { Sheet } from '@/ui/Sheet';
+import { Text } from '@/ui/Text';
 import { haptics } from '@/ui/haptics';
-import { useTheme } from '@/ui/useTheme';
+import { useTheme, type Theme } from '@/ui/useTheme';
 
 interface Props {
   visible: boolean;
@@ -20,6 +26,8 @@ interface Props {
 
 export function QuarantineSheet({ visible, rows, onClose, onChanged }: Props) {
   const theme = useTheme();
+  const styles = useMemo(() => makeStyles(theme), [theme]);
+  const [confirmDiscardAll, setConfirmDiscardAll] = useState(false);
 
   const handleRetry = async (id: number) => {
     haptics.light();
@@ -43,133 +51,86 @@ export function QuarantineSheet({ visible, rows, onClose, onChanged }: Props) {
   };
 
   return (
-    <Modal visible={visible} transparent animationType="fade" onRequestClose={onClose}>
-      <Pressable
-        style={[styles.backdrop, { backgroundColor: theme.color.overlay }]}
-        onPress={onClose}
-      >
-        <Pressable
-          style={[styles.sheet, { backgroundColor: theme.color.bg }]}
-          onPress={(e) => e.stopPropagation()}
-        >
-          <Text
-            style={[
-              styles.title,
-              {
-                color: theme.color.inkHero,
-                fontFamily: theme.font.family.sansSemibold,
-                fontSize: theme.font.size.title,
-                letterSpacing: theme.font.tracking.title,
-              },
-            ]}
-          >
-            Stuck syncs
-          </Text>
-          <Text
-            style={[
-              styles.body,
-              { color: theme.color.inkSecondary, fontFamily: theme.font.family.sans },
-            ]}
-          >
-            These changes haven't reached the server after multiple tries.
-            Retry sends them back to the queue. Discard removes them locally
-            without syncing.
-          </Text>
-          <ScrollView style={styles.list}>
-            {rows.map((r) => (
-              <View
-                key={r.id}
-                style={[styles.row, { borderColor: theme.color.border }]}
-              >
-                <Text
-                  style={[
-                    styles.rowSummary,
-                    {
-                      color: theme.color.ink,
-                      fontFamily: theme.font.family.mono,
-                    },
-                  ]}
-                >
-                  {summarizeRow(r)}
-                </Text>
-                <Text
-                  style={[
-                    styles.rowMeta,
-                    {
-                      color: theme.color.inkTertiary,
-                      fontFamily: theme.font.family.sansMedium,
-                    },
-                  ]}
-                >
-                  CREATED {ageLabel(r.created_at)} · {r.attempts} tries
-                </Text>
-                {r.last_error ? (
-                  <Text
-                    style={[
-                      styles.rowError,
-                      { color: theme.color.danger, fontFamily: theme.font.family.sans },
-                    ]}
-                  >
-                    {r.last_error}
-                  </Text>
-                ) : null}
-                <View style={styles.rowActions}>
-                  <Pressable
-                    onPress={() => void handleRetry(r.id)}
-                    style={({ pressed }) => [
-                      styles.actionBtn,
-                      { borderColor: theme.color.borderStrong, opacity: pressed ? 0.7 : 1 },
-                    ]}
-                  >
-                    <Text style={[styles.actionText, { color: theme.color.ink, fontFamily: theme.font.family.sansMedium }]}>
-                      Retry
-                    </Text>
-                  </Pressable>
-                  <Pressable
-                    onPress={() => void handleDiscard(r.id)}
-                    style={({ pressed }) => [styles.actionBtn, { opacity: pressed ? 0.5 : 1 }]}
-                  >
-                    <Text style={[styles.actionText, { color: theme.color.danger, fontFamily: theme.font.family.sansMedium }]}>
-                      Discard
-                    </Text>
-                  </Pressable>
-                </View>
-              </View>
-            ))}
-          </ScrollView>
-          <View style={styles.footer}>
-            <Pressable
+    <>
+      <Sheet
+        visible={visible}
+        onClose={onClose}
+        title="Stuck syncs"
+        footer={
+          <>
+            <Button
+              label="Retry all"
+              kind="primary"
+              size="row"
               onPress={() => void handleRetryAll()}
-              style={({ pressed }) => [
-                styles.footerBtn,
-                { backgroundColor: theme.color.accent, opacity: pressed ? 0.85 : 1 },
-              ]}
+            />
+            <Button
+              label="Discard all"
+              kind="danger"
+              size="row"
+              onPress={() => setConfirmDiscardAll(true)}
+            />
+            <Button label="Close" kind="ghost" size="row" onPress={onClose} />
+          </>
+        }
+      >
+        <Text variant="body" color={theme.color.inkSecondary} style={styles.intro}>
+          These changes haven't reached the server after multiple tries. Retry
+          sends them back to the queue. Discard removes them locally without
+          syncing.
+        </Text>
+        <ScrollView style={styles.list}>
+          {rows.map((r) => (
+            <Plate
+              key={r.id}
+              offset="sm"
+              tone="surface2"
+              border="soft"
+              radius="card"
+              style={styles.row}
+              faceStyle={styles.rowFace}
             >
-              <Text style={[styles.footerText, { color: theme.color.onAccent, fontFamily: theme.font.family.sansSemibold }]}>
-                Retry all
+              <Text variant="numeral" color={theme.color.ink}>
+                {summarizeRow(r)}
               </Text>
-            </Pressable>
-            <Pressable
-              onPress={() => void handleDiscardAll()}
-              style={({ pressed }) => [
-                styles.footerBtn,
-                styles.footerBtnDanger,
-                { borderColor: theme.color.danger, opacity: pressed ? 0.7 : 1 },
-              ]}
-            >
-              <Text style={[styles.footerText, { color: theme.color.danger, fontFamily: theme.font.family.sansSemibold }]}>
-                Discard all
+              <Text variant="label" color={theme.color.inkTertiary}>
+                CREATED {ageLabel(r.created_at)} · {r.attempts} tries
               </Text>
-            </Pressable>
-          </View>
-          <Pressable onPress={onClose} style={styles.close}>
-            <Text style={[styles.closeText, { color: theme.color.inkSecondary, fontFamily: theme.font.family.sansMedium }]}>
-              Close
-            </Text>
-          </Pressable>
-        </Pressable>
-      </Pressable>
-    </Modal>
+              {r.last_error ? (
+                <Text variant="meta" color={theme.color.danger} style={styles.rowError}>
+                  {r.last_error}
+                </Text>
+              ) : null}
+              <View style={styles.rowActions}>
+                <Button
+                  label="Retry"
+                  kind="secondary"
+                  size="row"
+                  onPress={() => void handleRetry(r.id)}
+                  style={styles.rowAction}
+                />
+                <Button
+                  label="Discard"
+                  kind="danger"
+                  size="row"
+                  onPress={() => void handleDiscard(r.id)}
+                  style={styles.rowAction}
+                />
+              </View>
+            </Plate>
+          ))}
+        </ScrollView>
+      </Sheet>
+      <ConfirmSheet
+        visible={confirmDiscardAll}
+        onClose={() => setConfirmDiscardAll(false)}
+        title="Discard all quarantined sets?"
+        message="This removes them locally without syncing. This can't be undone."
+        confirmLabel="Discard all"
+        destructive
+        onConfirm={() => void handleDiscardAll()}
+      />
+    </>
   );
 }
 
@@ -181,41 +142,13 @@ function ageLabel(iso: string): string {
   return `${days}D AGO`;
 }
 
-const styles = StyleSheet.create({
-  backdrop: { flex: 1, justifyContent: 'flex-end' },
-  sheet: {
-    borderTopLeftRadius: 16,
-    borderTopRightRadius: 16,
-    paddingHorizontal: 20,
-    paddingTop: 24,
-    paddingBottom: 32,
-    maxHeight: '85%',
-  },
-  title: { marginBottom: 8 },
-  body: { fontSize: 13, lineHeight: 19, marginBottom: 16 },
-  list: { maxHeight: 360 },
-  row: { paddingVertical: 12, borderBottomWidth: StyleSheet.hairlineWidth },
-  rowSummary: { fontSize: 14, marginBottom: 4 },
-  rowMeta: {
-    fontSize: 10,
-    letterSpacing: 1.2,
-    lineHeight: 14,
-    textTransform: 'uppercase',
-    marginBottom: 8,
-  },
-  rowError: { fontSize: 11, marginBottom: 8, fontStyle: 'italic' },
-  rowActions: { flexDirection: 'row', gap: 8 },
-  actionBtn: {
-    paddingVertical: 8,
-    paddingHorizontal: 12,
-    borderRadius: 6,
-    borderWidth: 1,
-  },
-  actionText: { fontSize: 12 },
-  footer: { flexDirection: 'row', gap: 8, marginTop: 16 },
-  footerBtn: { flex: 1, paddingVertical: 12, borderRadius: 8, alignItems: 'center' },
-  footerBtnDanger: { backgroundColor: 'transparent', borderWidth: 1 },
-  footerText: { fontSize: 13 },
-  close: { paddingVertical: 12, alignItems: 'center', marginTop: 4 },
-  closeText: { fontSize: 12 },
-});
+const makeStyles = (theme: Theme) =>
+  StyleSheet.create({
+    intro: { marginBottom: theme.space.s4 },
+    list: { flexGrow: 0, maxHeight: 360 },
+    row: { marginBottom: theme.space.s3 },
+    rowFace: { padding: theme.space.s3, gap: theme.space.s2 },
+    rowError: { fontStyle: 'italic' },
+    rowActions: { flexDirection: 'row', gap: theme.space.s2, marginTop: theme.space.s1 },
+    rowAction: { flex: 1 },
+  });
