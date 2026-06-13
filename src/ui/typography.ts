@@ -40,7 +40,11 @@ export const tracking = {
 } as const;
 
 export const lineHeightMul = {
-  hero: 0.92,
+  // Must stay >= 1.0: a sub-1 line height shrinks the line box below the font
+  // size and iOS clips the tops of the tall mono digits (the 82pt hero numerals
+  // on the active-set card). 1.2 is the font's natural single-line height, so the
+  // glyphs always have headroom; horizontal tightness comes from `tracking.hero`.
+  hero: 1.2,
   title: 1.2,
   body: 1.4,
   meta: 1.6,

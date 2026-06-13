@@ -16,6 +16,7 @@ import { useAuth } from '@/auth/useAuth';
 import { ActiveSetCard } from '@/components/ActiveSetCard';
 import {
   type ActiveCursor,
+  type AutoStagedSet,
   completedSetsBeforeCursor,
   type ExerciseShape,
   findExercise,
@@ -24,6 +25,7 @@ import {
   findPrevExercise,
   findSet,
   firstIncompleteSet,
+  shouldConfirmLeavingSet,
 } from '@/components/activeSet';
 import { EditableTitle } from '@/components/EditableTitle';
 import { ExercisePicker } from '@/components/ExercisePicker';
@@ -129,6 +131,11 @@ export default function WorkoutActiveScreen() {
   // When adding an exercise from the recap, drop the cursor onto THAT exercise's
   // staged set once its data arrives — not the first incomplete set anywhere (#13).
   const pendingTargetWeId = useRef<string | null>(null);
+  // The next set auto-staged on completion is pre-filled with the prior set's
+  // weight × reps, so "has values" can't tell it apart from a set the user
+  // entered. Remember its identity + pre-filled values so leaving an untouched
+  // staged set doesn't trigger the "Skip this set?" prompt every time (#12).
+  const autoStaged = useRef<AutoStagedSet | null>(null);
 
   // Initialize cursor when exercises first load, or reposition when the cursor
   // points at a set that no longer exists / is already completed. cursor is read
@@ -207,12 +214,16 @@ export default function WorkoutActiveScreen() {
       timer.start();
       // Auto-stage the next set with the same weight × reps (Phase 3)
       const currentSetData = currentExForRest && findSet(currentExForRest, cursor.setId);
+      const stagedWeight = currentSetData?.weight ?? null;
+      const stagedReps = currentSetData?.reps ?? null;
       const newSetId = await addSet(cursor.weId, {
-        weight: currentSetData?.weight ?? null,
-        reps: currentSetData?.reps ?? null,
+        weight: stagedWeight,
+        reps: stagedReps,
         // Same session → same logging unit as the set just completed.
-        units: currentSetData?.weight != null ? units : null,
+        units: stagedWeight != null ? units : null,
       });
+      // Record what we pre-filled so an untouched staged set advances silently.
+      autoStaged.current = { id: newSetId, weight: stagedWeight, reps: stagedReps };
       refreshDetail();
       setCursor({ weId: cursor.weId, setId: newSetId });
     } finally {
@@ -252,7 +263,9 @@ export default function WorkoutActiveScreen() {
     if (!cursor || !currentExForRest) return;
     const nextEx = findNextExercise(exercises, cursor.weId);
     const currentSet = findSet(currentExForRest, cursor.setId);
-    const isUnmodified = !currentSet || (currentSet.weight == null && currentSet.reps == null);
+    // Only warn when leaving a set the user actually entered. The untouched
+    // auto-staged set (and the empty first set) carry no intent (#12).
+    const needsConfirm = shouldConfirmLeavingSet(currentSet, autoStaged.current);
     const advance = async () => {
       if (nextEx) {
         // Target the next exercise's first INCOMPLETE set — not sets[0], which
@@ -272,12 +285,12 @@ export default function WorkoutActiveScreen() {
         haptics.medium();
       }
     };
-    if (isUnmodified) {
+    if (!needsConfirm) {
       void advance();
     } else {
-      Alert.alert('Skip this set?', undefined, [
+      Alert.alert('Leave this set?', 'It has values but is not completed. Swipe up to log it, or leave it.', [
         { text: 'Cancel', style: 'cancel' },
-        { text: 'Skip', style: 'destructive', onPress: () => void advance() },
+        { text: 'Leave', style: 'destructive', onPress: () => void advance() },
       ]);
     }
   }, [cursor, currentExForRest, exercises, refreshDetail]);
