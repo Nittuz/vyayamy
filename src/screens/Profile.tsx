@@ -1,22 +1,17 @@
 import { router } from 'expo-router';
 import { useCallback, useEffect, useMemo, useState } from 'react';
-import {
-  ActivityIndicator,
-  Pressable,
-  SafeAreaView,
-  ScrollView,
-  StyleSheet,
-  Text,
-  TextInput,
-  View,
-} from 'react-native';
+import { SafeAreaView, ScrollView, StyleSheet, TextInput, View } from 'react-native';
 
 import { safeRoute } from '@/lib/safeRoute';
 import { signOut } from '@/auth/authActions';
 import { useAuth } from '@/auth/useAuth';
 import { formatMemberSince, getInitials } from '@/core/format';
 import { useProfile, useUpdateProfile } from '@/queries/profile';
+import { Button } from '@/ui/Button';
+import { Icon } from '@/ui/icons';
+import { Plate } from '@/ui/Plate';
 import { SyncIndicator } from '@/ui/SyncIndicator';
+import { Text } from '@/ui/Text';
 import { useToast } from '@/ui/ToastContext';
 import { useTheme, type Theme } from '@/ui/useTheme';
 
@@ -58,20 +53,32 @@ export default function ProfileScreen() {
     <SafeAreaView style={styles.container}>
       <ScrollView contentContainerStyle={styles.scroll}>
         <View style={styles.headerRow}>
-          <Text style={styles.title}>Profile</Text>
+          <Text variant="display" color={theme.color.ink} style={styles.title}>
+            Profile
+          </Text>
           <SyncIndicator />
         </View>
 
-        <View style={styles.card}>
+        <Plate faceStyle={styles.userFace}>
           <View style={styles.avatar}>
-            <Text style={styles.avatarText}>{initials}</Text>
+            <Text variant="title" color={theme.color.onAccent}>
+              {initials}
+            </Text>
           </View>
-          <Text style={styles.email}>{user?.email}</Text>
-          {memberSince ? <Text style={styles.meta}>Member since {memberSince}</Text> : null}
-        </View>
+          <Text variant="body" color={theme.color.ink} style={styles.centered}>
+            {user?.email}
+          </Text>
+          {memberSince ? (
+            <Text variant="meta" color={theme.color.inkSecondary} style={styles.centered}>
+              Member since {memberSince}
+            </Text>
+          ) : null}
+        </Plate>
 
-        <View style={styles.card}>
-          <Text style={styles.fieldLabel}>Display name</Text>
+        <Plate faceStyle={styles.fieldFace}>
+          <Text variant="label" color={theme.color.inkTertiary}>
+            Display name
+          </Text>
           <TextInput
             value={displayName}
             onChangeText={setDisplayName}
@@ -84,51 +91,63 @@ export default function ProfileScreen() {
             placeholderTextColor={theme.color.inkTertiary}
             style={styles.input}
           />
-        </View>
+        </Plate>
 
-        <View style={styles.card}>
-          <Text style={styles.fieldLabel}>Units</Text>
+        <Plate faceStyle={styles.fieldFace}>
+          <Text variant="label" color={theme.color.inkTertiary}>
+            Units
+          </Text>
           <View style={styles.segment}>
-            {(['kg', 'lb'] as const).map((u) => (
-              <Pressable
-                key={u}
-                onPress={() => updateProfile.mutate({ units: u })}
-                style={[
-                  styles.segmentButton,
-                  currentUnits === u && styles.segmentButtonActive,
-                ]}
-              >
-                <Text
-                  style={[
-                    styles.segmentText,
-                    currentUnits === u && styles.segmentTextActive,
-                  ]}
+            {(['kg', 'lb'] as const).map((u) => {
+              const active = currentUnits === u;
+              return (
+                <Plate
+                  key={u}
+                  offset="none"
+                  tone={active ? 'accent' : 'surface2'}
+                  border="strong"
+                  radius="sm"
+                  onPress={() => updateProfile.mutate({ units: u })}
+                  accessibilityRole="button"
+                  accessibilityLabel={`Use ${u === 'kg' ? 'kilograms' : 'pounds'}`}
+                  accessibilityState={{ selected: active }}
+                  style={styles.segmentItem}
+                  faceStyle={styles.segmentFace}
                 >
-                  {u.toUpperCase()}
-                </Text>
-              </Pressable>
-            ))}
+                  <Text
+                    variant="card"
+                    color={active ? theme.color.onAccent : theme.color.inkSecondary}
+                    style={styles.segmentText}
+                  >
+                    {u.toUpperCase()}
+                  </Text>
+                </Plate>
+              );
+            })}
           </View>
-        </View>
+        </Plate>
 
-        <Pressable
+        <Plate
           onPress={() => router.push(safeRoute('/profile/plan'))}
-          style={({ pressed }) => [styles.row, pressed && { opacity: 0.85 }]}
+          accessibilityRole="button"
+          accessibilityLabel="Training plan"
+          faceStyle={styles.navFace}
         >
-          <Text style={styles.rowLabel}>Training plan</Text>
-          <Text style={styles.rowChevron}>›</Text>
-        </Pressable>
+          <Text variant="card" color={theme.color.ink} style={styles.navLabel}>
+            Training plan
+          </Text>
+          <Icon name="chevron-right" size={20} color={theme.color.inkTertiary} />
+        </Plate>
 
-        <Pressable
+        <Button
+          label="Sign out"
+          kind="danger"
+          size="cta"
+          loading={signingOut}
           onPress={handleSignOut}
-          style={({ pressed }) => [styles.signOut, pressed && { opacity: 0.85 }]}
-        >
-          {signingOut ? (
-            <ActivityIndicator color={theme.color.danger} />
-          ) : (
-            <Text style={styles.signOutText}>Sign out</Text>
-          )}
-        </Pressable>
+          accessibilityLabel="Sign out"
+          style={styles.signOut}
+        />
       </ScrollView>
     </SafeAreaView>
   );
@@ -136,107 +155,55 @@ export default function ProfileScreen() {
 
 const makeStyles = (theme: Theme) =>
   StyleSheet.create({
-  container: { flex: 1, backgroundColor: theme.color.bg },
-  scroll: { padding: theme.space.page, gap: theme.space.s4, paddingBottom: theme.space.s12 },
-  headerRow: { flexDirection: 'row', alignItems: 'flex-end', gap: theme.space.s3 },
-  title: {
-    flex: 1,
-    fontSize: theme.font.size.display,
-    fontFamily: theme.font.family.sansSemibold,
-    fontWeight: theme.font.weight.semibold,
-    color: theme.color.ink,
-    letterSpacing: -0.5,
-  },
-  card: {
-    backgroundColor: theme.color.surface,
-    borderRadius: theme.radius.md,
-    padding: theme.space.s4,
-    borderWidth: 1,
-    borderColor: theme.color.border,
-    gap: theme.space.s2,
-  },
-  avatar: {
-    alignSelf: 'center',
-    width: theme.touch.avatar,
-    height: theme.touch.avatar,
-    borderRadius: theme.touch.avatarRadius,
-    backgroundColor: theme.color.accent,
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  avatarText: {
-    color: theme.color.onAccent,
-    fontSize: theme.font.size.title,
-    fontFamily: theme.font.family.sansSemibold,
-    fontWeight: theme.font.weight.semibold,
-  },
-  email: {
-    textAlign: 'center',
-    fontSize: theme.font.size.body,
-    color: theme.color.ink,
-    fontFamily: theme.font.family.sansMedium,
-    fontWeight: theme.font.weight.medium,
-  },
-  meta: { textAlign: 'center', fontSize: theme.font.size.meta, fontFamily: theme.font.family.sans, color: theme.color.inkSecondary },
-  fieldLabel: {
-    fontSize: theme.font.size.micro,
-    textTransform: 'uppercase',
-    letterSpacing: 0.5,
-    color: theme.color.inkTertiary,
-    fontFamily: theme.font.family.sansMedium,
-    fontWeight: theme.font.weight.medium,
-  },
-  input: {
-    height: 44,
-    paddingHorizontal: theme.space.s3,
-    borderRadius: theme.radius.sm,
-    backgroundColor: theme.color.bg,
-    fontSize: theme.font.size.body,
-    fontFamily: theme.font.family.sans,
-    color: theme.color.ink,
-  },
-  segment: {
-    flexDirection: 'row',
-    backgroundColor: theme.color.bg,
-    borderRadius: theme.radius.sm,
-    padding: 3,
-  },
-  segmentButton: {
-    flex: 1,
-    paddingVertical: theme.space.s2,
-    borderRadius: theme.radius.sm,
-    alignItems: 'center',
-  },
-  segmentButtonActive: {
-    backgroundColor: theme.color.surface,
-  },
-  segmentText: {
-    fontSize: theme.font.size.meta,
-    color: theme.color.inkSecondary,
-    fontFamily: theme.font.family.sansMedium,
-    fontWeight: theme.font.weight.medium,
-  },
-  segmentTextActive: { color: theme.color.ink },
-  row: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    padding: theme.space.s4,
-    backgroundColor: theme.color.surface,
-    borderRadius: theme.radius.md,
-    borderWidth: 1,
-    borderColor: theme.color.border,
-  },
-  rowLabel: { flex: 1, fontSize: theme.font.size.body, fontFamily: theme.font.family.sans, color: theme.color.ink },
-  rowChevron: { fontSize: theme.font.size.title, fontFamily: theme.font.family.sans, color: theme.color.inkTertiary },
-  signOut: {
-    padding: theme.space.s4,
-    alignItems: 'center',
-    marginTop: theme.space.s4,
-  },
-  signOutText: {
-    fontSize: theme.font.size.body,
-    color: theme.color.danger,
-    fontFamily: theme.font.family.sansMedium,
-    fontWeight: theme.font.weight.medium,
-  },
+    container: { flex: 1, backgroundColor: theme.color.bg },
+    scroll: {
+      padding: theme.space.page,
+      gap: theme.space.s4,
+      paddingBottom: theme.space.s12,
+    },
+    headerRow: { flexDirection: 'row', alignItems: 'flex-end', gap: theme.space.s3 },
+    title: { flex: 1 },
+    userFace: {
+      padding: theme.space.s4,
+      gap: theme.space.s2,
+      alignItems: 'center',
+    },
+    avatar: {
+      width: theme.touch.avatar,
+      height: theme.touch.avatar,
+      borderRadius: theme.radius.full,
+      backgroundColor: theme.color.accent,
+      alignItems: 'center',
+      justifyContent: 'center',
+    },
+    centered: { textAlign: 'center' },
+    fieldFace: { padding: theme.space.s4, gap: theme.space.s2 },
+    input: {
+      height: 44,
+      paddingHorizontal: theme.space.s3,
+      borderRadius: theme.radius.sm,
+      backgroundColor: theme.color.bg,
+      borderWidth: theme.depth.rule,
+      borderColor: theme.color.border,
+      fontSize: theme.font.size.body,
+      fontFamily: theme.font.family.sans,
+      color: theme.color.ink,
+    },
+    segment: { flexDirection: 'row', gap: theme.space.s2 },
+    segmentItem: { flex: 1 },
+    segmentFace: {
+      minHeight: theme.touch.min,
+      alignItems: 'center',
+      justifyContent: 'center',
+    },
+    segmentText: { letterSpacing: 1 },
+    navFace: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      minHeight: theme.touch.min,
+      padding: theme.space.s4,
+      gap: theme.space.s3,
+    },
+    navLabel: { flex: 1 },
+    signOut: { marginTop: theme.space.s4 },
   });

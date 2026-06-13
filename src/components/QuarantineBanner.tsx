@@ -1,7 +1,10 @@
-import { Pressable, StyleSheet, Text } from 'react-native';
+import { useMemo } from 'react';
+import { StyleSheet } from 'react-native';
 
 import { haptics } from '@/ui/haptics';
-import { useTheme } from '@/ui/useTheme';
+import { Plate } from '@/ui/Plate';
+import { Text } from '@/ui/Text';
+import { useTheme, type Theme } from '@/ui/useTheme';
 
 interface Props {
   staleCount: number;
@@ -10,51 +13,32 @@ interface Props {
 
 export function QuarantineBanner({ staleCount, onPress }: Props) {
   const theme = useTheme();
+  const styles = useMemo(() => makeStyles(theme), [theme]);
   if (staleCount === 0) return null;
   const label = staleCount === 1 ? "1 item didn't sync" : `${staleCount} items didn't sync`;
 
   return (
-    <Pressable
+    <Plate
+      tone="danger"
+      offset="sm"
       onPress={() => {
         haptics.light();
         onPress();
       }}
       accessibilityRole="button"
-      style={({ pressed }) => [
-        styles.banner,
-        {
-          backgroundColor: theme.color.dangerSoft,
-          borderColor: theme.color.danger,
-          opacity: pressed ? 0.85 : 1,
-        },
-      ]}
+      accessibilityLabel={`${label}, tap to review`}
+      style={styles.banner}
+      faceStyle={styles.face}
     >
-      <Text
-        style={[
-          styles.text,
-          {
-            color: theme.color.danger,
-            fontFamily: theme.font.family.sansMedium,
-          },
-        ]}
-      >
+      <Text variant="meta" color={theme.color.onAccent}>
         {label} · Tap to review
       </Text>
-    </Pressable>
+    </Plate>
   );
 }
 
-const styles = StyleSheet.create({
-  banner: {
-    marginHorizontal: 16,
-    marginTop: 12,
-    paddingVertical: 10,
-    paddingHorizontal: 14,
-    borderRadius: 8,
-    borderWidth: StyleSheet.hairlineWidth,
-  },
-  text: {
-    fontSize: 12,
-    letterSpacing: 0.2,
-  },
-});
+const makeStyles = (theme: Theme) =>
+  StyleSheet.create({
+    banner: { marginHorizontal: theme.space.s4, marginTop: theme.space.s3 },
+    face: { paddingVertical: theme.space.s3, paddingHorizontal: theme.space.s4 },
+  });

@@ -1,7 +1,11 @@
-import { Pressable, StyleSheet, Text, View } from 'react-native';
+import { useMemo } from 'react';
+import { StyleSheet, View } from 'react-native';
 
 import type { ExerciseSeed } from '@/queries/repeatLastWorkout';
-import { useTheme } from '@/ui/useTheme';
+import { Button } from '@/ui/Button';
+import { Plate } from '@/ui/Plate';
+import { Text } from '@/ui/Text';
+import { useTheme, type Theme } from '@/ui/useTheme';
 import { haptics } from '@/ui/haptics';
 
 interface Props {
@@ -14,6 +18,7 @@ interface Props {
 
 export function RepeatCard({ title, daysAgo, seeds, loading, onPress }: Props) {
   const theme = useTheme();
+  const styles = useMemo(() => makeStyles(theme), [theme]);
   const displaySeeds = seeds.slice(0, 4);
 
   const handlePress = () => {
@@ -22,39 +27,11 @@ export function RepeatCard({ title, daysAgo, seeds, loading, onPress }: Props) {
   };
 
   return (
-    <Pressable
-      onPress={handlePress}
-      disabled={loading}
-      accessibilityRole="button"
-      accessibilityLabel={`Repeat ${title} workout`}
-      style={({ pressed }) => [
-        styles.card,
-        {
-          backgroundColor: theme.color.surface,
-          borderColor: theme.color.border,
-          opacity: pressed ? 0.85 : loading ? 0.5 : 1,
-        },
-      ]}
-    >
-      <Text
-        style={[
-          styles.label,
-          { color: theme.color.inkTertiary, fontFamily: theme.font.family.sansMedium },
-        ]}
-      >
+    <Plate style={styles.card} faceStyle={styles.face}>
+      <Text variant="label" color={theme.color.inkTertiary}>
         {labelText(title, daysAgo)}
       </Text>
-      <Text
-        style={[
-          styles.title,
-          {
-            color: theme.color.inkHero,
-            fontFamily: theme.font.family.sansSemibold,
-            fontSize: theme.font.size.title,
-            letterSpacing: theme.font.tracking.title,
-          },
-        ]}
-      >
+      <Text variant="title" color={theme.color.ink}>
         {title || 'Workout'}
       </Text>
       <View style={styles.seedList}>
@@ -64,40 +41,25 @@ export function RepeatCard({ title, daysAgo, seeds, loading, onPress }: Props) {
             style={styles.seedRow}
             accessibilityLabel={`${seed.exerciseName}, ${formatSeed(seed)}`}
           >
-            <Text
-              style={[
-                styles.seedName,
-                { color: theme.color.ink, fontFamily: theme.font.family.sans },
-              ]}
-              numberOfLines={1}
-            >
+            <Text variant="body" color={theme.color.ink} numberOfLines={1} style={styles.seedName}>
               {seed.exerciseName}
             </Text>
-            <Text
-              style={[
-                styles.seedValue,
-                {
-                  color: theme.color.inkSecondary,
-                  fontFamily: theme.font.family.mono,
-                },
-              ]}
-            >
+            <Text variant="numeral" color={theme.color.inkSecondary}>
               {formatSeed(seed)}
             </Text>
           </View>
         ))}
       </View>
-      <View style={styles.ctaRow}>
-        <Text
-          style={[
-            styles.cta,
-            { color: theme.color.accent, fontFamily: theme.font.family.sansMedium },
-          ]}
-        >
-          → Repeat workout
-        </Text>
-      </View>
-    </Pressable>
+      <Button
+        label="Repeat workout"
+        kind="secondary"
+        size="row"
+        icon="arrow-right"
+        loading={loading}
+        onPress={handlePress}
+        accessibilityLabel={`Repeat ${title} workout`}
+      />
+    </Plate>
   );
 }
 
@@ -111,44 +73,16 @@ function formatSeed(seed: ExerciseSeed): string {
   return `${seed.seedWeight} × ${seed.seedReps}`;
 }
 
-const styles = StyleSheet.create({
-  card: {
-    marginHorizontal: 16,
-    paddingHorizontal: 20,
-    paddingVertical: 18,
-    borderRadius: 14,
-    borderWidth: 1,
-  },
-  label: {
-    fontSize: 10,
-    letterSpacing: 1.5,
-    textTransform: 'uppercase',
-    marginBottom: 6,
-  },
-  title: {
-    marginBottom: 14,
-  },
-  seedList: {
-    gap: 6,
-  },
-  seedRow: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'baseline',
-  },
-  seedName: {
-    fontSize: 14,
-    flex: 1,
-    marginRight: 12,
-  },
-  seedValue: {
-    fontSize: 13,
-  },
-  ctaRow: {
-    marginTop: 16,
-  },
-  cta: {
-    fontSize: 13,
-    fontWeight: '500',
-  },
-});
+const makeStyles = (theme: Theme) =>
+  StyleSheet.create({
+    card: { marginHorizontal: theme.space.s4 },
+    face: { padding: theme.space.s5, gap: theme.space.s3 },
+    seedList: { gap: theme.space.half },
+    seedRow: {
+      flexDirection: 'row',
+      justifyContent: 'space-between',
+      alignItems: 'baseline',
+      gap: theme.space.s3,
+    },
+    seedName: { flex: 1 },
+  });

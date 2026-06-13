@@ -2,11 +2,9 @@ import { router } from 'expo-router';
 import { useEffect, useMemo, useRef, useState } from 'react';
 import {
   ActivityIndicator,
-  Pressable,
   SafeAreaView,
   ScrollView,
   StyleSheet,
-  Text,
   TextInput,
   View,
 } from 'react-native';
@@ -22,6 +20,9 @@ import {
   useTemplates,
 } from '@/queries/plans';
 import { type HydratedPreset, useListPlanPresets } from '@/queries/planPresets';
+import { Button } from '@/ui/Button';
+import { Plate } from '@/ui/Plate';
+import { Text } from '@/ui/Text';
 import { useTheme, type Theme } from '@/ui/useTheme';
 
 const DAY_LABELS = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
@@ -209,19 +210,23 @@ export default function PlanSetupScreen() {
         ) : null}
 
         {stagedPreset ? (
-          <View style={styles.stagedBanner}>
-            <View style={{ flex: 1 }}>
-              <Text style={styles.stagedLabel}>Starting from preset</Text>
-              <Text style={styles.stagedName}>{stagedPreset.preset.name}</Text>
+          <Plate tone="surface2" border="strong" faceStyle={styles.stagedFace}>
+            <View style={styles.stagedText}>
+              <Text variant="label" color={theme.color.inkTertiary}>
+                Starting from preset
+              </Text>
+              <Text variant="card" color={theme.color.ink} style={styles.stagedName}>
+                {stagedPreset.preset.name}
+              </Text>
             </View>
-            <Pressable onPress={clearPreset} style={styles.clearBtn}>
-              <Text style={styles.clearBtnText}>Clear</Text>
-            </Pressable>
-          </View>
+            <Button label="Clear" kind="secondary" size="row" onPress={clearPreset} />
+          </Plate>
         ) : null}
 
-        <View style={styles.card}>
-          <Text style={styles.label}>Plan name</Text>
+        <Plate faceStyle={styles.cardFace}>
+          <Text variant="label" color={theme.color.inkTertiary}>
+            Plan name
+          </Text>
           <TextInput
             value={name}
             onChangeText={setName}
@@ -229,108 +234,139 @@ export default function PlanSetupScreen() {
             placeholderTextColor={theme.color.inkTertiary}
             style={styles.input}
           />
-        </View>
+        </Plate>
 
-        <View style={styles.card}>
-          <Text style={styles.label}>Schedule type</Text>
+        <Plate faceStyle={styles.cardFace}>
+          <Text variant="label" color={theme.color.inkTertiary}>
+            Schedule type
+          </Text>
           <View style={styles.segment}>
-            {(['weekly', 'cycle'] as const).map((t) => (
-              <Pressable
-                key={t}
-                onPress={() => setPlanTypeAndReset(t)}
-                style={[styles.segmentButton, planType === t && styles.segmentButtonActive]}
-              >
-                <Text
-                  style={[styles.segmentText, planType === t && styles.segmentTextActive]}
+            {(['weekly', 'cycle'] as const).map((t) => {
+              const active = planType === t;
+              return (
+                <Plate
+                  key={t}
+                  offset="none"
+                  tone={active ? 'accent' : 'surface'}
+                  border={active ? 'strong' : 'soft'}
+                  radius="sm"
+                  onPress={() => setPlanTypeAndReset(t)}
+                  accessibilityState={{ selected: active }}
+                  style={styles.segmentItem}
+                  faceStyle={styles.segmentFace}
                 >
-                  {t === 'weekly' ? 'Weekly' : 'Cycle'}
-                </Text>
-              </Pressable>
-            ))}
+                  <Text
+                    variant="card"
+                    color={active ? theme.color.onAccent : theme.color.inkSecondary}
+                  >
+                    {t === 'weekly' ? 'Weekly' : 'Cycle'}
+                  </Text>
+                </Plate>
+              );
+            })}
           </View>
-        </View>
+        </Plate>
 
         <View style={styles.section}>
-          <Text style={styles.sectionTitle}>Days</Text>
+          <Text variant="label" color={theme.color.inkTertiary} style={styles.sectionTitle}>
+            Days
+          </Text>
           {slots.map((slot, idx) => (
-            <View key={slot.key} style={styles.slotCard}>
+            <Plate key={slot.key} faceStyle={styles.slotFace}>
               <View style={styles.slotHeader}>
-                <Text style={styles.slotHeaderText}>
+                <Text variant="card" color={theme.color.ink} style={styles.slotHeaderText}>
                   {planType === 'weekly'
                     ? DAY_LABELS[slot.dayOfWeek ?? idx]
                     : `Day ${(slot.cyclePosition ?? idx) + 1}`}
                 </Text>
-                <Pressable
+                <Plate
+                  offset="none"
+                  tone={slot.isRestDay ? 'accent' : 'surface'}
+                  border={slot.isRestDay ? 'strong' : 'soft'}
+                  radius="sm"
                   onPress={() => setSlotAt(idx, { isRestDay: !slot.isRestDay })}
-                  style={[styles.toggle, slot.isRestDay && styles.toggleOn]}
+                  accessibilityState={{ selected: slot.isRestDay }}
+                  faceStyle={styles.toggleFace}
                 >
-                  <Text style={[styles.toggleText, slot.isRestDay && styles.toggleTextOn]}>
+                  <Text
+                    variant="meta"
+                    color={slot.isRestDay ? theme.color.onAccent : theme.color.inkSecondary}
+                  >
                     Rest day
                   </Text>
-                </Pressable>
+                </Plate>
               </View>
               {!slot.isRestDay ? (
                 <View style={styles.templatePicker}>
-                  <Pressable
+                  <TemplatePill
+                    label="—"
+                    active={slot.templateId === null}
                     onPress={() => setSlotAt(idx, { templateId: null })}
-                    style={[
-                      styles.templatePill,
-                      slot.templateId === null && styles.templatePillActive,
-                    ]}
-                  >
-                    <Text
-                      style={[
-                        styles.templatePillText,
-                        slot.templateId === null && styles.templatePillTextActive,
-                      ]}
-                    >
-                      —
-                    </Text>
-                  </Pressable>
+                  />
                   {templateOptions.map((tpl) => (
-                    <Pressable
+                    <TemplatePill
                       key={tpl.id}
+                      label={tpl.name}
+                      active={slot.templateId === tpl.id}
                       onPress={() => setSlotAt(idx, { templateId: tpl.id })}
-                      style={[
-                        styles.templatePill,
-                        slot.templateId === tpl.id && styles.templatePillActive,
-                      ]}
-                    >
-                      <Text
-                        style={[
-                          styles.templatePillText,
-                          slot.templateId === tpl.id && styles.templatePillTextActive,
-                        ]}
-                      >
-                        {tpl.name}
-                      </Text>
-                    </Pressable>
+                    />
                   ))}
                 </View>
               ) : null}
-            </View>
+            </Plate>
           ))}
 
           {planType === 'cycle' ? (
-            <Pressable onPress={addCycleDay} style={styles.addDay}>
-              <Text style={styles.addDayText}>+ Add day</Text>
-            </Pressable>
+            <Button
+              label="Add day"
+              kind="ghost"
+              size="row"
+              icon="plus"
+              onPress={addCycleDay}
+              style={styles.addDay}
+            />
           ) : null}
         </View>
 
-        <Pressable
-          onPress={onSave}
+        <Button
+          label="Save plan"
+          kind="primary"
+          size="cta"
+          loading={isSaving}
           disabled={isSaving}
-          style={[styles.saveBtn, isSaving && { opacity: 0.5 }]}
-        >
-          {isSaving ? (
-            <ActivityIndicator color={theme.color.onAccent} />
-          ) : (
-            <Text style={styles.saveBtnText}>Save plan</Text>
-          )}
-        </Pressable>
+          onPress={() => void onSave()}
+          style={styles.saveBtn}
+        />
       </ScrollView>
     </SafeAreaView>
+  );
+}
+
+function TemplatePill({
+  label,
+  active,
+  onPress,
+}: {
+  label: string;
+  active: boolean;
+  onPress: () => void;
+}) {
+  const theme = useTheme();
+  const styles = useMemo(() => makeStyles(theme), [theme]);
+  return (
+    <Plate
+      offset="none"
+      tone={active ? 'accent' : 'surface'}
+      border={active ? 'strong' : 'soft'}
+      radius="sm"
+      onPress={onPress}
+      accessibilityState={{ selected: active }}
+      faceStyle={styles.pillFace}
+    >
+      <Text variant="meta" color={active ? theme.color.onAccent : theme.color.inkSecondary}>
+        {label}
+      </Text>
+    </Plate>
   );
 }
 
@@ -350,17 +386,19 @@ function PresetPicker({
 
   if (isLoading) {
     return (
-      <View style={[styles.card, styles.presetLoading]}>
+      <Plate faceStyle={styles.presetLoading}>
         <ActivityIndicator color={theme.color.inkSecondary} />
-      </View>
+      </Plate>
     );
   }
   if (presets.length === 0) return null;
 
   return (
     <View style={styles.presetSection}>
-      <Text style={styles.sectionTitle}>Start from a preset</Text>
-      <Text style={styles.presetIntro}>
+      <Text variant="label" color={theme.color.inkTertiary} style={styles.sectionTitle}>
+        Start from a preset
+      </Text>
+      <Text variant="meta" color={theme.color.inkSecondary}>
         Pick a template plan to start from, or scroll down to build your own.
       </Text>
 
@@ -387,15 +425,28 @@ function PresetGroup({
   const styles = useMemo(() => makeStyles(theme), [theme]);
   return (
     <View style={styles.presetGroup}>
-      <Text style={styles.presetGroupTitle}>{title}</Text>
+      <Text variant="label" color={theme.color.inkTertiary}>
+        {title}
+      </Text>
       {items.map((p) => (
-        <Pressable key={p.preset.id} onPress={() => onPick(p)} style={styles.presetCard}>
-          <Text style={styles.presetName}>{p.preset.name}</Text>
-          {p.preset.blurb ? <Text style={styles.presetBlurb}>{p.preset.blurb}</Text> : null}
-          <Text style={styles.presetPreview} numberOfLines={2}>
+        <Plate key={p.preset.id} onPress={() => onPick(p)} faceStyle={styles.presetFace}>
+          <Text variant="card" color={theme.color.ink}>
+            {p.preset.name}
+          </Text>
+          {p.preset.blurb ? (
+            <Text variant="meta" color={theme.color.inkSecondary}>
+              {p.preset.blurb}
+            </Text>
+          ) : null}
+          <Text
+            variant="meta"
+            color={theme.color.inkTertiary}
+            numberOfLines={2}
+            style={styles.presetPreview}
+          >
             {summarizeSlots(p)}
           </Text>
-        </Pressable>
+        </Plate>
       ))}
     </View>
   );
@@ -459,215 +510,57 @@ function buildCycleDraft(n: number): SlotDraft[] {
 
 const makeStyles = (theme: Theme) =>
   StyleSheet.create({
-  container: { flex: 1, backgroundColor: theme.color.bg },
-  scroll: { padding: theme.space.page, gap: theme.space.s4, paddingBottom: theme.space.s12 },
-  card: {
-    backgroundColor: theme.color.surface,
-    borderRadius: theme.radius.md,
-    padding: theme.space.s4,
-    gap: theme.space.s2,
-    borderWidth: 1,
-    borderColor: theme.color.border,
-  },
-  label: {
-    fontSize: theme.font.size.micro,
-    textTransform: 'uppercase',
-    letterSpacing: 0.5,
-    color: theme.color.inkTertiary,
-    fontWeight: theme.font.weight.medium,
-    fontFamily: theme.font.family.sansMedium,
-  },
-  input: {
-    height: 44,
-    paddingHorizontal: theme.space.s3,
-    borderRadius: theme.radius.sm,
-    backgroundColor: theme.color.bg,
-    fontSize: theme.font.size.body,
-    color: theme.color.ink,
-    fontFamily: theme.font.family.sans,
-  },
-  segment: {
-    flexDirection: 'row',
-    backgroundColor: theme.color.bg,
-    borderRadius: theme.radius.sm,
-    padding: 3,
-  },
-  segmentButton: {
-    flex: 1,
-    paddingVertical: theme.space.s2,
-    borderRadius: theme.radius.sm,
-    alignItems: 'center',
-  },
-  segmentButtonActive: { backgroundColor: theme.color.surface },
-  segmentText: {
-    fontSize: theme.font.size.meta,
-    color: theme.color.inkSecondary,
-    fontWeight: theme.font.weight.medium,
-    fontFamily: theme.font.family.sansMedium,
-  },
-  segmentTextActive: { color: theme.color.ink },
-  section: { gap: theme.space.s2 },
-  sectionTitle: {
-    fontSize: theme.font.size.title,
-    fontWeight: theme.font.weight.semibold,
-    color: theme.color.ink,
-    marginTop: theme.space.s2,
-    fontFamily: theme.font.family.sansSemibold,
-  },
-  presetSection: { gap: theme.space.s2 },
-  presetIntro: {
-    fontSize: theme.font.size.meta,
-    color: theme.color.inkSecondary,
-    fontFamily: theme.font.family.sans,
-  },
-  presetLoading: { alignItems: 'center', paddingVertical: theme.space.s6 },
-  presetGroup: { gap: theme.space.s2, marginTop: theme.space.s2 },
-  presetGroupTitle: {
-    fontSize: theme.font.size.micro,
-    textTransform: 'uppercase',
-    letterSpacing: 0.5,
-    color: theme.color.inkTertiary,
-    fontWeight: theme.font.weight.medium,
-    fontFamily: theme.font.family.sansMedium,
-  },
-  presetCard: {
-    backgroundColor: theme.color.surface,
-    borderRadius: theme.radius.md,
-    padding: theme.space.s4,
-    gap: theme.space.s1,
-    borderWidth: 1,
-    borderColor: theme.color.border,
-  },
-  presetName: {
-    fontSize: theme.font.size.card,
-    fontWeight: theme.font.weight.semibold,
-    color: theme.color.ink,
-    fontFamily: theme.font.family.sansSemibold,
-  },
-  presetBlurb: {
-    fontSize: theme.font.size.meta,
-    color: theme.color.inkSecondary,
-    fontFamily: theme.font.family.sans,
-  },
-  presetPreview: {
-    fontSize: theme.font.size.micro,
-    color: theme.color.inkTertiary,
-    marginTop: theme.space.s1,
-    fontFamily: theme.font.family.sans,
-  },
-  stagedBanner: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    backgroundColor: theme.color.surface,
-    borderRadius: theme.radius.md,
-    padding: theme.space.s4,
-    borderWidth: 1,
-    borderColor: theme.color.accent,
-    gap: theme.space.s3,
-  },
-  stagedLabel: {
-    fontSize: theme.font.size.micro,
-    textTransform: 'uppercase',
-    letterSpacing: 0.5,
-    color: theme.color.inkSecondary,
-    fontWeight: theme.font.weight.medium,
-    fontFamily: theme.font.family.sansMedium,
-  },
-  stagedName: {
-    fontSize: theme.font.size.body,
-    fontWeight: theme.font.weight.semibold,
-    color: theme.color.ink,
-    marginTop: 2,
-    fontFamily: theme.font.family.sansSemibold,
-  },
-  clearBtn: {
-    paddingHorizontal: theme.space.s3,
-    paddingVertical: theme.space.s2,
-    borderRadius: theme.radius.full,
-    borderWidth: 1,
-    borderColor: theme.color.borderStrong,
-    minHeight: theme.touch.min,
-    justifyContent: 'center',
-  },
-  clearBtnText: {
-    fontSize: theme.font.size.meta,
-    color: theme.color.inkSecondary,
-    fontFamily: theme.font.family.sans,
-  },
-  slotCard: {
-    backgroundColor: theme.color.surface,
-    borderRadius: theme.radius.md,
-    padding: theme.space.s4,
-    borderWidth: 1,
-    borderColor: theme.color.border,
-    gap: theme.space.s3,
-  },
-  slotHeader: { flexDirection: 'row', alignItems: 'center', gap: theme.space.s3 },
-  slotHeaderText: {
-    flex: 1,
-    fontSize: theme.font.size.body,
-    fontWeight: theme.font.weight.semibold,
-    color: theme.color.ink,
-    fontFamily: theme.font.family.sansSemibold,
-  },
-  toggle: {
-    paddingHorizontal: theme.space.s3,
-    paddingVertical: theme.space.s2,
-    borderRadius: theme.radius.full,
-    borderWidth: 1,
-    borderColor: theme.color.borderStrong,
-    minHeight: theme.touch.min,
-    justifyContent: 'center',
-  },
-  toggleOn: { borderColor: theme.color.accent, backgroundColor: theme.color.accent },
-  toggleText: {
-    fontSize: theme.font.size.meta,
-    color: theme.color.inkSecondary,
-    fontFamily: theme.font.family.sans,
-  },
-  toggleTextOn: { color: theme.color.onAccent },
-  templatePicker: { flexDirection: 'row', flexWrap: 'wrap', gap: theme.space.s2 },
-  templatePill: {
-    paddingHorizontal: theme.space.s3,
-    paddingVertical: theme.space.s1,
-    borderRadius: theme.radius.full,
-    borderWidth: 1,
-    borderColor: theme.color.borderStrong,
-    backgroundColor: theme.color.bg,
-  },
-  templatePillActive: { backgroundColor: theme.color.accent, borderColor: theme.color.accent },
-  templatePillText: {
-    fontSize: theme.font.size.meta,
-    color: theme.color.inkSecondary,
-    fontFamily: theme.font.family.sans,
-  },
-  templatePillTextActive: { color: theme.color.onAccent },
-  addDay: {
-    padding: theme.space.s3,
-    borderRadius: theme.radius.md,
-    borderWidth: 1,
-    borderStyle: 'dashed',
-    borderColor: theme.color.borderStrong,
-    alignItems: 'center',
-  },
-  addDayText: {
-    fontSize: theme.font.size.meta,
-    color: theme.color.inkSecondary,
-    fontWeight: theme.font.weight.medium,
-    fontFamily: theme.font.family.sansMedium,
-  },
-  saveBtn: {
-    height: theme.touch.cta,
-    borderRadius: theme.radius.md,
-    backgroundColor: theme.color.accent,
-    alignItems: 'center',
-    justifyContent: 'center',
-    marginTop: theme.space.s3,
-  },
-  saveBtnText: {
-    color: theme.color.onAccent,
-    fontSize: theme.font.size.card,
-    fontWeight: theme.font.weight.semibold,
-    fontFamily: theme.font.family.sansSemibold,
-  },
+    container: { flex: 1, backgroundColor: theme.color.bg },
+    scroll: { padding: theme.space.page, gap: theme.space.s4, paddingBottom: theme.space.s12 },
+    cardFace: { padding: theme.space.s4, gap: theme.space.s2 },
+    input: {
+      height: theme.touch.min,
+      paddingHorizontal: theme.space.s3,
+      borderRadius: theme.radius.sm,
+      borderWidth: theme.depth.rule,
+      borderColor: theme.color.border,
+      backgroundColor: theme.color.bg,
+      fontSize: theme.font.size.body,
+      color: theme.color.ink,
+      fontFamily: theme.font.family.sans,
+    },
+    segment: { flexDirection: 'row', gap: theme.space.s2 },
+    segmentItem: { flex: 1 },
+    segmentFace: {
+      minHeight: theme.touch.min,
+      alignItems: 'center',
+      justifyContent: 'center',
+      paddingHorizontal: theme.space.s3,
+    },
+    section: { gap: theme.space.s2 },
+    sectionTitle: { marginTop: theme.space.s2 },
+    presetSection: { gap: theme.space.s2 },
+    presetLoading: { alignItems: 'center', paddingVertical: theme.space.s6 },
+    presetGroup: { gap: theme.space.s2, marginTop: theme.space.s2 },
+    presetFace: { padding: theme.space.s4, gap: theme.space.s1 },
+    presetPreview: { marginTop: theme.space.s1 },
+    stagedFace: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      padding: theme.space.s4,
+      gap: theme.space.s3,
+    },
+    stagedText: { flex: 1 },
+    stagedName: { marginTop: theme.space.half },
+    slotFace: { padding: theme.space.s4, gap: theme.space.s3 },
+    slotHeader: { flexDirection: 'row', alignItems: 'center', gap: theme.space.s3 },
+    slotHeaderText: { flex: 1 },
+    toggleFace: {
+      minHeight: theme.touch.min,
+      justifyContent: 'center',
+      paddingHorizontal: theme.space.s3,
+    },
+    templatePicker: { flexDirection: 'row', flexWrap: 'wrap', gap: theme.space.s2 },
+    pillFace: {
+      minHeight: theme.touch.min,
+      justifyContent: 'center',
+      paddingHorizontal: theme.space.s3,
+    },
+    addDay: { alignSelf: 'flex-start' },
+    saveBtn: { marginTop: theme.space.s3 },
   });

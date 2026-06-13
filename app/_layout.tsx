@@ -184,7 +184,9 @@ function AppNavigator() {
 
   const screenOptions = {
     headerStyle: { backgroundColor: theme.color.bg },
-    headerTitleStyle: { fontWeight: '600' as const, color: theme.color.inkHero },
+    // Header titles are user/workout text, so they stay in the Geist voice
+    // (not the Anton display face used for chrome screen titles).
+    headerTitleStyle: { fontFamily: theme.font.family.sansSemibold, color: theme.color.inkHero },
     headerTintColor: theme.color.accent,
     headerShadowVisible: false,
     headerBackButtonDisplayMode: 'minimal' as const,
