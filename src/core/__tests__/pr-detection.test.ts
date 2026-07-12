@@ -4,7 +4,11 @@ const at = (d: string) => `2026-0${d}`;
 
 describe('computePRs', () => {
   it('returns no PRs when nothing is completed', () => {
-    expect(computePRs([{ weight: 100, reps: 5, units: 'kg', completed: false, completedAt: at('1-01') }])).toEqual([]);
+    expect(
+      computePRs([
+        { weight: 100, reps: 5, units: 'kg', completed: false, completedAt: at('1-01') },
+      ]),
+    ).toEqual([]);
   });
 
   it('emits heaviest, volume and most-reps with the achieving timestamp', () => {
@@ -13,8 +17,16 @@ describe('computePRs', () => {
       { weight: 100, reps: 10, units: 'kg', completed: true, completedAt: at('1-02') }, // volume 1000, reps 10@100
     ]);
     const byType = Object.fromEntries(prs.map((p) => [p.type, p]));
-    expect(byType.heaviest_weight).toEqual({ type: 'heaviest_weight', value: 140, achievedAt: at('1-01') });
-    expect(byType.best_volume).toEqual({ type: 'best_volume', value: 1000, achievedAt: at('1-02') });
+    expect(byType.heaviest_weight).toEqual({
+      type: 'heaviest_weight',
+      value: 140,
+      achievedAt: at('1-01'),
+    });
+    expect(byType.best_volume).toEqual({
+      type: 'best_volume',
+      value: 1000,
+      achievedAt: at('1-02'),
+    });
     expect(byType.most_reps_at_weight).toEqual({
       type: 'most_reps_at_weight',
       value: { weight: 100, reps: 10 },
@@ -34,7 +46,9 @@ describe('computePRs', () => {
   });
 
   it('treats a null unit as kg (legacy rows)', () => {
-    const prs = computePRs([{ weight: 80, reps: 5, units: null, completed: true, completedAt: at('1-01') }]);
+    const prs = computePRs([
+      { weight: 80, reps: 5, units: null, completed: true, completedAt: at('1-01') },
+    ]);
     expect(prs.find((p) => p.type === 'heaviest_weight')!.value).toBe(80);
   });
 });

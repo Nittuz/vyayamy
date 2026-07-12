@@ -11,18 +11,16 @@ import { QuarantineBanner } from '@/components/QuarantineBanner';
 import { SyncErrorStripe } from '@/components/SyncErrorStripe';
 import { QuarantineSheet } from '@/components/QuarantineSheet';
 import { RepeatCard } from '@/components/RepeatCard';
-import {
-  useLastFinishedWorkoutWithSeeds,
-  useRepeatLastWorkout,
-} from '@/queries/repeatLastWorkout';
+import { useLastFinishedWorkoutWithSeeds, useRepeatLastWorkout } from '@/queries/repeatLastWorkout';
 import { useActiveWorkoutCollisions } from '@/queries/activeWorkouts';
 import { queryKeys } from '@/queries/keys';
-import { useActiveWorkout, useRecentWorkouts, useCreateWorkout, deleteWorkoutLocal } from '@/queries/workouts';
 import {
-  getCachedSnapshot,
-  persistSnapshot,
-  type TodaySnapshot,
-} from '@/ui/todaySnapshot';
+  useActiveWorkout,
+  useRecentWorkouts,
+  useCreateWorkout,
+  deleteWorkoutLocal,
+} from '@/queries/workouts';
+import { getCachedSnapshot, persistSnapshot, type TodaySnapshot } from '@/ui/todaySnapshot';
 import { getStaleQuarantined, useQuarantined } from '@/sync/quarantine';
 import { Button } from '@/ui/Button';
 import { FadeInView } from '@/ui/FadeInView';
@@ -89,11 +87,7 @@ export default function TodayScreen() {
 
   // Persist a fresh snapshot whenever all three source queries settle.
   useEffect(() => {
-    if (
-      activeQuery.isLoading ||
-      lastFinishedQuery.isLoading ||
-      recentQuery.isLoading
-    ) {
+    if (activeQuery.isLoading || lastFinishedQuery.isLoading || recentQuery.isLoading) {
       return;
     }
     const state: TodaySnapshot['state'] = activeQuery.data
@@ -177,31 +171,35 @@ export default function TodayScreen() {
         />
 
         <FadeInView>
-        {activeQuery.data ? (
-          <ResumeCard onPress={onResume} />
-        ) : lastFinishedQuery.isLoading && initialSnapshot?.state === 'repeat' && initialSnapshot.repeatSeeds ? (
-          <RepeatCard
-            title={initialSnapshot.repeatTitle ?? 'Workout'}
-            daysAgo={initialSnapshot.repeatDaysAgo ?? 0}
-            seeds={initialSnapshot.repeatSeeds}
-            loading
-            onPress={() => {/* no-op until live data lands */}}
-          />
-        ) : lastFinishedQuery.isLoading && !initialSnapshot ? (
-          <View style={styles.cardSkeleton}>
-            <ActivityIndicator color={theme.color.inkSecondary} />
-          </View>
-        ) : lastFinishedQuery.data ? (
-          <RepeatCard
-            title={lastFinishedQuery.data.workout.title}
-            daysAgo={daysSince(lastFinishedQuery.data.workout.ended_at)}
-            seeds={lastFinishedQuery.data.seeds}
-            loading={repeat.isPending}
-            onPress={onRepeat}
-          />
-        ) : (
-          <EmptyRepeatSlot onBlankStart={onBlankStart} loading={createWorkout.isPending} />
-        )}
+          {activeQuery.data ? (
+            <ResumeCard onPress={onResume} />
+          ) : lastFinishedQuery.isLoading &&
+            initialSnapshot?.state === 'repeat' &&
+            initialSnapshot.repeatSeeds ? (
+            <RepeatCard
+              title={initialSnapshot.repeatTitle ?? 'Workout'}
+              daysAgo={initialSnapshot.repeatDaysAgo ?? 0}
+              seeds={initialSnapshot.repeatSeeds}
+              loading
+              onPress={() => {
+                /* no-op until live data lands */
+              }}
+            />
+          ) : lastFinishedQuery.isLoading && !initialSnapshot ? (
+            <View style={styles.cardSkeleton}>
+              <ActivityIndicator color={theme.color.inkSecondary} />
+            </View>
+          ) : lastFinishedQuery.data ? (
+            <RepeatCard
+              title={lastFinishedQuery.data.workout.title}
+              daysAgo={daysSince(lastFinishedQuery.data.workout.ended_at)}
+              seeds={lastFinishedQuery.data.seeds}
+              loading={repeat.isPending}
+              onPress={onRepeat}
+            />
+          ) : (
+            <EmptyRepeatSlot onBlankStart={onBlankStart} loading={createWorkout.isPending} />
+          )}
         </FadeInView>
 
         <View style={styles.altRow}>
@@ -299,7 +297,13 @@ function ResumeCard({ onPress }: { onPress: () => void }) {
   );
 }
 
-function EmptyRepeatSlot({ onBlankStart, loading }: { onBlankStart: () => void; loading: boolean }) {
+function EmptyRepeatSlot({
+  onBlankStart,
+  loading,
+}: {
+  onBlankStart: () => void;
+  loading: boolean;
+}) {
   const theme = useTheme();
   const styles = useMemo(() => makeStyles(theme), [theme]);
   return (

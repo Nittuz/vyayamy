@@ -7,7 +7,7 @@
 
 ## Problem
 
-Phases 1 and 2 added — the Active-Set card, Repeat-Last-Workout, the brutalist-lifter typography, the kvStore foundation, the collision sheet, the quarantine banner. Phase 3 *removes*. The 2026-05-26 audit named restraint as the move; six items in the working app are leftover scaffolding, half-finished idioms, or chrome that's quietly competing for attention:
+Phases 1 and 2 added — the Active-Set card, Repeat-Last-Workout, the brutalist-lifter typography, the kvStore foundation, the collision sheet, the quarantine banner. Phase 3 _removes_. The 2026-05-26 audit named restraint as the move; six items in the working app are leftover scaffolding, half-finished idioms, or chrome that's quietly competing for attention:
 
 1. **`+ Add set` button** in the workout flow forces the user to pre-plan reps before doing them. A lifter doing AMRAP, drop sets, or simply "as many as I feel like" shouldn't have to think about row creation. The button is a tax.
 2. **Hardcoded 90s rest timer** is wrong for everything — too long for curls, too short for squats. The audit called this out as "the worst of both."
@@ -55,6 +55,7 @@ Phase 3 cuts all nine without touching the local-first write path or the visual 
 ### 1. Auto-stage next set on completion
 
 **Files touched:**
+
 - `src/components/ActiveSetCard.tsx` — remove tap-to-complete fallback (already gone) and update prop interface for the new model
 - `src/screens/WorkoutActive.tsx` — change advance logic to auto-stage; remove `+ Add set` footer button; add `→ Next` header button
 - `src/components/activeSet.ts` — extend cursor logic for auto-stage semantics
@@ -95,6 +96,7 @@ When the user completes a set:
 ### 2. Per-exercise rest timer (muscle-group default)
 
 **Files touched:**
+
 - `src/ui/restDefaults.ts` — new module with the lookup table + pure function
 - `src/ui/__tests__/restDefaults.test.ts` — unit tests
 - `src/screens/WorkoutActive.tsx` — derive `targetSeconds` from current exercise's `muscle_group`
@@ -111,12 +113,12 @@ export function restForMuscleGroup(muscleGroup: string | null | undefined): numb
 
 **Lookup table (case-insensitive, trimmed match):**
 
-| Match (lowercase) | Target seconds |
-| --- | --- |
-| `chest`, `back`, `legs`, `quads`, `hamstrings`, `glutes`, `quadriceps`, `posterior` | 180 |
-| `shoulders`, `arms`, `biceps`, `triceps`, `calves`, `traps`, `deltoids` | 90 |
-| `core`, `abs`, `obliques`, `forearms`, `grip` | 60 |
-| anything else (including null/empty) | 90 |
+| Match (lowercase)                                                                   | Target seconds |
+| ----------------------------------------------------------------------------------- | -------------- |
+| `chest`, `back`, `legs`, `quads`, `hamstrings`, `glutes`, `quadriceps`, `posterior` | 180            |
+| `shoulders`, `arms`, `biceps`, `triceps`, `calves`, `traps`, `deltoids`             | 90             |
+| `core`, `abs`, `obliques`, `forearms`, `grip`                                       | 60             |
+| anything else (including null/empty)                                                | 90             |
 
 **Integration in `WorkoutActive.tsx`:**
 
@@ -135,6 +137,7 @@ The `ExerciseShape` type (in `activeSet.ts`) gains a `muscleGroup: string | null
 ### 3. Day-of-week default workout title
 
 **Files touched:**
+
 - `src/queries/workouts.ts` — change `createWorkout` default
 - `src/lib/dayOfWeek.ts` — new tiny helper (pure function)
 - `src/lib/__tests__/dayOfWeek.test.ts` — unit tests
@@ -155,7 +158,11 @@ export function dayOfWeek(date: Date | string | number): string {
 **Mutation change** (`createWorkout`):
 
 ```ts
-export async function createWorkout(args: { userId: string; title?: string; templateId?: string | null }): Promise<string> {
+export async function createWorkout(args: {
+  userId: string;
+  title?: string;
+  templateId?: string | null;
+}): Promise<string> {
   const id = uuidv4();
   const startedAt = nowIso();
   const title = args.title ?? dayOfWeek(startedAt);
@@ -163,7 +170,13 @@ export async function createWorkout(args: { userId: string; title?: string; temp
     table: 'workouts',
     op: 'insert',
     rowId: id,
-    payload: { user_id: args.userId, started_at: startedAt, title, template_id: args.templateId ?? null, ended_at: null },
+    payload: {
+      user_id: args.userId,
+      started_at: startedAt,
+      title,
+      template_id: args.templateId ?? null,
+      ended_at: null,
+    },
   });
   void triggerPush();
   return id;
@@ -181,6 +194,7 @@ Wired into `WorkoutActive.tsx`'s `Stack.Screen` `headerTitle` (instead of the cu
 ### 4. History demotion
 
 **Files touched:**
+
 - `app/(tabs)/_layout.tsx` — remove the History tab
 - `app/(tabs)/history.tsx` — delete
 - `app/history/index.tsx` — new index route that lists workouts (the file currently lives at `app/(tabs)/history.tsx`; move its content here)
@@ -232,6 +246,7 @@ Scope: `src/screens/Today.tsx`, `src/screens/WorkoutActive.tsx`. The `app/_layou
 #### Micro size 10 → 12pt
 
 `src/ui/typography.ts`:
+
 ```ts
 micro: 12, // was 10 — too small for one-handed gym squinting
 ```
@@ -269,15 +284,18 @@ Implementation: a `useSyncAwareErrorToast()` hook in `src/ui/ToastContext.tsx` t
 ```ts
 function useSyncAwareErrorToast() {
   const { showToast } = useToast();
-  return useCallback((msg: string) => {
-    if (isSyncError(msg)) return; // SyncIndicator handles it
-    showToast(msg, 'error');
-  }, [showToast]);
+  return useCallback(
+    (msg: string) => {
+      if (isSyncError(msg)) return; // SyncIndicator handles it
+      showToast(msg, 'error');
+    },
+    [showToast],
+  );
 }
 
 function isSyncError(msg: string): boolean {
   const patterns = ['network', 'timeout', 'fetch', 'pushOutbox', 'Failed to fetch', 'ECONN'];
-  return patterns.some(p => msg.toLowerCase().includes(p.toLowerCase()));
+  return patterns.some((p) => msg.toLowerCase().includes(p.toLowerCase()));
 }
 ```
 
@@ -291,6 +309,7 @@ function isSyncError(msg: string): boolean {
 ### File-level changes summary
 
 **New:**
+
 - `src/ui/restDefaults.ts` + tests
 - `src/lib/dayOfWeek.ts` + tests
 - `src/components/EditableTitle.tsx`
@@ -298,6 +317,7 @@ function isSyncError(msg: string): boolean {
 - `src/ui/__tests__/contrast.test.ts`
 
 **Modified:**
+
 - `src/components/ActiveSetCard.tsx` — remove `totalSetsInExercise` prop, label change
 - `src/components/activeSet.ts` — `ExerciseShape.muscleGroup` field, `findNextExercise` helper
 - `src/components/__tests__/activeSet.test.ts` — extend
@@ -312,9 +332,11 @@ function isSyncError(msg: string): boolean {
 - `src/ui/ToastContext.tsx` — add `useSyncAwareErrorToast` hook + `isSyncError`
 
 **Deleted:**
+
 - `app/(tabs)/history.tsx`
 
 **Untouched:**
+
 - `src/db/*` (no schema changes)
 - `src/sync/*` core
 - All Phase 1/2 design tokens (motion, haptics, useTheme structure)
@@ -331,15 +353,18 @@ function isSyncError(msg: string): boolean {
 ## Testing
 
 **Unit (Jest):**
+
 - `src/ui/__tests__/restDefaults.test.ts` — every category, case-insensitivity, null/empty fallback (~8 tests)
 - `src/lib/__tests__/dayOfWeek.test.ts` — Date / ISO string / epoch ms inputs, all 7 days (~10 tests)
 - `src/components/__tests__/activeSet.test.ts` — extend with `findNextExercise` (~3 tests)
 - `src/ui/__tests__/contrast.test.ts` — every (ink × bg) pair in both palettes (~16 tests as assertions)
 
 **Integration:**
+
 - `src/__tests__/auto-stage-e2e.test.ts` — complete a set, verify a new set with copied values is in SQLite + outbox; cursor points to the new set id
 
 **Device (manual, in plan):**
+
 - Complete a set on iOS, observe a new set staged with the same values, cursor advances to it
 - Tap `→ next` header → confirms via Alert when current set is unmodified, otherwise advances
 - Bench Press exercise → rest timer fills over 180s; Tricep Pushdown → over 60s

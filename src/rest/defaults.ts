@@ -20,13 +20,7 @@ const COMPOUND = new Set([
   'posterior',
 ]);
 
-const ISOLATION = new Set([
-  'core',
-  'abs',
-  'obliques',
-  'forearms',
-  'grip',
-]);
+const ISOLATION = new Set(['core', 'abs', 'obliques', 'forearms', 'grip']);
 
 const MEDIUM_DEFAULT = 90;
 

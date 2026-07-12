@@ -89,7 +89,14 @@ test('pull preserves columns mentioned in pending outbox update (column-merge)',
   await db.runAsync(
     `INSERT INTO workouts (id, user_id, started_at, title, created_at, updated_at)
        VALUES (?, ?, ?, ?, ?, ?)`,
-    [wId, USER_ID, '2026-01-01T00:00:00.000Z', 'W', '2026-01-01T00:00:00.000Z', '2026-01-01T00:00:00.000Z'],
+    [
+      wId,
+      USER_ID,
+      '2026-01-01T00:00:00.000Z',
+      'W',
+      '2026-01-01T00:00:00.000Z',
+      '2026-01-01T00:00:00.000Z',
+    ],
   );
   await db.runAsync(
     `INSERT INTO workout_exercises (id, workout_id, exercise_id, order_index, created_at, updated_at)

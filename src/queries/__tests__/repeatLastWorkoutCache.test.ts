@@ -40,7 +40,14 @@ beforeEach(async () => {
   );
   await db.runAsync(
     'INSERT INTO exercises (id, name, muscle_group, user_id, created_at, updated_at) VALUES (?, ?, ?, ?, ?, ?)',
-    [EX_C, 'Tricep Pushdown', 'Triceps', null, '2026-01-01T00:00:00.000Z', '2026-01-01T00:00:00.000Z'],
+    [
+      EX_C,
+      'Tricep Pushdown',
+      'Triceps',
+      null,
+      '2026-01-01T00:00:00.000Z',
+      '2026-01-01T00:00:00.000Z',
+    ],
   );
 });
 
@@ -76,5 +83,7 @@ test('QueryClient invalidation matches workouts.all prefix', () => {
   qc.invalidateQueries({ queryKey: queryKeys.workouts.all });
   // After invalidate, data is still present but marked stale.
   // We're verifying the key shape is compatible with prefix matching.
-  expect(qc.getQueryCache().findAll({ queryKey: queryKeys.workouts.all }).length).toBeGreaterThanOrEqual(2);
+  expect(
+    qc.getQueryCache().findAll({ queryKey: queryKeys.workouts.all }).length,
+  ).toBeGreaterThanOrEqual(2);
 });

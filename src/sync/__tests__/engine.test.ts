@@ -107,7 +107,9 @@ describe('handleSignOut (#1)', () => {
          VALUES ('w1', 'prev-user', ?, 'W', ?, ?)`,
       ['2026-01-01', '2026-01-01', '2026-01-01'],
     );
-    await db.runAsync(`INSERT INTO outbox (table_name, op, row_id, payload_json) VALUES ('workouts','insert','w1','{}')`);
+    await db.runAsync(
+      `INSERT INTO outbox (table_name, op, row_id, payload_json) VALUES ('workouts','insert','w1','{}')`,
+    );
 
     await handleSignOut();
 

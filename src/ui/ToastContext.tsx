@@ -1,4 +1,12 @@
-import { createContext, useCallback, useContext, useEffect, useMemo, useRef, useState } from 'react';
+import {
+  createContext,
+  useCallback,
+  useContext,
+  useEffect,
+  useMemo,
+  useRef,
+  useState,
+} from 'react';
 import { AccessibilityInfo, StyleSheet, Text, View } from 'react-native';
 import Animated, {
   runOnJS,
@@ -94,7 +102,9 @@ export function ToastProvider({ children }: { children: React.ReactNode }) {
       {toast ? (
         <Animated.View pointerEvents="none" style={[styles.wrap, animatedStyle]}>
           <View style={[styles.toast, toast.kind === 'error' && styles.error]}>
-            <Text style={[styles.text, toast.kind === 'error' && styles.errorText]}>{toast.message}</Text>
+            <Text style={[styles.text, toast.kind === 'error' && styles.errorText]}>
+              {toast.message}
+            </Text>
           </View>
         </Animated.View>
       ) : null}

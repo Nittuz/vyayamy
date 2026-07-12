@@ -22,7 +22,13 @@ async function seedExerciseRow(id: string, name: string) {
     [id, name, 'Chest', null, T, T],
   );
 }
-async function seedWE(id: string, workoutId: string, exerciseId: string, order: number, deleted = false) {
+async function seedWE(
+  id: string,
+  workoutId: string,
+  exerciseId: string,
+  order: number,
+  deleted = false,
+) {
   const db = await getDb();
   await db.runAsync(
     'INSERT INTO workout_exercises (id, workout_id, exercise_id, order_index, created_at, updated_at, deleted_at) VALUES (?, ?, ?, ?, ?, ?, ?)',

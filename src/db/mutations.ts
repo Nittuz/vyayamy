@@ -37,7 +37,9 @@ interface EnqueueArgs {
  * quarantine discard cascade (src/sync/quarantine.ts) both walk this map —
  * a new parent/child relationship added here covers both paths.
  */
-export const SOFT_DELETE_CASCADE: Partial<Record<SyncedTable, { table: SyncedTable; fk: string }[]>> = {
+export const SOFT_DELETE_CASCADE: Partial<
+  Record<SyncedTable, { table: SyncedTable; fk: string }[]>
+> = {
   workouts: [{ table: 'workout_exercises', fk: 'workout_id' }],
   workout_exercises: [{ table: 'sets', fk: 'workout_exercise_id' }],
   training_plans: [{ table: 'training_plan_slots', fk: 'plan_id' }],
@@ -98,10 +100,11 @@ export async function enqueueMutation(args: EnqueueArgs): Promise<void> {
       // sees orphaned-yet-live rows. Walk depth-first.
       await cascadeSoftDelete(args.table, args.rowId, now);
 
-      await db.runAsync(
-        `UPDATE ${args.table} SET deleted_at = ?, updated_at = ? WHERE id = ?`,
-        [now, now, args.rowId],
-      );
+      await db.runAsync(`UPDATE ${args.table} SET deleted_at = ?, updated_at = ? WHERE id = ?`, [
+        now,
+        now,
+        args.rowId,
+      ]);
     } else if (args.op === 'insert' || args.op === 'upsert') {
       await upsertRowLocal(db, args.table, {
         id: args.rowId,
@@ -128,7 +131,11 @@ export async function enqueueMutation(args: EnqueueArgs): Promise<void> {
   // longer call triggerPush themselves.
   emitMutationCommitted();
 
-  async function cascadeSoftDelete(parent: SyncedTable, parentId: string, ts: string): Promise<void> {
+  async function cascadeSoftDelete(
+    parent: SyncedTable,
+    parentId: string,
+    ts: string,
+  ): Promise<void> {
     const children = SOFT_DELETE_CASCADE[parent];
     if (!children) return;
     for (const { table, fk } of children) {
@@ -138,10 +145,11 @@ export async function enqueueMutation(args: EnqueueArgs): Promise<void> {
       );
       for (const child of liveChildren) {
         await cascadeSoftDelete(table, child.id, ts);
-        await db.runAsync(
-          `UPDATE ${table} SET deleted_at = ?, updated_at = ? WHERE id = ?`,
-          [ts, ts, child.id],
-        );
+        await db.runAsync(`UPDATE ${table} SET deleted_at = ?, updated_at = ? WHERE id = ?`, [
+          ts,
+          ts,
+          child.id,
+        ]);
         await appendOutbox(db, table, 'delete', child.id, { id: child.id, deleted_at: ts });
       }
     }

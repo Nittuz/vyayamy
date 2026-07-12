@@ -95,7 +95,12 @@ export function SyncDiagnosticsSheet({ visible, onClose, onOpenQuarantine }: Pro
                 MOST RECENT
               </Text>
               {preview.map((row) => (
-                <Text key={row.id} variant="numeral" color={theme.color.ink} style={styles.previewRow}>
+                <Text
+                  key={row.id}
+                  variant="numeral"
+                  color={theme.color.ink}
+                  style={styles.previewRow}
+                >
                   {row.table_name} · {row.op} · {relativeAge(row.created_at)}
                 </Text>
               ))}
@@ -104,15 +109,33 @@ export function SyncDiagnosticsSheet({ visible, onClose, onOpenQuarantine }: Pro
         </Section>
 
         <Section label="LAST SYNC" theme={theme}>
-          <Row k="Pushed" v={sync.lastPushedAt ? relativeAge(sync.lastPushedAt) : 'never'} theme={theme} mono />
-          <Row k="Pulled" v={sync.lastPulledAt ? relativeAge(sync.lastPulledAt) : 'never'} theme={theme} mono />
+          <Row
+            k="Pushed"
+            v={sync.lastPushedAt ? relativeAge(sync.lastPushedAt) : 'never'}
+            theme={theme}
+            mono
+          />
+          <Row
+            k="Pulled"
+            v={sync.lastPulledAt ? relativeAge(sync.lastPulledAt) : 'never'}
+            theme={theme}
+            mono
+          />
         </Section>
       </ScrollView>
     </Sheet>
   );
 }
 
-function Section({ label, theme, children }: { label: string; theme: Theme; children: React.ReactNode }) {
+function Section({
+  label,
+  theme,
+  children,
+}: {
+  label: string;
+  theme: Theme;
+  children: React.ReactNode;
+}) {
   const styles = useMemo(() => makeStyles(theme), [theme]);
   return (
     <View style={styles.section}>

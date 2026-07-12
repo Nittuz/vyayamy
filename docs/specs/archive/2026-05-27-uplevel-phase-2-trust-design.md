@@ -7,7 +7,7 @@
 
 ## Problem
 
-Phase 1 shipped the Signature — the app looks and feels like itself. Phase 2 ships the Trust — a lifter can drop their phone mid-set, get a phone call, lose connection, switch devices, force-quit the app, and the data they typed *and the workout they're inside* survive every one of those events.
+Phase 1 shipped the Signature — the app looks and feels like itself. Phase 2 ships the Trust — a lifter can drop their phone mid-set, get a phone call, lose connection, switch devices, force-quit the app, and the data they typed _and the workout they're inside_ survive every one of those events.
 
 The 2026-05-26 design audit named five concrete gaps that erode trust:
 
@@ -45,6 +45,7 @@ Phase 2 closes all five gaps without touching the visual language or the core wr
 ### 1. Keypad-mode autosave (250ms debounce)
 
 **Files touched:**
+
 - `src/components/numericStepper.ts` — add `useDebouncedCommit` hook (pure logic, unit-testable)
 - `src/components/NumericStepperView.tsx` — wire the hook into the keypad edit path
 - `src/components/__tests__/numericStepper.test.ts` — extend with debounce tests
@@ -63,6 +64,7 @@ export function useDebouncedCommit(
 ```
 
 **Behavior:**
+
 - `bufferKeystroke(raw)` stores the latest text in a ref and (re)starts the timer
 - When the timer fires: `parseUserInput(buffered)` → if valid number, call `onChange(parsed)`; if invalid, no-op (don't clobber prior state with garbage)
 - `flushNow()` cancels the pending timer and immediately commits the latest buffered text using the same parse-and-onChange logic (used by the existing on-blur path)
@@ -70,11 +72,13 @@ export function useDebouncedCommit(
 - Empty input (`''`) is treated as "clear" and commits `null` (matches existing on-blur behavior)
 
 **Wire-in:**
+
 - In `NumericStepperView.tsx`, the existing `TextInput` `onChangeText={setEditingText}` is extended to also call `bufferKeystroke(text)`
 - The existing `onBlur={commitEdit}` calls `flushNow()` instead of the inline commit
 - The internal `editingText` state stays so the TextInput remains controlled
 
 **Edge cases:**
+
 - Rapid typing: each keystroke restarts the timer; only the final value commits 250ms after typing stops
 - Long-form numbers (decimals): debouncing applies regardless; if user types "22.5", commit fires once 250ms after the "5"
 - Crash within the 250ms window: latest committed value is the previous user input or null. Acceptable. Belt-and-suspenders text-buffer is YAGNI.
@@ -83,6 +87,7 @@ export function useDebouncedCommit(
 ### 2. Cold-start Today snapshot
 
 **Files touched:**
+
 - `src/ui/todaySnapshot.ts` — new module, AsyncStorage-backed
 - `src/screens/Today.tsx` — read snapshot at first paint, save on data change
 - `src/ui/__tests__/todaySnapshot.test.ts` — unit tests against an AsyncStorage mock
@@ -118,15 +123,18 @@ export function clearSnapshot(): Promise<void>;
 **Storage key:** `@flexyug/today-snapshot/v1` (versioned in key; if schema version increments, the old key is orphaned and a new one starts fresh)
 
 **Lifecycle:**
+
 - App boot: `hydrateSnapshot()` runs alongside `initDb()` in `app/_layout.tsx`. The two race; whichever finishes first primes its slice of state. Hydrate is faster than initDb (AsyncStorage is small, KV-based)
 - First paint of `Today.tsx`: read via `getCachedSnapshot()`; if truthy, render the snapshot. Live queries (`useLastFinishedWorkoutWithSeeds`, `useActiveWorkout`, `useRecentWorkouts`) populate alongside
 - When live data lands: replace the snapshot-driven render. `persistSnapshot()` fires on the new data so the next cold start sees the up-to-date view
 - Sign-out: `clearSnapshot()` runs in `useAuth` sign-out handler
 
 **Staleness:**
+
 - Snapshot has `capturedAt`. If `now - capturedAt > 7 days`, ignore the snapshot (clear in-memory cache). User probably hasn't opened the app in a while; show the skeleton loader rather than a stale Repeat card
 
 **Edge cases:**
+
 - AsyncStorage read fails: log to Sentry, ignore the snapshot (render skeleton)
 - Schema mismatch (future): `getCachedSnapshot()` checks `schemaVersion === 1`; mismatches return null and clear the key
 - User signs in to a different account: the AuthProvider's sign-in path also clears the snapshot
@@ -134,6 +142,7 @@ export function clearSnapshot(): Promise<void>;
 ### 3. Workout-collision blocking sheet
 
 **Files touched:**
+
 - `src/queries/activeWorkouts.ts` — new query `useActiveWorkoutCollisions(userId)` (returns array)
 - `src/components/CollisionSheet.tsx` — the modal UI
 - `src/screens/Today.tsx` — render the sheet when collisions detected
@@ -142,9 +151,7 @@ export function clearSnapshot(): Promise<void>;
 **Query implementation:**
 
 ```ts
-export async function getActiveWorkoutCollisions(
-  userId: string,
-): Promise<{
+export async function getActiveWorkoutCollisions(userId: string): Promise<{
   workouts: Workout[];
   details: Map<string, { setCount: number; exerciseCount: number }>;
 }> {
@@ -180,6 +187,7 @@ export async function getActiveWorkoutCollisions(
 ```
 
 **Sheet UX:**
+
 - Renders as an overlay on Today when `workouts.length >= 2`
 - Title: "Resume which workout?"
 - Body: "We found 2 unfinished workouts. Pick one to resume; the others will be discarded."
@@ -190,10 +198,12 @@ export async function getActiveWorkoutCollisions(
 - No "Cancel" button — the sheet is blocking by design (you can't use Today until resolved)
 
 **Detection trigger:**
+
 - Today's mount fires `useActiveWorkoutCollisions(userId)`
 - The query is also invalidated post-pull. Add a `pullCompleted` callback hook in `sync/engine.ts` that invalidates `queryKeys.workouts.all` on every successful pull (current engine already invalidates on push success; pull-side already does its own invalidation per-table — verify and extend if needed)
 
 **Edge cases:**
+
 - User has 3+ unfinished workouts: same UX, just more rows
 - User discards all except one: that one is implicitly "kept" — no further resolution needed
 - User discards them all: empty Today, like first launch
@@ -202,6 +212,7 @@ export async function getActiveWorkoutCollisions(
 ### 4. Quarantined-outbox banner
 
 **Files touched:**
+
 - `src/sync/quarantine.ts` — new module: query stuck rows, retry/discard mutations
 - `src/components/QuarantineBanner.tsx` — top-of-Today banner
 - `src/components/QuarantineSheet.tsx` — detail sheet
@@ -232,6 +243,7 @@ export async function discardAllQuarantined(): Promise<void>;
 ```
 
 **Constants:**
+
 - `STALE_THRESHOLD_MS = 24 * 60 * 60 * 1000` (24 hours)
 - `oldOnes` = rows where `now - created_at > STALE_THRESHOLD_MS`
 
@@ -246,20 +258,24 @@ SELECT * FROM outbox
 (The `5` here is `MAX_ATTEMPTS` from `src/sync/push.ts` — import and reuse rather than re-declaring.)
 
 **Mutation: retry a row**
+
 - `UPDATE outbox SET attempts = 0, next_attempt_at = NULL WHERE id = ?`
 - Then `void triggerPush()` so the next sync cycle picks it up
 
 **Mutation: discard a row**
+
 - `DELETE FROM outbox WHERE id = ?`
-- Plus tombstone the corresponding local row (call the right `enqueueMutation` with `op: 'delete'`) — but wait, that would create a *new* outbox row. The user wanted this thing GONE, not re-queued. Resolution: just `DELETE FROM outbox WHERE id = ?` and leave the local table row alone. The user is consciously orphaning the data. The discard sheet UI makes this explicit ("This will remove the change locally without syncing it.")
+- Plus tombstone the corresponding local row (call the right `enqueueMutation` with `op: 'delete'`) — but wait, that would create a _new_ outbox row. The user wanted this thing GONE, not re-queued. Resolution: just `DELETE FROM outbox WHERE id = ?` and leave the local table row alone. The user is consciously orphaning the data. The discard sheet UI makes this explicit ("This will remove the change locally without syncing it.")
 
 **Banner UX:**
+
 - Hidden when `oldOnes.length === 0`
 - Visible at top of Today: a danger-colored pill with `${oldOnes.length} items didn't sync · Tap to review`
 - Tap → opens `QuarantineSheet`
 - Once user resolves all stale rows (retry or discard each), banner disappears
 
 **Sheet UX:**
+
 - Title: "Stuck syncs"
 - Body: "These changes haven't reached the server after multiple tries. Retry sends them back to the queue; Discard removes them locally."
 - Per-row: human-readable summary based on `table_name + op + payload_json` (e.g. `sets · 185 × 5` for an insert/update set; `workouts · "Push"` for a workout)
@@ -267,6 +283,7 @@ SELECT * FROM outbox
 - Footer: `Retry all` / `Discard all`
 
 **Edge cases:**
+
 - Banner appears while user is mid-flow on Today: that's by design; the banner is sticky once stuff is stale
 - New rows quarantine while sheet is open: live query refreshes sheet
 - User retries all and they all succeed: banner disappears next render
@@ -275,6 +292,7 @@ SELECT * FROM outbox
 ### 5. Rest timer persistence
 
 **Files touched:**
+
 - `src/ui/hooks/useRestTimer.ts` — modify to read/write AsyncStorage
 - `src/ui/hooks/__tests__/useRestTimer.test.ts` — new test file (pure logic — extract `restorePolicy` for testing)
 
@@ -291,6 +309,7 @@ interface PersistedTimer {
 ```
 
 **Behavior:**
+
 - `start()`: write `{ schemaVersion: 1, startedAt: Date.now(), targetSeconds }`
 - `stop()`: clear the key (AsyncStorage `removeItem`)
 - On mount: read the key. If present and `now - startedAt < 2 × targetSeconds`, restore (set `running = true`, compute live `elapsed`). Otherwise, clear stale data.
@@ -312,6 +331,7 @@ export function shouldRestoreTimer(
 ```
 
 **Edge cases:**
+
 - Clock-skew on restore (negative elapsed): clear, don't restore
 - Stale entry from a week ago: clear, don't restore
 - App killed exactly at target second: on restore, elapsed > target → `timerValueDone` styling applies, haptic doesn't re-fire (only on threshold-crossing)
@@ -324,6 +344,7 @@ export function shouldRestoreTimer(
 **Test setup.** `jest.setup.js` already mocks `@react-native-async-storage/async-storage` to a stub. Tests that need real read/write behavior install an in-memory mock locally inside the test file.
 
 **Sentry breadcrumbs.** Add breadcrumb entries for:
+
 - Snapshot hydrate (success/failure)
 - Quarantine retry / discard (audit trail)
 - Rest timer restore decision
@@ -333,6 +354,7 @@ These help diagnose user-reported "I lost my workout" claims later.
 ### File-level changes summary
 
 **New:**
+
 - `src/components/numericStepper.ts` — extend with `useDebouncedCommit`
 - `src/components/CollisionSheet.tsx`
 - `src/components/QuarantineBanner.tsx`
@@ -344,6 +366,7 @@ These help diagnose user-reported "I lost my workout" claims later.
 - Tests for all of the above
 
 **Modified:**
+
 - `src/components/NumericStepperView.tsx` — wire debounce hook into keypad
 - `src/screens/Today.tsx` — snapshot hydration, collision sheet, quarantine banner
 - `src/ui/hooks/useRestTimer.ts` — persistence
@@ -352,6 +375,7 @@ These help diagnose user-reported "I lost my workout" claims later.
 - `src/sync/engine.ts` — invalidate active-workout queries on pull complete (verify, possibly already happens)
 
 **Untouched:**
+
 - `src/db/*` (schema, mutations primitive, client)
 - `src/sync/push.ts`, `src/sync/pull.ts`, `src/sync/state.ts` core logic
 - All Phase 1 visual files (`ActiveSetCard`, `RepeatCard`, theme, motion, haptics, typography, colors)
@@ -368,6 +392,7 @@ These help diagnose user-reported "I lost my workout" claims later.
 ## Testing
 
 **Unit (Jest):**
+
 - `src/components/__tests__/numericStepper.test.ts` — extend with debounce hook tests using `jest.useFakeTimers()`
 - `src/ui/__tests__/todaySnapshot.test.ts` — round-trip serialize, schema version mismatch, stale (>7d) discard
 - `src/sync/__tests__/quarantine.test.ts` — query returns only attempts >= 5, retry resets attempts, discard removes
@@ -375,9 +400,11 @@ These help diagnose user-reported "I lost my workout" claims later.
 - `src/ui/hooks/__tests__/useRestTimer.test.ts` — `shouldRestoreTimer` pure-policy: null in, schema mismatch, negative elapsed, beyond threshold, within threshold
 
 **Integration:**
+
 - `src/__tests__/phase-2-trust-e2e.test.ts` — covers: type "185" in keypad mode then crash before blur (autosave fires), sync a second workout from another device (collision detected), force 5 push failures (row quarantines, query surfaces it), start rest timer then "restart app" simulated (timer restores)
 
 **Device (manual, captured in plan as a checklist):**
+
 - Type in weight keypad, wait ~300ms, force-quit, relaunch → value present
 - Cold launch Today → Repeat card appears instantly (before SQLite finishes)
 - Manually insert a second unfinished workout via dev console, navigate to Today → CollisionSheet appears

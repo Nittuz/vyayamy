@@ -29,7 +29,10 @@ function ex(id: string, sets: { id: string; completed: boolean }[]): ExerciseSha
 describe('findInitialCursor', () => {
   test('points at the first incomplete set', () => {
     const exercises = [
-      ex('a', [{ id: 'a1', completed: true }, { id: 'a2', completed: false }]),
+      ex('a', [
+        { id: 'a1', completed: true },
+        { id: 'a2', completed: false },
+      ]),
       ex('b', [{ id: 'b1', completed: false }]),
     ];
     expect(findInitialCursor(exercises)).toEqual({ weId: 'a', setId: 'a2' });
@@ -38,7 +41,12 @@ describe('findInitialCursor', () => {
   test('returns null when every set is complete (#15 — show the recap, never loop)', () => {
     // Returning a completed set here made the cursor-reset effect reposition onto
     // a completed set forever (infinite setState). null routes to the recap.
-    const exercises = [ex('a', [{ id: 'a1', completed: true }, { id: 'a2', completed: true }])];
+    const exercises = [
+      ex('a', [
+        { id: 'a1', completed: true },
+        { id: 'a2', completed: true },
+      ]),
+    ];
     expect(findInitialCursor(exercises)).toBeNull();
   });
 
@@ -71,7 +79,10 @@ describe('findPrevExercise (#13)', () => {
 
 describe('firstIncompleteSet (#13)', () => {
   test('returns the first set that is not completed', () => {
-    const e = ex('a', [{ id: 'a1', completed: true }, { id: 'a2', completed: false }]);
+    const e = ex('a', [
+      { id: 'a1', completed: true },
+      { id: 'a2', completed: false },
+    ]);
     expect(firstIncompleteSet(e)!.id).toBe('a2');
   });
   test('returns null when every set is complete (caller stages a fresh one)', () => {
@@ -81,7 +92,10 @@ describe('firstIncompleteSet (#13)', () => {
 });
 
 describe('findExercise', () => {
-  const exercises = [ex('a', [{ id: 'a1', completed: false }]), ex('b', [{ id: 'b1', completed: false }])];
+  const exercises = [
+    ex('a', [{ id: 'a1', completed: false }]),
+    ex('b', [{ id: 'b1', completed: false }]),
+  ];
 
   test('returns the matching exercise', () => {
     expect(findExercise(exercises, 'b')!.id).toBe('b');
@@ -93,7 +107,10 @@ describe('findExercise', () => {
 });
 
 describe('findSet', () => {
-  const exercise = ex('a', [{ id: 'a1', completed: false }, { id: 'a2', completed: true }]);
+  const exercise = ex('a', [
+    { id: 'a1', completed: false },
+    { id: 'a2', completed: true },
+  ]);
 
   test('returns the matching set', () => {
     expect(findSet(exercise, 'a2')!.id).toBe('a2');

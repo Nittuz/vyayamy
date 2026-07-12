@@ -35,7 +35,10 @@ jest.mock('@/auth/supabase', () => {
       },
       limit(n: number) {
         if (tableErrors[table]) {
-          return Promise.resolve({ data: null, error: { message: 'table fetch boom', status: 500 } });
+          return Promise.resolve({
+            data: null,
+            error: { message: 'table fetch boom', status: 500 },
+          });
         }
         const out = rows.slice(0, n);
         rows = rows.slice(n);
@@ -72,7 +75,9 @@ test('a table that errors does not abort pulls of later tables (#2)', async () =
   await expect(pullOnce()).resolves.toBeUndefined(); // does not throw
 
   const db = await getDb();
-  const tpl = await db.getFirstAsync<{ name: string }>('SELECT name FROM templates WHERE id = ?', [tplId]);
+  const tpl = await db.getFirstAsync<{ name: string }>('SELECT name FROM templates WHERE id = ?', [
+    tplId,
+  ]);
   expect(tpl?.name).toBe('Push Day'); // later table still pulled
 });
 
@@ -105,7 +110,9 @@ test('a single un-mergeable row does not wedge the page or the cursor (#2)', asy
   await pullOnce();
 
   const db = await getDb();
-  const good = await db.getFirstAsync<{ name: string }>('SELECT name FROM exercises WHERE id = ?', [goodId]);
+  const good = await db.getFirstAsync<{ name: string }>('SELECT name FROM exercises WHERE id = ?', [
+    goodId,
+  ]);
   expect(good?.name).toBe('Deadlift'); // good row merged despite the poison sibling
 
   const meta = await db.getFirstAsync<{ last_pulled_at: string | null }>(

@@ -23,23 +23,23 @@ One exported SQL string, `LOCAL_SCHEMA_SQL` in `src/db/schema.ts`, all `CREATE T
 
 ### Tables (15)
 
-| Table | Purpose |
-|---|---|
-| `profiles` | User profile, including display-unit preference (`units` NOT NULL DEFAULT `'kg'`) |
-| `exercises` | Exercise catalog; global rows have `user_id` NULL, custom rows are owned |
-| `workouts` | Workout session; `ended_at` NULL means active |
-| `workout_exercises` | Join row: an exercise instance inside a workout, with `order_index` |
-| `sets` | Individual set: `weight` REAL, `reps` INTEGER, nullable `units` (`'kg'`/`'lb'`), `completed`, `completed_at` |
-| `personal_records` | Local derived PR cache, not synced (see section 8) |
-| `templates` | Saved workout templates; `exercise_order` is a JSON array column |
-| `training_plans` | A user's plan (`plan_type`, `is_active`, `cycle_cursor`) |
-| `training_plan_slots` | Day/cycle slots of a plan |
-| `plan_presets` | Server-seeded preset plan catalog |
-| `plan_preset_templates` | Templates inside a preset |
-| `plan_preset_exercises` | Exercises in a preset template |
-| `plan_preset_slots` | Day/cycle slots of a preset |
-| `outbox` | Client-only queue of pending mutations (`table_name`, `op`, `row_id`, `payload_json`, `attempts`, `last_error`, `next_attempt_at`) |
-| `sync_meta` | Client-only per-table incremental-pull cursor (`last_pulled_at`, `last_pulled_id`) |
+| Table                   | Purpose                                                                                                                            |
+| ----------------------- | ---------------------------------------------------------------------------------------------------------------------------------- |
+| `profiles`              | User profile, including display-unit preference (`units` NOT NULL DEFAULT `'kg'`)                                                  |
+| `exercises`             | Exercise catalog; global rows have `user_id` NULL, custom rows are owned                                                           |
+| `workouts`              | Workout session; `ended_at` NULL means active                                                                                      |
+| `workout_exercises`     | Join row: an exercise instance inside a workout, with `order_index`                                                                |
+| `sets`                  | Individual set: `weight` REAL, `reps` INTEGER, nullable `units` (`'kg'`/`'lb'`), `completed`, `completed_at`                       |
+| `personal_records`      | Local derived PR cache, not synced (see section 8)                                                                                 |
+| `templates`             | Saved workout templates; `exercise_order` is a JSON array column                                                                   |
+| `training_plans`        | A user's plan (`plan_type`, `is_active`, `cycle_cursor`)                                                                           |
+| `training_plan_slots`   | Day/cycle slots of a plan                                                                                                          |
+| `plan_presets`          | Server-seeded preset plan catalog                                                                                                  |
+| `plan_preset_templates` | Templates inside a preset                                                                                                          |
+| `plan_preset_exercises` | Exercises in a preset template                                                                                                     |
+| `plan_preset_slots`     | Day/cycle slots of a preset                                                                                                        |
+| `outbox`                | Client-only queue of pending mutations (`table_name`, `op`, `row_id`, `payload_json`, `attempts`, `last_error`, `next_attempt_at`) |
+| `sync_meta`             | Client-only per-table incremental-pull cursor (`last_pulled_at`, `last_pulled_id`)                                                 |
 
 `SYNCED_TABLES` (`src/db/schema.ts`, 12 entries): `profiles, exercises, workouts, workout_exercises, sets, templates, training_plans, training_plan_slots, plan_presets, plan_preset_templates, plan_preset_exercises, plan_preset_slots`. The comment directly above it states that `personal_records` is intentionally excluded. `outbox` and `sync_meta` are client-only by nature.
 
@@ -164,18 +164,18 @@ Invalidation strategy, in full:
 
 ## 9. Offline behavior
 
-| Capability | Offline | Mechanism |
-|---|---|---|
-| Log/edit/delete sets | Fully works | Row plus outbox entry in one transaction (`src/queries/sets.ts`, `src/db/mutations.ts`); local invalidation via `setWriteInvalidationKeys` (#11); the engine's bus subscriber skips the push while offline |
-| Create/finish workouts | Fully works | Same outbox pattern; `finishWorkout()` also prunes incomplete staged sets (#12) and recomputes PRs locally |
-| Voice logging | Fully works | On-device recognition only: `requiresOnDeviceRecognition: true` in `onDeviceEngine` (`src/voice/speechEngine.ts`) |
-| Rest timer plus alert | Fully works | Local scheduled notification (`scheduleRestDone()` in `src/lib/restNotifications.ts`); timer persisted in user-scoped KV and restored (`useRestTimer` in `src/ui/hooks/useRestTimer.ts`); notification tap routes to `/workout/active` even on cold start (#159, `app/_layout.tsx`) |
-| History, detail, exercise search | Fully works | Pure SQLite queryFns (`src/queries/history.ts`, `src/queries/sets.ts`, `src/queries/exercises.ts`) |
-| PRs and Progress chart | Fully works | Local derived cache plus chart series computed from local `sets` |
-| Today first paint | Fully works | `hydrateSnapshot()` from AsyncStorage races `initDb()` at boot (`app/_layout.tsx`, `src/ui/todaySnapshot.ts`) |
-| Sync status UI | Degrades gracefully | `deriveSyncState()` returns `'offline'`, label "Offline. Saved locally." (`src/core/syncHelpers.ts`). Caveat: initial state is optimistically `online: true` until NetInfo first fires (`src/sync/state.ts`) |
-| Sign-in (both paths) | Needs network | Supabase HTTP calls; a signed-out device offline is fully unusable because the #91 gate redirects every route to `/login` |
-| Catch-up on reconnect | Automatic | NetInfo online transition and app foreground both run `runSyncCycle()`; backed-off rows wake via the self-scheduled retry (#5) |
+| Capability                       | Offline             | Mechanism                                                                                                                                                                                                                                                                           |
+| -------------------------------- | ------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| Log/edit/delete sets             | Fully works         | Row plus outbox entry in one transaction (`src/queries/sets.ts`, `src/db/mutations.ts`); local invalidation via `setWriteInvalidationKeys` (#11); the engine's bus subscriber skips the push while offline                                                                          |
+| Create/finish workouts           | Fully works         | Same outbox pattern; `finishWorkout()` also prunes incomplete staged sets (#12) and recomputes PRs locally                                                                                                                                                                          |
+| Voice logging                    | Fully works         | On-device recognition only: `requiresOnDeviceRecognition: true` in `onDeviceEngine` (`src/voice/speechEngine.ts`)                                                                                                                                                                   |
+| Rest timer plus alert            | Fully works         | Local scheduled notification (`scheduleRestDone()` in `src/lib/restNotifications.ts`); timer persisted in user-scoped KV and restored (`useRestTimer` in `src/ui/hooks/useRestTimer.ts`); notification tap routes to `/workout/active` even on cold start (#159, `app/_layout.tsx`) |
+| History, detail, exercise search | Fully works         | Pure SQLite queryFns (`src/queries/history.ts`, `src/queries/sets.ts`, `src/queries/exercises.ts`)                                                                                                                                                                                  |
+| PRs and Progress chart           | Fully works         | Local derived cache plus chart series computed from local `sets`                                                                                                                                                                                                                    |
+| Today first paint                | Fully works         | `hydrateSnapshot()` from AsyncStorage races `initDb()` at boot (`app/_layout.tsx`, `src/ui/todaySnapshot.ts`)                                                                                                                                                                       |
+| Sync status UI                   | Degrades gracefully | `deriveSyncState()` returns `'offline'`, label "Offline. Saved locally." (`src/core/syncHelpers.ts`). Caveat: initial state is optimistically `online: true` until NetInfo first fires (`src/sync/state.ts`)                                                                        |
+| Sign-in (both paths)             | Needs network       | Supabase HTTP calls; a signed-out device offline is fully unusable because the #91 gate redirects every route to `/login`                                                                                                                                                           |
+| Catch-up on reconnect            | Automatic           | NetInfo online transition and app foreground both run `runSyncCycle()`; backed-off rows wake via the self-scheduled retry (#5)                                                                                                                                                      |
 
 Rough edges: no outbox coalescing, so every offline set edit is its own outbox row and its own HTTP request on reconnect (#50, deferred by design: merging rows races an in-flight push and risks data loss; the 50 ms debounce and the #14 stepper fix mitigate the symptom). Pull is fragile to server schema skew (#56, below). Rows that fail push five times land in the quarantine UI.
 

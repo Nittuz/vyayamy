@@ -92,7 +92,10 @@ describe('resolveCursor — initialization (didInit semantics)', () => {
 
 describe('resolveCursor — validity + repositioning', () => {
   const exercises = [
-    ex('a', [{ id: 'a1', completed: true }, { id: 'a2', completed: false }]),
+    ex('a', [
+      { id: 'a1', completed: true },
+      { id: 'a2', completed: false },
+    ]),
     ex('b', [{ id: 'b1', completed: false }]),
   ];
 
@@ -115,7 +118,10 @@ describe('resolveCursor — validity + repositioning', () => {
     });
     // Backward jump: cursor completed in b, but a2 (earlier) is still open.
     const done = [
-      ex('a', [{ id: 'a1', completed: true }, { id: 'a2', completed: false }]),
+      ex('a', [
+        { id: 'a1', completed: true },
+        { id: 'a2', completed: false },
+      ]),
       ex('b', [{ id: 'b1', completed: true }]),
     ];
     expect(resolveCursor(done, { weId: 'b', setId: 'b1' }, true, null).cursor).toEqual({

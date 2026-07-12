@@ -134,7 +134,12 @@ export default function WorkoutActiveScreen() {
 
   const currentExForRest = cursor ? findExercise(exercises, cursor.weId) : null;
   const restSeconds = useMemo(
-    () => effectiveRest(overrides, currentExForRest?.exerciseId ?? '', currentExForRest?.muscleGroup ?? null),
+    () =>
+      effectiveRest(
+        overrides,
+        currentExForRest?.exerciseId ?? '',
+        currentExForRest?.muscleGroup ?? null,
+      ),
     [overrides, currentExForRest?.exerciseId, currentExForRest?.muscleGroup],
   );
   const timer = useRestTimer({ targetSeconds: restSeconds });
@@ -321,7 +326,9 @@ export default function WorkoutActiveScreen() {
     onCompleteSet: () => void onComplete(),
   });
 
-  const hasNextExercise = currentExForRest ? findNextExercise(exercises, currentExForRest.id) !== null : false;
+  const hasNextExercise = currentExForRest
+    ? findNextExercise(exercises, currentExForRest.id) !== null
+    : false;
 
   const screenOptions = useMemo(
     () => ({
@@ -374,7 +381,12 @@ export default function WorkoutActiveScreen() {
     return (
       <SafeAreaView style={[styles.container, { backgroundColor: theme.color.bg }]}>
         <Stack.Screen options={screenOptions} />
-        <View style={[styles.center, { flex: 1, gap: theme.space.s4, paddingHorizontal: theme.space.page }]}>
+        <View
+          style={[
+            styles.center,
+            { flex: 1, gap: theme.space.s4, paddingHorizontal: theme.space.page },
+          ]}
+        >
           <Text variant="body" color={theme.color.inkSecondary} style={styles.centerText}>
             Add your first exercise to begin.
           </Text>
@@ -420,7 +432,12 @@ export default function WorkoutActiveScreen() {
     return (
       <SafeAreaView style={[styles.container, { backgroundColor: theme.color.bg }]}>
         <Stack.Screen options={screenOptions} />
-        <View style={[styles.center, { flex: 1, gap: theme.space.s6, paddingHorizontal: theme.space.page }]}>
+        <View
+          style={[
+            styles.center,
+            { flex: 1, gap: theme.space.s6, paddingHorizontal: theme.space.page },
+          ]}
+        >
           <Text variant="display" color={theme.color.inkHero} style={styles.centerText}>
             Workout complete
           </Text>
@@ -516,7 +533,9 @@ export default function WorkoutActiveScreen() {
             phase: voice.ui.phase,
             partial: voice.ui.phase === 'listening' ? voice.ui.partial : undefined,
             feedback:
-              voice.ui.phase === 'pending' || voice.ui.phase === 'applied' || voice.ui.phase === 'error'
+              voice.ui.phase === 'pending' ||
+              voice.ui.phase === 'applied' ||
+              voice.ui.phase === 'error'
                 ? voice.ui.label
                 : undefined,
           }}

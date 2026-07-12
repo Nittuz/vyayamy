@@ -9,7 +9,12 @@
  */
 import { useEffect, useMemo, useRef } from 'react';
 import { StyleSheet, Text as RNText, View } from 'react-native';
-import Animated, { Easing, useAnimatedProps, useSharedValue, withTiming } from 'react-native-reanimated';
+import Animated, {
+  Easing,
+  useAnimatedProps,
+  useSharedValue,
+  withTiming,
+} from 'react-native-reanimated';
 
 import { FadeInView } from './FadeInView';
 import { motion } from './motion';

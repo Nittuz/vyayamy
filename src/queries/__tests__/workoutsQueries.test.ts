@@ -67,7 +67,15 @@ describe('createWorkout', () => {
     );
     expect(row!.ended_at).toBeNull();
     // default title is a weekday name
-    expect(['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday', 'Sunday']).toContain(row!.title);
+    expect([
+      'Monday',
+      'Tuesday',
+      'Wednesday',
+      'Thursday',
+      'Friday',
+      'Saturday',
+      'Sunday',
+    ]).toContain(row!.title);
   });
 
   test('honors an explicit title', async () => {

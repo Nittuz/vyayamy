@@ -155,58 +155,58 @@ async function drainBatch(
     const payload = stripServerOwned(rawPayload);
 
     try {
-        const tbl = fromDynamic(row.table_name);
-        if (row.op === 'delete') {
-          // Send only the tombstone marker; server overwrites updated_at.
-          // .select('id') lets us verify a row actually matched — a 0-row
-          // PostgREST update reports no error, which would otherwise delete the
-          // outbox row and silently drop the write (#0).
-          const { data, error } = await tbl
-            .update({ deleted_at: new Date().toISOString() } as never)
-            .eq('id', row.row_id)
-            .select('id');
-          if (error) throw error;
-          assertServerRowMatched(data, row);
-        } else if (row.op === 'update') {
-          const { data, error } = await tbl
-            .update(payload as never)
-            .eq('id', row.row_id)
-            .select('id');
-          if (error) throw error;
-          assertServerRowMatched(data, row);
-        } else {
-          // 'insert'/'upsert' both go up as upsert on the PK (id) for
-          // kill-mid-ack idempotency. (The composite-conflict-target branch
-          // and its local-id reconciliation died with personal_records sync,
-          // #138 — every remaining synced table upserts on id.)
-          const { error } = await tbl.upsert(payload as never);
-          if (error) throw error;
-        }
+      const tbl = fromDynamic(row.table_name);
+      if (row.op === 'delete') {
+        // Send only the tombstone marker; server overwrites updated_at.
+        // .select('id') lets us verify a row actually matched — a 0-row
+        // PostgREST update reports no error, which would otherwise delete the
+        // outbox row and silently drop the write (#0).
+        const { data, error } = await tbl
+          .update({ deleted_at: new Date().toISOString() } as never)
+          .eq('id', row.row_id)
+          .select('id');
+        if (error) throw error;
+        assertServerRowMatched(data, row);
+      } else if (row.op === 'update') {
+        const { data, error } = await tbl
+          .update(payload as never)
+          .eq('id', row.row_id)
+          .select('id');
+        if (error) throw error;
+        assertServerRowMatched(data, row);
+      } else {
+        // 'insert'/'upsert' both go up as upsert on the PK (id) for
+        // kill-mid-ack idempotency. (The composite-conflict-target branch
+        // and its local-id reconciliation died with personal_records sync,
+        // #138 — every remaining synced table upserts on id.)
+        const { error } = await tbl.upsert(payload as never);
+        if (error) throw error;
+      }
 
-        await db.runAsync('DELETE FROM outbox WHERE id = ?', [row.id]);
-        succeeded += 1;
-      } catch (err) {
-        const msg = errorMessage(err);
-        if (firstError === null) firstError = msg;
+      await db.runAsync('DELETE FROM outbox WHERE id = ?', [row.id]);
+      succeeded += 1;
+    } catch (err) {
+      const msg = errorMessage(err);
+      if (firstError === null) firstError = msg;
 
-        if (isTransientError(err)) {
-          // Don't increment attempts; just log so the UI can show a status.
-          await db.runAsync('UPDATE outbox SET last_error = ? WHERE id = ?', [msg, row.id]);
-        } else {
-          const nextAttempts = row.attempts + 1;
-          const nextAt =
-            nextAttempts < MAX_ATTEMPTS
-              ? new Date(Date.now() + backoffMs(nextAttempts)).toISOString()
-              : null;
-          await db.runAsync(
-            `UPDATE outbox
+      if (isTransientError(err)) {
+        // Don't increment attempts; just log so the UI can show a status.
+        await db.runAsync('UPDATE outbox SET last_error = ? WHERE id = ?', [msg, row.id]);
+      } else {
+        const nextAttempts = row.attempts + 1;
+        const nextAt =
+          nextAttempts < MAX_ATTEMPTS
+            ? new Date(Date.now() + backoffMs(nextAttempts)).toISOString()
+            : null;
+        await db.runAsync(
+          `UPDATE outbox
                SET attempts = ?, last_error = ?, next_attempt_at = ?
                WHERE id = ?`,
-            [nextAttempts, msg, nextAt, row.id],
-          );
-        }
+          [nextAttempts, msg, nextAt, row.id],
+        );
       }
     }
+  }
 
   return { succeeded, firstError };
 }

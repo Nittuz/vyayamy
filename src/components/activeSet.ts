@@ -117,10 +117,7 @@ export interface StagedSetPlan {
  * when a weight is carried over — null units mark an empty staged set (#131).
  * Exact transplant of the inline staging decision in onComplete (#21/#77).
  */
-export function planStagedSet(
-  currentSet: SetShape | null,
-  units: 'kg' | 'lb',
-): StagedSetPlan {
+export function planStagedSet(currentSet: SetShape | null, units: 'kg' | 'lb'): StagedSetPlan {
   const weight = currentSet?.weight ?? null;
   const reps = currentSet?.reps ?? null;
   // Same session → same logging unit as the set just completed.

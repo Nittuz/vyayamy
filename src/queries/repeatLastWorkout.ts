@@ -124,31 +124,49 @@ export async function repeatLastWorkout(userId: string): Promise<string | null> 
   // rows) in ONE transaction, so a crash mid-clone can't leave a half-built —
   // possibly empty — active workout behind (#20).
   await withTransaction(db, async () => {
-    await insertRowInTx(db, 'workouts', newWorkoutId, {
-      user_id: userId,
-      started_at: now,
-      title: source.workout.title,
-      template_id: null,
-      ended_at: null,
-    }, now);
+    await insertRowInTx(
+      db,
+      'workouts',
+      newWorkoutId,
+      {
+        user_id: userId,
+        started_at: now,
+        title: source.workout.title,
+        template_id: null,
+        ended_at: null,
+      },
+      now,
+    );
 
     for (const [i, seed] of source.seeds.entries()) {
       const weId = uuidv4();
-      await insertRowInTx(db, 'workout_exercises', weId, {
-        workout_id: newWorkoutId,
-        exercise_id: seed.exerciseId,
-        order_index: i,
-      }, now);
+      await insertRowInTx(
+        db,
+        'workout_exercises',
+        weId,
+        {
+          workout_id: newWorkoutId,
+          exercise_id: seed.exerciseId,
+          order_index: i,
+        },
+        now,
+      );
 
-      await insertRowInTx(db, 'sets', uuidv4(), {
-        workout_exercise_id: weId,
-        order_index: 0,
-        weight: seed.seedWeight,
-        reps: seed.seedReps,
-        units: seed.seedUnits,
-        completed: 0,
-        completed_at: null,
-      }, now);
+      await insertRowInTx(
+        db,
+        'sets',
+        uuidv4(),
+        {
+          workout_exercise_id: weId,
+          order_index: 0,
+          weight: seed.seedWeight,
+          reps: seed.seedReps,
+          units: seed.seedUnits,
+          completed: 0,
+          completed_at: null,
+        },
+        now,
+      );
     }
   });
 

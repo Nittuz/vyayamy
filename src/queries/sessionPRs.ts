@@ -24,7 +24,9 @@ export interface SessionPRTracker {
 }
 
 /** Seed the tracker from the all-time heaviest-weight records (already in kg). */
-export function createSessionPRTracker(allTimeHeaviestKg: Record<string, number>): SessionPRTracker {
+export function createSessionPRTracker(
+  allTimeHeaviestKg: Record<string, number>,
+): SessionPRTracker {
   return { heaviestKg: new Map(Object.entries(allTimeHeaviestKg)) };
 }
 

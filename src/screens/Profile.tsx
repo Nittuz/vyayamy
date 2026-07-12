@@ -43,9 +43,7 @@ export default function ProfileScreen() {
   if (!userId) return null;
 
   const initials = getInitials(profileQuery.data?.display_name ?? null, user?.email);
-  const memberSince = profileQuery.data
-    ? formatMemberSince(profileQuery.data.created_at)
-    : '';
+  const memberSince = profileQuery.data ? formatMemberSince(profileQuery.data.created_at) : '';
 
   const currentUnits = profileQuery.data?.units ?? 'kg';
 

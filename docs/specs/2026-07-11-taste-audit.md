@@ -8,17 +8,17 @@ Design audit per taste-skill v2 Redesign Protocol (§11.B: audit before touching
 
 ## Dial reading of the current app (§11.B)
 
-| Screen | VARIANCE | MOTION* | DENSITY | Notes |
-|---|---|---|---|---|
-| Today | 4 | - | 3 | One display moment (READY TO LIFT.), then uniform plate stack |
-| Workout (active) | 5 | - | 3 | 82pt hero numerals are the app's best moment (from code; see Gaps) |
-| Progress | 4 | - | 4 | Chart + segments + PR list, all same-width slabs |
-| History | 3 | - | 4 | Identical rows, all titled "Workout" |
-| Profile | 3 | - | 3 | Uniform stack; SIGN OUT is the loudest element |
-| Plan / Setup | 3 | - | 4 | Ember flood; uniform row plates |
-| Login | 6 | - | 2 | Strongest screen: mark + wordmark + one card |
+| Screen           | VARIANCE | MOTION\* | DENSITY | Notes                                                              |
+| ---------------- | -------- | -------- | ------- | ------------------------------------------------------------------ |
+| Today            | 4        | -        | 3       | One display moment (READY TO LIFT.), then uniform plate stack      |
+| Workout (active) | 5        | -        | 3       | 82pt hero numerals are the app's best moment (from code; see Gaps) |
+| Progress         | 4        | -        | 4       | Chart + segments + PR list, all same-width slabs                   |
+| History          | 3        | -        | 4       | Identical rows, all titled "Workout"                               |
+| Profile          | 3        | -        | 3       | Uniform stack; SIGN OUT is the loudest element                     |
+| Plan / Setup     | 3        | -        | 4       | Ember flood; uniform row plates                                    |
+| Login            | 6        | -        | 2       | Strongest screen: mark + wordmark + one card                       |
 
-*Static screenshots can't score motion; from code, motion infra is real (reanimated choreography, spring tokens, PR glow) but concentrated in WorkoutActive. Everywhere else is static — effective MOTION ≈ 3 against a 5-7 target.
+\*Static screenshots can't score motion; from code, motion infra is real (reanimated choreography, spring tokens, PR glow) but concentrated in WorkoutActive. Everywhere else is static — effective MOTION ≈ 3 against a 5-7 target.
 
 **Overall: VARIANCE ~4 vs target 7-8.** This is the single biggest reason the UI "isn't popping": the token system is disciplined but every screen composes identically — eyebrow, headline, then a column of same-width bordered plates. The brand has one voice and one sentence structure.
 
@@ -33,6 +33,7 @@ Design audit per taste-skill v2 Redesign Protocol (§11.B: audit before touching
 ## Defects found on device (ranked)
 
 **Bugs (fix regardless of design direction):**
+
 1. History nav header shows raw route name **"history/index"**.
 2. Progress y-axis top tick renders **"000 kg"** (truncated; should read 10000 kg or be compacted, e.g. 10k).
 3. **"1 exercises"** pluralization on History cards; meta rows like "0/0 sets · 1 exercises" read broken.
@@ -41,13 +42,7 @@ Design audit per taste-skill v2 Redesign Protocol (§11.B: audit before touching
 6. Deep-linking `/workout/active` while signed out renders a **blank screen** (nav header only) instead of redirecting.
 7. Every workout is titled "Workout" (dead auto-title path, prior finding #151) — confirmed on Today, History, and workout header.
 
-**Taste violations (per adapted §4/§9):**
-8. **Eyebrow flood:** 3-4 uppercase tracked micro-labels per screen (SATURDAY MORNING / LAST WORKOUT / RECENT / HISTORY→ on Today alone). The pattern that should mark *one* moment per screen marks everything, flattening hierarchy (§4.7 eyebrow restraint).
-9. **Nav-title duplication:** every screen shows the stock nav header title and then an Anton headline saying the same word (Progress/PROGRESS, Profile/PROFILE, Training plan/TRAINING PLAN). The display font's job is stolen by chrome.
-10. **Ember flood on Plan Setup:** accent simultaneously means "selected segment", "rest day", and "exercise chip" — three different semantics, six+ filled-ember elements on one screen. On Progress, two segment rows + chart line + PR markers + date dots all ember. Accent no longer signals anything (§4.2 discipline: the LILA-rule override says keep the brand color, but execute with intent).
-11. **"Rest day" is the loudest element on Plan Setup** and **SIGN OUT (danger-filled, full-width) is the loudest element on Profile** — emphasis inverted relative to user intent.
-12. **Empty/error surfaces are unstyled:** "No active workout." floating in a void; the sync-failure banner is a flat red slab with system-red tint not drawn from the palette's danger treatment (visually reads foreign next to the ember system).
-13. **Uniform plate width:** every card/button/row spans the full page width. No 2-col, no asymmetry, no scale contrast between primary and secondary surfaces (VARIANCE 4 vs 7-8 target). The 82pt numeral moment exists only inside WorkoutActive.
+**Taste violations (per adapted §4/§9):** 8. **Eyebrow flood:** 3-4 uppercase tracked micro-labels per screen (SATURDAY MORNING / LAST WORKOUT / RECENT / HISTORY→ on Today alone). The pattern that should mark _one_ moment per screen marks everything, flattening hierarchy (§4.7 eyebrow restraint). 9. **Nav-title duplication:** every screen shows the stock nav header title and then an Anton headline saying the same word (Progress/PROGRESS, Profile/PROFILE, Training plan/TRAINING PLAN). The display font's job is stolen by chrome. 10. **Ember flood on Plan Setup:** accent simultaneously means "selected segment", "rest day", and "exercise chip" — three different semantics, six+ filled-ember elements on one screen. On Progress, two segment rows + chart line + PR markers + date dots all ember. Accent no longer signals anything (§4.2 discipline: the LILA-rule override says keep the brand color, but execute with intent). 11. **"Rest day" is the loudest element on Plan Setup** and **SIGN OUT (danger-filled, full-width) is the loudest element on Profile** — emphasis inverted relative to user intent. 12. **Empty/error surfaces are unstyled:** "No active workout." floating in a void; the sync-failure banner is a flat red slab with system-red tint not drawn from the palette's danger treatment (visually reads foreign next to the ember system). 13. **Uniform plate width:** every card/button/row spans the full page width. No 2-col, no asymmetry, no scale contrast between primary and secondary surfaces (VARIANCE 4 vs 7-8 target). The 82pt numeral moment exists only inside WorkoutActive.
 
 **Evidence gaps:** live WorkoutActive (rest countdown, PR glow, recap) could not be captured — the dead Supabase host blocks sign-in entirely (NXDOMAIN on grcdmostlxonccfefrgw.supabase.co). Assessment of those states is code-based only.
 
@@ -56,7 +51,8 @@ Design audit per taste-skill v2 Redesign Protocol (§11.B: audit before touching
 **Redesign - Preserve. Targeted evolution, not overhaul.** The Forged Iron language is distinctive, internally consistent, and half-executed rather than wrong. IA is sound, tokens are sound, primitives are sound. The gap is compositional: monotone screen structure, flooded accent, chrome stealing the brand's voice, and unfinished corners (empty states, copy, titles). Replacing the visual language would discard the best asset (the slab/ember/Anton identity) to fix problems that are execution-level.
 
 **Lever assignment (§11.D, priority order):**
-1. ~~Typography refresh~~ — the scale is right; instead: *deploy* it (kill nav-title duplication, give each screen one true display moment, add numeral moments outside WorkoutActive).
+
+1. ~~Typography refresh~~ — the scale is right; instead: _deploy_ it (kill nav-title duplication, give each screen one true display moment, add numeral moments outside WorkoutActive).
 2. **Spacing & rhythm** — vary plate widths/compositions; break the single-column monotony (2-col stat tiles on Progress, asymmetric Today primary slot).
 3. **Color recalibration** — ratify one accent semantic ("the current/active thing"); demote rest-day/segment-selected to surface2+borderStrong; restyle SIGN OUT as quiet destructive-ghost; make the sync banner use the palette's danger treatment.
 4. **Motion layer** — extend existing motion tokens beyond WorkoutActive: Today primary-slot entrance, History row settle, segment change tick. All reduced-motion-gated, all reanimated.

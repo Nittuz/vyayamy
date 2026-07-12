@@ -32,7 +32,10 @@ class MockDb {
     this.db.exec(sql);
   }
 
-  async runAsync(sql: string, params: Param[] | Param = []): Promise<{ changes: number; lastInsertRowId: number }> {
+  async runAsync(
+    sql: string,
+    params: Param[] | Param = [],
+  ): Promise<{ changes: number; lastInsertRowId: number }> {
     await Promise.resolve();
     const args = Array.isArray(params) ? params : [params];
     const stmt = this.db.prepare(sql);

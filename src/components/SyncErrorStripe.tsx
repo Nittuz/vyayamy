@@ -53,7 +53,8 @@ export function SyncErrorStripe() {
     const now = Date.now();
     const lastErrorMs = sync.lastErrorAt ? new Date(sync.lastErrorAt).getTime() : null;
     const isRecentError = lastErrorMs !== null && now - lastErrorMs < PULSE_WINDOW_MS;
-    const isPersistent = sync.pendingOutbox > 0 && lastErrorMs !== null && now - lastErrorMs > PERSISTENT_AGE_MS;
+    const isPersistent =
+      sync.pendingOutbox > 0 && lastErrorMs !== null && now - lastErrorMs > PERSISTENT_AGE_MS;
 
     if (isRecentError) {
       if (reduceMotion) {
@@ -67,10 +68,13 @@ export function SyncErrorStripe() {
       // Known flag (kept for parity with the legacy Animated version, not fixed
       // here): the pulse outlives its 30s window — the timeout snaps the stripe
       // down but the loop resumes until the sync state next changes.
-      const t = setTimeout(() => {
-        opacity.value = 0;
-        opacity.value = pulseLoop();
-      }, PULSE_WINDOW_MS - (now - (lastErrorMs ?? now)));
+      const t = setTimeout(
+        () => {
+          opacity.value = 0;
+          opacity.value = pulseLoop();
+        },
+        PULSE_WINDOW_MS - (now - (lastErrorMs ?? now)),
+      );
       return () => clearTimeout(t);
     }
 

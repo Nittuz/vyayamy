@@ -53,7 +53,9 @@ test('updateSet marks completed_at when completed:true, clears when false', asyn
   const setId = sets[0]!.id;
 
   await updateSet(setId, { weight: 135, reps: 8, completed: true });
-  let row = await (await getDb()).getFirstAsync<{
+  let row = await (
+    await getDb()
+  ).getFirstAsync<{
     weight: number | null;
     reps: number | null;
     completed: number;
@@ -65,10 +67,9 @@ test('updateSet marks completed_at when completed:true, clears when false', asyn
   expect(row!.completed_at).not.toBeNull();
 
   await updateSet(setId, { completed: false });
-  row = await (await getDb()).getFirstAsync(
-    'SELECT weight, reps, completed, completed_at FROM sets WHERE id = ?',
-    [setId],
-  );
+  row = await (
+    await getDb()
+  ).getFirstAsync('SELECT weight, reps, completed, completed_at FROM sets WHERE id = ?', [setId]);
   expect(row!.completed).toBe(0);
   expect(row!.completed_at).toBeNull();
 });
@@ -92,10 +93,9 @@ test('deleteSet soft-deletes the row and queues an outbox delete', async () => {
   );
   expect(raw!.deleted_at).not.toBeNull();
 
-  const outbox = await db.getAllAsync<{ op: string }>(
-    'SELECT op FROM outbox WHERE row_id = ?',
-    [setId],
-  );
+  const outbox = await db.getAllAsync<{ op: string }>('SELECT op FROM outbox WHERE row_id = ?', [
+    setId,
+  ]);
   // 1 insert (from auto-stage) + 1 delete
   expect(outbox.map((r) => r.op).sort()).toEqual(['delete', 'insert']);
 });

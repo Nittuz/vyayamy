@@ -24,7 +24,17 @@ async function seedPreset(args: {
   const db = await getDb();
   await db.runAsync(
     'INSERT INTO plan_presets (id, slug, name, tier, plan_type, sort_order, created_at, updated_at, deleted_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)',
-    [args.id, args.slug, args.name, 'generic', 'weekly', args.sortOrder, T, T, args.deleted ? T : null],
+    [
+      args.id,
+      args.slug,
+      args.name,
+      'generic',
+      'weekly',
+      args.sortOrder,
+      T,
+      T,
+      args.deleted ? T : null,
+    ],
   );
 }
 
@@ -58,7 +68,10 @@ test('hydrates presets with their templates, exercises, and slots', async () => 
   expect(preset!.preset.name).toBe('Full Body');
   expect(preset!.templates).toHaveLength(1);
   // exercises ordered by order_index ASC
-  expect(preset!.templates[0]!.exercises.map((e) => e.name)).toEqual(['Bench Press', 'Incline Press']);
+  expect(preset!.templates[0]!.exercises.map((e) => e.name)).toEqual([
+    'Bench Press',
+    'Incline Press',
+  ]);
   expect(preset!.slots.map((s) => s.label)).toEqual(['Mon']);
 });
 

@@ -41,9 +41,10 @@ export function RestOverrideSheet({
   const handleSave = async () => {
     haptics.light();
     const fromCustom = customText.trim() === '' ? null : Number(customText);
-    const valueToSave = fromCustom != null && Number.isFinite(fromCustom) && fromCustom > 0
-      ? Math.floor(fromCustom)
-      : selected;
+    const valueToSave =
+      fromCustom != null && Number.isFinite(fromCustom) && fromCustom > 0
+        ? Math.floor(fromCustom)
+        : selected;
     await setOverride(exerciseId, valueToSave);
     onChanged();
     onClose();
@@ -79,7 +80,11 @@ export function RestOverrideSheet({
       <Text variant="body" color={theme.color.inkSecondary}>
         Default for {muscleGroup ?? 'this'}: {defaultSeconds}s
       </Text>
-      <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.chipRow}>
+      <ScrollView
+        horizontal
+        showsHorizontalScrollIndicator={false}
+        contentContainerStyle={styles.chipRow}
+      >
         {PRESETS.map((preset) => {
           const isSelected = selected === preset && customText.trim() === '';
           return (

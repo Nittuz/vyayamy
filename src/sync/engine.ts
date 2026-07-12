@@ -88,34 +88,41 @@ export function startSyncEngine(queryClient: QueryClient) {
       if (getSyncState().online) void triggerPush();
     }, delayMs);
   });
-  netSub = NetInfo.addEventListener(safeListener('network', (state) => {
-    const online = Boolean(state.isConnected && state.isInternetReachable !== false);
-    setSyncState({ online });
-    if (online) {
-      void runSyncCycle();
-    }
-  }));
+  netSub = NetInfo.addEventListener(
+    safeListener('network', (state) => {
+      const online = Boolean(state.isConnected && state.isInternetReachable !== false);
+      setSyncState({ online });
+      if (online) {
+        void runSyncCycle();
+      }
+    }),
+  );
 
   // Foreground re-pull. Without this, opening the app after hours on stable
   // wifi (no NetInfo change) would leave the user staring at stale data.
-  appStateSub = AppState.addEventListener('change', safeListener('appState', (nextState) => {
-    if (nextState === 'active' && getSyncState().online) {
-      void runSyncCycle();
-    }
-  }));
+  appStateSub = AppState.addEventListener(
+    'change',
+    safeListener('appState', (nextState) => {
+      if (nextState === 'active' && getSyncState().online) {
+        void runSyncCycle();
+      }
+    }),
+  );
 
   // Auth-change trigger. Initial pulls fired before sign-in run unauthenticated
   // and 401. SIGNED_IN re-runs the cycle once a session exists. SIGNED_OUT
   // wipes the local database so a different user signing in afterwards never
   // sees the previous user's workouts and never re-pushes their pending
   // mutations under a new identity.
-  authSub = supabase.auth.onAuthStateChange(safeListener('auth', (event) => {
-    if (event === 'SIGNED_IN' || event === 'TOKEN_REFRESHED') {
-      void runSyncCycle();
-    } else if (event === 'SIGNED_OUT') {
-      void handleSignOut();
-    }
-  })).data.subscription;
+  authSub = supabase.auth.onAuthStateChange(
+    safeListener('auth', (event) => {
+      if (event === 'SIGNED_IN' || event === 'TOKEN_REFRESHED') {
+        void runSyncCycle();
+      } else if (event === 'SIGNED_OUT') {
+        void handleSignOut();
+      }
+    }),
+  ).data.subscription;
 }
 
 export function stopSyncEngine() {
@@ -142,9 +149,7 @@ export function stopSyncEngine() {
 export async function handleSignOut(): Promise<void> {
   // Wait for any in-flight push/pull to settle FIRST, so a cycle that resolves
   // mid-wipe can't write to (or recreate rows in) the fresh database (#1).
-  await Promise.allSettled(
-    [currentPush, currentPull].filter((p): p is Promise<void> => p != null),
-  );
+  await Promise.allSettled([currentPush, currentPull].filter((p): p is Promise<void> => p != null));
   // Then drop React Query caches so screens don't render the previous user's
   // data, and delete the on-device SQLite file so a follow-up sign-in starts clean.
   pushInFlight = false;

@@ -41,15 +41,15 @@ Bottom tabs: Today, Progress, Profile (3 tabs). History is a stack route reached
 
 Use these names consistently across code, UI copy, and docs.
 
-| Concept                      | Canonical name             | Definition                                                        | Do NOT call it          |
-| ---------------------------- | -------------------------- | ----------------------------------------------------------------- | ----------------------- |
-| A movement in the library    | **Exercise**               | A named movement with optional muscle group                       | "lift", "movement"      |
-| A reusable workout shape     | **Template**               | A named, ordered list of exercises that can start a workout       | "routine"               |
-| A multi-day training schedule | **Training plan** (**Plan**) | Weekly or rotating-cycle schedule of slots                       | "program", "schedule"   |
-| One day in a plan            | **Slot**                   | A position within a plan referencing a template or marked as rest | "day entry"             |
-| A performed session          | **Workout**                | A started (and optionally finished) training session              | "session", "log"        |
-| A single effort              | **Set**                    | One set of weight × reps within a workout exercise                |                         |
-| A milestone                  | **Personal record** (**PR**) | A best-ever value for an exercise                                | "achievement", "badge" |
+| Concept                       | Canonical name               | Definition                                                        | Do NOT call it         |
+| ----------------------------- | ---------------------------- | ----------------------------------------------------------------- | ---------------------- |
+| A movement in the library     | **Exercise**                 | A named movement with optional muscle group                       | "lift", "movement"     |
+| A reusable workout shape      | **Template**                 | A named, ordered list of exercises that can start a workout       | "routine"              |
+| A multi-day training schedule | **Training plan** (**Plan**) | Weekly or rotating-cycle schedule of slots                        | "program", "schedule"  |
+| One day in a plan             | **Slot**                     | A position within a plan referencing a template or marked as rest | "day entry"            |
+| A performed session           | **Workout**                  | A started (and optionally finished) training session              | "session", "log"       |
+| A single effort               | **Set**                      | One set of weight × reps within a workout exercise                |                        |
+| A milestone                   | **Personal record** (**PR**) | A best-ever value for an exercise                                 | "achievement", "badge" |
 
 ### Naming in code
 
@@ -86,14 +86,14 @@ Every workout/exercise/set write is a local SQLite transaction plus an outbox ro
 
 Core product metrics we intend to track as the product matures:
 
-| Metric                       | What it measures                            | Why it matters                          |
-| ---------------------------- | ------------------------------------------- | --------------------------------------- |
-| Weekly active workouts       | Completed workouts per user per week        | Core engagement                         |
-| Workout completion rate      | Finished / started ratio                    | UX friction                             |
-| Avg workout duration         | Mean start-to-finish time                   | Workout depth                           |
-| Template adoption            | % of workouts from templates                | Template system value                   |
-| Plan adherence               | % of planned slots completed on schedule    | Plan feature value                      |
-| PR frequency                 | PRs per user per week                       | Progress signal                         |
+| Metric                  | What it measures                         | Why it matters        |
+| ----------------------- | ---------------------------------------- | --------------------- |
+| Weekly active workouts  | Completed workouts per user per week     | Core engagement       |
+| Workout completion rate | Finished / started ratio                 | UX friction           |
+| Avg workout duration    | Mean start-to-finish time                | Workout depth         |
+| Template adoption       | % of workouts from templates             | Template system value |
+| Plan adherence          | % of planned slots completed on schedule | Plan feature value    |
+| PR frequency            | PRs per user per week                    | Progress signal       |
 
 There is no instrumentation in the app today; defining an event vocabulary and connecting a provider are future tasks. No PII-reliant analytics exist.
 

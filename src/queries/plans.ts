@@ -238,7 +238,7 @@ export async function applyPresetAndSavePlan(args: ApplyPresetArgs): Promise<str
     templateId: s.isRestDay
       ? null
       : s.presetTemplateId
-        ? newTemplateIdByPresetTemplateId.get(s.presetTemplateId) ?? null
+        ? (newTemplateIdByPresetTemplateId.get(s.presetTemplateId) ?? null)
         : null,
     isRestDay: s.isRestDay,
     label: s.label,

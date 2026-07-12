@@ -43,7 +43,9 @@ test('sizes and the uppercase label transform come from the tokens', () => {
   expect(resolveTextStyle('label').textTransform).toBe('uppercase');
   expect(resolveTextStyle('label').letterSpacing).toBe(typography.tracking.micro);
   // line-height is resolved to an absolute value (token mul × size)
-  expect(resolveTextStyle('body').lineHeight).toBe(Math.round(typography.size.body * typography.lineHeightMul.body));
+  expect(resolveTextStyle('body').lineHeight).toBe(
+    Math.round(typography.size.body * typography.lineHeightMul.body),
+  );
 });
 
 test('line boxes never dip below the font size (iOS clips tall glyphs sub-1)', () => {

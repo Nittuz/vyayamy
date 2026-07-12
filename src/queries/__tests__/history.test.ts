@@ -49,7 +49,17 @@ async function seedSet(args: {
   const db = await getDb();
   await db.runAsync(
     'INSERT INTO sets (id, workout_exercise_id, order_index, weight, reps, completed, created_at, updated_at, deleted_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)',
-    [args.id, args.weId, 0, args.weight, args.reps, args.completed ? 1 : 0, T, T, args.deleted ? T : null],
+    [
+      args.id,
+      args.weId,
+      0,
+      args.weight,
+      args.reps,
+      args.completed ? 1 : 0,
+      T,
+      T,
+      args.deleted ? T : null,
+    ],
   );
 }
 
@@ -63,7 +73,11 @@ test('returns only finished, non-deleted workouts for the user', async () => {
   await seedWorkout({ id: 'finished', startedAt: '2026-02-01T10:00:00.000Z' });
   await seedWorkout({ id: 'active', startedAt: '2026-02-02T10:00:00.000Z', ended: false });
   await seedWorkout({ id: 'deleted', startedAt: '2026-02-03T10:00:00.000Z', deleted: true });
-  await seedWorkout({ id: 'other-user', startedAt: '2026-02-04T10:00:00.000Z', userId: 'someone-else' });
+  await seedWorkout({
+    id: 'other-user',
+    startedAt: '2026-02-04T10:00:00.000Z',
+    userId: 'someone-else',
+  });
 
   const rows = await getHistory(USER);
   expect(rows.map((r) => r.id)).toEqual(['finished']);
@@ -86,7 +100,14 @@ test('computes exercise, set, completed-set counts and volume', async () => {
   await seedSet({ id: 's1', weId: 'we1', weight: 100, reps: 5, completed: true }); // vol 500
   await seedSet({ id: 's2', weId: 'we1', weight: 50, reps: 10, completed: true }); // vol 500
   await seedSet({ id: 's3', weId: 'we2', weight: 80, reps: 3, completed: false }); // not completed -> excluded from vol/completed
-  await seedSet({ id: 's-del', weId: 'we1', weight: 999, reps: 999, completed: true, deleted: true });
+  await seedSet({
+    id: 's-del',
+    weId: 'we1',
+    weight: 999,
+    reps: 999,
+    completed: true,
+    deleted: true,
+  });
 
   const [row] = await getHistory(USER);
   expect(row!.exercise_count).toBe(2);

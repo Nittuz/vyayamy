@@ -22,6 +22,7 @@ The "Forged Iron" visual + experiential uplevel resolved or advanced the items b
 ## 1. Core workout flow
 
 **1.1 Banked sets cannot be corrected (new: journey 6 re-rating)**
+
 - Priority: P1
 - Screen or flow: WorkoutActive ghost rows, HistoryDetail
 - Problem: once a set is banked there is no path to edit, un-complete, or delete it: ghost rows are non-interactive `View`s (`ghostList` in `src/components/ActiveSetCard.tsx`), `src/screens/HistoryDetail.tsx` is render-only, and `useDeleteSet`/`useAddSet` in `src/queries/sets.ts` have zero UI consumers (grep verified).
@@ -31,6 +32,7 @@ The "Forged Iron" visual + experiential uplevel resolved or advanced the items b
 - Files likely involved: `src/components/ActiveSetCard.tsx`, `src/screens/HistoryDetail.tsx`, `src/queries/sets.ts`, `src/queries/personalRecords.ts`, `src/screens/WorkoutActive.tsx`
 
 **1.2 CollisionSheet is a blocking modal that forces destruction of a real workout (#111)**
+
 - Priority: P1
 - Screen or flow: Today, two-active-workouts anomaly
 - Problem: `src/components/CollisionSheet.tsx` is a Modal with no cancel or dismiss, and resolving it permanently discards one of two real workouts.
@@ -40,6 +42,7 @@ The "Forged Iron" visual + experiential uplevel resolved or advanced the items b
 - Files likely involved: `src/components/CollisionSheet.tsx`, `src/screens/Today.tsx`, `src/queries/workouts.ts`
 
 **1.3 ExercisePicker dead-ends on no results; create-exercise is voice-only (#31; journey 17)**
+
 - Priority: P1
 - Screen or flow: WorkoutActive, add exercise
 - Problem: a typed search for an unknown exercise renders an empty FlatList with no CTA; `createCustomExercise` (`src/queries/exercises.ts`) is reachable only through the voice fallback (`addExercise` case in `src/voice/dispatch.ts`), and `src/components/ExercisePicker.tsx` has no `ListEmptyComponent` or create row (grep verified).
@@ -49,6 +52,7 @@ The "Forged Iron" visual + experiential uplevel resolved or advanced the items b
 - Files likely involved: `src/components/ExercisePicker.tsx`, `src/queries/exercises.ts`
 
 **1.4 Finishing always interposes a destructive "Skip this set?" alert (new: journey 11 re-rating; touches #26, #76)**
+
 - Priority: P2
 - Screen or flow: WorkoutActive, finish
 - Problem: the auto-staged next set copies weight and reps from the set just completed, so `isUnmodified` in `onNextExercise` (`src/screens/WorkoutActive.tsx`) is always false and every natural finish passes through the OS `Alert.alert('Skip this set?', ...)`.
@@ -58,6 +62,7 @@ The "Forged Iron" visual + experiential uplevel resolved or advanced the items b
 - Files likely involved: `src/screens/WorkoutActive.tsx`, `src/queries/workouts.ts`
 
 **1.5 Primary in-workout navigation sits out of the thumb zone (#116)**
+
 - Priority: P2
 - Screen or flow: WorkoutActive header; Today; QuarantineSheet
 - Problem: next/finish lives in the top-right header, the hardest reach during one-handed gym use, and several adjacent targets on Today and QuarantineSheet are under 44pt.
@@ -67,6 +72,7 @@ The "Forged Iron" visual + experiential uplevel resolved or advanced the items b
 - Files likely involved: `src/screens/WorkoutActive.tsx`, `src/screens/Today.tsx`, `src/components/QuarantineSheet.tsx`
 
 **1.6 Auto-title is dead code: every workout is titled "Workout" (#151)**
+
 - Priority: P2
 - Screen or flow: Today, workout creation; History list
 - Problem: the day-of-week default title and the rename guard in `src/queries/workouts.ts` never run because the only `createWorkout` caller hardcodes `title: 'Workout'` (`src/screens/Today.tsx:145`, verified).
@@ -76,6 +82,7 @@ The "Forged Iron" visual + experiential uplevel resolved or advanced the items b
 - Files likely involved: `src/screens/Today.tsx`, `src/queries/workouts.ts`, `src/lib/dayOfWeek.ts`
 
 **1.7 Title-input fallback shows the current day, not the workout's start day (#156)**
+
 - Priority: P3
 - Screen or flow: WorkoutActive title input
 - Problem: the fallback renders today's day name even when the workout started yesterday.
@@ -85,6 +92,7 @@ The "Forged Iron" visual + experiential uplevel resolved or advanced the items b
 - Files likely involved: `src/screens/WorkoutActive.tsx`
 
 **1.8 Workout "day" attribution is inconsistent across surfaces (#155)**
+
 - Priority: P3
 - Screen or flow: History grouping, Today RECENT rows, RepeatCard age
 - Problem: History groups by `started_at`, the Repeat card counts age from `ended_at`, and RECENT rows use `started_at`, so the same workout can read as different days on adjacent surfaces.
@@ -94,6 +102,7 @@ The "Forged Iron" visual + experiential uplevel resolved or advanced the items b
 - Files likely involved: `src/screens/Today.tsx`, `src/screens/History.tsx`, `src/queries/history.ts`
 
 **1.9 Five duplicate date/age formatters with divergent output (#72)**
+
 - Priority: P3
 - Screen or flow: Today, SessionRecap, sync sheets
 - Problem: relative-age and duration formatting is implemented five times with inconsistent user-visible output, while `src/core/format.ts` carries dead exports.
@@ -103,6 +112,7 @@ The "Forged Iron" visual + experiential uplevel resolved or advanced the items b
 - Files likely involved: `src/core/format.ts`, `src/screens/Today.tsx`, `src/ui/SessionRecap.tsx`, `src/components/QuarantineSheet.tsx`, `src/sync/outboxPreview.ts`, `src/components/CollisionSheet.tsx`
 
 **1.10 The hero stepper shows a bare number with no unit (#136)**
+
 - Priority: P3
 - Screen or flow: WorkoutActive logging surface
 - Problem: the unit label renders only when `focused && size === 'hero'` (`src/components/NumericStepperView.tsx`, verified), so the primary logging surface shows a unitless number most of the time.
@@ -112,6 +122,7 @@ The "Forged Iron" visual + experiential uplevel resolved or advanced the items b
 - Files likely involved: `src/components/NumericStepperView.tsx`
 
 **1.11 "SESSION VOLUME" copy and Session component names violate the glossary (#70)**
+
 - Priority: P3
 - Screen or flow: WorkoutActive live tally, finish recap
 - Problem: "SESSION VOLUME" renders to users in `src/ui/SessionRecap.tsx` and `src/components/SessionVolumeBar.tsx` while `docs/overview.md` bans "session" as a synonym for workout; the component names repeat the violation.
@@ -123,6 +134,7 @@ The "Forged Iron" visual + experiential uplevel resolved or advanced the items b
 ## 2. Voice logging
 
 **2.1 The voice error phase renders as success (new: journey 10 re-rating)**
+
 - Priority: P2
 - Screen or flow: WorkoutActive voice strip and mic button
 - Problem: `src/components/ActiveSetCard.tsx` renders the error phase through the applied branch of its `listening ? ... : pending ? ... : '✓ ' + feedback` ternary, so error text gets a check-mark prefix, and `src/screens/WorkoutActive.tsx` maps phase `'error'` to the mic's listening visual, so after a permission denial the button reads "Listening" while nothing records.
@@ -132,6 +144,7 @@ The "Forged Iron" visual + experiential uplevel resolved or advanced the items b
 - Files likely involved: `src/components/ActiveSetCard.tsx`, `src/screens/WorkoutActive.tsx`, `src/components/VoiceMicButton.tsx`, `src/voice/useVoiceSession.ts`
 
 **2.2 Voice-dispatched values bypass the keypad clamp (#137 remainder)**
+
 - Priority: P3
 - Screen or flow: voice set logging
 - Problem: `setValues` in `src/voice/dispatch.ts` patches `command.weight`/`command.reps` directly without the `sanitizeNumber` bounds the keypad uses (grep: no clamp in `src/voice/dispatch.ts` or `src/voice/grammar.ts`), so a misheard "bench 9999" writes an unbounded value.
@@ -141,6 +154,7 @@ The "Forged Iron" visual + experiential uplevel resolved or advanced the items b
 - Files likely involved: `src/voice/dispatch.ts`, `src/components/numericStepper.ts`
 
 **2.3 Recognition locale hardcoded to en-US (#106)**
+
 - Priority: P3
 - Screen or flow: voice availability and recognition
 - Problem: the engine recognizes en-US only, and `isAvailable()` does not verify the on-device support that `start()` actually requires, so the mic's enabled state can lie.
@@ -150,6 +164,7 @@ The "Forged Iron" visual + experiential uplevel resolved or advanced the items b
 - Files likely involved: `src/voice/speechEngine.ts`
 
 **2.4 Engine confidence and parser context are plumbed but ignored (#107)**
+
 - Priority: P3
 - Screen or flow: voice command routing
 - Problem: confidence and `hasActiveExercise` flow through the types but nothing reads them, masking the one signal that could gate destructive commands.
@@ -161,6 +176,7 @@ The "Forged Iron" visual + experiential uplevel resolved or advanced the items b
 ## 3. Rest timer
 
 **3.1 No visible countdown: the most-stared-at element is a 2px line (#24; journey 7)**
+
 - Priority: P2
 - Screen or flow: WorkoutActive rest timer
 - Problem: the only in-app rest surface is `src/components/RestProgressBar.tsx`, a 2px hairline with a 12px hit area, no numeric countdown, and no manual start or skip outside voice.
@@ -170,6 +186,7 @@ The "Forged Iron" visual + experiential uplevel resolved or advanced the items b
 - Files likely involved: `src/components/RestProgressBar.tsx`, `src/ui/hooks/useRestTimer.ts`, `src/screens/WorkoutActive.tsx`
 
 **3.2 Notification category referenced but never registered (#164)**
+
 - Priority: P3
 - Screen or flow: rest-done notification on the lock screen
 - Problem: `scheduleRestDone` sets `categoryIdentifier: REST_CATEGORY` (`src/lib/restNotifications.ts:77`) but no `setNotificationCategoryAsync` call exists (grep verified), so the field is dead config and the lock-screen action slot goes unused.
@@ -181,6 +198,7 @@ The "Forged Iron" visual + experiential uplevel resolved or advanced the items b
 ## 4. Progress and personal records
 
 **4.1 Progress chart is the weakest screen in a product about progress (#29; journey 13)**
+
 - Priority: P2
 - Screen or flow: Progress chart
 - Problem: one heaviest-weight-per-day chart with system-font ticks, arbitrary tick values, no PR markers, no interaction, no range or metric controls, and exercise selection only through the PR list in `src/screens/Progress.tsx`, so an exercise without a PR cannot be charted.
@@ -190,6 +208,7 @@ The "Forged Iron" visual + experiential uplevel resolved or advanced the items b
 - Files likely involved: `src/ui/LineChart.tsx`, `src/screens/Progress.tsx`, `src/queries/personalRecords.ts`
 
 **4.2 PR backfill re-runs every app session (#52)**
+
 - Priority: P3
 - Screen or flow: Progress mount
 - Problem: the one-time `recomputeAllPRs` backfill is guarded by the in-memory `prBackfilledFor` in `src/screens/Progress.tsx`, so every app session pays a full scan of completed sets on first Progress open.
@@ -199,6 +218,7 @@ The "Forged Iron" visual + experiential uplevel resolved or advanced the items b
 - Files likely involved: `src/screens/Progress.tsx`, `src/queries/personalRecords.ts`
 
 **4.3 PR-recording failures are swallowed silently (#146)**
+
 - Priority: P3
 - Screen or flow: finish workout, PR detection
 - Problem: `finishWorkout`'s bare catch around PR recording (`src/queries/workouts.ts`) means a regression in the seam produces silently missing PRs.
@@ -210,6 +230,7 @@ The "Forged Iron" visual + experiential uplevel resolved or advanced the items b
 ## 5. Training plans
 
 **5.1 The plan never reaches Today: Plans are decorative (#109, #153; journey 15)**
+
 - Priority: P1
 - Screen or flow: Today, TrainingPlan, plan-to-workout loop
 - Problem: no screen calls `createWorkout` with a `templateId` (grep: the identifier appears only in `src/core/domain.ts`, `src/queries/plans.ts`, `src/queries/workouts.ts`, `src/screens/PlanSetup.tsx`), `day_of_week` slots are stored and rendered but never resolved, and Today's "Templates" button (`src/screens/Today.tsx:274`) just links to `/profile/plan`.
@@ -219,6 +240,7 @@ The "Forged Iron" visual + experiential uplevel resolved or advanced the items b
 - Files likely involved: `src/screens/Today.tsx`, `src/queries/plans.ts`, `src/queries/workouts.ts`, `src/screens/TrainingPlan.tsx`, `src/db/schema.ts`, `ARCHITECTURE.md`
 
 **5.2 Plan save fails silently (#69)**
+
 - Priority: P2
 - Screen or flow: PlanSetup save
 - Problem: the `src/queries/plans.ts` mutation hooks drop the codebase's onError-to-toast idiom, so a failed save in `src/screens/PlanSetup.tsx` shows nothing and the user's edits evaporate.
@@ -228,6 +250,7 @@ The "Forged Iron" visual + experiential uplevel resolved or advanced the items b
 - Files likely involved: `src/queries/plans.ts`, `src/screens/PlanSetup.tsx`
 
 **5.3 Plan-screen copy violates the glossary and reads placeholder (#70 remainder)**
+
 - Priority: P3
 - Screen or flow: PlanSetup preset list
 - Problem: the "Programs" group title (`src/screens/PlanSetup.tsx:371`) violates the glossary's ban on "program", the sibling "Generic" title (`:368`) reads like a placeholder, and seed blurbs rendered at `:394` say "sessions" for workouts (`supabase/migrations/00008_seed_plan_presets.sql`).
@@ -239,6 +262,7 @@ The "Forged Iron" visual + experiential uplevel resolved or advanced the items b
 ## 6. Profile and settings
 
 **6.1 Rest-alert denial has no surfaced state or recovery (#158 remainder)**
+
 - Priority: P2
 - Screen or flow: Profile; rest notifications
 - Problem: the capability half of #158 shipped (`getRestAlertStatus` exists in `src/lib/restNotifications.ts:33`) but it has no consumer: `src/screens/Profile.tsx` has no "Rest alerts" row (grep verified), so after a denial `scheduleRestDone` silently returns null forever.
@@ -250,6 +274,7 @@ The "Forged Iron" visual + experiential uplevel resolved or advanced the items b
 ## 7. Appearance and skin system
 
 **7.1 Text-primitive migration is incomplete (#22 remainder, #65)**
+
 - Priority: P2
 - Screen or flow: all screens
 - Problem: the Geist sweep (commit 2521a49) was partial by design: the swept screens still use raw React Native `Text` in places instead of the variant-based primitive in `src/ui/Text.tsx`, leaving system-font and `fontWeight` regressions one edit away.
@@ -259,6 +284,7 @@ The "Forged Iron" visual + experiential uplevel resolved or advanced the items b
 - Files likely involved: `src/ui/Text.tsx`, `src/ui/textVariants.ts`, `src/screens/*.tsx`, `app/_layout.tsx`, `app/(tabs)/_layout.tsx`
 
 **7.2 Two parallel styling architectures (#66, absorbing #32)**
+
 - Priority: P2
 - Screen or flow: Today, WorkoutActive, History, HistoryDetail
 - Problem: `makeStyles(theme)` factories coexist with static `StyleSheet` plus inline theme arrays, and the hero screens mix 16/20pt gutters and off-scale radii in the same column.
@@ -268,6 +294,7 @@ The "Forged Iron" visual + experiential uplevel resolved or advanced the items b
 - Files likely involved: `src/screens/Today.tsx`, `src/screens/WorkoutActive.tsx`, `src/screens/History.tsx`, `src/screens/HistoryDetail.tsx`, `src/components/ActiveSetCard.tsx`, `src/components/SessionVolumeBar.tsx`, `src/components/QuarantineBanner.tsx`, `docs/design-system.md`
 
 **7.3 No Sheet primitive: five divergent modal implementations (#26, #71)**
+
 - Priority: P2
 - Screen or flow: all sheets and modals
 - Problem: five divergent sheet/modal implementations, four of which duplicate ~70 lines of scaffolding each with copy-paste defects; one has a dead exit animation, and the core flow still uses an OS Alert.
@@ -277,6 +304,7 @@ The "Forged Iron" visual + experiential uplevel resolved or advanced the items b
 - Files likely involved: `src/components/ExercisePicker.tsx`, `src/components/RestOverrideSheet.tsx`, `src/components/QuarantineSheet.tsx`, `src/components/CollisionSheet.tsx`, `src/components/SyncDiagnosticsSheet.tsx`, `src/screens/WorkoutActive.tsx`
 
 **7.4 Launch and icon assets ignore the light/dark system (#130)**
+
 - Priority: P2
 - Screen or flow: app launch, home screen
 - Problem: light-mode users get a dark-only splash, there are no iOS 18 dark/tinted icon variants, and the notification icon is a placeholder.
@@ -286,6 +314,7 @@ The "Forged Iron" visual + experiential uplevel resolved or advanced the items b
 - Files likely involved: `app.config.ts`, `assets/`, `docs/operations.md`
 
 **7.5 Icon language is incoherent; TabIcon ignores `focused` (#30)**
+
 - Priority: P3
 - Screen or flow: tab bar, mic button, steppers
 - Problem: the mic button renders a color emoji (`src/components/VoiceMicButton.tsx:46`) against an otherwise SVG-and-typography system, ad-hoc text glyphs stand in for icons, and `TabIcon` declares a `focused` prop it never reads (`src/ui/TabIcon.tsx`, verified).
@@ -295,6 +324,7 @@ The "Forged Iron" visual + experiential uplevel resolved or advanced the items b
 - Files likely involved: `src/ui/TabIcon.tsx`, `src/components/VoiceMicButton.tsx`, `src/components/NumericStepperView.tsx`, `src/components/ActiveSetCard.tsx`, `src/screens/Profile.tsx`
 
 **7.6 Brand mark underdelivers: per-skin metal finishes are dead capability (#33; skin verification)**
+
 - Priority: P3
 - Screen or flow: Login, Today header lockup
 - Problem: `Medal` supports five finishes (`METALS` in `src/ui/Medal.tsx`) and its doc comment proposes a skin-adaptive lockup, but no call site passes `metal`, so every skin renders fixed rose; the 212-node medal will not read at the 40-60px sizes used on Today, and Login rebuilds the lockup by hand.
@@ -304,6 +334,7 @@ The "Forged Iron" visual + experiential uplevel resolved or advanced the items b
 - Files likely involved: `src/ui/Medal.tsx`, `src/ui/Logo.tsx`, `src/screens/Login.tsx`, `src/screens/Today.tsx`, `docs/design-system.md`
 
 **7.7 Boot overlay pinned to Forge dark; theme shim still alive (new: skin verification)**
+
 - Priority: P3
 - Screen or flow: app boot, boot-error screen
 - Problem: `BootOverlay` and its "Cannot start" error screen render Forge dark on every skin and scheme because they are the last consumers of the static shim `src/ui/theme.ts`, whose header still promises deletion; the shim also carries dead brand color constants and a stale comment claiming `Logo.tsx` consumes its re-exports (it does not, verified).
@@ -313,6 +344,7 @@ The "Forged Iron" visual + experiential uplevel resolved or advanced the items b
 - Files likely involved: `app/_layout.tsx`, `src/ui/theme.ts`, `src/ui/colors.ts`, `src/ui/Logo.tsx`, `src/screens/Login.tsx`
 
 **7.8 Contrast suite misses the riskiest on-screen pairs (new: skin verification)**
+
 - Priority: P3
 - Screen or flow: all skins, both schemes
 - Problem: the 64-test contrast suite covers eight ink-on-surface pairs per palette but nothing covers `onAccent` on `accent` (every primary button), `onAccent` on `danger` (Toast error text, reused on the assumption in `src/ui/ToastContext.tsx` that it "reads on the danger fill in both schemes"), `danger`/`accent` on `bg`/`surface`, or anything on `surface2`.
@@ -324,6 +356,7 @@ The "Forged Iron" visual + experiential uplevel resolved or advanced the items b
 ## 8. Empty, loading, error, and offline states
 
 **8.1 Failed magic-link exchange is silently swallowed; sent state is a dead end (#94; journey 2)**
+
 - Priority: P1
 - Screen or flow: Login, magic-link deep link
 - Problem: an expired or failed code exchange disappears into `catch {}` in `handleUrl` (`app/_layout.tsx`), whose comment claims "we surface auth errors via the AuthProvider state" while `src/auth/AuthContext.tsx` has no error field (both verified), and the non-error `exchangeCodeForSession` failure result is also ignored; Login's "Check your email" sent state (`src/screens/Login.tsx:79`) has no back or resend affordance.
@@ -333,6 +366,7 @@ The "Forged Iron" visual + experiential uplevel resolved or advanced the items b
 - Files likely involved: `app/_layout.tsx`, `src/auth/AuthContext.tsx`, `src/screens/Login.tsx`, `src/auth/authActions.ts`
 
 **8.2 First run drops the user cold (#119; journey 1)**
+
 - Priority: P2
 - Screen or flow: Login, empty Today
 - Problem: there is no onboarding, empty Today's most prominent element is non-interactive copy (inverting one-dominant-action-per-screen), and the root gate requires sign-in before any local use despite the local-first architecture.
@@ -342,6 +376,7 @@ The "Forged Iron" visual + experiential uplevel resolved or advanced the items b
 - Files likely involved: `src/screens/Today.tsx`, `src/screens/Login.tsx`, `app/_layout.tsx`
 
 **8.3 Today's sync error stripe is unexplained and unactionable (#114 remainder)**
+
 - Priority: P2
 - Screen or flow: Today sync surfaces
 - Problem: the 1px red stripe is `pointerEvents="none"` (`src/components/SyncErrorStripe.tsx`, verified) and Today renders no `SyncIndicator` (it lives on Progress, History, WorkoutActive, and Profile, where tapping it opens `SyncDiagnosticsSheet`), so there is no path from the stripe to diagnostics; the pulse loop also outlives its 30s window because the timeout only calls `opacity.setValue(0)` while the loop keeps animating until sync state changes. The skin-token part of #114 is fixed: `SyncIndicator` is fully themed.
@@ -351,6 +386,7 @@ The "Forged Iron" visual + experiential uplevel resolved or advanced the items b
 - Files likely involved: `src/components/SyncErrorStripe.tsx`, `src/screens/Today.tsx`, `src/ui/SyncIndicator.tsx`
 
 **8.4 "Discard all" abandons unsynced changes with one unconfirmed tap (#115)**
+
 - Priority: P2
 - Screen or flow: QuarantineSheet
 - Problem: `handleDiscardAll` in `src/components/QuarantineSheet.tsx` runs immediately on tap (no confirm, verified), sitting directly adjacent to "Retry all".
@@ -360,6 +396,7 @@ The "Forged Iron" visual + experiential uplevel resolved or advanced the items b
 - Files likely involved: `src/components/QuarantineSheet.tsx`
 
 **8.5 Raw internal error text reaches user-facing toasts (new: copy sweep)**
+
 - Priority: P2
 - Screen or flow: Today toasts
 - Problem: workout mutation hooks pass raw `err.message` straight to the toast callback (`src/queries/workouts.ts`, `src/queries/repeatLastWorkout.ts`, verified in the sweep), so SQLite or internal error text can surface via `showToast(msg, 'error')` on Today; the curated fallbacks only fire for non-Error throws.
@@ -369,6 +406,7 @@ The "Forged Iron" visual + experiential uplevel resolved or advanced the items b
 - Files likely involved: `src/queries/workouts.ts`, `src/queries/repeatLastWorkout.ts`, `src/screens/Today.tsx`, `src/lib/errorReporting.ts`
 
 **8.6 Error-toast wiring drifts across screens (#75)**
+
 - Priority: P3
 - Screen or flow: Today, Profile, WorkoutActive
 - Problem: the sync-aware error filter is applied on one screen while the other two pass raw toast lambdas, so the same failure class behaves differently per screen.
@@ -378,6 +416,7 @@ The "Forged Iron" visual + experiential uplevel resolved or advanced the items b
 - Files likely involved: `src/ui/ToastContext.tsx`, `src/screens/Today.tsx`, `src/screens/Profile.tsx`, `src/screens/WorkoutActive.tsx`
 
 **8.7 Copy pass: punctuation, terse labels, and empty-state inconsistency (new: copy sweep)**
+
 - Priority: P3
 - Screen or flow: all screens
 - Problem: user-facing strings contain em dashes and curly quotes (the Login password placeholder, the Forge skin blurb rendered in the skin picker, the voice confirm strip in `src/components/ActiveSetCard.tsx:246`, and the config error in `src/auth/supabase.ts` that the boot screen renders verbatim); labels drift terse ("+ Blank" on Today vs its own a11y label "Start a blank workout", generic "Confirm" on the voice button, bare "Save" in RestOverrideSheet); visible "Back to Today" disagrees with its a11y label "Back to today"; and empty states split ~50/50 on terminal periods.
@@ -389,6 +428,7 @@ The "Forged Iron" visual + experiential uplevel resolved or advanced the items b
 ## 9. Accessibility
 
 **9.1 WorkoutActive is effectively unusable with VoiceOver (#108)**
+
 - Priority: P1
 - Screen or flow: WorkoutActive
 - Problem: set completion is swipe-only with no button alternative (`COMPLETION_THRESHOLD` pan in `src/components/ActiveSetCard.tsx`; voice "done" is the only other path), and the weight/reps steppers are flattened behind a parent focus-clearing Pressable so they never surface as individual elements.
@@ -398,6 +438,7 @@ The "Forged Iron" visual + experiential uplevel resolved or advanced the items b
 - Files likely involved: `src/components/ActiveSetCard.tsx`, `src/screens/WorkoutActive.tsx`, `src/ui/ToastContext.tsx`
 
 **9.2 Dynamic Type will clip text app-wide (#117)**
+
 - Priority: P2
 - Screen or flow: all screens
 - Problem: fixed-height controls everywhere and no `maxFontSizeMultiplier` strategy mean large accessibility text sizes clip rather than reflow.
@@ -407,6 +448,7 @@ The "Forged Iron" visual + experiential uplevel resolved or advanced the items b
 - Files likely involved: `src/screens/Login.tsx`, `src/components/VoiceMicButton.tsx`, `src/components/ExercisePicker.tsx`, `src/screens/Profile.tsx`
 
 **9.3 Touch targets below the 44pt floor in daily flows (#27)**
+
 - Priority: P2
 - Screen or flow: rest bar, Today alt buttons, PlanSetup pills, header actions, stepper chevrons
 - Problem: multiple daily-use targets fall well below 44pt, including the 12px rest-bar hit area and the header next/finish.
@@ -418,6 +460,7 @@ The "Forged Iron" visual + experiential uplevel resolved or advanced the items b
 ## 10. Microinteractions and haptics
 
 **10.1 The live PR moment never fires (#25 remainder)**
+
 - Priority: P2
 - Screen or flow: set completion choreography, finish recap
 - Problem: `SessionVolumeBar` calls `pulse()` with no `isPR` argument, so the PR-strength glow (0.45 peak), the success haptic, and the `showPRPill` output of `computeChoreography` are never exercised live, and the recap's built "NEW PERSONAL RECORD(S)" card never renders because the sole `SessionRecap` call site omits the `prs` prop (its own doc comment says so); PR detection currently happens only at finish (`recordWorkoutPRs` in `src/queries/workouts.ts`). The glow-visibility half of #25 is fixed (commit dd75760).

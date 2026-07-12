@@ -187,7 +187,10 @@ function formatDisplay(type: string, value: unknown, units: Units): string {
 
 type GroupedPRItem = GroupedPR extends { records: (infer R)[] } ? R : never;
 
-export async function getGroupedPRs(userId: string, units: Units = DEFAULT_UNITS): Promise<GroupedPR[]> {
+export async function getGroupedPRs(
+  userId: string,
+  units: Units = DEFAULT_UNITS,
+): Promise<GroupedPR[]> {
   const db = await getDb();
   const rows = await db.getAllAsync<Row>(
     `SELECT pr.*, ex.name AS exercise_name, ex.muscle_group AS muscle_group

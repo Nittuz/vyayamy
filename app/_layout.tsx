@@ -3,7 +3,12 @@ import 'react-native-url-polyfill/auto';
 
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { Anton_400Regular } from '@expo-google-fonts/anton';
-import { useFonts as useGeist, Geist_400Regular, Geist_500Medium, Geist_600SemiBold } from '@expo-google-fonts/geist';
+import {
+  useFonts as useGeist,
+  Geist_400Regular,
+  Geist_500Medium,
+  Geist_600SemiBold,
+} from '@expo-google-fonts/geist';
 import { GeistMono_400Regular, GeistMono_500Medium } from '@expo-google-fonts/geist-mono';
 import { router, Stack, useSegments } from 'expo-router';
 import * as SplashScreen from 'expo-splash-screen';

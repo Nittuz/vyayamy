@@ -165,7 +165,11 @@ export function NumericStepper({
           ]}
         />
       ) : (
-        <Pressable onPress={onPressNumber} accessibilityRole="button" accessibilityLabel={`${unit}: ${formatValue(value)}. Tap to edit.`}>
+        <Pressable
+          onPress={onPressNumber}
+          accessibilityRole="button"
+          accessibilityLabel={`${unit}: ${formatValue(value)}. Tap to edit.`}
+        >
           <Text
             style={[
               styles.number,

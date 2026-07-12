@@ -17,7 +17,11 @@ import { addSet } from '@/queries/sets';
 import { maybeUpdateAutoTitle } from './workouts';
 import { queryKeys } from './keys';
 
-export async function searchExercises(userId: string, query: string, limit = 50): Promise<Exercise[]> {
+export async function searchExercises(
+  userId: string,
+  query: string,
+  limit = 50,
+): Promise<Exercise[]> {
   const db = await getDb();
   const like = `%${query.trim()}%`;
   return db.getAllAsync<Exercise>(

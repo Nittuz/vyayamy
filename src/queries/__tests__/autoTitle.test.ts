@@ -23,11 +23,25 @@ beforeEach(async () => {
   );
   await db.runAsync(
     'INSERT INTO exercises (id, name, muscle_group, user_id, created_at, updated_at) VALUES (?, ?, ?, ?, ?, ?)',
-    [EX2, 'Tricep Pushdown', 'Triceps', null, '2026-01-01T00:00:00.000Z', '2026-01-01T00:00:00.000Z'],
+    [
+      EX2,
+      'Tricep Pushdown',
+      'Triceps',
+      null,
+      '2026-01-01T00:00:00.000Z',
+      '2026-01-01T00:00:00.000Z',
+    ],
   );
   await db.runAsync(
     'INSERT INTO exercises (id, name, muscle_group, user_id, created_at, updated_at) VALUES (?, ?, ?, ?, ?, ?)',
-    [EX3, 'Lateral Raise', 'Shoulders', null, '2026-01-01T00:00:00.000Z', '2026-01-01T00:00:00.000Z'],
+    [
+      EX3,
+      'Lateral Raise',
+      'Shoulders',
+      null,
+      '2026-01-01T00:00:00.000Z',
+      '2026-01-01T00:00:00.000Z',
+    ],
   );
 });
 
@@ -37,7 +51,9 @@ test('maybeUpdateAutoTitle does nothing with fewer than 3 exercises', async () =
   await addExerciseToWorkout({ workoutId: wId, exerciseId: EX2 });
   await maybeUpdateAutoTitle(wId);
   const db = await getDb();
-  const row = await db.getFirstAsync<{ title: string }>('SELECT title FROM workouts WHERE id = ?', [wId]);
+  const row = await db.getFirstAsync<{ title: string }>('SELECT title FROM workouts WHERE id = ?', [
+    wId,
+  ]);
   // Title is still the day-of-week (unmodified)
   expect(row!.title).not.toContain('+');
 });
@@ -49,7 +65,9 @@ test('maybeUpdateAutoTitle composes title at 3+ exercises when title is default'
   await addExerciseToWorkout({ workoutId: wId, exerciseId: EX3 });
   await maybeUpdateAutoTitle(wId);
   const db = await getDb();
-  const row = await db.getFirstAsync<{ title: string }>('SELECT title FROM workouts WHERE id = ?', [wId]);
+  const row = await db.getFirstAsync<{ title: string }>('SELECT title FROM workouts WHERE id = ?', [
+    wId,
+  ]);
   expect(row!.title).toBe('Chest + Triceps + Shoulders');
 });
 
@@ -60,6 +78,8 @@ test('maybeUpdateAutoTitle does not overwrite a user-set title', async () => {
   await addExerciseToWorkout({ workoutId: wId, exerciseId: EX3 });
   await maybeUpdateAutoTitle(wId);
   const db = await getDb();
-  const row = await db.getFirstAsync<{ title: string }>('SELECT title FROM workouts WHERE id = ?', [wId]);
+  const row = await db.getFirstAsync<{ title: string }>('SELECT title FROM workouts WHERE id = ?', [
+    wId,
+  ]);
   expect(row!.title).toBe('My custom title');
 });

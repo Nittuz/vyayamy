@@ -87,7 +87,8 @@ export function useRestTimer(args: UseRestTimerArgs = {}) {
       setElapsed(0);
       const now = Date.now();
       // A spoken "rest two minutes" overrides the exercise's configured rest (#105).
-      const target = secondsOverride != null && secondsOverride > 0 ? secondsOverride : targetSeconds;
+      const target =
+        secondsOverride != null && secondsOverride > 0 ? secondsOverride : targetSeconds;
       setActiveTarget(target);
       setStartedAt(now);
       void setKv<PersistedTimer>(REST_TIMER_KEY, {
@@ -113,8 +114,10 @@ export function useRestTimer(args: UseRestTimerArgs = {}) {
             targetSeconds: target,
             notificationId: id,
           });
-      });
-  }, [targetSeconds]);
+        });
+    },
+    [targetSeconds],
+  );
 
   const stop = useCallback(() => {
     setStartedAt(null);

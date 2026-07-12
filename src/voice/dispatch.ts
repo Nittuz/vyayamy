@@ -20,7 +20,10 @@ export interface DispatchResult {
 }
 
 /** Apply a data command via existing local-first mutations. Returns feedback + an undo. */
-export async function dispatchCommand(command: Command, ctx: DispatchContext): Promise<DispatchResult> {
+export async function dispatchCommand(
+  command: Command,
+  ctx: DispatchContext,
+): Promise<DispatchResult> {
   switch (command.kind) {
     case 'setValues': {
       if (!ctx.activeSetId) return { ok: false, message: 'No active set' };

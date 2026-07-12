@@ -104,10 +104,10 @@ export async function pullOnce(): Promise<void> {
   }
 
   async function pullTable(table: SyncedTable): Promise<void> {
-    const meta = await db.getFirstAsync<{ last_pulled_at: string | null; last_pulled_id: string | null }>(
-      'SELECT last_pulled_at, last_pulled_id FROM sync_meta WHERE table_name = ?',
-      [table],
-    );
+    const meta = await db.getFirstAsync<{
+      last_pulled_at: string | null;
+      last_pulled_id: string | null;
+    }>('SELECT last_pulled_at, last_pulled_id FROM sync_meta WHERE table_name = ?', [table]);
     let cursorTs = meta?.last_pulled_at ?? EPOCH;
     let cursorId = meta?.last_pulled_id ?? ZERO_UUID;
     // Rewind the READ cursor by the overlap (the stored cursor still advances to
@@ -147,11 +147,7 @@ export async function pullOnce(): Promise<void> {
             const pending = pendingByRowId.get(rowId);
 
             // Pending insert/upsert/delete → local is authoritative until it drains.
-            if (
-              pending?.some(
-                (p) => p.op === 'insert' || p.op === 'upsert' || p.op === 'delete',
-              )
-            ) {
+            if (pending?.some((p) => p.op === 'insert' || p.op === 'upsert' || p.op === 'delete')) {
               continue;
             }
 
@@ -244,5 +240,4 @@ export async function pullOnce(): Promise<void> {
       return {};
     }
   }
-
 }

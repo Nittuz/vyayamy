@@ -18,7 +18,7 @@ A mobile-only, local-first strength-training journal built around one job: captu
 - **Custom exercises**: add your own movements alongside the seeded library ([src/components/ExercisePicker.tsx](src/components/ExercisePicker.tsx)).
 - **Four skins**: Forge, Iron, Ember, Chalk ([src/ui/skins.ts](src/ui/skins.ts)), switchable under Profile, Appearance.
 - **Complete-set choreography**: banking a set fires a haptic, a live session-volume tally, and an accent glow ([src/ui/completeSetChoreography.ts](src/ui/completeSetChoreography.ts), [src/components/SessionVolumeBar.tsx](src/components/SessionVolumeBar.tsx)); a calm recap on finish ([src/ui/SessionRecap.tsx](src/ui/SessionRecap.tsx)).
-- **Auth**: magic-link or password sign-in via Supabase Auth ([src/screens/Login.tsx](src/screens/Login.tsx), [src/auth/authActions.ts](src/auth/authActions.ts)), behind a single root-level auth gate in [app/_layout.tsx](app/_layout.tsx).
+- **Auth**: magic-link or password sign-in via Supabase Auth ([src/screens/Login.tsx](src/screens/Login.tsx), [src/auth/authActions.ts](src/auth/authActions.ts)), behind a single root-level auth gate in [app/\_layout.tsx](app/_layout.tsx).
 - **Background rest timer**: a local notification fires even when the app is backgrounded; tapping it returns to the active workout ([src/lib/restNotifications.ts](src/lib/restNotifications.ts)).
 - **Sync you can see**: status indicator, error stripe, diagnostics sheet, and a quarantine flow for writes that exhaust retries ([src/sync/quarantine.ts](src/sync/quarantine.ts), [src/components/QuarantineSheet.tsx](src/components/QuarantineSheet.tsx)).
 
@@ -44,25 +44,25 @@ On the active workout screen, a mic button opens a hands-free listening session 
 
 Every row below is verified against [src/voice/grammar.ts](src/voice/grammar.ts):
 
-| You say                                                                     | Result                                                                |
-| --------------------------------------------------------------------------- | --------------------------------------------------------------------- |
-| "185 for 5", "one eighty-five for five", "185 by 5", "log 135 times 8 reps" | Log weight and reps on the active set                                  |
+| You say                                                                     | Result                                                                           |
+| --------------------------------------------------------------------------- | -------------------------------------------------------------------------------- |
+| "185 for 5", "one eighty-five for five", "185 by 5", "log 135 times 8 reps" | Log weight and reps on the active set                                            |
 | "225 for 5 done"                                                            | Logs 225 x 5 (values win over the trailing keyword); a separate "done" completes |
-| "five reps at one thirty five"                                              | Reps-first phrasing, logs reps and weight                              |
-| "100 kilos for 5"                                                           | Explicit unit, stored on the set                                       |
-| "185"                                                                       | Weight only; low confidence, asks you to confirm                       |
-| "5 reps"                                                                    | Reps only                                                              |
-| "done", "got it", "complete"                                                | Complete the active set                                                |
-| "add a set", "one more"                                                     | Stage another set                                                      |
-| "add bench press"                                                           | Add an exercise; always confirms before creating from a misheard name  |
-| "next exercise", "previous exercise"                                        | Move between exercises                                                 |
-| "start rest timer", "two minute rest"                                       | Start the rest timer, with optional duration                           |
-| "skip rest", "stop the rest timer", "rest done"                             | Stop a running rest timer                                              |
-| "make it 195"                                                               | Correct the staged weight (confirmed)                                  |
-| "scratch that", "undo"                                                      | Undo the last command                                                  |
-| "yes"                                                                       | Confirm a pending low-confidence command                               |
-| "finish workout"                                                            | Open the finish confirmation                                           |
-| "stop"                                                                      | End the listening session                                              |
+| "five reps at one thirty five"                                              | Reps-first phrasing, logs reps and weight                                        |
+| "100 kilos for 5"                                                           | Explicit unit, stored on the set                                                 |
+| "185"                                                                       | Weight only; low confidence, asks you to confirm                                 |
+| "5 reps"                                                                    | Reps only                                                                        |
+| "done", "got it", "complete"                                                | Complete the active set                                                          |
+| "add a set", "one more"                                                     | Stage another set                                                                |
+| "add bench press"                                                           | Add an exercise; always confirms before creating from a misheard name            |
+| "next exercise", "previous exercise"                                        | Move between exercises                                                           |
+| "start rest timer", "two minute rest"                                       | Start the rest timer, with optional duration                                     |
+| "skip rest", "stop the rest timer", "rest done"                             | Stop a running rest timer                                                        |
+| "make it 195"                                                               | Correct the staged weight (confirmed)                                            |
+| "scratch that", "undo"                                                      | Undo the last command                                                            |
+| "yes"                                                                       | Confirm a pending low-confidence command                                         |
+| "finish workout"                                                            | Open the finish confirmation                                                     |
+| "stop"                                                                      | End the listening session                                                        |
 
 Voice needs a development build (the recognizer is a native module; it does not run in Expo Go):
 
@@ -92,23 +92,23 @@ A 16-dimension deep review ran in June 2026 (115 confirmed findings), followed b
 
 Versions from [package.json](package.json) on main.
 
-| Layer                | Technology                                                                                          |
-| -------------------- | --------------------------------------------------------------------------------------------------- |
-| Runtime              | Expo SDK 56, React Native 0.85.3, React 19.2.3                                                       |
-| Language             | TypeScript 5.9, strict                                                                               |
-| Navigation           | Expo Router ~56.2 (file-based, typed routes enabled in [app.config.ts](app.config.ts))               |
-| Local DB             | `expo-sqlite` (source of truth, schema in [src/db/schema.ts](src/db/schema.ts))                      |
-| Cloud DB / auth      | Supabase (`@supabase/supabase-js` 2.x), reached only by [src/sync/](src/sync/) and [src/auth/](src/auth/) |
-| Server state         | TanStack React Query 5 (reads SQLite, not HTTP)                                                      |
-| Sync engine          | In-house outbox plus incremental pull ([src/sync/](src/sync/))                                       |
+| Layer                | Technology                                                                                                                                             |
+| -------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------ |
+| Runtime              | Expo SDK 56, React Native 0.85.3, React 19.2.3                                                                                                         |
+| Language             | TypeScript 5.9, strict                                                                                                                                 |
+| Navigation           | Expo Router ~56.2 (file-based, typed routes enabled in [app.config.ts](app.config.ts))                                                                 |
+| Local DB             | `expo-sqlite` (source of truth, schema in [src/db/schema.ts](src/db/schema.ts))                                                                        |
+| Cloud DB / auth      | Supabase (`@supabase/supabase-js` 2.x), reached only by [src/sync/](src/sync/) and [src/auth/](src/auth/)                                              |
+| Server state         | TanStack React Query 5 (reads SQLite, not HTTP)                                                                                                        |
+| Sync engine          | In-house outbox plus incremental pull ([src/sync/](src/sync/))                                                                                         |
 | Styling              | `useTheme()` + `makeStyles`, tokens in [src/ui/colors.ts](src/ui/colors.ts) and [src/ui/typography.ts](src/ui/typography.ts); Geist / Geist Mono fonts |
-| Charts               | Custom SVG via `react-native-svg` ([src/ui/LineChart.tsx](src/ui/LineChart.tsx))                     |
-| Haptics / timers     | `expo-haptics`, `expo-notifications`                                                                 |
-| Voice                | `expo-speech-recognition` (on-device STT) + local grammar parser ([src/voice/](src/voice/))          |
-| Error reporting      | `@sentry/react-native` 7.x, gated by `EXPO_PUBLIC_SENTRY_DSN`                                        |
-| Testing              | Jest 29 + `ts-jest`, `better-sqlite3` in-memory swap for `expo-sqlite`                               |
-| CI                   | GitHub Actions ([.github/workflows/ci.yml](.github/workflows/ci.yml)): typecheck, lint, test on every push to main and every PR |
-| Build / distribution | EAS Build + EAS Submit ([eas.json](eas.json))                                                        |
+| Charts               | Custom SVG via `react-native-svg` ([src/ui/LineChart.tsx](src/ui/LineChart.tsx))                                                                       |
+| Haptics / timers     | `expo-haptics`, `expo-notifications`                                                                                                                   |
+| Voice                | `expo-speech-recognition` (on-device STT) + local grammar parser ([src/voice/](src/voice/))                                                            |
+| Error reporting      | `@sentry/react-native` 7.x, gated by `EXPO_PUBLIC_SENTRY_DSN`                                                                                          |
+| Testing              | Jest 29 + `ts-jest`, `better-sqlite3` in-memory swap for `expo-sqlite`                                                                                 |
+| CI                   | GitHub Actions ([.github/workflows/ci.yml](.github/workflows/ci.yml)): typecheck, lint, test on every push to main and every PR                        |
+| Build / distribution | EAS Build + EAS Submit ([eas.json](eas.json))                                                                                                          |
 
 There is no custom API server. The client talks to Supabase directly through PostgREST, and only from the sync and auth layers.
 
@@ -157,14 +157,14 @@ npx expo run:ios        # development build, required for voice and other native
 
 Optional local Supabase: `npx supabase start` uses [supabase/config.toml](supabase/config.toml) (API 54321, DB 54322, Studio 54323).
 
-| Command                | Description                        |
-| ---------------------- | ---------------------------------- |
-| `npm run start`        | Expo dev server                    |
-| `npm run ios` / `npm run android` | Build and run natively  |
-| `npm run typecheck`    | `tsc --noEmit`                     |
-| `npm run lint`         | ESLint                             |
-| `npm test`             | Jest once (`npm run test:watch` to watch) |
-| `npm run format`       | Prettier write (`format:check` to check)  |
+| Command                           | Description                               |
+| --------------------------------- | ----------------------------------------- |
+| `npm run start`                   | Expo dev server                           |
+| `npm run ios` / `npm run android` | Build and run natively                    |
+| `npm run typecheck`               | `tsc --noEmit`                            |
+| `npm run lint`                    | ESLint                                    |
+| `npm test`                        | Jest once (`npm run test:watch` to watch) |
+| `npm run format`                  | Prettier write (`format:check` to check)  |
 
 ### Project structure
 
@@ -204,7 +204,7 @@ npm test
 
 Current count on main: **58 suites, 439 tests**, all green; CI runs the same suite plus typecheck and lint on every PR.
 
-Tests run in Node under `ts-jest`. The `moduleNameMapper` in [package.json](package.json) swaps `expo-sqlite` for an in-memory `better-sqlite3` backend ([src/db/__mocks__/expo-sqlite.ts](src/db/__mocks__/expo-sqlite.ts)), so the mutation primitive and the whole sync engine run against a real SQL engine without an emulator. Coverage spans the sync engine (push ordering, pull merge, quarantine), `enqueueMutation` and cascades, the query layer, pure domain logic (PR detection, unit conversion), the voice parser and dispatch, and UI choreography helpers.
+Tests run in Node under `ts-jest`. The `moduleNameMapper` in [package.json](package.json) swaps `expo-sqlite` for an in-memory `better-sqlite3` backend ([src/db/**mocks**/expo-sqlite.ts](src/db/__mocks__/expo-sqlite.ts)), so the mutation primitive and the whole sync engine run against a real SQL engine without an emulator. Coverage spans the sync engine (push ordering, pull merge, quarantine), `enqueueMutation` and cascades, the query layer, pure domain logic (PR detection, unit conversion), the voice parser and dispatch, and UI choreography helpers.
 
 What still needs a device or simulator: the voice native engine ([src/voice/speechEngine.ts](src/voice/speechEngine.ts), [src/voice/useVoiceSession.ts](src/voice/useVoiceSession.ts)), rest-notification timing, skin and motion visual checks, and the accessibility passes (VoiceOver, Dynamic Type). The voice on-device checklist is in [docs/specs/archive/2026-05-31-voice-workout-logging.md](docs/specs/archive/2026-05-31-voice-workout-logging.md).
 
@@ -212,11 +212,11 @@ What still needs a device or simulator: the voice native engine ([src/voice/spee
 
 [eas.json](eas.json) sets `appVersionSource: "remote"` (EAS owns the build number) and defines three build profiles:
 
-| Profile       | Purpose                                                  |
-| ------------- | -------------------------------------------------------- |
-| `development` | Dev client, internal distribution                        |
-| `preview`     | Internal distribution, iOS simulator builds enabled      |
-| `production`  | Store builds, `autoIncrement`                            |
+| Profile       | Purpose                                             |
+| ------------- | --------------------------------------------------- |
+| `development` | Dev client, internal distribution                   |
+| `preview`     | Internal distribution, iOS simulator builds enabled |
+| `production`  | Store builds, `autoIncrement`                       |
 
 Build profiles carry no inline `env` blocks: runtime configuration lives in EAS environment variables created with `npx eas env:create` (the exact commands are in [docs/operations.md](docs/operations.md)). The submit profile is iOS-only and reads `APPLE_ID`, `ASC_APP_ID`, and `APPLE_TEAM_ID` from the environment; there is no Android submit profile.
 

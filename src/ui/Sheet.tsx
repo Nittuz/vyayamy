@@ -27,7 +27,13 @@ import Animated, {
 } from 'react-native-reanimated';
 
 import { resolvePlateStyles } from './plateStyles';
-import { isMounted, nextPhase, progressTarget, type SheetEvent, type SheetPhase } from './sheetPresence';
+import {
+  isMounted,
+  nextPhase,
+  progressTarget,
+  type SheetEvent,
+  type SheetPhase,
+} from './sheetPresence';
 import { Text } from './Text';
 import { useTheme, type Theme } from './useTheme';
 
@@ -107,7 +113,8 @@ export function Sheet({
   }));
 
   const centerPlate = useMemo(
-    () => resolvePlateStyles(theme, { offset: 'md', tone: 'surface', border: 'strong', radius: 'lg' }),
+    () =>
+      resolvePlateStyles(theme, { offset: 'md', tone: 'surface', border: 'strong', radius: 'lg' }),
     [theme],
   );
 
@@ -133,7 +140,13 @@ export function Sheet({
   );
 
   return (
-    <Modal visible transparent animationType="none" onRequestClose={handleRequestClose} statusBarTranslucent>
+    <Modal
+      visible
+      transparent
+      animationType="none"
+      onRequestClose={handleRequestClose}
+      statusBarTranslucent
+    >
       <Animated.View style={[styles.backdrop, backdropStyle]}>
         <Pressable
           style={StyleSheet.absoluteFill}
@@ -149,7 +162,13 @@ export function Sheet({
           style={styles.bottomHost}
           pointerEvents="box-none"
         >
-          <Animated.View style={[styles.bottomPanel, { maxHeight: `${Math.round(maxHeightPct * 100)}%` }, panelStyle]}>
+          <Animated.View
+            style={[
+              styles.bottomPanel,
+              { maxHeight: `${Math.round(maxHeightPct * 100)}%` },
+              panelStyle,
+            ]}
+          >
             <View style={styles.handle} />
             {body}
           </Animated.View>
@@ -157,7 +176,12 @@ export function Sheet({
       ) : (
         <View style={styles.centerHost} pointerEvents="box-none">
           <Animated.View
-            style={[centerPlate.container, styles.centerContainer, { maxHeight: `${Math.round(maxHeightPct * 100)}%` }, panelStyle]}
+            style={[
+              centerPlate.container,
+              styles.centerContainer,
+              { maxHeight: `${Math.round(maxHeightPct * 100)}%` },
+              panelStyle,
+            ]}
           >
             {centerPlate.slab ? <View pointerEvents="none" style={centerPlate.slab} /> : null}
             <View style={[centerPlate.face, styles.centerFace]}>{body}</View>

@@ -11,8 +11,8 @@
  */
 
 export const spring = {
-  snappy:  { damping: 22, stiffness: 240 },
-  settle:  { damping: 22, stiffness: 200 },
+  snappy: { damping: 22, stiffness: 240 },
+  settle: { damping: 22, stiffness: 200 },
   rebound: { damping: 18, stiffness: 280 },
 } as const;
 

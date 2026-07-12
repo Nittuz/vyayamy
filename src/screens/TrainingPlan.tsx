@@ -76,10 +76,10 @@ export default function TrainingPlanScreen() {
                 const label =
                   slot.label ??
                   (plan.plan.plan_type === 'weekly' && slot.day_of_week != null
-                    ? DAY_LABELS[slot.day_of_week] ?? ''
+                    ? (DAY_LABELS[slot.day_of_week] ?? '')
                     : `Day ${(slot.cycle_position ?? 0) + 1}`);
                 const templateName = slot.template_id
-                  ? plan.templates.get(slot.template_id)?.name ?? '—'
+                  ? (plan.templates.get(slot.template_id)?.name ?? '—')
                   : null;
                 return (
                   <Plate key={slot.id} border="soft" offset="none" faceStyle={styles.slotFace}>

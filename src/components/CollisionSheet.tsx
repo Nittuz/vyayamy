@@ -31,8 +31,8 @@ export function CollisionSheet({ visible, workouts, details, onResume, onDiscard
       title="Resume which workout?"
     >
       <Text variant="body" color={theme.color.inkSecondary} style={styles.body}>
-        We found {workouts.length} unfinished workouts. Pick one to resume;
-        the others will be discarded.
+        We found {workouts.length} unfinished workouts. Pick one to resume; the others will be
+        discarded.
       </Text>
       <ScrollView style={styles.list}>
         {workouts.map((w) => {

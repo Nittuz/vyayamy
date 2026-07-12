@@ -112,6 +112,9 @@ test('addExercise creates a custom exercise when no match exists', async () => {
 
 test('setValues with no active set is a no-op failure', async () => {
   const ctx = await setup();
-  const res = await dispatchCommand({ kind: 'setValues', weight: 185 }, { ...ctx, activeSetId: null });
+  const res = await dispatchCommand(
+    { kind: 'setValues', weight: 185 },
+    { ...ctx, activeSetId: null },
+  );
   expect(res.ok).toBe(false);
 });

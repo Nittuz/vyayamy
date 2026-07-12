@@ -9,6 +9,7 @@ User-approved overhaul (taste-skill v2 §11.A Redesign - Overhaul): new visual l
 ## Tokens (`src/ui/colors.ts` — keep `PaletteTokens` shape; contrast suite must pass)
 
 Dark ("blacktop", default):
+
 - bg `#121212` · surface `#1A1A19` · surface2 `#232322`
 - border `#333331` · borderStrong `#55554F`
 - ink `#F2F1ED` · inkSecondary `#A8A8A1` · inkTertiary `#66665F` · inkHero `#FAF9F4`
@@ -17,6 +18,7 @@ Dark ("blacktop", default):
 - overlay `rgba(0,0,0,0.65)` · slab `#000000` (legacy token; shadows retired in plateStyles)
 
 Light ("chalk", chalk-first with black panels):
+
 - bg `#EFEEE9` · surface `#F7F6F1` · surface2 `#E4E3DC`
 - border `#CFCEC6` · borderStrong `#141414`
 - ink `#141414` · inkSecondary `#4F4F4A` · inkTertiary `#6E6E66` · inkHero `#0C0C0C`

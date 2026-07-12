@@ -401,9 +401,7 @@ function PresetPicker({
         Pick a template plan to start from, or scroll down to build your own.
       </Text>
 
-      {generic.length > 0 ? (
-        <PresetGroup title="Generic" items={generic} onPick={onPick} />
-      ) : null}
+      {generic.length > 0 ? <PresetGroup title="Generic" items={generic} onPick={onPick} /> : null}
       {programs.length > 0 ? (
         <PresetGroup title="Programs" items={programs} onPick={onPick} />
       ) : null}
@@ -470,7 +468,9 @@ function summarizeSlots(p: HydratedPreset): string {
     .map(
       (s, i) =>
         `D${i + 1}: ${
-          s.is_rest_day ? 'Rest' : (s.preset_template_id && tplName.get(s.preset_template_id)) || '—'
+          s.is_rest_day
+            ? 'Rest'
+            : (s.preset_template_id && tplName.get(s.preset_template_id)) || '—'
         }`,
     )
     .join(' · ');
@@ -488,23 +488,29 @@ function activePlanHydrationKey(p: NonNullable<ActivePlan>): string {
 }
 
 function buildWeeklyDraft(): SlotDraft[] {
-  return Array.from({ length: 7 }, (_, i): SlotDraft => ({
-    key: `weekly-${i}`,
-    templateId: null,
-    isRestDay: true,
-    label: '',
-    dayOfWeek: i,
-  }));
+  return Array.from(
+    { length: 7 },
+    (_, i): SlotDraft => ({
+      key: `weekly-${i}`,
+      templateId: null,
+      isRestDay: true,
+      label: '',
+      dayOfWeek: i,
+    }),
+  );
 }
 
 function buildCycleDraft(n: number): SlotDraft[] {
-  return Array.from({ length: n }, (_, i): SlotDraft => ({
-    key: `cycle-${i}`,
-    templateId: null,
-    isRestDay: false,
-    label: '',
-    cyclePosition: i,
-  }));
+  return Array.from(
+    { length: n },
+    (_, i): SlotDraft => ({
+      key: `cycle-${i}`,
+      templateId: null,
+      isRestDay: false,
+      label: '',
+      cyclePosition: i,
+    }),
+  );
 }
 
 const makeStyles = (theme: Theme) =>

@@ -40,7 +40,9 @@ describe('isTransientError', () => {
   });
 
   test('constraint violations remain permanent (they must quarantine)', () => {
-    expect(isTransientError({ status: 409, code: '23505', message: 'duplicate key value' })).toBe(false);
+    expect(isTransientError({ status: 409, code: '23505', message: 'duplicate key value' })).toBe(
+      false,
+    );
     expect(isTransientError({ status: 400, message: 'check constraint failed' })).toBe(false);
     expect(isTransientError(null)).toBe(false);
     expect(isTransientError('boom')).toBe(false);

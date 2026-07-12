@@ -59,6 +59,10 @@ test('flat plates have no slab and do not move when pressed', () => {
 });
 
 test('accent and danger tones fill from the palette', () => {
-  expect(resolvePlateStyles(theme, { tone: 'accent' }).face.backgroundColor).toBe(theme.color.accent);
-  expect(resolvePlateStyles(theme, { tone: 'danger' }).face.backgroundColor).toBe(theme.color.danger);
+  expect(resolvePlateStyles(theme, { tone: 'accent' }).face.backgroundColor).toBe(
+    theme.color.accent,
+  );
+  expect(resolvePlateStyles(theme, { tone: 'danger' }).face.backgroundColor).toBe(
+    theme.color.danger,
+  );
 });

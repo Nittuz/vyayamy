@@ -41,7 +41,13 @@ function makeFakeEngine() {
 function deps(engine: SpeechEngine, over: Partial<VoiceSessionDeps> = {}): VoiceSessionDeps {
   return {
     engine,
-    getDispatchContext: () => ({ userId: 'u', workoutId: 'w', activeWeId: 'we', activeSetId: 's', units: 'lb' }),
+    getDispatchContext: () => ({
+      userId: 'u',
+      workoutId: 'w',
+      activeWeId: 'we',
+      activeSetId: 's',
+      units: 'lb',
+    }),
     getParserContext: () => ({ units: 'lb', hasActiveExercise: true }),
     onStartRest: jest.fn(),
     onNextExercise: jest.fn(),

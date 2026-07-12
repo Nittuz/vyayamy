@@ -9,10 +9,9 @@ import { queryKeys } from './keys';
 
 export async function getProfile(userId: string): Promise<Profile | null> {
   const db = await getDb();
-  return db.getFirstAsync<Profile>(
-    'SELECT * FROM profiles WHERE id = ? AND deleted_at IS NULL',
-    [userId],
-  );
+  return db.getFirstAsync<Profile>('SELECT * FROM profiles WHERE id = ? AND deleted_at IS NULL', [
+    userId,
+  ]);
 }
 
 export function useProfile(userId: string | undefined) {

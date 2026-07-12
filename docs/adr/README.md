@@ -20,12 +20,12 @@ ADRs are **immutable once accepted**. To change a decision, write a new ADR that
 
 ## Index
 
-| # | Title | Status | Date |
-| --- | --- | --- | --- |
-| [0001](0001-sqlite-as-source-of-truth.md) | SQLite as source of truth, not Supabase | accepted | 2026-05 |
-| [0002](0002-outbox-over-crdt.md) | Outbox over CRDTs and sync frameworks | accepted | 2026-05 |
-| [0003](0003-soft-delete-tombstones.md) | Soft-delete tombstones, never hard delete | accepted | 2026-05 |
-| [0004](0004-server-owned-updated-at.md) | Server-owned `updated_at` (clients never set it) | accepted | 2026-05 |
+| #                                         | Title                                            | Status   | Date    |
+| ----------------------------------------- | ------------------------------------------------ | -------- | ------- |
+| [0001](0001-sqlite-as-source-of-truth.md) | SQLite as source of truth, not Supabase          | accepted | 2026-05 |
+| [0002](0002-outbox-over-crdt.md)          | Outbox over CRDTs and sync frameworks            | accepted | 2026-05 |
+| [0003](0003-soft-delete-tombstones.md)    | Soft-delete tombstones, never hard delete        | accepted | 2026-05 |
+| [0004](0004-server-owned-updated-at.md)   | Server-owned `updated_at` (clients never set it) | accepted | 2026-05 |
 
 ## Template
 

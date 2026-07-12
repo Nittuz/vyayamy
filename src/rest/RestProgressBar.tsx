@@ -26,7 +26,13 @@ interface Props {
   onOpenOverride?: () => void;
 }
 
-export function RestProgressBar({ running, elapsedSeconds, targetSeconds, onSkip, onOpenOverride }: Props) {
+export function RestProgressBar({
+  running,
+  elapsedSeconds,
+  targetSeconds,
+  onSkip,
+  onOpenOverride,
+}: Props) {
   const theme = useTheme();
   const styles = useMemo(() => makeStyles(theme), [theme]);
   const progress = useSharedValue(0);

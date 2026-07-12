@@ -15,6 +15,7 @@
 ## File Structure
 
 **Create:**
+
 - `src/ui/skins.ts` — skin registry: `{ forge, iron, ember, chalk }`, each `{ dark, light }`; `SkinId` type; `SKIN_META` (display names).
 - `src/ui/SkinContext.tsx` — context provider, AsyncStorage hydration, `useSkin()` hook.
 - `src/ui/useCompleteSetAnimation.ts` — Reanimated choreography hook for the signature moment.
@@ -25,6 +26,7 @@
 - `src/ui/__tests__/Logo.test.tsx` — adaptive accent test.
 
 **Modify:**
+
 - `src/ui/colors.ts` — add `surface2` to `PaletteTokens`; re-export forge as default `darkPalette`/`lightPalette`.
 - `src/ui/useTheme.ts` — resolve active skin from context; add `surface2`.
 - `src/ui/__tests__/contrast.test.ts` — iterate all 4 skins × 2 schemes.
@@ -41,6 +43,7 @@
 ### Task 1: Add `surface2` token to the palette shape
 
 **Files:**
+
 - Modify: `src/ui/colors.ts`
 
 - [ ] **Step 1: Add `surface2` to the interface and both Forge palettes**
@@ -62,6 +65,7 @@ git commit -m "feat(ui): add surface2 elevation token to palette"
 ### Task 2: Skin registry
 
 **Files:**
+
 - Create: `src/ui/skins.ts`
 - Test: `src/ui/__tests__/skins.test.ts`
 
@@ -73,8 +77,23 @@ import { skins, SKIN_IDS, SKIN_META } from '@/ui/skins';
 import type { PaletteTokens } from '@/ui/colors';
 
 const TOKEN_KEYS: (keyof PaletteTokens)[] = [
-  'bg','surface','surface2','border','borderStrong','ink','inkSecondary','inkTertiary',
-  'inkHero','accent','accentSoft','success','successSoft','danger','dangerSoft','onAccent','overlay',
+  'bg',
+  'surface',
+  'surface2',
+  'border',
+  'borderStrong',
+  'ink',
+  'inkSecondary',
+  'inkTertiary',
+  'inkHero',
+  'accent',
+  'accentSoft',
+  'success',
+  'successSoft',
+  'danger',
+  'dangerSoft',
+  'onAccent',
+  'overlay',
 ];
 
 describe('skin registry', () => {
@@ -121,50 +140,145 @@ export const SKIN_META: Record<SkinId, { name: string; blurb: string }> = {
 // Derivers keep soft/secondary tokens consistent per skin.
 const soft = (hex: string, a: number) => {
   const m = hex.replace('#', '');
-  const r = parseInt(m.slice(0, 2), 16), g = parseInt(m.slice(2, 4), 16), b = parseInt(m.slice(4, 6), 16);
+  const r = parseInt(m.slice(0, 2), 16),
+    g = parseInt(m.slice(2, 4), 16),
+    b = parseInt(m.slice(4, 6), 16);
   return `rgba(${r}, ${g}, ${b}, ${a})`;
 };
 
 function make(p: {
-  bg: string; surface: string; surface2: string; border: string; borderStrong: string;
-  ink: string; inkSecondary: string; inkTertiary: string; inkHero: string;
-  accent: string; danger: string; onAccent: string; overlay: string;
+  bg: string;
+  surface: string;
+  surface2: string;
+  border: string;
+  borderStrong: string;
+  ink: string;
+  inkSecondary: string;
+  inkTertiary: string;
+  inkHero: string;
+  accent: string;
+  danger: string;
+  onAccent: string;
+  overlay: string;
 }): PaletteTokens {
   return {
-    bg: p.bg, surface: p.surface, surface2: p.surface2, border: p.border, borderStrong: p.borderStrong,
-    ink: p.ink, inkSecondary: p.inkSecondary, inkTertiary: p.inkTertiary, inkHero: p.inkHero,
-    accent: p.accent, accentSoft: soft(p.accent, 0.12),
-    success: p.accent, successSoft: soft(p.accent, 0.12),
-    danger: p.danger, dangerSoft: soft(p.danger, 0.12),
-    onAccent: p.onAccent, overlay: p.overlay,
+    bg: p.bg,
+    surface: p.surface,
+    surface2: p.surface2,
+    border: p.border,
+    borderStrong: p.borderStrong,
+    ink: p.ink,
+    inkSecondary: p.inkSecondary,
+    inkTertiary: p.inkTertiary,
+    inkHero: p.inkHero,
+    accent: p.accent,
+    accentSoft: soft(p.accent, 0.12),
+    success: p.accent,
+    successSoft: soft(p.accent, 0.12),
+    danger: p.danger,
+    dangerSoft: soft(p.danger, 0.12),
+    onAccent: p.onAccent,
+    overlay: p.overlay,
   };
 }
 
 export const skins: Record<SkinId, { dark: PaletteTokens; light: PaletteTokens }> = {
   forge: { dark: darkPalette, light: lightPalette },
   iron: {
-    dark: make({ bg: '#0E1113', surface: '#15191C', surface2: '#1B2024', border: '#222A30', borderStrong: '#2C353C',
-      ink: '#C7CDD2', inkSecondary: '#8A929B', inkTertiary: '#5C646C', inkHero: '#EDEFF2',
-      accent: '#8A93A0', danger: '#C76B58', onAccent: '#0E1113', overlay: 'rgba(0,0,0,0.55)' }),
-    light: make({ bg: '#EEF0F2', surface: '#FFFFFF', surface2: '#F5F7F8', border: '#DDE1E5', borderStrong: '#C9CFD5',
-      ink: '#1B1F22', inkSecondary: '#566069', inkTertiary: '#7B838B', inkHero: '#0A0D0F',
-      accent: '#5C6573', danger: '#8A4030', onAccent: '#FFFFFF', overlay: 'rgba(30,35,40,0.30)' }),
+    dark: make({
+      bg: '#0E1113',
+      surface: '#15191C',
+      surface2: '#1B2024',
+      border: '#222A30',
+      borderStrong: '#2C353C',
+      ink: '#C7CDD2',
+      inkSecondary: '#8A929B',
+      inkTertiary: '#5C646C',
+      inkHero: '#EDEFF2',
+      accent: '#8A93A0',
+      danger: '#C76B58',
+      onAccent: '#0E1113',
+      overlay: 'rgba(0,0,0,0.55)',
+    }),
+    light: make({
+      bg: '#EEF0F2',
+      surface: '#FFFFFF',
+      surface2: '#F5F7F8',
+      border: '#DDE1E5',
+      borderStrong: '#C9CFD5',
+      ink: '#1B1F22',
+      inkSecondary: '#566069',
+      inkTertiary: '#7B838B',
+      inkHero: '#0A0D0F',
+      accent: '#5C6573',
+      danger: '#8A4030',
+      onAccent: '#FFFFFF',
+      overlay: 'rgba(30,35,40,0.30)',
+    }),
   },
   ember: {
-    dark: make({ bg: '#141110', surface: '#1C1815', surface2: '#241D18', border: '#2A211B', borderStrong: '#382C23',
-      ink: '#D6C8BD', inkSecondary: '#A18E80', inkTertiary: '#6E5E52', inkHero: '#F4E7DF',
-      accent: '#E05A2C', danger: '#C24B45', onAccent: '#141110', overlay: 'rgba(0,0,0,0.55)' }),
-    light: make({ bg: '#F6F1EC', surface: '#FFFFFF', surface2: '#FBF6F0', border: '#E7DDD1', borderStrong: '#D6C8B7',
-      ink: '#231C17', inkSecondary: '#6B5C4F', inkTertiary: '#8C7C6D', inkHero: '#0D0907',
-      accent: '#C24B22', danger: '#9A3328', onAccent: '#FFFFFF', overlay: 'rgba(40,30,20,0.30)' }),
+    dark: make({
+      bg: '#141110',
+      surface: '#1C1815',
+      surface2: '#241D18',
+      border: '#2A211B',
+      borderStrong: '#382C23',
+      ink: '#D6C8BD',
+      inkSecondary: '#A18E80',
+      inkTertiary: '#6E5E52',
+      inkHero: '#F4E7DF',
+      accent: '#E05A2C',
+      danger: '#C24B45',
+      onAccent: '#141110',
+      overlay: 'rgba(0,0,0,0.55)',
+    }),
+    light: make({
+      bg: '#F6F1EC',
+      surface: '#FFFFFF',
+      surface2: '#FBF6F0',
+      border: '#E7DDD1',
+      borderStrong: '#D6C8B7',
+      ink: '#231C17',
+      inkSecondary: '#6B5C4F',
+      inkTertiary: '#8C7C6D',
+      inkHero: '#0D0907',
+      accent: '#C24B22',
+      danger: '#9A3328',
+      onAccent: '#FFFFFF',
+      overlay: 'rgba(40,30,20,0.30)',
+    }),
   },
   chalk: {
-    dark: make({ bg: '#16140F', surface: '#1D1A14', surface2: '#24201A', border: '#2A251D', borderStrong: '#383022',
-      ink: '#D8D2C4', inkSecondary: '#A39C8B', inkTertiary: '#6E6757', inkHero: '#F0EBDF',
-      accent: '#A99B6E', danger: '#B5644E', onAccent: '#16140F', overlay: 'rgba(0,0,0,0.55)' }),
-    light: make({ bg: '#F4F1EB', surface: '#FFFFFF', surface2: '#FBF9F4', border: '#E5DFD3', borderStrong: '#D6CFC0',
-      ink: '#1A1F1C', inkSecondary: '#5A625C', inkTertiary: '#7E847F', inkHero: '#0A0E0B',
-      accent: '#4A4736', danger: '#8A4030', onAccent: '#FFFFFF', overlay: 'rgba(40,30,20,0.30)' }),
+    dark: make({
+      bg: '#16140F',
+      surface: '#1D1A14',
+      surface2: '#24201A',
+      border: '#2A251D',
+      borderStrong: '#383022',
+      ink: '#D8D2C4',
+      inkSecondary: '#A39C8B',
+      inkTertiary: '#6E6757',
+      inkHero: '#F0EBDF',
+      accent: '#A99B6E',
+      danger: '#B5644E',
+      onAccent: '#16140F',
+      overlay: 'rgba(0,0,0,0.55)',
+    }),
+    light: make({
+      bg: '#F4F1EB',
+      surface: '#FFFFFF',
+      surface2: '#FBF9F4',
+      border: '#E5DFD3',
+      borderStrong: '#D6CFC0',
+      ink: '#1A1F1C',
+      inkSecondary: '#5A625C',
+      inkTertiary: '#7E847F',
+      inkHero: '#0A0E0B',
+      accent: '#4A4736',
+      danger: '#8A4030',
+      onAccent: '#FFFFFF',
+      overlay: 'rgba(40,30,20,0.30)',
+    }),
   },
 };
 ```
@@ -186,6 +300,7 @@ git commit -m "feat(ui): add four-skin palette registry"
 ### Task 3: SkinContext (state + persistence)
 
 **Files:**
+
 - Create: `src/ui/SkinContext.tsx`
 - Test: `src/ui/__tests__/SkinContext.test.tsx`
 
@@ -198,10 +313,13 @@ import AsyncStorage from '@react-native-async-storage/async-storage';
 import { SkinProvider, useSkin, SKIN_STORAGE_KEY } from '@/ui/SkinContext';
 
 jest.mock('@react-native-async-storage/async-storage', () => ({
-  getItem: jest.fn(), setItem: jest.fn(),
+  getItem: jest.fn(),
+  setItem: jest.fn(),
 }));
 
-const wrapper = ({ children }: { children: React.ReactNode }) => <SkinProvider>{children}</SkinProvider>;
+const wrapper = ({ children }: { children: React.ReactNode }) => (
+  <SkinProvider>{children}</SkinProvider>
+);
 
 describe('SkinContext', () => {
   beforeEach(() => jest.clearAllMocks());
@@ -223,7 +341,9 @@ describe('SkinContext', () => {
     (AsyncStorage.getItem as jest.Mock).mockResolvedValue(null);
     const { result } = renderHook(() => useSkin(), { wrapper });
     await waitFor(() => expect(result.current.hydrated).toBe(true));
-    await act(async () => { await result.current.setSkin('iron'); });
+    await act(async () => {
+      await result.current.setSkin('iron');
+    });
     expect(result.current.skin).toBe('iron');
     expect(AsyncStorage.setItem).toHaveBeenCalledWith(SKIN_STORAGE_KEY, 'iron');
   });
@@ -265,20 +385,33 @@ export function SkinProvider({ children }: { children: React.ReactNode }) {
   useEffect(() => {
     let active = true;
     AsyncStorage.getItem(SKIN_STORAGE_KEY)
-      .then((stored) => { if (active && isSkinId(stored)) setSkinState(stored); })
+      .then((stored) => {
+        if (active && isSkinId(stored)) setSkinState(stored);
+      })
       .catch(() => {})
-      .finally(() => { if (active) setHydrated(true); });
-    return () => { active = false; };
+      .finally(() => {
+        if (active) setHydrated(true);
+      });
+    return () => {
+      active = false;
+    };
   }, []);
 
-  const value = useMemo<SkinContextValue>(() => ({
-    skin,
-    hydrated,
-    setSkin: async (id: SkinId) => {
-      setSkinState(id);
-      try { await AsyncStorage.setItem(SKIN_STORAGE_KEY, id); } catch { /* best-effort */ }
-    },
-  }), [skin, hydrated]);
+  const value = useMemo<SkinContextValue>(
+    () => ({
+      skin,
+      hydrated,
+      setSkin: async (id: SkinId) => {
+        setSkinState(id);
+        try {
+          await AsyncStorage.setItem(SKIN_STORAGE_KEY, id);
+        } catch {
+          /* best-effort */
+        }
+      },
+    }),
+    [skin, hydrated],
+  );
 
   return <SkinContext.Provider value={value}>{children}</SkinContext.Provider>;
 }
@@ -305,6 +438,7 @@ git commit -m "feat(ui): SkinContext with AsyncStorage persistence"
 ### Task 4: Resolve active skin in `useTheme()`
 
 **Files:**
+
 - Modify: `src/ui/useTheme.ts`
 
 - [ ] **Step 1: Update `useTheme` to read the active skin**
@@ -351,6 +485,7 @@ git commit -m "feat(ui): resolve active skin in useTheme"
 ### Task 5: Extend contrast tests to all skins
 
 **Files:**
+
 - Modify: `src/ui/__tests__/contrast.test.ts`
 
 - [ ] **Step 1: Replace the palette source with the skin registry**
@@ -386,6 +521,7 @@ git commit -m "test(ui): WCAG contrast across all 4 skins x 2 schemes"
 ### Task 6: Wire `SkinProvider` into the app root
 
 **Files:**
+
 - Modify: `app/_layout.tsx`
 
 - [ ] **Step 1: Import and wrap the tree, gate first paint on skin hydration**
@@ -393,9 +529,13 @@ git commit -m "test(ui): WCAG contrast across all 4 skins x 2 schemes"
 In `app/_layout.tsx`: import `import { SkinProvider, useSkin } from '@/ui/SkinContext';`. Wrap the provider tree — put `<SkinProvider>` just inside `<SafeAreaProvider>` (outside `QueryClientProvider` is fine). Then extract the existing return body into an inner `<RootContent />` component that calls `const { hydrated } = useSkin();` and includes `hydrated` in the boot-overlay condition:
 
 ```tsx
-{(!ready || !fontsLoaded || !hydrated) && !bootError && (
-  <View style={bootStyles.overlay}><ActivityIndicator color={theme.color.accent} /></View>
-)}
+{
+  (!ready || !fontsLoaded || !hydrated) && !bootError && (
+    <View style={bootStyles.overlay}>
+      <ActivityIndicator color={theme.color.accent} />
+    </View>
+  );
+}
 ```
 
 (The root chrome `bootStyles`/`stackScreenOptions` may keep using the legacy `theme` shim — they are Forge-pinned defaults shown only during boot.)
@@ -431,6 +571,7 @@ Repeat this loop for each file. **Per file:**
 - [ ] **Step 5:** Commit `git commit -m "refactor(ui): migrate <screen> to useTheme for skin support"`.
 
 Files, in order:
+
 - [ ] Task 7: `app/(tabs)/_layout.tsx` (tab bar colors) + `src/ui/TabIcon.tsx` if it hard-codes color
 - [ ] Task 8: `app/index.tsx`
 - [ ] Task 9: `src/screens/Login.tsx`
@@ -440,6 +581,7 @@ Files, in order:
 - [ ] Task 13: `src/screens/TrainingPlan.tsx` and `src/screens/PlanSetup.tsx`
 
 After Task 13:
+
 - [ ] **Verify no skinnable screen still imports the static shim:** Run `grep -rln "from '@/ui/theme'" src app` — Expected: only files that intentionally use `brand`/`Logo` constants remain. Commit nothing (verification only).
 
 ---
@@ -449,6 +591,7 @@ After Task 13:
 ### Task 14: Rewrite `Logo.tsx` as an adaptive F-bar mark
 
 **Files:**
+
 - Modify: `src/ui/Logo.tsx`
 - Test: `src/ui/__tests__/Logo.test.tsx`
 
@@ -463,7 +606,9 @@ import { FBarMark } from '@/ui/Logo';
 describe('FBarMark', () => {
   test('renders the barbell plate in the provided accent', () => {
     const { UNSAFE_root } = render(
-      <SkinProvider><FBarMark size={40} accent="#E05A2C" /></SkinProvider>,
+      <SkinProvider>
+        <FBarMark size={40} accent="#E05A2C" />
+      </SkinProvider>,
     );
     const rects = UNSAFE_root.findAllByType(require('react-native-svg').Rect);
     const fills = rects.map((r) => r.props.fill);
@@ -487,7 +632,15 @@ import Svg, { Rect } from 'react-native-svg';
 import { brand } from './theme';
 import { useTheme } from './useTheme';
 
-export function FBarMark({ size = 40, accent, ink }: { size?: number; accent?: string; ink?: string }) {
+export function FBarMark({
+  size = 40,
+  accent,
+  ink,
+}: {
+  size?: number;
+  accent?: string;
+  ink?: string;
+}) {
   const theme = useTheme();
   const a = accent ?? theme.color.accent;
   const i = ink ?? theme.color.inkHero;
@@ -502,7 +655,13 @@ export function FBarMark({ size = 40, accent, ink }: { size?: number; accent?: s
   );
 }
 
-export function Logo({ size = 40, showWordmark = true }: { size?: number; showWordmark?: boolean }) {
+export function Logo({
+  size = 40,
+  showWordmark = true,
+}: {
+  size?: number;
+  showWordmark?: boolean;
+}) {
   const theme = useTheme();
   return (
     <View style={styles.container}>
@@ -538,6 +697,7 @@ git commit -m "feat(ui): adaptive F-bar logo mark"
 ### Task 15: Regenerate static app/splash/notification icons
 
 **Files:**
+
 - Modify: `assets/icon.png`, `assets/adaptive-icon.png`, `assets/splash.png`, `assets/notification-icon.png`
 
 - [ ] **Step 1:** Author an SVG of the F-bar mark (Forge green `#6DA37E` plate, `#E8F0EA` F) on `#0F1411` for the store icon, and export PNGs at the required sizes (icon 1024², adaptive 1024², splash per `app.config.ts`, notification 96²). Use the project's existing asset pipeline or an SVG→PNG export.
@@ -553,6 +713,7 @@ git commit -m "feat(ui): adaptive F-bar logo mark"
 ### Task 16: Complete-set animation hook with reduced-motion support
 
 **Files:**
+
 - Create: `src/ui/useCompleteSetAnimation.ts`
 - Test: `src/ui/__tests__/useCompleteSetAnimation.test.ts`
 
@@ -609,7 +770,11 @@ export interface Choreography {
   showPRPill: boolean;
 }
 
-export function computeChoreography(o: { reduceMotion: boolean; isPR: boolean; lastSet?: boolean }): Choreography {
+export function computeChoreography(o: {
+  reduceMotion: boolean;
+  isPR: boolean;
+  lastSet?: boolean;
+}): Choreography {
   return {
     animateCheck: !o.reduceMotion,
     glow: !o.reduceMotion,
@@ -623,19 +788,32 @@ export function useCompleteSetAnimation() {
   const checkScale = useSharedValue(1);
   const glowOpacity = useSharedValue(0);
 
-  const play = useCallback(async (opts: { isPR: boolean; lastSet?: boolean }) => {
-    let reduceMotion = false;
-    try { reduceMotion = await AccessibilityInfo.isReduceMotionEnabled(); } catch { /* default false */ }
-    const c = computeChoreography({ ...opts, reduceMotion });
-    haptics[c.haptic]();
-    if (c.animateCheck) {
-      checkScale.value = withSequence(withSpring(1.18, motion.spring.rebound), withSpring(1, motion.spring.settle));
-    }
-    if (c.glow) {
-      glowOpacity.value = withSequence(withTiming(0.45, { duration: motion.duration.base }), withTiming(0, { duration: motion.duration.base }));
-    }
-    return c;
-  }, [checkScale, glowOpacity]);
+  const play = useCallback(
+    async (opts: { isPR: boolean; lastSet?: boolean }) => {
+      let reduceMotion = false;
+      try {
+        reduceMotion = await AccessibilityInfo.isReduceMotionEnabled();
+      } catch {
+        /* default false */
+      }
+      const c = computeChoreography({ ...opts, reduceMotion });
+      haptics[c.haptic]();
+      if (c.animateCheck) {
+        checkScale.value = withSequence(
+          withSpring(1.18, motion.spring.rebound),
+          withSpring(1, motion.spring.settle),
+        );
+      }
+      if (c.glow) {
+        glowOpacity.value = withSequence(
+          withTiming(0.45, { duration: motion.duration.base }),
+          withTiming(0, { duration: motion.duration.base }),
+        );
+      }
+      return c;
+    },
+    [checkScale, glowOpacity],
+  );
 
   return { checkScale, glowOpacity, play };
 }
@@ -656,6 +834,7 @@ git commit -m "feat(ui): complete-set choreography hook (reduced-motion safe)"
 ### Task 17: Wire the moment into ActiveSetCard / WorkoutActive
 
 **Files:**
+
 - Modify: `src/components/ActiveSetCard.tsx`, `src/screens/WorkoutActive.tsx`
 
 - [ ] **Step 1:** In `ActiveSetCard.tsx`, on the existing complete-set handler, call `await play({ isPR, lastSet })` (derive `isPR` from the existing PR-detection result already available at the call site; `lastSet` from set index vs. count). Apply `checkScale` to the check's `transform: [{ scale: checkScale }]` via an `Animated.View`, and render an absolutely-positioned accent halo `Animated.View` driven by `glowOpacity` behind the check. Use `theme.color.surface2` for the active-set card background.
@@ -671,6 +850,7 @@ git commit -m "feat(ui): complete-set choreography hook (reduced-motion safe)"
 ### Task 18: Skin picker UI
 
 **Files:**
+
 - Modify: `src/screens/Profile.tsx`
 
 - [ ] **Step 1:** Add a "Appearance" section listing all `SKIN_IDS`. For each, render a tappable row/swatch using that skin's resolved tokens for the current scheme (`skins[id][theme.scheme]`): a mini preview (bg + surface + accent dot) + `SKIN_META[id].name` + blurb. Mark the active one with a check. On tap call `const { setSkin } = useSkin(); setSkin(id)` — the whole app re-renders into the new skin immediately.
@@ -700,6 +880,7 @@ Per screen, apply the spec's fidelity bar (reference `docs/specs/archive/2026-05
 ### Task 20: SessionRecap card
 
 **Files:**
+
 - Create: `src/ui/SessionRecap.tsx`
 - Modify: the workout-finish flow in `src/screens/WorkoutActive.tsx`
 

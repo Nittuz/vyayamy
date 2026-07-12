@@ -8,7 +8,7 @@ Historical review artifacts land here when they stop describing the current tree
 
 ## Contents
 
-| Document | What it is |
-| --- | --- |
-| [REPO_REVIEW.md](REPO_REVIEW.md) | Per-area repository assessment — snapshot of `main` @ `c8412ae` (2026-06-10, pre-redesign) |
+| Document                                           | What it is                                                                                               |
+| -------------------------------------------------- | -------------------------------------------------------------------------------------------------------- |
+| [REPO_REVIEW.md](REPO_REVIEW.md)                   | Per-area repository assessment — snapshot of `main` @ `c8412ae` (2026-06-10, pre-redesign)               |
 | [ARCHITECTURE_REALITY.md](ARCHITECTURE_REALITY.md) | Architecture-as-built, verified file by file — snapshot of `main` @ `c8412ae` (2026-06-10, pre-redesign) |

@@ -169,14 +169,16 @@ export function LineChart({
   const panGesture = useMemo(() => {
     if (!onScrub || !reportNearest) return null;
     const clear = () => onScrub(null);
-    return Gesture.Pan()
-      // Engage horizontally only so it doesn't fight the parent ScrollView.
-      .activeOffsetX([-8, 8])
-      .failOffsetY([-12, 12])
-      .onBegin((e) => runOnJS(reportNearest)(e.x))
-      .onUpdate((e) => runOnJS(reportNearest)(e.x))
-      .onEnd(() => runOnJS(clear)())
-      .onFinalize(() => runOnJS(clear)());
+    return (
+      Gesture.Pan()
+        // Engage horizontally only so it doesn't fight the parent ScrollView.
+        .activeOffsetX([-8, 8])
+        .failOffsetY([-12, 12])
+        .onBegin((e) => runOnJS(reportNearest)(e.x))
+        .onUpdate((e) => runOnJS(reportNearest)(e.x))
+        .onEnd(() => runOnJS(clear)())
+        .onFinalize(() => runOnJS(clear)())
+    );
   }, [onScrub, reportNearest]);
 
   if (!chart || data.length === 0) {

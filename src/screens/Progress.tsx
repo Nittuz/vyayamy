@@ -186,7 +186,12 @@ export default function ProgressScreen() {
                   Exercise
                 </Text>
                 <View style={styles.exerciseSelectRow}>
-                  <Text variant="title" color={theme.color.ink} numberOfLines={1} style={styles.flex}>
+                  <Text
+                    variant="title"
+                    color={theme.color.ink}
+                    numberOfLines={1}
+                    style={styles.flex}
+                  >
                     {activeName || 'Select exercise'}
                   </Text>
                   <Icon name="chevron-down" size={18} color={theme.color.inkSecondary} />
@@ -196,7 +201,9 @@ export default function ProgressScreen() {
               {/* current best + delta over the visible window */}
               <View style={styles.headlineRow}>
                 <Text variant="numeralLg" color={theme.color.inkHero}>
-                  {headline ? `${trim(headline.value)}${headline.unit ? ` ${headline.unit}` : ''}` : '—'}
+                  {headline
+                    ? `${trim(headline.value)}${headline.unit ? ` ${headline.unit}` : ''}`
+                    : '—'}
                 </Text>
                 {headline ? (
                   <Text
@@ -357,7 +364,12 @@ const makeStyles = (theme: Theme) =>
       gap: theme.space.s3,
       padding: theme.space.s4,
     },
-    prMetaRow: { flexDirection: 'row', flexWrap: 'wrap', gap: theme.space.s2, marginTop: theme.space.s1 },
+    prMetaRow: {
+      flexDirection: 'row',
+      flexWrap: 'wrap',
+      gap: theme.space.s2,
+      marginTop: theme.space.s1,
+    },
     prBadge: {
       paddingVertical: theme.space.half,
       paddingHorizontal: theme.space.s2,

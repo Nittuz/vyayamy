@@ -110,7 +110,11 @@ describe('shouldConfirmLeavingSet', () => {
 
   test('warns when the staged ref points at a different set', () => {
     expect(
-      shouldConfirmLeavingSet(set({ id: 's2', weight: 600, reps: 9 }), { id: 's1', weight: 600, reps: 9 }),
+      shouldConfirmLeavingSet(set({ id: 's2', weight: 600, reps: 9 }), {
+        id: 's1',
+        weight: 600,
+        reps: 9,
+      }),
     ).toBe(true);
   });
 });

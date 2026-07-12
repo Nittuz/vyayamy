@@ -76,9 +76,8 @@ export function QuarantineSheet({ visible, rows, onClose, onChanged }: Props) {
         }
       >
         <Text variant="body" color={theme.color.inkSecondary} style={styles.intro}>
-          These changes haven't reached the server after multiple tries. Retry
-          sends them back to the queue. Discard removes them locally without
-          syncing.
+          These changes haven't reached the server after multiple tries. Retry sends them back to
+          the queue. Discard removes them locally without syncing.
         </Text>
         <ScrollView style={styles.list}>
           {rows.map((r) => (

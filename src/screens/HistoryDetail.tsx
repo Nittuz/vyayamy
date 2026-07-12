@@ -56,10 +56,7 @@ export default function HistoryDetailScreen() {
             </Text>
             <View>
               {we.sets.map((s, idx) => (
-                <View
-                  key={s.id}
-                  style={[styles.setRow, idx > 0 && styles.setRowRuled]}
-                >
+                <View key={s.id} style={[styles.setRow, idx > 0 && styles.setRowRuled]}>
                   <Text variant="numeral" color={theme.color.inkTertiary} style={styles.setIndex}>
                     {idx + 1}
                   </Text>

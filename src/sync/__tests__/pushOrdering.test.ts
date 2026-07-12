@@ -74,7 +74,6 @@ beforeEach(async () => {
   setSyncState({ online: false, pendingOutbox: 0, lastError: null });
 });
 
-
 async function seedWe(): Promise<string> {
   const db = await getDb();
   const exerciseId = uuidv4();
@@ -86,7 +85,7 @@ async function seedWe(): Promise<string> {
   return addExerciseToWorkout({ workoutId, exerciseId });
 }
 
-test('an update never ships while the same row\'s insert is still failing (#0 ordering)', async () => {
+test("an update never ships while the same row's insert is still failing (#0 ordering)", async () => {
   const weId = await seedWe();
   const setId = await addSet(weId, { weight: 100, reps: 5, units: 'kg' }); // insert queued
   await updateSet(setId, { reps: 6 }); // update queued behind it

@@ -47,7 +47,12 @@ export function EditableTitle({ value, onCommit }: Props) {
   }
 
   return (
-    <Pressable onPress={start} hitSlop={8} accessibilityRole="button" accessibilityLabel="Edit title">
+    <Pressable
+      onPress={start}
+      hitSlop={8}
+      accessibilityRole="button"
+      accessibilityLabel="Edit title"
+    >
       <Text
         style={[
           styles.text,

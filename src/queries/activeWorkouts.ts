@@ -22,9 +22,7 @@ export interface ActiveWorkoutCollisions {
   details: Map<string, ActiveWorkoutDetail>;
 }
 
-export async function getActiveWorkoutCollisions(
-  userId: string,
-): Promise<ActiveWorkoutCollisions> {
+export async function getActiveWorkoutCollisions(userId: string): Promise<ActiveWorkoutCollisions> {
   const db = await getDb();
   const workouts = await db.getAllAsync<Workout>(
     `SELECT * FROM workouts

@@ -29,7 +29,7 @@ The local SQLite mirror still maintains its own `updated_at` for local writes (i
 - Positive: cursor advance is correct regardless of any client's clock. Sync is robust to skewed phones.
 - Positive: writes are simpler — the client doesn't have to compute `updated_at` consistently across paths.
 - Positive: forensic debugging ("when did the server actually see this write?") works against `updated_at` directly.
-- Negative: the local `updated_at` immediately after a local write is *not* the server's `updated_at`. Code that compares local and server timestamps must be aware of this brief window (in practice this only matters inside the sync engine, and is documented in `docs/local-first-sync.md`).
+- Negative: the local `updated_at` immediately after a local write is _not_ the server's `updated_at`. Code that compares local and server timestamps must be aware of this brief window (in practice this only matters inside the sync engine, and is documented in `docs/local-first-sync.md`).
 - Negative: introducing a new synced table without the trigger is a silent bug — the high-water mark stops advancing for that table. Enforced today by checklist in [AGENTS.md](../../AGENTS.md) and [docs/operations.md](../operations.md); a CI lint that audits new migrations would be stronger but is not in place.
 - Follow-ups: see `supabase/migrations/00009_security_hardening.sql` for the trigger DDL.
 

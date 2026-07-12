@@ -51,17 +51,17 @@ export function computePRs(sets: PRSet[]): ComputedPR[] {
     if (
       w > 0 &&
       r > 0 &&
-      (bestReps == null ||
-        r > bestReps.reps ||
-        (r === bestReps.reps && w > bestReps.weightKg))
+      (bestReps == null || r > bestReps.reps || (r === bestReps.reps && w > bestReps.weightKg))
     ) {
       bestReps = { weightKg: w, reps: r, at: s.completedAt };
     }
   }
 
   const out: ComputedPR[] = [];
-  if (bestWeight) out.push({ type: 'heaviest_weight', value: round(bestWeight.kg), achievedAt: bestWeight.at });
-  if (bestVolume) out.push({ type: 'best_volume', value: round(bestVolume.kg), achievedAt: bestVolume.at });
+  if (bestWeight)
+    out.push({ type: 'heaviest_weight', value: round(bestWeight.kg), achievedAt: bestWeight.at });
+  if (bestVolume)
+    out.push({ type: 'best_volume', value: round(bestVolume.kg), achievedAt: bestVolume.at });
   if (bestReps) {
     out.push({
       type: 'most_reps_at_weight',

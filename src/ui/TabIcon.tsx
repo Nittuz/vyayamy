@@ -19,11 +19,6 @@ interface Props {
 
 export function TabIcon({ name, color, focused, size = 22 }: Props) {
   return (
-    <Icon
-      name={NAME_MAP[name]}
-      size={size}
-      color={String(color)}
-      stroke={focused ? 2.5 : 2}
-    />
+    <Icon name={NAME_MAP[name]} size={size} color={String(color)} stroke={focused ? 2.5 : 2} />
   );
 }

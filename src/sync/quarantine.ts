@@ -62,10 +62,9 @@ export async function retryQuarantinedRow(id: number): Promise<void> {
 
 export async function retryAllQuarantined(): Promise<void> {
   const db = await getDb();
-  await db.runAsync(
-    'UPDATE outbox SET attempts = 0, next_attempt_at = NULL WHERE attempts >= ?',
-    [MAX_ATTEMPTS],
-  );
+  await db.runAsync('UPDATE outbox SET attempts = 0, next_attempt_at = NULL WHERE attempts >= ?', [
+    MAX_ATTEMPTS,
+  ]);
   void triggerPush();
 }
 
@@ -81,14 +80,16 @@ async function cascadeDiscard(
   const children = SOFT_DELETE_CASCADE[parentTable as keyof typeof SOFT_DELETE_CASCADE];
   if (!children) return;
   for (const { table, fk } of children) {
-    const rows = await db.getAllAsync<{ id: string }>(
-      `SELECT id FROM ${table} WHERE ${fk} = ?`,
-      [parentId],
-    );
+    const rows = await db.getAllAsync<{ id: string }>(`SELECT id FROM ${table} WHERE ${fk} = ?`, [
+      parentId,
+    ]);
     for (const child of rows) {
       await cascadeDiscard(db, table, child.id);
       await db.runAsync(`DELETE FROM ${table} WHERE id = ?`, [child.id]);
-      await db.runAsync('DELETE FROM outbox WHERE table_name = ? AND row_id = ?', [table, child.id]);
+      await db.runAsync('DELETE FROM outbox WHERE table_name = ? AND row_id = ?', [
+        table,
+        child.id,
+      ]);
     }
   }
 }
@@ -134,10 +135,9 @@ export async function discardQuarantinedRow(id: number): Promise<void> {
 
 export async function discardAllQuarantined(): Promise<void> {
   const db = await getDb();
-  const rows = await db.getAllAsync<{ id: number }>(
-    'SELECT id FROM outbox WHERE attempts >= ?',
-    [MAX_ATTEMPTS],
-  );
+  const rows = await db.getAllAsync<{ id: number }>('SELECT id FROM outbox WHERE attempts >= ?', [
+    MAX_ATTEMPTS,
+  ]);
   for (const row of rows) {
     // eslint-disable-next-line no-await-in-loop
     await discardQuarantinedRow(row.id);

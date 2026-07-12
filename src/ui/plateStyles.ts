@@ -57,7 +57,10 @@ function toneColor(theme: Theme, tone: PlateTone): string {
   }
 }
 
-function borderStyle(theme: Theme, border: PlateBorder): Pick<ViewStyle, 'borderWidth' | 'borderColor'> {
+function borderStyle(
+  theme: Theme,
+  border: PlateBorder,
+): Pick<ViewStyle, 'borderWidth' | 'borderColor'> {
   switch (border) {
     case 'strong':
       return { borderWidth: theme.depth.rule, borderColor: theme.color.borderStrong };

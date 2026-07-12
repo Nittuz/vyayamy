@@ -94,8 +94,7 @@ const config: ExpoConfig = {
     [
       'expo-speech-recognition',
       {
-        microphonePermission:
-          'FlexYug uses the microphone to log sets by voice during a workout.',
+        microphonePermission: 'FlexYug uses the microphone to log sets by voice during a workout.',
         speechRecognitionPermission:
           'FlexYug uses speech recognition to understand your workout commands.',
       },

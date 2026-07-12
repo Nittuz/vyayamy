@@ -32,7 +32,8 @@ const marks = [
   {
     id: 'plate-stack',
     name: 'Plate Stack',
-    blurb: 'The Plate primitive as the mark: a bone face on a hot ember slab. The UI depth model, literally.',
+    blurb:
+      'The Plate primitive as the mark: a bone face on a hot ember slab. The UI depth model, literally.',
     render: (c) => `
       <rect x="72" y="72" width="116" height="116" fill="${c.accent}"/>
       <rect x="52" y="52" width="116" height="116" fill="${c.primary}"/>`,
@@ -40,7 +41,8 @@ const marks = [
   {
     id: 'loaded-end',
     name: 'Loaded End',
-    blurb: 'A barbell seen end-on: plate rim, milled ticks, ember bore. Circular but flat — no coin skeuomorphism.',
+    blurb:
+      'A barbell seen end-on: plate rim, milled ticks, ember bore. Circular but flat — no coin skeuomorphism.',
     render: (c) => {
       const ticks = [];
       for (let i = 0; i < 24; i++) {
@@ -62,7 +64,8 @@ const marks = [
   {
     id: 'stamped-f',
     name: 'Stamped F',
-    blurb: 'Anton F struck into an iron plate riding its ember slab. Letterform identity in the new display voice.',
+    blurb:
+      'Anton F struck into an iron plate riding its ember slab. Letterform identity in the new display voice.',
     render: (c) => `
       <rect x="66" y="58" width="124" height="138" fill="${c.accent}"/>
       <rect x="50" y="42" width="124" height="138" fill="${c.primary}"/>
@@ -71,7 +74,8 @@ const marks = [
   {
     id: 'tally',
     name: 'Tally',
-    blurb: 'Four strokes and the ember slash — five sets logged. The oldest progress notation there is.',
+    blurb:
+      'Four strokes and the ember slash — five sets logged. The oldest progress notation there is.',
     render: (c) => {
       const bars = [0, 1, 2, 3]
         .map((i) => `<rect x="${62 + i * 33}" y="62" width="17" height="116" fill="${c.primary}"/>`)
@@ -84,7 +88,8 @@ const marks = [
   {
     id: 'knurl-band',
     name: 'Knurl Band',
-    blurb: 'A plate face crossed by a knurling band — the texture every lifter knows by feel, as geometry.',
+    blurb:
+      'A plate face crossed by a knurling band — the texture every lifter knows by feel, as geometry.',
     render: (c) => {
       const hatch = [];
       for (let i = -3; i < 10; i++) {

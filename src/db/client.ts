@@ -62,7 +62,9 @@ export async function initDb(): Promise<void> {
     // no weight-bearing row has a null unit, so a re-run is a no-op.
     await tryAlter(db, 'ALTER TABLE sets ADD COLUMN units TEXT');
     const prof = await db
-      .getFirstAsync<{ units: string }>('SELECT units FROM profiles WHERE deleted_at IS NULL LIMIT 1')
+      .getFirstAsync<{
+        units: string;
+      }>('SELECT units FROM profiles WHERE deleted_at IS NULL LIMIT 1')
       .catch(() => null);
     await db.runAsync('UPDATE sets SET units = ? WHERE units IS NULL AND weight IS NOT NULL', [
       prof?.units ?? 'kg',
