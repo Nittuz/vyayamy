@@ -8,7 +8,7 @@
 
 **Tech Stack:** Expo SDK 55, React Native 0.83, TypeScript (strict), Reanimated 4, react-native-svg, AsyncStorage, Jest + ts-jest.
 
-**Spec:** `docs/superpowers/specs/2026-05-31-restrained-flourish-design.md`
+**Spec:** `docs/specs/archive/2026-05-31-restrained-flourish-design.md`
 
 ---
 
@@ -686,7 +686,7 @@ git commit -m "feat(ui): complete-set choreography hook (reduced-motion safe)"
 
 **Files:** `src/screens/Today.tsx`, `src/screens/Progress.tsx`, `src/screens/History.tsx`, `src/screens/HistoryDetail.tsx`, `src/screens/TrainingPlan.tsx`, `src/screens/PlanSetup.tsx`, `src/screens/Login.tsx`
 
-Per screen, apply the spec's fidelity bar (reference `docs/superpowers/specs/2026-05-31-restrained-flourish-design.md` → "Screen-by-screen treatment"):
+Per screen, apply the spec's fidelity bar (reference `docs/specs/archive/2026-05-31-restrained-flourish-design.md` → "Screen-by-screen treatment"):
 
 - [ ] **Step 1:** Add list-mount motion (opacity + `translateY(8→0)` over `theme.motion.duration.base`) to primary list/card entrances. Use `theme.color.surface2` for elevated/active elements. Ensure Geist Mono for all numerals (weights, volumes, dates-as-data). Place the `FBarMark` in Today's header and full `Logo` on Login.
 - [ ] **Step 2:** Run `npm run typecheck && npm test` — Expected: PASS.

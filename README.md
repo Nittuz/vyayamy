@@ -73,7 +73,7 @@ npx expo run:ios
 
 ## Implementation status
 
-A 16-dimension deep review ran in June 2026 (115 confirmed findings), followed by roughly 33 test-first fix commits merged to main. The narrative synthesis, phase plan, and full findings appendix live in [docs/specs/2026-06-10-deep-review-improvement-plan.md](docs/specs/2026-06-10-deep-review-improvement-plan.md). The current per-area assessment is in [docs/REPO_REVIEW.md](docs/REPO_REVIEW.md); the visual and interaction backlog is in [docs/UX_POLISH_BACKLOG.md](docs/UX_POLISH_BACKLOG.md).
+A 16-dimension deep review ran in June 2026 (115 confirmed findings), followed by roughly 33 test-first fix commits merged to main. The narrative synthesis, phase plan, and full findings appendix live in [docs/specs/2026-06-10-deep-review-improvement-plan.md](docs/specs/2026-06-10-deep-review-improvement-plan.md). The per-area assessment from that review is archived in [docs/archive/REPO_REVIEW.md](docs/archive/REPO_REVIEW.md); the visual and interaction backlog is in [docs/UX_POLISH_BACKLOG.md](docs/UX_POLISH_BACKLOG.md).
 
 **Partial**:
 
@@ -114,7 +114,7 @@ There is no custom API server. The client talks to Supabase directly through Pos
 
 ## Local-first architecture
 
-The full picture is in [docs/ARCHITECTURE_REALITY.md](docs/ARCHITECTURE_REALITY.md) and [docs/local-first-sync.md](docs/local-first-sync.md). The short version:
+The full picture is in [docs/archive/ARCHITECTURE_REALITY.md](docs/archive/ARCHITECTURE_REALITY.md) (snapshot of `c8412ae`) and [docs/local-first-sync.md](docs/local-first-sync.md). The short version:
 
 - **Reads**: React Query hooks in [src/queries/](src/queries/) read SQLite. The UI never blocks on the network.
 - **Writes**: `enqueueMutation` ([src/db/mutations.ts](src/db/mutations.ts)) applies the write to SQLite, appends an outbox row, and cascades soft-deletes to FK children, all in a single transaction.
@@ -206,7 +206,7 @@ Current count on main: **58 suites, 439 tests**, all green; CI runs the same sui
 
 Tests run in Node under `ts-jest`. The `moduleNameMapper` in [package.json](package.json) swaps `expo-sqlite` for an in-memory `better-sqlite3` backend ([src/db/__mocks__/expo-sqlite.ts](src/db/__mocks__/expo-sqlite.ts)), so the mutation primitive and the whole sync engine run against a real SQL engine without an emulator. Coverage spans the sync engine (push ordering, pull merge, quarantine), `enqueueMutation` and cascades, the query layer, pure domain logic (PR detection, unit conversion), the voice parser and dispatch, and UI choreography helpers.
 
-What still needs a device or simulator: the voice native engine ([src/voice/speechEngine.ts](src/voice/speechEngine.ts), [src/voice/useVoiceSession.ts](src/voice/useVoiceSession.ts)), rest-notification timing, skin and motion visual checks, and the accessibility passes (VoiceOver, Dynamic Type). The voice on-device checklist is in [docs/superpowers/plans/2026-05-31-voice-workout-logging.md](docs/superpowers/plans/2026-05-31-voice-workout-logging.md).
+What still needs a device or simulator: the voice native engine ([src/voice/speechEngine.ts](src/voice/speechEngine.ts), [src/voice/useVoiceSession.ts](src/voice/useVoiceSession.ts)), rest-notification timing, skin and motion visual checks, and the accessibility passes (VoiceOver, Dynamic Type). The voice on-device checklist is in [docs/specs/archive/2026-05-31-voice-workout-logging.md](docs/specs/archive/2026-05-31-voice-workout-logging.md).
 
 ## Build and distribution
 
