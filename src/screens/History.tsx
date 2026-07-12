@@ -9,7 +9,6 @@ import {
   View,
 } from 'react-native';
 
-import { safeRoute } from '@/lib/safeRoute';
 import { useAuth } from '@/auth/useAuth';
 import { formatDuration, getDateGroup } from '@/core/format';
 import { useHistoryInfinite, type HistoryRow } from '@/queries/history';
@@ -107,7 +106,7 @@ function HistoryItem({ row }: { row: HistoryRow }) {
   return (
     <Plate
       offset="sm"
-      onPress={() => router.push(safeRoute(`/history/${row.id}`))}
+      onPress={() => router.push(`/history/${row.id}`)}
       accessibilityRole="button"
       accessibilityLabel={`View workout ${row.title}`}
       style={styles.row}

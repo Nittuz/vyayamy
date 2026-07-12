@@ -2,7 +2,6 @@ import { router } from 'expo-router';
 import { useMemo } from 'react';
 import { ActivityIndicator, SafeAreaView, ScrollView, StyleSheet, View } from 'react-native';
 
-import { safeRoute } from '@/lib/safeRoute';
 import { useAuth } from '@/auth/useAuth';
 import { useActivePlan } from '@/queries/plans';
 import { Button } from '@/ui/Button';
@@ -49,7 +48,7 @@ export default function TrainingPlanScreen() {
               label="Create plan"
               kind="primary"
               size="cta"
-              onPress={() => router.push(safeRoute('/profile/plan/setup'))}
+              onPress={() => router.push('/profile/plan/setup')}
               style={styles.emptyCta}
             />
           </Plate>
@@ -68,7 +67,7 @@ export default function TrainingPlanScreen() {
                 label="Edit"
                 kind="secondary"
                 size="row"
-                onPress={() => router.push(safeRoute('/profile/plan/setup'))}
+                onPress={() => router.push('/profile/plan/setup')}
               />
             </View>
 

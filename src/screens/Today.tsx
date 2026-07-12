@@ -4,9 +4,8 @@ import { ActivityIndicator, Pressable, ScrollView, StyleSheet, View } from 'reac
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useQueryClient } from '@tanstack/react-query';
 
-import { safeRoute } from '@/lib/safeRoute';
 import { useAuth } from '@/auth/useAuth';
-import { localDaysBetween } from '@/core/format';
+import { greetingFor, localDaysBetween } from '@/core/format';
 import { CollisionSheet } from '@/components/CollisionSheet';
 import { QuarantineBanner } from '@/components/QuarantineBanner';
 import { SyncErrorStripe } from '@/components/SyncErrorStripe';
@@ -221,7 +220,7 @@ export default function TodayScreen() {
             label="Templates"
             kind="secondary"
             size="row"
-            onPress={() => router.push(safeRoute('/profile/plan'))}
+            onPress={() => router.push('/profile/plan')}
             accessibilityLabel="Open training plan templates"
             style={styles.altBtn}
           />
@@ -320,15 +319,6 @@ function EmptyRepeatSlot({ onBlankStart, loading }: { onBlankStart: () => void; 
       </Text>
     </View>
   );
-}
-
-function greetingFor(now: Date): string {
-  const h = now.getHours();
-  const day = ['Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday'][
-    now.getDay()
-  ];
-  const part = h < 5 ? 'night' : h < 12 ? 'morning' : h < 18 ? 'afternoon' : 'evening';
-  return `${day} ${part}`;
 }
 
 function daysSince(iso: string): number {

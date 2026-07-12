@@ -9,7 +9,6 @@ import {
   View,
 } from 'react-native';
 
-import { safeRoute } from '@/lib/safeRoute';
 import { useAuth } from '@/auth/useAuth';
 import type { SlotDraft } from '@/core/domain';
 import {
@@ -190,7 +189,7 @@ export default function PlanSetupScreen() {
       });
     }
     if (router.canGoBack()) router.back();
-    else router.replace(safeRoute('/profile/plan'));
+    else router.replace('/profile/plan');
   }
 
   if (!userId) return null;

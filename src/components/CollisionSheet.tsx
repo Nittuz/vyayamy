@@ -1,6 +1,7 @@
 import { useMemo } from 'react';
 import { ScrollView, StyleSheet, View } from 'react-native';
 
+import { formatStartLabel } from '@/core/format';
 import type { Workout } from '@/db/types';
 import { Button } from '@/ui/Button';
 import { Plate } from '@/ui/Plate';
@@ -82,15 +83,6 @@ export function CollisionSheet({ visible, workouts, details, onResume, onDiscard
 }
 
 function noop() {}
-
-function formatStartLabel(iso: string): string {
-  const d = new Date(iso);
-  const days = ['SUN', 'MON', 'TUE', 'WED', 'THU', 'FRI', 'SAT'];
-  const day = days[d.getDay()];
-  const h = d.getHours();
-  const m = d.getMinutes().toString().padStart(2, '0');
-  return `${day} ${h}:${m}`;
-}
 
 const makeStyles = (theme: Theme) =>
   StyleSheet.create({

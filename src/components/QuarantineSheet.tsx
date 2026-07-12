@@ -1,6 +1,7 @@
 import { useMemo, useState } from 'react';
 import { ScrollView, StyleSheet, View } from 'react-native';
 
+import { ageLabel } from '@/core/format';
 import {
   type QuarantinedRow,
   discardAllQuarantined,
@@ -132,14 +133,6 @@ export function QuarantineSheet({ visible, rows, onClose, onChanged }: Props) {
       />
     </>
   );
-}
-
-function ageLabel(iso: string): string {
-  const ms = Date.now() - new Date(iso).getTime();
-  const hours = Math.floor(ms / (60 * 60 * 1000));
-  if (hours < 24) return `${hours}H AGO`;
-  const days = Math.floor(hours / 24);
-  return `${days}D AGO`;
 }
 
 const makeStyles = (theme: Theme) =>

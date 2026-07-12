@@ -2,7 +2,6 @@ import { router } from 'expo-router';
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import { SafeAreaView, ScrollView, StyleSheet, TextInput, View } from 'react-native';
 
-import { safeRoute } from '@/lib/safeRoute';
 import { signOut } from '@/auth/authActions';
 import { useAuth } from '@/auth/useAuth';
 import { formatMemberSince, getInitials } from '@/core/format';
@@ -128,7 +127,7 @@ export default function ProfileScreen() {
         </Plate>
 
         <Plate
-          onPress={() => router.push(safeRoute('/profile/plan'))}
+          onPress={() => router.push('/profile/plan')}
           accessibilityRole="button"
           accessibilityLabel="Training plan"
           faceStyle={styles.navFace}
