@@ -20,15 +20,15 @@ export const space = {
   page: 20,
 } as const;
 
-// Forged Iron corners are near-sharp: the slab + 2px rule carry the form,
-// not rounding. Token names survive so consumers don't change.
+// Blacktop shape lock: all-sharp. Token names survive so consumers don't
+// change, but every corner collapses to 0; `full` remains for the avatar only.
 export const radius = {
-  sm: 2,
-  md: 4,
-  lg: 6,
+  sm: 0,
+  md: 0,
+  lg: 0,
   full: 9999,
-  card: 4,
-  button: 2,
+  card: 0,
+  button: 0,
 } as const;
 
 /** Hard-offset slab depths and rule weights — the Forged Iron z-axis. */

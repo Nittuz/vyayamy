@@ -58,6 +58,11 @@ const pairs: Pair[] = palettes.flatMap(({ name }) => [
   // Text on filled accent/danger controls (primary Button, error toasts) — #7.6.
   { paletteName: name, ink: 'onAccent', bg: 'accent', minRatio: BODY_RATIO },
   { paletteName: name, ink: 'onAccent', bg: 'danger', minRatio: BODY_RATIO },
+  // Backlog 7.8: surface2 hosts every ink that bg/surface host — anything
+  // legible on a panel must stay legible on the raised panel.
+  { paletteName: name, ink: 'inkHero', bg: 'surface2', minRatio: BODY_RATIO },
+  { paletteName: name, ink: 'accent', bg: 'surface2', minRatio: BODY_RATIO },
+  { paletteName: name, ink: 'danger', bg: 'surface2', minRatio: BODY_RATIO },
 ]);
 
 describe('palette contrast (WCAG)', () => {
