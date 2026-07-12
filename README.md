@@ -236,7 +236,6 @@ A full EAS build has not been exercised in the latest verification pass (it need
 - The pull path assumes the server schema matches local expectations; schema skew between devices on different app versions is not defended yet, and local SQLite migration handling is minimal.
 - The sync collision sheet is a blocking modal.
 - The outbox does not coalesce rapid edits to the same row (a known race with in-flight pushes makes naive coalescing lossy); a debounce mitigates the symptom.
-- Prettier formatting is not a CI gate and the tree currently fails `prettier --check`.
 - iOS-first: Android builds, but there is no Android submit profile and no Android QA pass.
 - The voice grammar is English-only.
 - Screen-level test coverage is thin compared to the data and sync layers.
