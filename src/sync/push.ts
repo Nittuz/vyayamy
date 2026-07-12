@@ -23,8 +23,6 @@
 import { supabase } from '@/auth/supabase';
 import { isTransientSyncMessage } from '@/core/syncHelpers';
 import { getDb } from '@/db/client';
-import type { SyncedTable } from '@/db/schema';
-import { withTransaction } from '@/db/transaction';
 
 import { setSyncState } from './state';
 
@@ -45,10 +43,6 @@ interface OutboxRow {
 
 export const MAX_ATTEMPTS = 5;
 const BATCH_LIMIT = 50;
-
-/** Per-table override for upsert conflict target. Defaults to the PK (id).
- *  (personal_records is no longer synced — it is a local derived cache, #138.) */
-const UPSERT_CONFLICT_TARGET: Partial<Record<SyncedTable, string>> = {};
 
 /** Columns the server owns; never send them. */
 const SERVER_OWNED_COLUMNS = new Set(['updated_at']);
@@ -181,28 +175,12 @@ async function drainBatch(
           if (error) throw error;
           assertServerRowMatched(data, row);
         } else {
-          // 'insert' is treated as upsert(by-id) for kill-mid-ack idempotency.
-          // 'upsert' uses the table-specific composite target if set.
-          const conflictTarget = UPSERT_CONFLICT_TARGET[row.table_name as SyncedTable];
-          const opts = conflictTarget ? { onConflict: conflictTarget } : undefined;
-          if (opts?.onConflict && opts.onConflict !== 'id') {
-            // Composite-key upsert. Capture the server-returned row id and
-            // reconcile if it differs from the local one (per audit fix #2).
-            const { data: serverRow, error: upsertErr } = await tbl
-              .upsert(payload as never, opts)
-              .select('id')
-              .single();
-            if (upsertErr) throw upsertErr;
-            const serverId = (serverRow as { id?: string } | null)?.id;
-            if (typeof serverId === 'string' && serverId !== row.row_id) {
-              await reconcileLocalRowId(row.table_name, row.row_id, serverId);
-            }
-          } else {
-            const { error } = opts
-              ? await tbl.upsert(payload as never, opts)
-              : await tbl.upsert(payload as never);
-            if (error) throw error;
-          }
+          // 'insert'/'upsert' both go up as upsert on the PK (id) for
+          // kill-mid-ack idempotency. (The composite-conflict-target branch
+          // and its local-id reconciliation died with personal_records sync,
+          // #138 — every remaining synced table upserts on id.)
+          const { error } = await tbl.upsert(payload as never);
+          if (error) throw error;
         }
 
         await db.runAsync('DELETE FROM outbox WHERE id = ?', [row.id]);
@@ -254,24 +232,4 @@ function errorMessage(err: unknown): string {
     if (typeof m === 'string') return m;
   }
   return String(err);
-}
-
-/** Tables for which reconcileLocalRowId is permitted to run. */
-const RECONCILE_SAFE_TABLES = new Set(['personal_records']);
-
-/**
- * Update a local row's primary key to match the server-authoritative id
- * after a composite-key upsert revealed a different id existed.
- * Done in a transaction so a crash mid-update doesn't leave dangling refs.
- */
-async function reconcileLocalRowId(
-  table: string,
-  oldId: string,
-  newId: string,
-): Promise<void> {
-  if (!RECONCILE_SAFE_TABLES.has(table)) return;
-  const db = await getDb();
-  await withTransaction(db, async () => {
-    await db.runAsync(`UPDATE ${table} SET id = ? WHERE id = ?`, [newId, oldId]);
-  });
 }
