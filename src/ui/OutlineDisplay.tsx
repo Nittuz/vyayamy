@@ -1,21 +1,20 @@
 /**
  * OutlineDisplay — a single stroked display word (Blacktop typography).
  *
- * react-native-svg <Text> with a hairline (1.5px) ink stroke and transparent
- * fill, sharing the display variants' metrics (Anton, size, tracking,
- * uppercase). Budget: max one per screen, for one emphasized word inside a
- * display headline — chrome only, never user content (same rule as the
- * display Text variants).
+ * Budget: max one per screen, for one emphasized word inside a display
+ * headline — chrome only, never user content (same rule as the display Text
+ * variants).
  *
- * Implementation: an invisible <Text> of the same variant sits in normal flow
- * so the component owns the exact line box the solid word would take; the SVG
- * overlays it and draws the stroked glyphs on the same metrics. Screen readers
- * read the sizer text; the SVG layer is decorative.
+ * Implementation: layered real <Text> in the display variant's own font, not
+ * SVG — react-native-svg's <Text> cannot resolve the dynamically registered
+ * Anton family on iOS and silently falls back to the system font, breaking
+ * the metrics next to solid display lines. Eight hairline-offset ink copies
+ * draw the stroke; a knockout copy on top (page background color) hollows the
+ * interior. Consequence: only place this on a solid `bg`-colored ground —
+ * anywhere else the knockout would read as a smudge, so pass `knockoutColor`.
  */
 import { StyleSheet, View } from 'react-native';
-import Svg, { Text as SvgText } from 'react-native-svg';
 
-import { resolveTextStyle } from './textVariants';
 import { Text } from './Text';
 import { useTheme } from './useTheme';
 
@@ -25,46 +24,62 @@ export interface OutlineDisplayProps {
   /** The one emphasized word. Uppercased like every display variant. */
   children: string;
   size?: OutlineDisplaySize;
+  /** Interior color; defaults to the page background. */
+  knockoutColor?: string;
 }
 
-// Anton's cap height is ~0.72em; centering it in the line box puts the
-// baseline half a cap below center. Keeps the stroked word sitting on the
-// same optical line as solid display text beside it.
-const CAP_CENTER = 0.36;
+// Unit circle at 8 compass points; scaled by the hairline stroke weight.
+const DIRS = [
+  [-1, 0],
+  [1, 0],
+  [0, -1],
+  [0, 1],
+  [-0.7071, -0.7071],
+  [0.7071, -0.7071],
+  [-0.7071, 0.7071],
+  [0.7071, 0.7071],
+] as const;
 
-export function OutlineDisplay({ children, size = 'displayXL' }: OutlineDisplayProps) {
+export function OutlineDisplay({
+  children,
+  size = 'displayXL',
+  knockoutColor,
+}: OutlineDisplayProps) {
   const theme = useTheme();
-  const variant = resolveTextStyle(size);
-  const fontSize = variant.fontSize ?? 0;
-  const lineHeight = variant.lineHeight ?? fontSize;
+  const w = theme.depth.hairline;
   const word = children.toUpperCase();
-  const baseline = lineHeight / 2 + fontSize * CAP_CENTER;
+  const interior = knockoutColor ?? theme.color.bg;
 
   return (
-    <View style={styles.box}>
-      <Text variant={size} style={styles.sizer}>
-        {word}
-      </Text>
-      <Svg pointerEvents="none" style={StyleSheet.absoluteFill} accessible={false}>
-        <SvgText
-          x={0}
-          y={baseline}
-          fontFamily={String(variant.fontFamily)}
-          fontSize={fontSize}
-          letterSpacing={variant.letterSpacing}
-          stroke={theme.color.ink}
-          strokeWidth={theme.depth.hairline}
-          fill="transparent"
+    <View style={styles.box} accessible accessibilityLabel={word}>
+      {DIRS.map(([dx, dy], i) => (
+        <Text
+          key={i}
+          variant={size}
+          color={theme.color.ink}
+          importantForAccessibility="no"
+          accessibilityElementsHidden
+          style={[
+            i === 0 ? null : StyleSheet.absoluteFill,
+            { transform: [{ translateX: dx * w }, { translateY: dy * w }] },
+          ]}
         >
           {word}
-        </SvgText>
-      </Svg>
+        </Text>
+      ))}
+      <Text
+        variant={size}
+        color={interior}
+        importantForAccessibility="no"
+        accessibilityElementsHidden
+        style={StyleSheet.absoluteFill}
+      >
+        {word}
+      </Text>
     </View>
   );
 }
 
 const styles = StyleSheet.create({
   box: { alignSelf: 'flex-start' },
-  // Invisible but still measured and still read by screen readers.
-  sizer: { opacity: 0 },
 });

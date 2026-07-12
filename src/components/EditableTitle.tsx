@@ -62,7 +62,7 @@ export function EditableTitle({ value, onCommit }: Props) {
           },
         ]}
       >
-        {value.toLowerCase()}
+        {value}
       </Text>
     </Pressable>
   );
