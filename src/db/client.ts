@@ -17,7 +17,7 @@ import { LOCAL_SCHEMA_SQL } from './schema';
 const DATABASE_NAME = 'flexyug.db';
 
 /** Bump when LOCAL_SCHEMA_SQL adds columns or tables that need a migration step. */
-const SCHEMA_VERSION = 4;
+export const SCHEMA_VERSION = 4;
 
 let dbPromise: Promise<SQLite.SQLiteDatabase> | null = null;
 
@@ -34,25 +34,6 @@ export async function initDb(): Promise<void> {
   await db.execAsync('PRAGMA foreign_keys = ON;');
   await db.execAsync(LOCAL_SCHEMA_SQL);
 
-  // Lightweight in-place migrations. Each is wrapped in try/catch because
-  // expo-sqlite (unlike Postgres) has no IF NOT EXISTS for ALTER TABLE.
-  await tryAlter(db, 'ALTER TABLE outbox ADD COLUMN next_attempt_at TEXT');
-
-  // Per-set units (#131). Existing installs need the column added; weight-
-  // bearing rows logged before this column existed are backfilled with the
-  // owner's current display unit — the unit the number was entered and shown
-  // in — so no historical weight is silently reinterpreted. Empty staged sets
-  // (no weight) stay null and get their unit when a weight is first written.
-  // The backfill is naturally idempotent: after the first run no weight-bearing
-  // row has a null unit, so subsequent runs are a no-op.
-  await tryAlter(db, 'ALTER TABLE sets ADD COLUMN units TEXT');
-  const prof = await db
-    .getFirstAsync<{ units: string }>('SELECT units FROM profiles WHERE deleted_at IS NULL LIMIT 1')
-    .catch(() => null);
-  await db.runAsync('UPDATE sets SET units = ? WHERE units IS NULL AND weight IS NOT NULL', [
-    prof?.units ?? 'kg',
-  ]);
-
   const v = await db.getFirstAsync<{ user_version: number }>('PRAGMA user_version');
   const current = v?.user_version ?? 0;
   if (current > SCHEMA_VERSION) {
@@ -62,7 +43,31 @@ export async function initDb(): Promise<void> {
       `[flexyug] SQLite user_version=${current} > app SCHEMA_VERSION=${SCHEMA_VERSION}; running on stale build`,
     );
   }
+
+  // Lightweight in-place migrations, GATED on user_version (#57): an install
+  // already at SCHEMA_VERSION skips them entirely, so every launch doesn't
+  // replay ALTERs/backfills whose only defense was being idempotent. The
+  // version is stamped only AFTER the block completes — a crash mid-migration
+  // leaves the version low and the block re-runs next launch.
   if (current < SCHEMA_VERSION) {
+    // v2: outbox backoff scheduling column.
+    await tryAlter(db, 'ALTER TABLE outbox ADD COLUMN next_attempt_at TEXT');
+
+    // v4 — per-set units (#131). Existing installs need the column added;
+    // weight-bearing rows logged before this column existed are backfilled with
+    // the owner's current display unit — the unit the number was entered and
+    // shown in — so no historical weight is silently reinterpreted. Empty
+    // staged sets (no weight) stay null and get their unit when a weight is
+    // first written. The backfill is naturally idempotent: after the first run
+    // no weight-bearing row has a null unit, so a re-run is a no-op.
+    await tryAlter(db, 'ALTER TABLE sets ADD COLUMN units TEXT');
+    const prof = await db
+      .getFirstAsync<{ units: string }>('SELECT units FROM profiles WHERE deleted_at IS NULL LIMIT 1')
+      .catch(() => null);
+    await db.runAsync('UPDATE sets SET units = ? WHERE units IS NULL AND weight IS NOT NULL', [
+      prof?.units ?? 'kg',
+    ]);
+
     await db.execAsync(`PRAGMA user_version = ${SCHEMA_VERSION}`);
   }
 }
@@ -120,10 +125,23 @@ async function wipeAllTables(): Promise<void> {
   await db.execAsync('PRAGMA foreign_keys = ON;');
 }
 
-async function tryAlter(db: SQLite.SQLiteDatabase, sql: string): Promise<void> {
+/** Run an idempotent ALTER. expo-sqlite (unlike Postgres) has no IF NOT EXISTS
+ *  for ALTER TABLE, so a re-run legitimately fails with "duplicate column
+ *  name" — ONLY that error is swallowed. Anything else (locked db, corrupt
+ *  table, typo'd SQL) is a real migration failure: it is reported through the
+ *  gated error-reporting path instead of vanishing silently (#57), but does
+ *  not throw — bricking startup over a single failed ALTER would be worse
+ *  than running with the column missing. Exported for tests. */
+export async function tryAlter(db: SQLite.SQLiteDatabase, sql: string): Promise<void> {
   try {
     await db.execAsync(sql);
-  } catch {
-    // Column already exists or table missing — both safe to ignore here.
+  } catch (err) {
+    const msg = err instanceof Error ? err.message : String(err);
+    if (/duplicate column name/i.test(msg)) return;
+    // Lazy import: errorReporting pulls in expo-constants, which must not sit
+    // in the module graph of every db/client consumer — only a genuinely
+    // failing migration pays for loading it.
+    const { captureException } = await import('@/lib/errorReporting');
+    captureException(err, { migration_sql: sql });
   }
 }
