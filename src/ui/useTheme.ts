@@ -31,15 +31,20 @@ export const radius = {
   button: 0,
 } as const;
 
-/** Hard-offset slab depths and rule weights — the Forged Iron z-axis. */
+/**
+ * Rule weights. Blacktop retires the slab z-axis (shadows are gone; elevation
+ * is inversion) — slab/slabSm survive only so legacy consumers keep compiling.
+ * `hairline` is the Plate border weight: 1.5px structural rule.
+ */
 export const depth = {
   slab: 4,
   slabSm: 2,
+  hairline: 1.5,
   rule: 2,
   ruleHeavy: 3,
 } as const;
 
-/** Pressed faces translate this far toward their slab (direct manipulation, not animation). */
+/** Legacy press-sink distance — retired (press is now a 60ms opacity/scale dip). */
 export const press = {
   translate: 3,
 } as const;

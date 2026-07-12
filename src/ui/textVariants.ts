@@ -15,6 +15,7 @@ export type TextVariant =
   | 'hero' // 82pt mono numerals — the active-set headline
   | 'numeral' // mono data figures inline
   | 'numeralLg' // 28pt mono — rest countdown, volume tally, recap stats
+  | 'displayXXL' // 96pt condensed uppercase — the one poster moment per screen
   | 'displayXL' // 44pt condensed uppercase — wordmark, recap headline, brand moments
   | 'display' // 34pt condensed uppercase — screen titles
   | 'title' // 20pt sans — in-content headings (user text safe)
@@ -27,6 +28,7 @@ export const TEXT_VARIANTS: TextVariant[] = [
   'hero',
   'numeral',
   'numeralLg',
+  'displayXXL',
   'displayXL',
   'display',
   'title',
@@ -44,6 +46,7 @@ export const TEXT_VARIANTS: TextVariant[] = [
 export function resolveMaxFontSizeMultiplier(variant: TextVariant): number | undefined {
   switch (variant) {
     case 'hero':
+    case 'displayXXL':
     case 'displayXL':
     case 'display':
       return 1.2;
@@ -76,6 +79,14 @@ export function resolveTextStyle(variant: TextVariant): TextStyle {
         fontSize: t.size.numeralLg,
         letterSpacing: t.tracking.numeralLg,
         lineHeight: lh(t.size.numeralLg, t.lineHeightMul.title),
+      };
+    case 'displayXXL':
+      return {
+        fontFamily: t.family.condensed,
+        fontSize: t.size.displayXXL,
+        letterSpacing: t.tracking.displayXXL,
+        lineHeight: lh(t.size.displayXXL, t.lineHeightMul.displayXXL),
+        textTransform: 'uppercase',
       };
     case 'displayXL':
       return {

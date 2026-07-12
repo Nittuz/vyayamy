@@ -1,9 +1,11 @@
 /**
- * Button — the Forged Iron action primitive, built on Plate.
+ * Button — the Blacktop action primitive, built on Plate.
  *
- * `primary` is the ember plate (the stamped CTA), `secondary` a surface plate,
- * `danger` a filled danger plate, `ghost` flat text for tertiary actions.
- * Labels are uppercase stamped type on filled kinds; ghost stays sentence-case.
+ * `primary` is the volt plate (the one "act now" fill), `secondary` a panel,
+ * `ghost` flat text for tertiary actions, `danger` a ghost-destructive row
+ * (danger text, no fill — destructive actions are quiet, not loud).
+ * Labels are uppercase stamped type on primary/secondary; ghost and danger
+ * stay sentence-case.
  */
 import { useMemo } from 'react';
 import { ActivityIndicator, StyleSheet, View } from 'react-native';
@@ -11,6 +13,7 @@ import type { StyleProp, ViewStyle } from 'react-native';
 
 import { Icon, type IconName } from './icons';
 import { Plate } from './Plate';
+import type { PlateTone } from './plateStyles';
 import { Text } from './Text';
 import { useTheme, type Theme } from './useTheme';
 
@@ -30,6 +33,13 @@ export interface ButtonProps {
   style?: StyleProp<ViewStyle>;
 }
 
+const TONE_FOR_KIND: Record<ButtonKind, PlateTone> = {
+  primary: 'volt',
+  secondary: 'panel',
+  ghost: 'ghost',
+  danger: 'ghost',
+};
+
 export function Button({
   label,
   kind = 'primary',
@@ -46,11 +56,13 @@ export function Button({
   const styles = useMemo(() => makeStyles(theme), [theme]);
 
   const textColor =
-    kind === 'primary' || kind === 'danger'
+    kind === 'primary'
       ? theme.color.onAccent
-      : kind === 'ghost'
-        ? theme.color.accent
+      : kind === 'danger'
+        ? theme.color.danger
         : theme.color.ink;
+
+  const stamped = kind === 'primary' || kind === 'secondary';
 
   const content = loading ? (
     <ActivityIndicator color={textColor} />
@@ -60,38 +72,16 @@ export function Button({
       <Text
         variant={size === 'cta' ? 'card' : 'body'}
         color={textColor}
-        style={kind === 'ghost' ? styles.ghostLabel : styles.stampedLabel}
+        style={stamped ? styles.stampedLabel : styles.ghostLabel}
       >
         {label}
       </Text>
     </View>
   );
 
-  if (kind === 'ghost') {
-    return (
-      <Plate
-        offset="none"
-        tone="bg"
-        border="none"
-        radius="button"
-        onPress={onPress}
-        disabled={disabled || loading}
-        accessibilityRole="button"
-        accessibilityLabel={accessibilityLabel ?? label}
-        accessibilityHint={accessibilityHint}
-        style={style}
-        faceStyle={[styles.face, styles.ghostFace, size === 'cta' ? styles.cta : styles.row]}
-      >
-        {content}
-      </Plate>
-    );
-  }
-
   return (
     <Plate
-      offset={size === 'cta' ? 'md' : 'sm'}
-      tone={kind === 'primary' ? 'accent' : kind === 'danger' ? 'danger' : 'surface'}
-      border="strong"
+      tone={TONE_FOR_KIND[kind]}
       radius="button"
       onPress={onPress}
       disabled={disabled || loading}
@@ -115,7 +105,6 @@ const makeStyles = (theme: Theme) =>
     },
     cta: { minHeight: theme.touch.cta },
     row: { minHeight: theme.touch.min },
-    ghostFace: { backgroundColor: 'transparent' },
     labelRow: {
       flexDirection: 'row',
       alignItems: 'center',

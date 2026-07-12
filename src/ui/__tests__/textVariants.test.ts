@@ -23,6 +23,7 @@ test('numeric/data variants use mono; display uses condensed; text uses sans', (
   expect(resolveTextStyle('numeralLg').fontFamily).toBe(typography.family.monoMedium);
   expect(resolveTextStyle('display').fontFamily).toBe(typography.family.condensed);
   expect(resolveTextStyle('displayXL').fontFamily).toBe(typography.family.condensed);
+  expect(resolveTextStyle('displayXXL').fontFamily).toBe(typography.family.condensed);
   expect(resolveTextStyle('title').fontFamily).toBe(typography.family.sansSemibold);
   expect(resolveTextStyle('body').fontFamily).toBe(typography.family.sans);
 });
@@ -30,8 +31,16 @@ test('numeric/data variants use mono; display uses condensed; text uses sans', (
 test('display variants are uppercase chrome; title/card stay user-text safe', () => {
   expect(resolveTextStyle('display').textTransform).toBe('uppercase');
   expect(resolveTextStyle('displayXL').textTransform).toBe('uppercase');
+  expect(resolveTextStyle('displayXXL').textTransform).toBe('uppercase');
   expect(resolveTextStyle('title').textTransform).toBeUndefined();
   expect(resolveTextStyle('card').textTransform).toBeUndefined();
+});
+
+test('displayXXL is the 96pt poster face with negative tracking', () => {
+  const s = resolveTextStyle('displayXXL');
+  expect(s.fontSize).toBe(96);
+  expect(s.letterSpacing).toBe(typography.tracking.displayXXL);
+  expect(typography.tracking.displayXXL).toBe(-1);
 });
 
 test('sizes and the uppercase label transform come from the tokens', () => {
@@ -59,6 +68,7 @@ test('display-class variants cap Dynamic Type scaling; body-class scales freely'
   expect(resolveMaxFontSizeMultiplier('hero')).toBe(1.2);
   expect(resolveMaxFontSizeMultiplier('display')).toBe(1.2);
   expect(resolveMaxFontSizeMultiplier('displayXL')).toBe(1.2);
+  expect(resolveMaxFontSizeMultiplier('displayXXL')).toBe(1.2);
   expect(resolveMaxFontSizeMultiplier('body')).toBeUndefined();
   expect(resolveMaxFontSizeMultiplier('meta')).toBeUndefined();
 });

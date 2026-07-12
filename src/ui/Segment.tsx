@@ -1,11 +1,11 @@
 /**
  * Segment — the one segmented control.
  *
- * A row of flat Plates (offset "none"): ember fill for the selected option,
- * surface2 for the rest. Replaces the two divergent inline implementations
- * (Progress's Pressable-bordered rows, Profile's Plate-toned units toggle) —
- * the Plate-toned look is the sanctioned one. Appearance maths live in
- * segmentStyles.ts (pure, tested).
+ * A row of flat Plates: inversion for the selected option (never volt — the
+ * Blacktop selection semantic), ghost with a hairline rule for the rest.
+ * Replaces the two divergent inline implementations (Progress's
+ * Pressable-bordered rows, Profile's Plate-toned units toggle). Appearance
+ * maths live in segmentStyles.ts (pure, tested).
  *
  * Accessibility: the row is a tablist and each option a tab carrying
  * accessibilityState.selected; every option keeps the 44pt minimum target.
@@ -47,9 +47,8 @@ export function Segment<T extends string>({
         return (
           <Plate
             key={opt.value}
-            offset="none"
             tone={a.tone}
-            border="strong"
+            border={a.border}
             radius="sm"
             onPress={() => onChange(opt.value)}
             accessibilityRole="tab"

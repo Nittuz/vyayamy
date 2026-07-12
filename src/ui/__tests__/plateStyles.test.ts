@@ -1,68 +1,98 @@
 /**
- * The Plate's slab/face geometry is the redesign's depth model — pin it.
- * The face must be able to sink INTO the slab on press, which is why this is
- * an underlay View and not a native shadow (a native shadow translates with
- * the face, so the sink would be invisible).
+ * The Plate's tone system is the Blacktop materiality contract — pin it.
+ * Shadows are retired: a Plate is a flat face; elevation is inversion.
+ * Legacy Forged Iron tone values must keep resolving (screens migrate to the
+ * explicit new tones in the per-screen phase).
  */
-import { plateOffsetPx, resolvePlateStyles } from '@/ui/plateStyles';
+import {
+  canonicalTone,
+  PRESS_DIP_OPACITY,
+  PRESS_DIP_SCALE,
+  resolvePlateStyles,
+  resolvePressedStyle,
+} from '@/ui/plateStyles';
 import { buildTheme } from '@/ui/useTheme';
 
 const theme = buildTheme('forge', 'dark');
 
-test('offset maps to depth tokens', () => {
-  expect(plateOffsetPx(theme, 'md')).toBe(theme.depth.slab);
-  expect(plateOffsetPx(theme, 'sm')).toBe(theme.depth.slabSm);
-  expect(plateOffsetPx(theme, 'none')).toBe(0);
+test('the slab is retired: no offset space, no slab layer, ever', () => {
+  for (const offset of ['md', 'sm', 'none'] as const) {
+    const s = resolvePlateStyles(theme, { offset });
+    expect(s.container).toEqual({});
+    expect(s.slab).toBeNull();
+  }
 });
 
-test('container reserves the slab offset; slab fills the offset rectangle', () => {
-  const s = resolvePlateStyles(theme, { offset: 'md' });
-  expect(s.container).toEqual({ paddingRight: theme.depth.slab, paddingBottom: theme.depth.slab });
-  expect(s.slab).toMatchObject({
-    position: 'absolute',
-    top: theme.depth.slab,
-    left: theme.depth.slab,
-    right: 0,
-    bottom: 0,
-    backgroundColor: theme.color.slab,
-  });
-});
-
-test('face carries the structural rule and tone', () => {
-  const s = resolvePlateStyles(theme, { tone: 'surface2', border: 'strong', radius: 'card' });
+test('panel (default): surface fill, hairline border rule, ink foreground', () => {
+  const s = resolvePlateStyles(theme);
   expect(s.face).toMatchObject({
-    backgroundColor: theme.color.surface2,
-    borderWidth: theme.depth.rule,
-    borderColor: theme.color.borderStrong,
+    backgroundColor: theme.color.surface,
+    borderWidth: theme.depth.hairline,
+    borderColor: theme.color.border,
     borderRadius: theme.radius.card,
   });
+  expect(s.ink).toBe(theme.color.ink);
 });
 
-test('pressed face sinks toward the slab, capped by slab depth', () => {
-  const md = resolvePlateStyles(theme, { offset: 'md' });
-  expect(md.facePressed.transform).toEqual([
-    { translateX: theme.press.translate },
-    { translateY: theme.press.translate },
-  ]);
-
-  // A shallow slab caps the sink — the face never overshoots its slab.
-  const sm = resolvePlateStyles(theme, { offset: 'sm' });
-  const sink = Math.min(theme.press.translate, theme.depth.slabSm);
-  expect(sm.facePressed.transform).toEqual([{ translateX: sink }, { translateY: sink }]);
+test('inverted: ink fill with bg-colored foreground — elevation by inversion', () => {
+  const s = resolvePlateStyles(theme, { tone: 'inverted' });
+  expect(s.face).toMatchObject({ backgroundColor: theme.color.ink, borderWidth: 0 });
+  expect(s.ink).toBe(theme.color.bg);
 });
 
-test('flat plates have no slab and do not move when pressed', () => {
-  const s = resolvePlateStyles(theme, { offset: 'none' });
-  expect(s.slab).toBeNull();
-  expect(s.container).toEqual({});
-  expect(s.facePressed).toEqual({});
+test('ghost: transparent and borderless', () => {
+  const s = resolvePlateStyles(theme, { tone: 'ghost' });
+  expect(s.face).toMatchObject({ backgroundColor: 'transparent', borderWidth: 0 });
+  expect(s.ink).toBe(theme.color.ink);
 });
 
-test('accent and danger tones fill from the palette', () => {
+test('volt: accent fill with onAccent foreground, borderless', () => {
+  const s = resolvePlateStyles(theme, { tone: 'volt' });
+  expect(s.face).toMatchObject({ backgroundColor: theme.color.accent, borderWidth: 0 });
+  expect(s.ink).toBe(theme.color.onAccent);
+});
+
+test('legacy tones map onto the new system (compat until screens migrate)', () => {
+  expect(canonicalTone('surface')).toBe('panel');
+  expect(canonicalTone('surface2')).toBe('panel');
+  expect(canonicalTone('bg')).toBe('ghost');
+  expect(canonicalTone('accent')).toBe('volt');
+  expect(canonicalTone('danger')).toBe('danger');
+
   expect(resolvePlateStyles(theme, { tone: 'accent' }).face.backgroundColor).toBe(
     theme.color.accent,
   );
+  expect(resolvePlateStyles(theme, { tone: 'surface2' }).face.backgroundColor).toBe(
+    theme.color.surface,
+  );
+  expect(resolvePlateStyles(theme, { tone: 'bg' }).face.backgroundColor).toBe('transparent');
   expect(resolvePlateStyles(theme, { tone: 'danger' }).face.backgroundColor).toBe(
     theme.color.danger,
   );
+});
+
+test('an explicit border overrides the tone default', () => {
+  const strong = resolvePlateStyles(theme, { tone: 'panel', border: 'strong' });
+  expect(strong.face).toMatchObject({
+    borderWidth: theme.depth.hairline,
+    borderColor: theme.color.borderStrong,
+  });
+
+  const none = resolvePlateStyles(theme, { tone: 'panel', border: 'none' });
+  expect(none.face.borderWidth).toBe(0);
+});
+
+test('corners are sharp: every radius token but full resolves to 0', () => {
+  expect(resolvePlateStyles(theme, { radius: 'card' }).face.borderRadius).toBe(0);
+  expect(resolvePlateStyles(theme, { radius: 'button' }).face.borderRadius).toBe(0);
+  expect(resolvePlateStyles(theme, { radius: 'full' }).face.borderRadius).toBe(9999);
+});
+
+test('press = opacity dip + 0.985 scale; reduced motion drops the scale', () => {
+  expect(resolvePressedStyle(false)).toEqual({
+    opacity: PRESS_DIP_OPACITY,
+    transform: [{ scale: PRESS_DIP_SCALE }],
+  });
+  expect(resolvePressedStyle(true)).toEqual({ opacity: PRESS_DIP_OPACITY });
+  expect(PRESS_DIP_SCALE).toBe(0.985);
 });

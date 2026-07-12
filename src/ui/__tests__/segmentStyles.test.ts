@@ -1,22 +1,33 @@
 /**
  * The Segment's selected/idle appearance is the design contract for every
  * segmented control (Progress range + metric rows, Profile units) — pin it.
+ * Blacktop selection semantics: inversion, never volt.
  */
 import { resolveSegmentAppearance } from '@/ui/segmentStyles';
 import { buildTheme } from '@/ui/useTheme';
 
 const theme = buildTheme('forge', 'dark');
 
-test('selected option fills ember with onAccent text', () => {
+test('selected option inverts: ink face, bg-colored type, no border', () => {
   const a = resolveSegmentAppearance(theme, { size: 'md', selected: true });
-  expect(a.tone).toBe('accent');
-  expect(a.textColor).toBe(theme.color.onAccent);
+  expect(a.tone).toBe('inverted');
+  expect(a.border).toBe('none');
+  expect(a.textColor).toBe(theme.color.bg);
 });
 
-test('idle option sits on surface2 with secondary ink', () => {
+test('idle option is a ghost with a hairline rule and secondary ink', () => {
   const a = resolveSegmentAppearance(theme, { size: 'md', selected: false });
-  expect(a.tone).toBe('surface2');
+  expect(a.tone).toBe('ghost');
+  expect(a.border).toBe('soft');
   expect(a.textColor).toBe(theme.color.inkSecondary);
+});
+
+test('selection never wears volt — inversion is the only selected treatment', () => {
+  for (const size of ['sm', 'md'] as const) {
+    const a = resolveSegmentAppearance(theme, { size, selected: true });
+    expect(a.tone).not.toBe('volt');
+    expect(a.textColor).not.toBe(theme.color.accent);
+  }
 });
 
 test('md wears card text with wide tracking; sm wears meta text, no tracking', () => {
@@ -29,7 +40,7 @@ test('md wears card text with wide tracking; sm wears meta text, no tracking', (
   expect(sm.letterSpacing).toBeNull();
 });
 
-test('selection changes tone/color only — size decides typography', () => {
+test('selection changes tone/border/color only — size decides typography', () => {
   const idle = resolveSegmentAppearance(theme, { size: 'sm', selected: false });
   const sel = resolveSegmentAppearance(theme, { size: 'sm', selected: true });
   expect(sel.textVariant).toBe(idle.textVariant);
