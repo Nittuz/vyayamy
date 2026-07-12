@@ -64,8 +64,10 @@ export const lineHeightMul = {
   // and equally the condensed Anton display caps. Horizontal tightness comes
   // from tracking, never from the line box.
   hero: 1.2,
-  displayXXL: 1.05,
-  displayXL: 1.05,
+  // 1.05 clipped Anton's ascender overshoot at displayXL on device (verified
+  // on simulator: PROGRESS glyph tops sliced flat). 1.1 clears both sizes.
+  displayXXL: 1.1,
+  displayXL: 1.1,
   display: 1.1,
   title: 1.2,
   body: 1.4,
