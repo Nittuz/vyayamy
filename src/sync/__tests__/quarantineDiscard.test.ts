@@ -8,8 +8,9 @@
  * insert is left pointing at a row that no longer exists.
  */
 import { getDb, initDb, resetDbForTests } from '@/db/client';
+import { SYNCED_TABLES } from '@/db/schema';
 import { MAX_ATTEMPTS } from '@/sync/push';
-import { discardQuarantinedRow } from '@/sync/quarantine';
+import { DISCARD_SAFE_TABLES, discardQuarantinedRow } from '@/sync/quarantine';
 
 jest.mock('@/auth/supabase', () => ({
   supabase: {
@@ -72,5 +73,32 @@ test('discarding a quarantined insert cascades to children and all their outbox 
   expect(await count(`workout_exercises WHERE id='we1'`)).toBe(0);
   expect(await count(`sets WHERE id='s1'`)).toBe(0);
   // No orphaned outbox ops survive for the discarded row or its children.
+  expect(await count('outbox')).toBe(0);
+});
+
+/**
+ * #9 — the discard-safe allowlist must be DERIVED from SYNCED_TABLES, not a
+ * hand-maintained copy. The hand copy silently omitted all four plan_preset*
+ * tables: discarding a quarantined preset row deleted its outbox op but left
+ * the local row behind forever.
+ */
+test('every synced table is discard-safe (#9 — derived, not hand-mirrored)', () => {
+  for (const table of SYNCED_TABLES) {
+    expect(DISCARD_SAFE_TABLES.has(table)).toBe(true);
+  }
+});
+
+test('discarding a quarantined plan_presets insert removes the local row (#9)', async () => {
+  const db = await getDb();
+  await db.runAsync(
+    `INSERT INTO plan_presets (id, slug, name, tier, plan_type, created_at, updated_at)
+       VALUES ('pp1','slug-1','Preset','free','weekly',?,?)`,
+    [T, T],
+  );
+  const qid = await quarantineOutbox('plan_presets', 'insert', 'pp1');
+
+  await discardQuarantinedRow(qid);
+
+  expect(await count(`plan_presets WHERE id='pp1'`)).toBe(0);
   expect(await count('outbox')).toBe(0);
 });

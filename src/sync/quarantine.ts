@@ -6,6 +6,8 @@
 import { useQuery } from '@tanstack/react-query';
 
 import { getDb } from '@/db/client';
+import { SOFT_DELETE_CASCADE } from '@/db/mutations';
+import { SYNCED_TABLES } from '@/db/schema';
 import { withTransaction } from '@/db/transaction';
 import { triggerPush } from '@/sync/engine';
 import { MAX_ATTEMPTS } from '@/sync/push';
@@ -67,22 +69,16 @@ export async function retryAllQuarantined(): Promise<void> {
   void triggerPush();
 }
 
-/** FK children to cascade when discarding an insert/upsert. Mirrors the
- *  soft-delete cascade in db/mutations.ts. table -> [(child, fk)]. */
-const DISCARD_CASCADE: Record<string, { table: string; fk: string }[]> = {
-  workouts: [{ table: 'workout_exercises', fk: 'workout_id' }],
-  workout_exercises: [{ table: 'sets', fk: 'workout_exercise_id' }],
-  training_plans: [{ table: 'training_plan_slots', fk: 'plan_id' }],
-};
-
 /** Hard-delete a discarded row's FK children and every outbox op that targets
- *  them, depth-first, so nothing is left pointing at a row we removed (#6). */
+ *  them, depth-first, so nothing is left pointing at a row we removed (#6).
+ *  Walks the SHARED cascade map from db/mutations.ts (#9) — no hand-mirrored
+ *  copy to drift out of date. */
 async function cascadeDiscard(
   db: Awaited<ReturnType<typeof getDb>>,
   parentTable: string,
   parentId: string,
 ): Promise<void> {
-  const children = DISCARD_CASCADE[parentTable];
+  const children = SOFT_DELETE_CASCADE[parentTable as keyof typeof SOFT_DELETE_CASCADE];
   if (!children) return;
   for (const { table, fk } of children) {
     const rows = await db.getAllAsync<{ id: string }>(
@@ -97,16 +93,12 @@ async function cascadeDiscard(
   }
 }
 
-const SAFE_TABLES = new Set([
-  'workouts',
-  'workout_exercises',
-  'sets',
-  'exercises',
-  'templates',
-  'training_plans',
-  'training_plan_slots',
-  'profiles',
-]);
+/** Tables a discard may touch locally — DERIVED from SYNCED_TABLES (#9), so a
+ *  newly synced table is automatically discard-safe. The former hand copy
+ *  omitted the four plan_preset* tables, leaving their local rows orphaned
+ *  after a discard. (Only synced tables ever appear in the outbox, so the set
+ *  doubles as a guard against a corrupt table_name reaching template SQL.) */
+export const DISCARD_SAFE_TABLES: ReadonlySet<string> = new Set(SYNCED_TABLES);
 
 export async function discardQuarantinedRow(id: number): Promise<void> {
   const db = await getDb();
@@ -121,7 +113,7 @@ export async function discardQuarantinedRow(id: number): Promise<void> {
   const { table_name: table, op, row_id: rowId } = outboxRow;
 
   await withTransaction(db, async () => {
-    if (SAFE_TABLES.has(table)) {
+    if (DISCARD_SAFE_TABLES.has(table)) {
       if (op === 'insert' || op === 'upsert') {
         // Discarding an insert abandons the row — its FK children (and their
         // outbox ops) must go too, or they dangle pointing at a deleted parent.

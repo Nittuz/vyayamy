@@ -31,8 +31,13 @@ interface EnqueueArgs {
   payload?: Record<string, unknown>;
 }
 
-/** FK relationships used to cascade soft-deletes. table -> [(child, fk)] */
-const SOFT_DELETE_CASCADE: Partial<Record<SyncedTable, { table: SyncedTable; fk: string }[]>> = {
+/**
+ * FK relationships used to cascade deletes. table -> [(child, fk)].
+ * SHARED single source of truth (#9): soft-delete cascade here AND the
+ * quarantine discard cascade (src/sync/quarantine.ts) both walk this map —
+ * a new parent/child relationship added here covers both paths.
+ */
+export const SOFT_DELETE_CASCADE: Partial<Record<SyncedTable, { table: SyncedTable; fk: string }[]>> = {
   workouts: [{ table: 'workout_exercises', fk: 'workout_id' }],
   workout_exercises: [{ table: 'sets', fk: 'workout_exercise_id' }],
   training_plans: [{ table: 'training_plan_slots', fk: 'plan_id' }],
