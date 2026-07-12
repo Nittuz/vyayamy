@@ -63,6 +63,21 @@ interface OutboxPending {
 
 export async function pullOnce(): Promise<void> {
   const db = await getDb();
+  // Local column names per table, resolved once per pull run (#56). Server rows
+  // are intersected against this before building the INSERT — an additive
+  // server column unknown to this build must not fail the row (per-row
+  // isolation would then skip it while the cursor advances past it: silent
+  // permanent loss until the row's updated_at next changes).
+  const localColumnsCache = new Map<SyncedTable, Set<string>>();
+  async function localColumns(table: SyncedTable): Promise<Set<string>> {
+    let cols = localColumnsCache.get(table);
+    if (!cols) {
+      const info = await db.getAllAsync<{ name: string }>(`PRAGMA table_info(${table})`);
+      cols = new Set(info.map((c) => c.name));
+      localColumnsCache.set(table, cols);
+    }
+    return cols;
+  }
   setSyncState({ pullInFlight: true });
   try {
     // Pull every table concurrently — the network fetches are independent and
@@ -116,6 +131,7 @@ export async function pullOnce(): Promise<void> {
       if (!data || data.length === 0) break;
 
       const ids = (data as Record<string, unknown>[]).map((r) => String(r.id));
+      const knownCols = await localColumns(table);
 
       await withTransaction(db, async () => {
         // Snapshot pending outbox entries INSIDE the transaction so a local edit
@@ -150,7 +166,10 @@ export async function pullOnce(): Promise<void> {
               }
             }
 
-            const cols = Object.keys(r).filter((c) => !protectedCols.has(c));
+            // Intersect with the LOCAL schema's columns (#56): a column the
+            // server added after this build shipped is simply ignored rather
+            // than failing the whole row's INSERT.
+            const cols = Object.keys(r).filter((c) => knownCols.has(c) && !protectedCols.has(c));
             if (cols.length === 0) continue;
             // Always include id so ON CONFLICT(id) has its match column.
             if (!cols.includes('id')) cols.unshift('id');

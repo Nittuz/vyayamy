@@ -91,9 +91,10 @@ test('a single un-mergeable row does not wedge the page or the cursor (#2)', asy
     },
     {
       id: poisonId,
-      name: 'Squat',
-      // Unknown column — local INSERT fails (simulates additive server drift).
-      bogus_col: 'x',
+      // NOT NULL constraint violation — genuinely un-mergeable. (An unknown
+      // extra column no longer poisons a row: pull intersects against the
+      // local schema since #56, see pullSchemaDrift.test.ts.)
+      name: null,
       user_id: null,
       created_at: '2026-05-01T00:00:00.000Z',
       updated_at: '2026-05-02T00:00:00.000Z',
