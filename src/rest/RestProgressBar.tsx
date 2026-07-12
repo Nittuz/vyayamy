@@ -7,12 +7,14 @@
  * owned by useRestTimer; this surface owns tap-to-skip (light) and long-press
  * for the override sheet (medium).
  */
-import { useEffect, useMemo, useRef } from 'react';
-import { Animated, Pressable, StyleSheet, View } from 'react-native';
+import { useEffect, useMemo } from 'react';
+import { Pressable, StyleSheet, View } from 'react-native';
+import Animated, { useAnimatedStyle, useSharedValue, withTiming } from 'react-native-reanimated';
 
 import { formatClock } from '@/core/format';
 import { haptics } from '@/ui/haptics';
 import { Icon } from '@/ui/icons';
+import { motion } from '@/ui/motion';
 import { Text } from '@/ui/Text';
 import { useTheme, type Theme } from '@/ui/useTheme';
 
@@ -27,18 +29,19 @@ interface Props {
 export function RestProgressBar({ running, elapsedSeconds, targetSeconds, onSkip, onOpenOverride }: Props) {
   const theme = useTheme();
   const styles = useMemo(() => makeStyles(theme), [theme]);
-  const widthAnim = useRef(new Animated.Value(0)).current;
+  const progress = useSharedValue(0);
 
   const fraction = Math.min(elapsedSeconds / Math.max(targetSeconds, 1), 1);
   const remaining = Math.max(0, targetSeconds - elapsedSeconds);
 
+  // Smooth the once-a-second tick into a continuous fill. Shared value only —
+  // no per-frame state. Width is a layout prop, so this runs off the native
+  // thread's fast path either way (same as the legacy JS-driven tween).
   useEffect(() => {
-    Animated.timing(widthAnim, {
-      toValue: fraction,
-      duration: 250,
-      useNativeDriver: false, // width animations require layout
-    }).start();
-  }, [fraction, widthAnim]);
+    progress.value = withTiming(fraction, { duration: motion.duration.base });
+  }, [fraction, progress]);
+
+  const fillStyle = useAnimatedStyle(() => ({ width: `${progress.value * 100}%` }));
 
   const handleSkip = () => {
     haptics.light();
@@ -87,15 +90,7 @@ export function RestProgressBar({ running, elapsedSeconds, targetSeconds, onSkip
         </Pressable>
       </View>
       <View style={styles.track}>
-        <Animated.View
-          style={[
-            styles.fill,
-            {
-              backgroundColor: theme.color.accent,
-              width: widthAnim.interpolate({ inputRange: [0, 1], outputRange: ['0%', '100%'] }),
-            },
-          ]}
-        />
+        <Animated.View style={[styles.fill, { backgroundColor: theme.color.accent }, fillStyle]} />
       </View>
     </Pressable>
   );

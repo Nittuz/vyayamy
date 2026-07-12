@@ -21,6 +21,8 @@ export const duration = {
   base: 220,
   slow: 320,
   counter: 600,
+  /** One half-cycle of an attention pulse (sync-error stripe). */
+  pulse: 500,
 } as const;
 
 export const motion = { spring, duration };

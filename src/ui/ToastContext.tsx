@@ -1,10 +1,22 @@
-import { createContext, useCallback, useContext, useMemo, useRef, useState } from 'react';
-import { Animated, StyleSheet, Text, View } from 'react-native';
+import { createContext, useCallback, useContext, useEffect, useMemo, useRef, useState } from 'react';
+import { AccessibilityInfo, StyleSheet, Text, View } from 'react-native';
+import Animated, {
+  runOnJS,
+  useAnimatedStyle,
+  useSharedValue,
+  withDelay,
+  withSequence,
+  withTiming,
+} from 'react-native-reanimated';
 
+import { motion } from './motion';
 import { useTheme, type Theme } from './useTheme';
 import { isSyncError } from './syncErrors';
 
 export { isSyncError };
+
+/** How long the toast holds fully visible between fade-in and fade-out. */
+const TOAST_HOLD_MS = 2200;
 
 type ToastKind = 'info' | 'success' | 'error';
 interface ToastItem {
@@ -29,32 +41,58 @@ export function ToastProvider({ children }: { children: React.ReactNode }) {
   const theme = useTheme();
   const styles = useMemo(() => makeStyles(theme), [theme]);
   const [toast, setToast] = useState<ToastItem | null>(null);
-  const opacity = useRef(new Animated.Value(0)).current;
+  const opacity = useSharedValue(0);
   const idRef = useRef(0);
+
+  // Read once on mount (Sheet/FadeInView precedent). A ref, not state, so
+  // showToast keeps a stable identity for the provider's lifetime.
+  const reduceMotionRef = useRef(false);
+  useEffect(() => {
+    AccessibilityInfo.isReduceMotionEnabled()
+      .then((r) => {
+        reduceMotionRef.current = r;
+      })
+      .catch(() => {
+        /* default: motion allowed */
+      });
+  }, []);
+
+  // Retire the toast only if a newer one hasn't replaced it meanwhile.
+  const retire = useCallback((id: number) => {
+    setToast((current) => (current?.id === id ? null : current));
+  }, []);
 
   const showToast = useCallback(
     (message: string, kind: ToastKind = 'info') => {
       idRef.current += 1;
       const id = idRef.current;
       setToast({ id, message, kind });
-      Animated.sequence([
-        Animated.timing(opacity, { toValue: 1, duration: 150, useNativeDriver: true }),
-        Animated.delay(2200),
-        Animated.timing(opacity, { toValue: 0, duration: 250, useNativeDriver: true }),
-      ]).start(() => {
-        setToast((current) => (current?.id === id ? null : current));
-      });
+      // Reduced motion: same lifecycle, but appear/disappear are instant.
+      const inMs = reduceMotionRef.current ? 0 : motion.duration.fast;
+      const outMs = reduceMotionRef.current ? 0 : motion.duration.base;
+      opacity.value = withSequence(
+        withTiming(1, { duration: inMs }),
+        withDelay(
+          TOAST_HOLD_MS,
+          withTiming(0, { duration: outMs }, (finished) => {
+            // A newer toast cancels this chain (finished false) and owns the fade.
+            if (finished) runOnJS(retire)(id);
+          }),
+        ),
+      );
     },
-    [opacity],
+    [opacity, retire],
   );
 
   const value = useMemo(() => ({ showToast }), [showToast]);
+
+  const animatedStyle = useAnimatedStyle(() => ({ opacity: opacity.value }));
 
   return (
     <ToastContext.Provider value={value}>
       {children}
       {toast ? (
-        <Animated.View pointerEvents="none" style={[styles.wrap, { opacity }]}>
+        <Animated.View pointerEvents="none" style={[styles.wrap, animatedStyle]}>
           <View style={[styles.toast, toast.kind === 'error' && styles.error]}>
             <Text style={[styles.text, toast.kind === 'error' && styles.errorText]}>{toast.message}</Text>
           </View>
