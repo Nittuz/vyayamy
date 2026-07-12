@@ -42,9 +42,12 @@ const queryClient = new QueryClient({
   },
 });
 
+// Every pushed route carries a real title — an unlisted route would render its
+// raw route name in the header (the old "history/index" bug).
 const tabsScreenOpts = { headerShown: false };
 const loginScreenOpts = { headerShown: false };
 const workoutActiveOpts = { title: 'Workout' };
+const historyIndexOpts = { title: 'History' };
 const historyDetailOpts = { title: 'Workout' };
 const planIndexOpts = { title: 'Training plan' };
 const planSetupOpts = { title: 'Plan setup' };
@@ -122,6 +125,7 @@ function AppNavigator() {
         <Stack.Screen name="(tabs)" options={tabsScreenOpts} />
         <Stack.Screen name="login" options={loginScreenOpts} />
         <Stack.Screen name="workout/active" options={workoutActiveOpts} />
+        <Stack.Screen name="history/index" options={historyIndexOpts} />
         <Stack.Screen name="history/[id]" options={historyDetailOpts} />
         <Stack.Screen name="profile/plan/index" options={planIndexOpts} />
         <Stack.Screen name="profile/plan/setup" options={planSetupOpts} />

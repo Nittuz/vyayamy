@@ -113,8 +113,7 @@ export function Sheet({
   }));
 
   const centerPlate = useMemo(
-    () =>
-      resolvePlateStyles(theme, { offset: 'md', tone: 'surface', border: 'strong', radius: 'lg' }),
+    () => resolvePlateStyles(theme, { tone: 'panel', border: 'strong', radius: 'lg' }),
     [theme],
   );
 
@@ -177,13 +176,11 @@ export function Sheet({
         <View style={styles.centerHost} pointerEvents="box-none">
           <Animated.View
             style={[
-              centerPlate.container,
               styles.centerContainer,
               { maxHeight: `${Math.round(maxHeightPct * 100)}%` },
               panelStyle,
             ]}
           >
-            {centerPlate.slab ? <View pointerEvents="none" style={centerPlate.slab} /> : null}
             <View style={[centerPlate.face, styles.centerFace]}>{body}</View>
           </Animated.View>
         </View>

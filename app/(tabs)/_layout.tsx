@@ -31,22 +31,26 @@ export default function TabsLayout() {
 
   const tabsScreenOptions = useMemo(
     () => ({
-      tabBarActiveTintColor: theme.color.accent,
+      // No nav headers on tabs: the in-screen display headline IS the title
+      // (kills the Today/PROGRESS/PROFILE duplication).
+      headerShown: false,
+      // Active state is the volt underline tick inside TabIcon — the glyph and
+      // label stay chalk, never volt-filled.
+      tabBarActiveTintColor: theme.color.ink,
       tabBarInactiveTintColor: theme.color.inkSecondary,
       tabBarStyle: {
-        backgroundColor: theme.color.surface,
-        borderTopColor: theme.color.borderStrong,
-        borderTopWidth: theme.depth.ruleHeavy,
+        backgroundColor: theme.color.bg,
+        borderTopColor: theme.color.border,
+        borderTopWidth: theme.depth.hairline,
         height: theme.touch.navHeight,
         paddingTop: 6,
         paddingBottom: 8,
       },
-      headerStyle: { backgroundColor: theme.color.bg },
-      headerShadowVisible: false,
-      headerTitleStyle: {
-        fontFamily: theme.font.family.sansSemibold,
-        fontSize: theme.font.size.card + 1,
-        color: theme.color.inkHero,
+      tabBarLabelStyle: {
+        fontFamily: theme.font.family.mono,
+        fontSize: 10,
+        letterSpacing: 0.5,
+        textTransform: 'uppercase' as const,
       },
     }),
     [theme],

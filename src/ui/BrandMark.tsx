@@ -1,8 +1,9 @@
 /**
- * BrandMark — the FlexYug "loaded-end" mark: a barbell plate seen end-on, with a
- * milled tick ring and a hot ember bore. Drawn in react-native-svg on a 240 grid
- * so it holds from 24px to splash size. Theme-aware: the iron rim reads bone on
- * dark, near-black on light; the bore is always ember.
+ * BrandMark — the FlexYug "loaded-end" mark: a barbell plate seen end-on, with
+ * a milled tick ring and an accent bore. Drawn in react-native-svg on a 240
+ * grid so it holds from 24px to splash size. Theme-aware: the rim reads chalk
+ * on blacktop, near-black on chalk; the bore takes the scheme's accent (volt
+ * on dark, pressed-volt on light).
  */
 import { useMemo } from 'react';
 import Svg, { Circle, Line } from 'react-native-svg';
