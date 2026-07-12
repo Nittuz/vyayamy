@@ -9,15 +9,23 @@ import {
   View,
 } from 'react-native';
 
-import { safeRoute } from '@/lib/safeRoute';
 import { useAuth } from '@/auth/useAuth';
 import { formatDuration, getDateGroup } from '@/core/format';
-import { useHistoryInfinite, type HistoryRow } from '@/queries/history';
+import { useHistoryInfinite, workoutDayAnchor, type HistoryRow } from '@/queries/history';
 import { triggerPull } from '@/sync/engine';
+import { EmptyState } from '@/ui/EmptyState';
+import { FadeInView } from '@/ui/FadeInView';
+import { staggerDelay } from '@/ui/motion';
 import { Plate } from '@/ui/Plate';
 import { SyncIndicator } from '@/ui/SyncIndicator';
 import { Text } from '@/ui/Text';
 import { useTheme, type Theme } from '@/ui/useTheme';
+
+/**
+ * Rows past this index mount with the capped cascade delay, so rows revealed
+ * by scrolling or pagination don't queue up ever-longer entrances.
+ */
+const STAGGER_CAP = 8;
 
 export default function HistoryScreen() {
   const { user } = useAuth();
@@ -33,13 +41,29 @@ export default function HistoryScreen() {
   const sections = useMemo(() => {
     const groups = new Map<string, HistoryRow[]>();
     for (const w of rows) {
-      const key = getDateGroup(w.started_at);
+      // #155: day attribution anchors on started_at (see workoutDayAnchor).
+      const key = getDateGroup(workoutDayAnchor(w));
       const bucket = groups.get(key) ?? [];
       bucket.push(w);
       groups.set(key, bucket);
     }
     return Array.from(groups.entries()).map(([title, data]) => ({ title, data }));
   }, [rows]);
+
+  const delayById = useMemo(() => {
+    const map = new Map<string, number>();
+    rows.forEach((row, i) => map.set(row.id, staggerDelay(Math.min(i, STAGGER_CAP))));
+    return map;
+  }, [rows]);
+
+  const renderItem = useCallback(
+    // `index` is within the section: the first row under a month header drops
+    // its own top rule (the header's rule below is THE rule).
+    ({ item, index }: { item: HistoryRow; index: number }) => (
+      <HistoryItem row={item} first={index === 0} delay={delayById.get(item.id) ?? 0} />
+    ),
+    [delayById],
+  );
 
   const onEndReached = useCallback(() => {
     if (historyQuery.hasNextPage && !historyQuery.isFetchingNextPage) {
@@ -55,6 +79,7 @@ export default function HistoryScreen() {
         sections={sections}
         keyExtractor={(item) => item.id}
         contentContainerStyle={styles.scroll}
+        stickySectionHeadersEnabled={false}
         refreshControl={
           <RefreshControl
             refreshing={historyQuery.isRefetching}
@@ -65,10 +90,7 @@ export default function HistoryScreen() {
           />
         }
         ListHeaderComponent={
-          <View style={styles.headerRow}>
-            <Text variant="display" color={theme.color.ink} style={styles.title}>
-              History
-            </Text>
+          <View style={styles.syncRow}>
             <SyncIndicator />
           </View>
         }
@@ -76,9 +98,9 @@ export default function HistoryScreen() {
           historyQuery.isLoading ? (
             <ActivityIndicator style={styles.loading} />
           ) : (
-            <Text variant="meta" color={theme.color.inkSecondary} style={styles.empty}>
-              No workouts logged yet.
-            </Text>
+            <View style={styles.empty}>
+              <EmptyState title="No workouts logged yet." />
+            </View>
           )
         }
         ListFooterComponent={
@@ -87,9 +109,11 @@ export default function HistoryScreen() {
           ) : null
         }
         renderSectionHeader={({ section }) => (
-          <Text variant="label" color={theme.color.inkTertiary} style={styles.sectionHeader}>
-            {section.title}
-          </Text>
+          <View style={styles.sectionHeader}>
+            <Text variant="strip" color={theme.color.inkTertiary}>
+              {section.title}
+            </Text>
+          </View>
         )}
         renderItem={renderItem}
         onEndReached={onEndReached}
@@ -99,62 +123,65 @@ export default function HistoryScreen() {
   );
 }
 
-const renderItem = ({ item }: { item: HistoryRow }) => <HistoryItem row={item} />;
-
-function HistoryItem({ row }: { row: HistoryRow }) {
+function HistoryItem({ row, first, delay }: { row: HistoryRow; first: boolean; delay: number }) {
   const theme = useTheme();
   const styles = useMemo(() => makeStyles(theme), [theme]);
+
+  const setNoun = row.set_count === 1 ? 'set' : 'sets';
+  const exerciseNoun = row.exercise_count === 1 ? 'exercise' : 'exercises';
+  const strip = [
+    `${row.completed_set_count}/${row.set_count} ${setNoun}`,
+    `${row.exercise_count} ${exerciseNoun}`,
+    ...(row.volume > 0 ? [`${Math.round(row.volume)} vol`] : []),
+    formatDuration(row.started_at, row.ended_at),
+  ].join(' · ');
+
   return (
-    <Plate
-      offset="sm"
-      onPress={() => router.push(safeRoute(`/history/${row.id}`))}
-      accessibilityRole="button"
-      accessibilityLabel={`View workout ${row.title}`}
-      style={styles.row}
-      faceStyle={styles.rowFace}
-    >
-      <View style={styles.rowBody}>
+    <FadeInView delay={delay}>
+      <Plate
+        tone="ghost"
+        onPress={() => router.push(`/history/${row.id}`)}
+        accessibilityRole="button"
+        accessibilityLabel={`View workout ${row.title}`}
+        style={[styles.row, first && styles.rowFirst]}
+        faceStyle={styles.rowFace}
+      >
         <Text variant="card" color={theme.color.ink}>
           {row.title}
         </Text>
-        <Text variant="meta" color={theme.color.inkSecondary}>
-          {row.completed_set_count}/{row.set_count} sets · {row.exercise_count} exercises
-          {row.volume > 0 ? ` · ${Math.round(row.volume)} vol` : ''}
+        <Text variant="strip" color={theme.color.inkTertiary}>
+          {strip}
         </Text>
-      </View>
-      <Text variant="numeral" color={theme.color.inkSecondary}>
-        {formatDuration(row.started_at, row.ended_at)}
-      </Text>
-    </Plate>
+      </Plate>
+    </FadeInView>
   );
 }
 
 const makeStyles = (theme: Theme) =>
   StyleSheet.create({
     container: { flex: 1, backgroundColor: theme.color.bg },
-    scroll: { padding: theme.space.page, gap: theme.space.s2, paddingBottom: theme.space.s12 },
-    headerRow: {
-      flexDirection: 'row',
-      alignItems: 'flex-end',
-      marginBottom: theme.space.s4,
-    },
-    title: { flex: 1 },
+    scroll: { padding: theme.space.page, paddingBottom: theme.space.s12 },
+    syncRow: { flexDirection: 'row', justifyContent: 'flex-end' },
+    // The ONE section-header treatment: strip caps + a single hairline below.
     sectionHeader: {
-      marginTop: theme.space.s4,
-      marginBottom: theme.space.s2,
+      marginTop: theme.space.s6,
+      paddingBottom: theme.space.s3,
+      borderBottomWidth: theme.depth.hairline,
+      borderBottomColor: theme.color.border,
     },
-    row: { marginBottom: theme.space.s1 },
+    row: {
+      borderTopWidth: theme.depth.hairline,
+      borderTopColor: theme.color.border,
+    },
+    // The header's rule below already separates the first row.
+    rowFirst: { borderTopWidth: 0 },
     rowFace: {
-      flexDirection: 'row',
-      alignItems: 'center',
-      padding: theme.space.s4,
-      gap: theme.space.s3,
+      paddingVertical: theme.space.s3,
+      gap: theme.space.s1,
     },
-    rowBody: { flex: 1, gap: theme.space.half },
     loading: { marginTop: theme.space.s10 },
     footerLoading: { marginVertical: theme.space.s4 },
     empty: {
-      textAlign: 'center',
       marginTop: theme.space.s10,
     },
   });

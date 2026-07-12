@@ -1,17 +1,17 @@
 import {
+  ageLabel,
   formatRelativeDate,
   formatDuration,
   formatShortDate,
+  formatStartLabel,
   getDateGroup,
-  getGreeting,
+  greetingFor,
   formatMemberSince,
   getInitials,
   formatWeight,
   localDayKey,
   localDaysBetween,
 } from '@/core/format';
-
-const DAY = 24 * 60 * 60 * 1000;
 
 /** Build an ISO string `days` whole days before now (noon-anchored to dodge DST/midnight edges). */
 function daysAgo(days: number): string {
@@ -76,7 +76,7 @@ describe('formatRelativeDate', () => {
 
 describe('formatDuration', () => {
   test('returns em-dash when not ended', () => {
-    expect(formatDuration('2026-01-01T10:00:00.000Z', null)).toBe('—');
+    expect(formatDuration('2026-01-01T10:00:00.000Z', null)).toBe('-');
   });
 
   test('formats sub-hour durations as minutes', () => {
@@ -122,17 +122,55 @@ describe('getDateGroup', () => {
   });
 });
 
-describe('getGreeting', () => {
+describe('greetingFor', () => {
+  // 2026-01-04 is a Sunday.
+  test.each([
+    [0, 'Sunday night'],
+    [4, 'Sunday night'],
+    [5, 'Sunday morning'],
+    [11, 'Sunday morning'],
+    [12, 'Sunday afternoon'],
+    [17, 'Sunday afternoon'],
+    [18, 'Sunday evening'],
+    [23, 'Sunday evening'],
+  ])('hour %i -> %s', (hour, expected) => {
+    expect(greetingFor(new Date(2026, 0, 4, hour, 0, 0))).toBe(expected);
+  });
+
+  test('uses the day of week of the given date', () => {
+    expect(greetingFor(new Date(2026, 0, 5, 9, 0, 0))).toBe('Monday morning');
+    expect(greetingFor(new Date(2026, 0, 9, 20, 0, 0))).toBe('Friday evening');
+  });
+});
+
+describe('formatStartLabel', () => {
+  test('formats as DAY h:mm in local time', () => {
+    // Local-time constructors so the expectation holds in any timezone.
+    expect(formatStartLabel(new Date(2026, 0, 5, 9, 5, 0).toISOString())).toBe('MON 9:05');
+    expect(formatStartLabel(new Date(2026, 0, 4, 18, 30, 0).toISOString())).toBe('SUN 18:30');
+  });
+
+  test('zero-pads minutes but not hours', () => {
+    expect(formatStartLabel(new Date(2026, 0, 9, 0, 7, 0).toISOString())).toBe('FRI 0:07');
+  });
+});
+
+describe('ageLabel', () => {
   afterEach(() => jest.useRealTimers());
 
+  const HOUR = 60 * 60 * 1000;
+
   test.each([
-    [8, 'Good morning'],
-    [13, 'Good afternoon'],
-    [20, 'Good evening'],
-  ])('hour %i -> %s', (hour, expected) => {
+    [0.5 * HOUR, '0H AGO'],
+    [5 * HOUR, '5H AGO'],
+    [23 * HOUR, '23H AGO'],
+    [30 * HOUR, '1D AGO'],
+    [3 * 24 * HOUR, '3D AGO'],
+  ])('%i ms old -> %s', (ms, expected) => {
     jest.useFakeTimers();
-    jest.setSystemTime(new Date(2026, 0, 1, hour, 0, 0));
-    expect(getGreeting()).toBe(expected);
+    const now = new Date('2026-05-31T12:00:00.000Z').getTime();
+    jest.setSystemTime(now);
+    expect(ageLabel(new Date(now - ms).toISOString())).toBe(expected);
   });
 });
 
@@ -162,7 +200,7 @@ describe('getInitials', () => {
 
 describe('formatWeight', () => {
   test('returns em-dash for null weight', () => {
-    expect(formatWeight(null, 'kg')).toBe('—');
+    expect(formatWeight(null, 'kg')).toBe('-');
   });
 
   test('appends the unit', () => {

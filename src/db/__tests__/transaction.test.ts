@@ -42,15 +42,7 @@ describe('withTransaction mutex', () => {
 
     await Promise.all([first, second]);
 
-    expect(db.log).toEqual([
-      'BEGIN',
-      'A:work',
-      'A:work2',
-      'COMMIT',
-      'BEGIN',
-      'B:work',
-      'COMMIT',
-    ]);
+    expect(db.log).toEqual(['BEGIN', 'A:work', 'A:work2', 'COMMIT', 'BEGIN', 'B:work', 'COMMIT']);
   });
 
   test('propagates the real error from the task (not a rollback error)', async () => {

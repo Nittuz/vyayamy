@@ -193,7 +193,7 @@ export function useVoiceSession(deps: VoiceSessionDeps) {
 }
 
 function describe(c: Command): string {
-  if (c.kind === 'setValues') return `${c.weight ?? '—'} × ${c.reps ?? '—'}`;
+  if (c.kind === 'setValues') return `${c.weight ?? '-'} × ${c.reps ?? '-'}`;
   if (c.kind === 'addExercise') return `Add ${c.name}`;
   return c.kind;
 }

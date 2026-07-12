@@ -22,6 +22,7 @@ export const fontFamily = {
 } as const;
 
 export const fontSize = {
+  displayXXL: 96,
   hero: 82,
   displayXL: 44,
   display: 34,
@@ -41,6 +42,9 @@ export const fontWeight = {
 
 export const tracking = {
   hero: -3.5,
+  // At poster scale Anton tightens instead: the XXL headline is a single
+  // welded slab on purpose.
+  displayXXL: -1,
   // Anton is tight by design; a touch of positive tracking keeps uppercase
   // headlines from welding into a single slab.
   condensed: 0.5,
@@ -49,6 +53,9 @@ export const tracking = {
   body: 0,
   numeralLg: -1,
   micro: 2,
+  // Mono metadata strips: a touch of tracking keeps uppercased GeistMono
+  // runs legible at 12pt without drifting into eyebrow territory.
+  strip: 0.5,
 } as const;
 
 export const lineHeightMul = {
@@ -57,7 +64,10 @@ export const lineHeightMul = {
   // and equally the condensed Anton display caps. Horizontal tightness comes
   // from tracking, never from the line box.
   hero: 1.2,
-  displayXL: 1.05,
+  // 1.05 clipped Anton's ascender overshoot at displayXL on device (verified
+  // on simulator: PROGRESS glyph tops sliced flat). 1.1 clears both sizes.
+  displayXXL: 1.1,
+  displayXL: 1.1,
   display: 1.1,
   title: 1.2,
   body: 1.4,

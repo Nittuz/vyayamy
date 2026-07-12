@@ -17,7 +17,13 @@ export interface AppTextProps extends TextProps {
   style?: StyleProp<TextStyle>;
 }
 
-export function Text({ variant = 'body', color, style, maxFontSizeMultiplier, ...rest }: AppTextProps) {
+export function Text({
+  variant = 'body',
+  color,
+  style,
+  maxFontSizeMultiplier,
+  ...rest
+}: AppTextProps) {
   return (
     <RNText
       {...rest}

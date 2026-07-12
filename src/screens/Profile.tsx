@@ -1,19 +1,54 @@
 import { router } from 'expo-router';
 import { useCallback, useEffect, useMemo, useState } from 'react';
-import { SafeAreaView, ScrollView, StyleSheet, TextInput, View } from 'react-native';
+import {
+  AppState,
+  Linking,
+  SafeAreaView,
+  ScrollView,
+  StyleSheet,
+  TextInput,
+  View,
+} from 'react-native';
 
-import { safeRoute } from '@/lib/safeRoute';
 import { signOut } from '@/auth/authActions';
 import { useAuth } from '@/auth/useAuth';
 import { formatMemberSince, getInitials } from '@/core/format';
+import type { RestAlertStatus } from '@/lib/notificationStatus';
 import { useProfile, useUpdateProfile } from '@/queries/profile';
+import { getRestAlertStatus, primeRestAlerts } from '@/rest/notifications';
 import { Button } from '@/ui/Button';
 import { Icon } from '@/ui/icons';
 import { Plate } from '@/ui/Plate';
+import { Segment } from '@/ui/Segment';
+import { SettleSlam } from '@/ui/SettleSlam';
 import { SyncIndicator } from '@/ui/SyncIndicator';
 import { Text } from '@/ui/Text';
 import { useToast } from '@/ui/ToastContext';
 import { useTheme, type Theme } from '@/ui/useTheme';
+
+const REST_ALERT_COPY: Record<RestAlertStatus, { value: string; hint: string; a11yHint: string }> =
+  {
+    granted: {
+      value: 'ON',
+      hint: 'Alerts fire when rest ends. Manage in Settings.',
+      a11yHint: 'Opens system notification settings',
+    },
+    provisional: {
+      value: 'MUTED',
+      hint: 'Delivered silently. Tap for full alerts.',
+      a11yHint: 'Asks for notification permission',
+    },
+    undetermined: {
+      value: 'OFF',
+      hint: 'Tap to get an alert when rest ends.',
+      a11yHint: 'Asks for notification permission',
+    },
+    denied: {
+      value: 'OFF',
+      hint: 'Turn on notifications in Settings.',
+      a11yHint: 'Opens system notification settings',
+    },
+  };
 
 export default function ProfileScreen() {
   const { user } = useAuth();
@@ -31,6 +66,36 @@ export default function ProfileScreen() {
     setDisplayName(profileQuery.data?.display_name ?? '');
   }, [profileQuery.data?.display_name]);
 
+  // Rest-alert permission state (#158). Re-checked when the app returns to
+  // foreground so a trip to Settings is reflected on return.
+  const [restStatus, setRestStatus] = useState<RestAlertStatus | null>(null);
+  useEffect(() => {
+    let active = true;
+    const refresh = () => {
+      void getRestAlertStatus().then((s) => {
+        if (active) setRestStatus(s);
+      });
+    };
+    refresh();
+    const sub = AppState.addEventListener('change', (state) => {
+      if (state === 'active') refresh();
+    });
+    return () => {
+      active = false;
+      sub.remove();
+    };
+  }, []);
+
+  const onRestAlertsPress = useCallback(async () => {
+    // Denied cannot be re-prompted in-app: recovery is the system settings
+    // screen. Granted also routes there (that is where alerts are managed).
+    if (restStatus === 'denied' || restStatus === 'granted') {
+      await Linking.openSettings();
+      return;
+    }
+    setRestStatus(await primeRestAlerts());
+  }, [restStatus]);
+
   const handleSignOut = useCallback(async () => {
     setSigningOut(true);
     try {
@@ -43,40 +108,41 @@ export default function ProfileScreen() {
   if (!userId) return null;
 
   const initials = getInitials(profileQuery.data?.display_name ?? null, user?.email);
-  const memberSince = profileQuery.data
-    ? formatMemberSince(profileQuery.data.created_at)
-    : '';
+  const memberSince = profileQuery.data ? formatMemberSince(profileQuery.data.created_at) : '';
 
   const currentUnits = profileQuery.data?.units ?? 'kg';
+  const restCopy = restStatus ? REST_ALERT_COPY[restStatus] : null;
 
   return (
     <SafeAreaView style={styles.container}>
       <ScrollView contentContainerStyle={styles.scroll}>
         <View style={styles.headerRow}>
-          <Text variant="display" color={theme.color.ink} style={styles.title}>
-            Profile
-          </Text>
+          <SettleSlam style={styles.title}>
+            <Text variant="displayXL" color={theme.color.inkHero}>
+              Profile
+            </Text>
+          </SettleSlam>
           <SyncIndicator />
         </View>
 
-        <Plate faceStyle={styles.userFace}>
+        <View style={styles.identity}>
           <View style={styles.avatar}>
-            <Text variant="title" color={theme.color.onAccent}>
+            <Text variant="title" color={theme.color.ink}>
               {initials}
             </Text>
           </View>
-          <Text variant="body" color={theme.color.ink} style={styles.centered}>
+          <Text variant="numeral" color={theme.color.inkSecondary}>
             {user?.email}
           </Text>
           {memberSince ? (
-            <Text variant="meta" color={theme.color.inkSecondary} style={styles.centered}>
+            <Text variant="strip" color={theme.color.inkTertiary}>
               Member since {memberSince}
             </Text>
           ) : null}
-        </Plate>
+        </View>
 
         <Plate faceStyle={styles.fieldFace}>
-          <Text variant="label" color={theme.color.inkTertiary}>
+          <Text variant="meta" color={theme.color.inkTertiary}>
             Display name
           </Text>
           <TextInput
@@ -94,46 +160,54 @@ export default function ProfileScreen() {
         </Plate>
 
         <Plate faceStyle={styles.fieldFace}>
-          <Text variant="label" color={theme.color.inkTertiary}>
+          <Text variant="meta" color={theme.color.inkTertiary}>
             Units
           </Text>
-          <View style={styles.segment}>
-            {(['kg', 'lb'] as const).map((u) => {
-              const active = currentUnits === u;
-              return (
-                <Plate
-                  key={u}
-                  offset="none"
-                  tone={active ? 'accent' : 'surface2'}
-                  border="strong"
-                  radius="sm"
-                  onPress={() => updateProfile.mutate({ units: u })}
-                  accessibilityRole="button"
-                  accessibilityLabel={`Use ${u === 'kg' ? 'kilograms' : 'pounds'}`}
-                  accessibilityState={{ selected: active }}
-                  style={styles.segmentItem}
-                  faceStyle={styles.segmentFace}
-                >
-                  <Text
-                    variant="card"
-                    color={active ? theme.color.onAccent : theme.color.inkSecondary}
-                    style={styles.segmentText}
-                  >
-                    {u.toUpperCase()}
-                  </Text>
-                </Plate>
-              );
-            })}
-          </View>
+          <Segment
+            options={[
+              { value: 'kg', label: 'KG', accessibilityLabel: 'Use kilograms' },
+              { value: 'lb', label: 'LB', accessibilityLabel: 'Use pounds' },
+            ]}
+            value={currentUnits}
+            onChange={(u) => updateProfile.mutate({ units: u })}
+          />
         </Plate>
 
         <Plate
-          onPress={() => router.push(safeRoute('/profile/plan'))}
+          tone="ghost"
+          border="soft"
+          onPress={() => void onRestAlertsPress()}
+          accessibilityRole="button"
+          accessibilityLabel={
+            restCopy ? `Rest alerts, ${restCopy.value.toLowerCase()}` : 'Rest alerts'
+          }
+          accessibilityHint={restCopy?.a11yHint}
+          faceStyle={styles.navFace}
+        >
+          <View style={styles.navText}>
+            <Text variant="card" color={theme.color.ink}>
+              Rest alerts
+            </Text>
+            {restCopy ? (
+              <Text variant="meta" color={theme.color.inkTertiary}>
+                {restCopy.hint}
+              </Text>
+            ) : null}
+          </View>
+          <Text variant="numeral" color={theme.color.inkSecondary}>
+            {restCopy?.value ?? ''}
+          </Text>
+        </Plate>
+
+        <Plate
+          tone="ghost"
+          border="soft"
+          onPress={() => router.push('/profile/plan')}
           accessibilityRole="button"
           accessibilityLabel="Training plan"
           faceStyle={styles.navFace}
         >
-          <Text variant="card" color={theme.color.ink} style={styles.navLabel}>
+          <Text variant="card" color={theme.color.ink} style={styles.navText}>
             Training plan
           </Text>
           <Icon name="chevron-right" size={20} color={theme.color.inkTertiary} />
@@ -142,7 +216,7 @@ export default function ProfileScreen() {
         <Button
           label="Sign out"
           kind="danger"
-          size="cta"
+          size="row"
           loading={signingOut}
           onPress={handleSignOut}
           accessibilityLabel="Sign out"
@@ -163,40 +237,36 @@ const makeStyles = (theme: Theme) =>
     },
     headerRow: { flexDirection: 'row', alignItems: 'flex-end', gap: theme.space.s3 },
     title: { flex: 1 },
-    userFace: {
-      padding: theme.space.s4,
+    // Identity is a ghost composition: no plate, just the chalk-on-blacktop
+    // ring, the address, and a mono member strip.
+    identity: {
+      alignItems: 'flex-start',
       gap: theme.space.s2,
-      alignItems: 'center',
+      paddingVertical: theme.space.s2,
     },
     avatar: {
       width: theme.touch.avatar,
       height: theme.touch.avatar,
       borderRadius: theme.radius.full,
-      backgroundColor: theme.color.accent,
+      borderWidth: theme.depth.hairline,
+      borderColor: theme.color.ink,
+      backgroundColor: 'transparent',
       alignItems: 'center',
       justifyContent: 'center',
+      marginBottom: theme.space.s1,
     },
-    centered: { textAlign: 'center' },
     fieldFace: { padding: theme.space.s4, gap: theme.space.s2 },
     input: {
       height: 44,
       paddingHorizontal: theme.space.s3,
       borderRadius: theme.radius.sm,
       backgroundColor: theme.color.bg,
-      borderWidth: theme.depth.rule,
+      borderWidth: theme.depth.hairline,
       borderColor: theme.color.border,
       fontSize: theme.font.size.body,
       fontFamily: theme.font.family.sans,
       color: theme.color.ink,
     },
-    segment: { flexDirection: 'row', gap: theme.space.s2 },
-    segmentItem: { flex: 1 },
-    segmentFace: {
-      minHeight: theme.touch.min,
-      alignItems: 'center',
-      justifyContent: 'center',
-    },
-    segmentText: { letterSpacing: 1 },
     navFace: {
       flexDirection: 'row',
       alignItems: 'center',
@@ -204,6 +274,6 @@ const makeStyles = (theme: Theme) =>
       padding: theme.space.s4,
       gap: theme.space.s3,
     },
-    navLabel: { flex: 1 },
-    signOut: { marginTop: theme.space.s4 },
+    navText: { flex: 1, gap: theme.space.half },
+    signOut: { marginTop: theme.space.s4, alignSelf: 'center' },
   });

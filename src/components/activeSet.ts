@@ -4,6 +4,7 @@
  * being lifted), compute the next cursor on completion. Returns null
  * when the workout is finished (last set of last exercise).
  */
+import { dayOfWeek } from '@/lib/dayOfWeek';
 
 export interface SetShape {
   id: string;
@@ -30,31 +31,98 @@ export interface ActiveCursor {
   setId: string;
 }
 
-export function advanceCursor(
+/**
+ * Outcome of one pass of the cursor-maintenance effect.
+ *
+ * `cursor` is a three-state field: absent (undefined) means "leave the cursor
+ * state untouched"; `null` means "explicitly clear it" (empty workout, or the
+ * whole workout is complete → recap); an object repositions it.
+ */
+export interface CursorResolution {
+  cursor?: ActiveCursor | null;
+  didInit: boolean;
+  pendingTargetWeId: string | null;
+}
+
+/**
+ * The screen's cursor-maintenance decision, ran on every exercises/cursor
+ * change. Exact transplant of the inline effect from WorkoutActive (#21/#77);
+ * current runtime behavior is the spec — see the characterization tests.
+ *
+ * - `didInit` distinguishes "cursor is null because we haven't loaded yet"
+ *   (→ initialize) from "cursor is null because the user finished" (→ leave
+ *   it null so the recap shows and we don't bounce back into a set).
+ * - `pendingTargetWeId` is the add-exercise-from-recap target (#13): once that
+ *   exercise's staged set arrives, the cursor lands on IT — not the first
+ *   incomplete set anywhere.
+ */
+export function resolveCursor(
   exercises: ExerciseShape[],
-  cursor: ActiveCursor,
-): ActiveCursor | null {
-  const exIdx = exercises.findIndex((e) => e.id === cursor.weId);
-  if (exIdx === -1) return null;
-  const ex = exercises[exIdx]!;
-  const setIdx = ex.sets.findIndex((s) => s.id === cursor.setId);
-  if (setIdx === -1) return null;
-
-  // Try next set in same exercise
-  if (setIdx + 1 < ex.sets.length) {
-    return { weId: ex.id, setId: ex.sets[setIdx + 1]!.id };
+  cursor: ActiveCursor | null,
+  didInit: boolean,
+  pendingTargetWeId: string | null,
+): CursorResolution {
+  if (exercises.length === 0) {
+    return { cursor: null, didInit: false, pendingTargetWeId };
   }
-
-  // Try first set of any subsequent exercise that has sets
-  for (let i = exIdx + 1; i < exercises.length; i++) {
-    const nextEx = exercises[i]!;
-    if (nextEx.sets.length > 0) {
-      return { weId: nextEx.id, setId: nextEx.sets[0]!.id };
+  // Add-from-recap: target the just-added exercise's staged set once it loads.
+  if (pendingTargetWeId) {
+    const target = findExercise(exercises, pendingTargetWeId);
+    if (target) {
+      const set = firstIncompleteSet(target);
+      if (set) {
+        return {
+          cursor: { weId: target.id, setId: set.id },
+          didInit: true,
+          pendingTargetWeId: null,
+        };
+      }
     }
+    // exercise not in the cached data yet → wait for the next render
+    return { didInit, pendingTargetWeId };
   }
+  if (cursor) {
+    // we have a real cursor → initialized
+    const ex = findExercise(exercises, cursor.weId);
+    if (ex) {
+      const set = findSet(ex, cursor.setId);
+      // Set not in the cached data yet — it was just created (advancing to a
+      // new exercise stages a set before the query refetch lands). Keep the
+      // cursor; the data will catch up.
+      if (!set) return { didInit: true, pendingTargetWeId };
+      if (!set.completed) return { didInit: true, pendingTargetWeId }; // valid working set
+      // set exists and is completed → fall through and reposition
+    }
+    // cursor points at a missing exercise or a completed set → reposition
+    return { cursor: findInitialCursor(exercises), didInit: true, pendingTargetWeId };
+  }
+  // cursor is null: initialize on first load. Once the user has finished
+  // (deliberate null via "finish →"), leave it null so the recap shows and we
+  // don't bounce them back into the first incomplete set.
+  if (!didInit) {
+    return { cursor: findInitialCursor(exercises), didInit: true, pendingTargetWeId };
+  }
+  return { didInit, pendingTargetWeId };
+}
 
-  // No more sets — finish workout
-  return null;
+/** Values to pre-fill on the set auto-staged when a set is completed. */
+export interface StagedSetPlan {
+  weight: number | null;
+  reps: number | null;
+  units: 'kg' | 'lb' | null;
+}
+
+/**
+ * Completing a set auto-stages the next one in the SAME exercise, pre-filled
+ * with the completed set's weight × reps (Phase 3). The unit is stamped only
+ * when a weight is carried over — null units mark an empty staged set (#131).
+ * Exact transplant of the inline staging decision in onComplete (#21/#77).
+ */
+export function planStagedSet(currentSet: SetShape | null, units: 'kg' | 'lb'): StagedSetPlan {
+  const weight = currentSet?.weight ?? null;
+  const reps = currentSet?.reps ?? null;
+  // Same session → same logging unit as the set just completed.
+  return { weight, reps, units: weight != null ? units : null };
 }
 
 export function findInitialCursor(exercises: ExerciseShape[]): ActiveCursor | null {
@@ -107,6 +175,42 @@ export function findPrevExercise(
 /** First not-yet-completed set of an exercise, or null if all are done. */
 export function firstIncompleteSet(ex: ExerciseShape): SetShape | null {
   return ex.sets.find((s) => !s.completed) ?? null;
+}
+
+/**
+ * Header-title fallback for the active workout. Uses the day the workout
+ * STARTED, never the current day — a session that crosses midnight must keep
+ * reading "Saturday", not silently become "Sunday" (backlog 1.7 / #156).
+ * An unparseable started_at falls back to today rather than rendering nothing.
+ */
+export function workoutHeaderTitle(
+  title: string | null | undefined,
+  startedAt: string | number | Date | null | undefined,
+): string {
+  const trimmed = typeof title === 'string' ? title.trim() : '';
+  if (trimmed !== '') return trimmed;
+  if (startedAt != null) {
+    const d = new Date(startedAt);
+    if (!Number.isNaN(d.getTime())) return dayOfWeek(d);
+  }
+  return dayOfWeek(new Date());
+}
+
+/** Mono strip for the active card's position line: `EXERCISE 2/3 · SET 4`. */
+export function exerciseSetStrip(
+  exerciseIndex: number,
+  totalExercises: number,
+  setIndex: number,
+): string {
+  return `EXERCISE ${exerciseIndex}/${totalExercises} · SET ${setIndex}`;
+}
+
+/** Mono strip for a banked (ghost) set row: `SET 1 · 60 × 8`. */
+export function ghostSetStrip(
+  displayIndex: number,
+  set: Pick<SetShape, 'weight' | 'reps'>,
+): string {
+  return `SET ${displayIndex} · ${set.weight ?? '-'} × ${set.reps ?? '-'}`;
 }
 
 /** Identity + pre-filled values of the speculative set staged on completion. */

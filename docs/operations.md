@@ -48,7 +48,7 @@ npm run lint
 npm run format
 ```
 
-Run typecheck + tests after substantive changes. The integration test [src/__tests__/offline-workout.test.ts](../src/__tests__/offline-workout.test.ts) is the canary for sync correctness.
+Run typecheck + tests after substantive changes. The integration test [src/**tests**/offline-workout.test.ts](../src/__tests__/offline-workout.test.ts) is the canary for sync correctness.
 
 CI ([.github/workflows/ci.yml](../.github/workflows/ci.yml)) enforces typecheck, lint, and the full Jest suite on every PR and push to main; the commands above are the same checks run locally.
 
@@ -56,18 +56,18 @@ CI ([.github/workflows/ci.yml](../.github/workflows/ci.yml)) enforces typecheck,
 
 Copy `.env.example` to `.env` and fill as needed. All variables prefixed with `EXPO_PUBLIC_` are embedded in the JS bundle; treat them as public.
 
-| Variable                            | Required? | Purpose                                           |
-| ----------------------------------- | --------- | ------------------------------------------------- |
-| `EXPO_PUBLIC_SUPABASE_URL`          | Yes       | Supabase project URL                              |
-| `EXPO_PUBLIC_SUPABASE_ANON_KEY`     | Yes       | Supabase anon key (safe for client use with RLS)  |
-| `EXPO_PUBLIC_SENTRY_DSN`            | No        | Enables Sentry crash reporting when set           |
-| `SENTRY_ORG`                        | Prod      | Source-map upload on EAS production builds        |
-| `SENTRY_PROJECT`                    | Prod      | "                                                 |
-| `SENTRY_AUTH_TOKEN`                 | Prod      | "                                                 |
-| `EAS_PROJECT_ID`                    | EAS       | Links the app to the EAS project                  |
-| `APPLE_ID`                          | Submit    | Apple ID for EAS Submit → TestFlight              |
-| `ASC_APP_ID`                        | Submit    | App Store Connect app id                          |
-| `APPLE_TEAM_ID`                     | Submit    | Apple developer team id                           |
+| Variable                        | Required? | Purpose                                          |
+| ------------------------------- | --------- | ------------------------------------------------ |
+| `EXPO_PUBLIC_SUPABASE_URL`      | Yes       | Supabase project URL                             |
+| `EXPO_PUBLIC_SUPABASE_ANON_KEY` | Yes       | Supabase anon key (safe for client use with RLS) |
+| `EXPO_PUBLIC_SENTRY_DSN`        | No        | Enables Sentry crash reporting when set          |
+| `SENTRY_ORG`                    | Prod      | Source-map upload on EAS production builds       |
+| `SENTRY_PROJECT`                | Prod      | "                                                |
+| `SENTRY_AUTH_TOKEN`             | Prod      | "                                                |
+| `EAS_PROJECT_ID`                | EAS       | Links the app to the EAS project                 |
+| `APPLE_ID`                      | Submit    | Apple ID for EAS Submit → TestFlight             |
+| `ASC_APP_ID`                    | Submit    | App Store Connect app id                         |
+| `APPLE_TEAM_ID`                 | Submit    | Apple developer team id                          |
 
 EAS builds read these from the **EAS environment-variable store**, not from
 `eas.json`. Create them once per project:
@@ -134,11 +134,11 @@ Uses `supabase/config.toml` (API on 54321, DB on 54322, Studio on 54323). Auth e
 
 [eas.json](../eas.json) defines three profiles:
 
-| Profile       | Distribution | Purpose                                                      |
-| ------------- | ------------ | ------------------------------------------------------------ |
-| `development` | Internal     | Dev client with `developmentClient: true`                    |
-| `preview`     | Internal     | QR-installable preview; iOS simulator build enabled          |
-| `production`  | Store        | TestFlight; auto-increment build number; Sentry wired         |
+| Profile       | Distribution | Purpose                                               |
+| ------------- | ------------ | ----------------------------------------------------- |
+| `development` | Internal     | Dev client with `developmentClient: true`             |
+| `preview`     | Internal     | QR-installable preview; iOS simulator build enabled   |
+| `production`  | Store        | TestFlight; auto-increment build number; Sentry wired |
 
 > **Platform: iOS-only for v0.x.** There is no `android/` native project and the
 > Android build/submit path has never been exercised, so the commands below
@@ -187,7 +187,7 @@ durable mirror. Protect it:
 
 [src/lib/errorReporting.ts](../src/lib/errorReporting.ts) is a thin wrapper around `@sentry/react-native`:
 
-- `initErrorReporting()` runs at module load in [app/_layout.tsx](../app/_layout.tsx). It returns early if `EXPO_PUBLIC_SENTRY_DSN` is not set; local dev runs without any crash reporting.
+- `initErrorReporting()` runs at module load in [app/\_layout.tsx](../app/_layout.tsx). It returns early if `EXPO_PUBLIC_SENTRY_DSN` is not set; local dev runs without any crash reporting.
 - The root [src/ui/ErrorBoundary.tsx](../src/ui/ErrorBoundary.tsx) calls `captureException(err, { boundary: 'root' })` for render-time errors.
 - `setUser()` is called on `onAuthStateChange` so reports carry identity.
 
@@ -201,14 +201,14 @@ The notification icon used on Android is configured via the `expo-notifications`
 
 ## Test matrix
 
-| Suite                                                          | What it guards                                                |
-| -------------------------------------------------------------- | ------------------------------------------------------------- |
-| [src/core/__tests__/pr-detection.test.ts](../src/core/__tests__/pr-detection.test.ts) | Pure PR computation                                       |
-| [src/__tests__/offline-workout.test.ts](../src/__tests__/offline-workout.test.ts) | Local-first write path, outbox drain on reconnect, retry + quarantine, cascade soft-delete |
-| [src/__tests__/pull.test.ts](../src/__tests__/pull.test.ts) | Incremental pull: column-merge with pending outbox, cursor advance, tombstones |
-| [src/__tests__/sync-state.test.ts](../src/__tests__/sync-state.test.ts) | `deriveSyncState` enum reduction                              |
+| Suite                                                                                 | What it guards                                                                             |
+| ------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------ |
+| [src/core/**tests**/pr-detection.test.ts](../src/core/__tests__/pr-detection.test.ts) | Pure PR computation                                                                        |
+| [src/**tests**/offline-workout.test.ts](../src/__tests__/offline-workout.test.ts)     | Local-first write path, outbox drain on reconnect, retry + quarantine, cascade soft-delete |
+| [src/**tests**/pull.test.ts](../src/__tests__/pull.test.ts)                           | Incremental pull: column-merge with pending outbox, cursor advance, tombstones             |
+| [src/**tests**/sync-state.test.ts](../src/__tests__/sync-state.test.ts)               | `deriveSyncState` enum reduction                                                           |
 
-`expo-sqlite` is mocked via [src/db/__mocks__/expo-sqlite.ts](../src/db/__mocks__/expo-sqlite.ts), which swaps in an in-memory `better-sqlite3` backend. `expo-crypto` is mocked in [src/db/__mocks__/expo-crypto.ts](../src/db/__mocks__/expo-crypto.ts) so UUIDs work in Node.
+`expo-sqlite` is mocked via [src/db/**mocks**/expo-sqlite.ts](../src/db/__mocks__/expo-sqlite.ts), which swaps in an in-memory `better-sqlite3` backend. `expo-crypto` is mocked in [src/db/**mocks**/expo-crypto.ts](../src/db/__mocks__/expo-crypto.ts) so UUIDs work in Node.
 
 Jest config lives under the `"jest"` key in [package.json](../package.json):
 

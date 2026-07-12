@@ -37,7 +37,7 @@ export function sanitizeNumber(
 }
 
 export function formatValue(value: number | null): string {
-  if (value == null) return '–';
+  if (value == null) return '-';
   if (Number.isInteger(value)) return String(value);
   // Drop trailing zeros (22.50 → 22.5; 22.0 → 22)
   return parseFloat(value.toFixed(2)).toString();

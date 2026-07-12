@@ -34,14 +34,7 @@ async function insertStuckRow(args: {
   const db = await getDb();
   await db.runAsync(
     'INSERT INTO outbox (table_name, op, row_id, payload_json, created_at, attempts) VALUES (?, ?, ?, ?, ?, ?)',
-    [
-      args.table,
-      args.op,
-      args.rowId,
-      JSON.stringify(args.payload),
-      args.createdAt,
-      args.attempts,
-    ],
+    [args.table, args.op, args.rowId, JSON.stringify(args.payload), args.createdAt, args.attempts],
   );
 }
 
@@ -77,10 +70,9 @@ test('retryQuarantinedRow resets attempts to 0 and clears next_attempt_at', asyn
     attempts: 5,
   });
   const db = await getDb();
-  const before = await db.getFirstAsync<{ id: number }>(
-    'SELECT id FROM outbox WHERE row_id = ?',
-    ['set-1'],
-  );
+  const before = await db.getFirstAsync<{ id: number }>('SELECT id FROM outbox WHERE row_id = ?', [
+    'set-1',
+  ]);
   await retryQuarantinedRow(before!.id);
   const after = await db.getFirstAsync<{ attempts: number; next_attempt_at: string | null }>(
     'SELECT attempts, next_attempt_at FROM outbox WHERE row_id = ?',
@@ -100,10 +92,9 @@ test('discardQuarantinedRow removes the outbox row entirely', async () => {
     attempts: 5,
   });
   const db = await getDb();
-  const row = await db.getFirstAsync<{ id: number }>(
-    'SELECT id FROM outbox WHERE row_id = ?',
-    ['set-1'],
-  );
+  const row = await db.getFirstAsync<{ id: number }>('SELECT id FROM outbox WHERE row_id = ?', [
+    'set-1',
+  ]);
   await discardQuarantinedRow(row!.id);
   const after = await db.getAllAsync('SELECT id FROM outbox WHERE row_id = ?', ['set-1']);
   expect(after).toHaveLength(0);
@@ -121,7 +112,10 @@ test('discardQuarantinedRow with op=insert DELETEs the local row', async () => {
 
   // Find that set's outbox row and quarantine it
   const db = await getDb();
-  await db.runAsync('UPDATE outbox SET attempts = 5 WHERE row_id = ? AND op = ?', [setId, 'insert']);
+  await db.runAsync('UPDATE outbox SET attempts = 5 WHERE row_id = ? AND op = ?', [
+    setId,
+    'insert',
+  ]);
   const row = await db.getFirstAsync<{ id: number }>(
     'SELECT id FROM outbox WHERE row_id = ? AND op = ?',
     [setId, 'insert'],
@@ -146,7 +140,10 @@ test('discardQuarantinedRow with op=delete UN-TOMBSTONES the local row', async (
 
   // Tombstone via mutation
   const db = await getDb();
-  await db.runAsync('UPDATE sets SET deleted_at = ? WHERE id = ?', [new Date().toISOString(), setId]);
+  await db.runAsync('UPDATE sets SET deleted_at = ? WHERE id = ?', [
+    new Date().toISOString(),
+    setId,
+  ]);
   // Manually insert a quarantined delete outbox row (simulating push failure)
   await db.runAsync(
     'INSERT INTO outbox (table_name, op, row_id, payload_json, created_at, attempts) VALUES (?, ?, ?, ?, ?, ?)',
@@ -194,7 +191,10 @@ test('discardQuarantinedRow with op=update leaves the local row alone', async ()
   await discardQuarantinedRow(row!.id);
 
   // Outbox row gone; local edit preserved
-  const outbox = await db.getAllAsync('SELECT id FROM outbox WHERE row_id = ? AND op = ?', [setId, 'update']);
+  const outbox = await db.getAllAsync('SELECT id FROM outbox WHERE row_id = ? AND op = ?', [
+    setId,
+    'update',
+  ]);
   expect(outbox).toHaveLength(0);
   const afterSet = await db.getFirstAsync<{ weight: number; reps: number }>(
     'SELECT weight, reps FROM sets WHERE id = ?',

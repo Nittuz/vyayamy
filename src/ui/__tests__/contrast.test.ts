@@ -1,5 +1,5 @@
 import type { PaletteTokens } from '@/ui/colors';
-import { skins, SKIN_IDS } from '@/ui/skins';
+import { skins, type SkinId } from '@/ui/skins';
 
 // WCAG relative luminance — sRGB
 function luminance(hex: string): number {
@@ -25,7 +25,9 @@ interface Pair {
   minRatio: number;
 }
 
-const palettes: { name: string; tokens: PaletteTokens }[] = SKIN_IDS.flatMap((id) => [
+const palettes: { name: string; tokens: PaletteTokens }[] = (
+  Object.keys(skins) as SkinId[]
+).flatMap((id) => [
   { name: `${id}-dark`, tokens: skins[id].dark },
   { name: `${id}-light`, tokens: skins[id].light },
 ]);
@@ -56,6 +58,11 @@ const pairs: Pair[] = palettes.flatMap(({ name }) => [
   // Text on filled accent/danger controls (primary Button, error toasts) — #7.6.
   { paletteName: name, ink: 'onAccent', bg: 'accent', minRatio: BODY_RATIO },
   { paletteName: name, ink: 'onAccent', bg: 'danger', minRatio: BODY_RATIO },
+  // Backlog 7.8: surface2 hosts every ink that bg/surface host — anything
+  // legible on a panel must stay legible on the raised panel.
+  { paletteName: name, ink: 'inkHero', bg: 'surface2', minRatio: BODY_RATIO },
+  { paletteName: name, ink: 'accent', bg: 'surface2', minRatio: BODY_RATIO },
+  { paletteName: name, ink: 'danger', bg: 'surface2', minRatio: BODY_RATIO },
 ]);
 
 describe('palette contrast (WCAG)', () => {

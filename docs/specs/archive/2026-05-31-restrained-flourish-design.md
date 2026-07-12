@@ -7,10 +7,10 @@
 
 ## Thesis
 
-Data is the hero. One core action — completing a set — is made to *sing*. Personality
+Data is the hero. One core action — completing a set — is made to _sing_. Personality
 comes from curated **skins** and a **living mark**, never from decoration. The result
 should read like Rams-clean instrumentation with Apple-Health spaciousness, plus
-game-designer attention on the single moment that matters most. We keep the *spirit*
+game-designer attention on the single moment that matters most. We keep the _spirit_
 of Not Boring (a simple input turned into a layered moment) without its brashness —
 **no particles, no parallax, no 3D scenes.**
 
@@ -31,12 +31,12 @@ of Not Boring (a simple input turned into a layered moment) without its brashnes
 
 ## Decisions Locked (from brainstorming)
 
-| Decision | Choice |
-| --- | --- |
-| Restraint dial | **B — Restrained flourish** (spring + haptic + tally + PR pill; no particles) |
-| Color direction | **Direction 2 — Green base + curated skins** |
-| Logo | **B — F-bar monogram**, **skin-adaptive** mark |
-| Scope | **C — Full build, all screens** |
+| Decision        | Choice                                                                        |
+| --------------- | ----------------------------------------------------------------------------- |
+| Restraint dial  | **B — Restrained flourish** (spring + haptic + tally + PR pill; no particles) |
+| Color direction | **Direction 2 — Green base + curated skins**                                  |
+| Logo            | **B — F-bar monogram**, **skin-adaptive** mark                                |
+| Scope           | **C — Full build, all screens**                                               |
 
 ## Architecture
 
@@ -61,7 +61,7 @@ src/ui/useTheme.ts     // resolves activeSkin × colorScheme → PaletteTokens
 
 #### Skin definitions
 
-Four launch skins. Each keeps the same token *roles*; only values change. Forge = today's
+Four launch skins. Each keeps the same token _roles_; only values change. Forge = today's
 palette (unchanged). Exact values below are the starting point — `contrast.test.ts` extends
 to all 4 skins × 2 schemes and any token failing WCAG AA is nudged during implementation.
 
@@ -144,6 +144,7 @@ Rewrite `src/ui/Logo.tsx`:
 ## Signature Moment — exact behavior
 
 On `Complete set`:
+
 - Write the set (unchanged data path) → fire `useCompleteSetAnimation()` → tally session volume →
   if a PR was detected, show the PR pill + `haptics.success()`.
 - The moment is **idempotent and interrupt-safe**: rapid completions queue cleanly (no overlapping
@@ -159,18 +160,18 @@ earned ("a journey, not a guilt-streak"), reusing the counter tally for the head
 
 ## Screen-by-screen treatment (all screens get the fidelity bar)
 
-| Screen | Treatment |
-| --- | --- |
-| **WorkoutActive** | The north star. Hero numerals (Geist Mono 42pt), `surface2` active-set card, signature complete-set moment, thin SVG rest ring, adaptive mark in the header. |
-| **Today** | Hero greeting + next-workout card; adaptive mark; generous whitespace; primary CTA refined. |
-| **Progress** | `LineChart` axis/line inherit skin accent; PR markers get a restrained highlight; section typography. |
-| **Profile** | **Skin picker** — live swatch previews of all 4 skins, current marked; unit toggle + display name refined. |
-| **History (list)** | Typographic date grouping, per-session volume tally, skin-aware surfaces. |
-| **History (detail)** | Set tables in mono, PR badges, elevation steps. |
-| **TrainingPlan** | Calmer weekly/cycle schedule layout; skin-aware slots. |
-| **PlanSetup** | Wizard steps inherit the new tokens; restrained progress affordance. |
-| **Login** | Full-bleed adaptive mark — the new identity's first impression; Forge by default. |
-| **Tab bar / chrome** | `app/(tabs)/_layout.tsx`, `TabIcon`, `SyncIndicator` migrate off the legacy shim to `useTheme()`. |
+| Screen               | Treatment                                                                                                                                                    |
+| -------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------ |
+| **WorkoutActive**    | The north star. Hero numerals (Geist Mono 42pt), `surface2` active-set card, signature complete-set moment, thin SVG rest ring, adaptive mark in the header. |
+| **Today**            | Hero greeting + next-workout card; adaptive mark; generous whitespace; primary CTA refined.                                                                  |
+| **Progress**         | `LineChart` axis/line inherit skin accent; PR markers get a restrained highlight; section typography.                                                        |
+| **Profile**          | **Skin picker** — live swatch previews of all 4 skins, current marked; unit toggle + display name refined.                                                   |
+| **History (list)**   | Typographic date grouping, per-session volume tally, skin-aware surfaces.                                                                                    |
+| **History (detail)** | Set tables in mono, PR badges, elevation steps.                                                                                                              |
+| **TrainingPlan**     | Calmer weekly/cycle schedule layout; skin-aware slots.                                                                                                       |
+| **PlanSetup**        | Wizard steps inherit the new tokens; restrained progress affordance.                                                                                         |
+| **Login**            | Full-bleed adaptive mark — the new identity's first impression; Forge by default.                                                                            |
+| **Tab bar / chrome** | `app/(tabs)/_layout.tsx`, `TabIcon`, `SyncIndicator` migrate off the legacy shim to `useTheme()`.                                                            |
 
 Every legacy-shim consumer (`Progress`, `Profile`, `Login`, `History`, `TrainingPlan`, `PlanSetup`,
 `app/_layout`, `app/(tabs)/_layout`, `app/index`) migrates to `useTheme()` so skins reach 100% of the UI.

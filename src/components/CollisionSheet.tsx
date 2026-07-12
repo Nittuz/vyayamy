@@ -1,6 +1,7 @@
 import { useMemo } from 'react';
 import { ScrollView, StyleSheet, View } from 'react-native';
 
+import { formatStartLabel } from '@/core/format';
 import type { Workout } from '@/db/types';
 import { Button } from '@/ui/Button';
 import { Plate } from '@/ui/Plate';
@@ -15,41 +16,43 @@ interface Props {
   details: Map<string, { setCount: number; exerciseCount: number }>;
   onResume: (workoutId: string) => void;
   onDiscard: (workoutId: string) => void;
+  /** Dismiss without resolving (#111) — the sheet is no longer a trap. */
+  onClose: () => void;
 }
 
-export function CollisionSheet({ visible, workouts, details, onResume, onDiscard }: Props) {
+export function CollisionSheet({
+  visible,
+  workouts,
+  details,
+  onResume,
+  onDiscard,
+  onClose,
+}: Props) {
   const theme = useTheme();
   const styles = useMemo(() => makeStyles(theme), [theme]);
 
   return (
     <Sheet
       visible={visible}
-      onClose={noop}
+      onClose={onClose}
       variant="center"
-      dismissable={false}
       title="Resume which workout?"
+      footer={<Button label="Not now" kind="ghost" size="row" onPress={onClose} />}
     >
       <Text variant="body" color={theme.color.inkSecondary} style={styles.body}>
-        We found {workouts.length} unfinished workouts. Pick one to resume;
-        the others will be discarded.
+        You have {workouts.length} unfinished workouts. Pick one to resume; the rest will be marked
+        as finished and kept in history.
       </Text>
       <ScrollView style={styles.list}>
         {workouts.map((w) => {
           const d = details.get(w.id);
-          const startLabel = formatStartLabel(w.started_at);
           return (
-            <Plate
-              key={w.id}
-              offset="sm"
-              tone="surface2"
-              style={styles.row}
-              faceStyle={styles.rowFace}
-            >
+            <Plate key={w.id} tone="panel" style={styles.row} faceStyle={styles.rowFace}>
               <Text variant="card" color={theme.color.ink} style={styles.rowTitle}>
                 {w.title || 'Workout'}
               </Text>
-              <Text variant="numeral" color={theme.color.inkTertiary} style={styles.rowMeta}>
-                {startLabel} · {d?.exerciseCount ?? 0} exercises · {d?.setCount ?? 0} sets
+              <Text variant="strip" color={theme.color.inkTertiary} style={styles.rowMeta}>
+                {metaStrip(w, d)}
               </Text>
               <View style={styles.rowActions}>
                 <Button
@@ -65,7 +68,7 @@ export function CollisionSheet({ visible, workouts, details, onResume, onDiscard
                 />
                 <Button
                   label="Discard"
-                  kind="ghost"
+                  kind="danger"
                   size="row"
                   onPress={() => {
                     haptics.medium();
@@ -81,15 +84,12 @@ export function CollisionSheet({ visible, workouts, details, onResume, onDiscard
   );
 }
 
-function noop() {}
-
-function formatStartLabel(iso: string): string {
-  const d = new Date(iso);
-  const days = ['SUN', 'MON', 'TUE', 'WED', 'THU', 'FRI', 'SAT'];
-  const day = days[d.getDay()];
-  const h = d.getHours();
-  const m = d.getMinutes().toString().padStart(2, '0');
-  return `${day} ${h}:${m}`;
+function metaStrip(w: Workout, d: { setCount: number; exerciseCount: number } | undefined): string {
+  const exercises = d?.exerciseCount ?? 0;
+  const sets = d?.setCount ?? 0;
+  const exWord = exercises === 1 ? 'exercise' : 'exercises';
+  const setWord = sets === 1 ? 'set' : 'sets';
+  return `${formatStartLabel(w.started_at)} · ${exercises} ${exWord} · ${sets} ${setWord}`;
 }
 
 const makeStyles = (theme: Theme) =>

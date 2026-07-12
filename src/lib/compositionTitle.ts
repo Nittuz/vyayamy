@@ -5,9 +5,7 @@
  * is still the day-of-week default. Dedupes case-insensitively but
  * preserves the first-seen casing.
  */
-export function compositionTitle(
-  exerciseMuscleGroups: (string | null | undefined)[],
-): string {
+export function compositionTitle(exerciseMuscleGroups: (string | null | undefined)[]): string {
   const seenLower = new Set<string>();
   const result: string[] = [];
   for (const raw of exerciseMuscleGroups) {

@@ -1,6 +1,7 @@
 import { useMemo, useState } from 'react';
 import { ScrollView, StyleSheet, View } from 'react-native';
 
+import { ageLabel } from '@/core/format';
 import {
   type QuarantinedRow,
   discardAllQuarantined,
@@ -75,29 +76,20 @@ export function QuarantineSheet({ visible, rows, onClose, onChanged }: Props) {
         }
       >
         <Text variant="body" color={theme.color.inkSecondary} style={styles.intro}>
-          These changes haven't reached the server after multiple tries. Retry
-          sends them back to the queue. Discard removes them locally without
-          syncing.
+          These changes haven't reached the server after multiple tries. Retry sends them back to
+          the queue. Discard removes them locally without syncing.
         </Text>
         <ScrollView style={styles.list}>
           {rows.map((r) => (
-            <Plate
-              key={r.id}
-              offset="sm"
-              tone="surface2"
-              border="soft"
-              radius="card"
-              style={styles.row}
-              faceStyle={styles.rowFace}
-            >
+            <Plate key={r.id} tone="ghost" faceStyle={styles.rowFace}>
               <Text variant="numeral" color={theme.color.ink}>
                 {summarizeRow(r)}
               </Text>
-              <Text variant="label" color={theme.color.inkTertiary}>
-                CREATED {ageLabel(r.created_at)} · {r.attempts} tries
+              <Text variant="strip" color={theme.color.inkTertiary}>
+                {ageLabel(r.created_at)} · {r.attempts} TRIES
               </Text>
               {r.last_error ? (
-                <Text variant="meta" color={theme.color.danger} style={styles.rowError}>
+                <Text variant="meta" color={theme.color.danger}>
                   {r.last_error}
                 </Text>
               ) : null}
@@ -134,21 +126,16 @@ export function QuarantineSheet({ visible, rows, onClose, onChanged }: Props) {
   );
 }
 
-function ageLabel(iso: string): string {
-  const ms = Date.now() - new Date(iso).getTime();
-  const hours = Math.floor(ms / (60 * 60 * 1000));
-  if (hours < 24) return `${hours}H AGO`;
-  const days = Math.floor(hours / 24);
-  return `${days}D AGO`;
-}
-
 const makeStyles = (theme: Theme) =>
   StyleSheet.create({
     intro: { marginBottom: theme.space.s4 },
     list: { flexGrow: 0, maxHeight: 360 },
-    row: { marginBottom: theme.space.s3 },
-    rowFace: { padding: theme.space.s3, gap: theme.space.s2 },
-    rowError: { fontStyle: 'italic' },
+    rowFace: {
+      paddingVertical: theme.space.s3,
+      gap: theme.space.s2,
+      borderBottomWidth: theme.depth.hairline,
+      borderBottomColor: theme.color.border,
+    },
     rowActions: { flexDirection: 'row', gap: theme.space.s2, marginTop: theme.space.s1 },
     rowAction: { flex: 1 },
   });

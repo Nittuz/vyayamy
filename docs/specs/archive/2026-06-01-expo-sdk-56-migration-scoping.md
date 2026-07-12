@@ -10,23 +10,23 @@ This app is a **clean candidate**: **none of SDK 56's headline breaking changes 
 
 ## What SDK 56 brings
 
-| | SDK 55 (now) | SDK 56 |
-| --- | --- | --- |
-| React Native | 0.83 | **0.85** (skips 0.84 — two RN versions in one jump) |
-| React | 19.2 | 19.2 (unchanged ✅) |
-| JS engine | Hermes | **Hermes V1** (default) |
-| Architecture | New Arch (forced) | New Arch (forced — no migration) ✅ |
-| iOS builds | — | Legacy-arch code removed; heaviest Expo modules ship as **prebuilt frameworks** (~16% faster clean builds) |
+|              | SDK 55 (now)      | SDK 56                                                                                                     |
+| ------------ | ----------------- | ---------------------------------------------------------------------------------------------------------- |
+| React Native | 0.83              | **0.85** (skips 0.84 — two RN versions in one jump)                                                        |
+| React        | 19.2              | 19.2 (unchanged ✅)                                                                                        |
+| JS engine    | Hermes            | **Hermes V1** (default)                                                                                    |
+| Architecture | New Arch (forced) | New Arch (forced — no migration) ✅                                                                        |
+| iOS builds   | —                 | Legacy-arch code removed; heaviest Expo modules ship as **prebuilt frameworks** (~16% faster clean builds) |
 
 ## Breaking changes — applicability to THIS app
 
-| SDK 56 breaking change | Applies here? |
-| --- | --- |
-| Expo Router ↔ React Navigation split (`@react-navigation/*` direct imports break; codemod provided) | **No** — we import only from `expo-router`; zero direct `@react-navigation` imports. |
-| `@expo/vector-icons` no longer bundled by `expo` | **No** — we use custom SVG icons (`src/ui/TabIcon.tsx`), never `@expo/vector-icons`. |
-| `@expo/dom-webview` becomes default WebView | **No** — no WebView / DOM components; `react-native-webview` not a dependency. |
-| iOS deployment target → 16.4 for **custom** module podspecs | **No** — we ship no first-party native module with its own podspec (all our code is JS/TS). Prebuild bumps the app target automatically. |
-| Hermes V1 default | Low risk — standard JS; nothing Hermes-version-specific in our code. |
+| SDK 56 breaking change                                                                              | Applies here?                                                                                                                            |
+| --------------------------------------------------------------------------------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------- |
+| Expo Router ↔ React Navigation split (`@react-navigation/*` direct imports break; codemod provided) | **No** — we import only from `expo-router`; zero direct `@react-navigation` imports.                                                     |
+| `@expo/vector-icons` no longer bundled by `expo`                                                    | **No** — we use custom SVG icons (`src/ui/TabIcon.tsx`), never `@expo/vector-icons`.                                                     |
+| `@expo/dom-webview` becomes default WebView                                                         | **No** — no WebView / DOM components; `react-native-webview` not a dependency.                                                           |
+| iOS deployment target → 16.4 for **custom** module podspecs                                         | **No** — we ship no first-party native module with its own podspec (all our code is JS/TS). Prebuild bumps the app target automatically. |
+| Hermes V1 default                                                                                   | Low risk — standard JS; nothing Hermes-version-specific in our code.                                                                     |
 
 **Net: the disruptive breaking changes are all no-ops for us.** That's the main reason this is low-risk relative to a typical SDK jump.
 
@@ -34,25 +34,25 @@ This app is a **clean candidate**: **none of SDK 56's headline breaking changes 
 
 `npx expo install --fix` realigns all Expo-managed packages. The ones to watch (native, SDK-coupled):
 
-| Package | Now | Action |
-| --- | --- | --- |
-| `expo` + all `expo-*` (router, sqlite, notifications, haptics, speech, etc.) | 55.x | `expo install --fix` → 56.x |
-| `react-native` | 0.83.6 | → 0.85.x (via `expo install --fix`) |
-| `react-native-reanimated` | 4.2.1 | → SDK-56 pinned 4.x (verify Worklets pairing) |
-| `react-native-worklets` | 0.7.4 | → SDK-56 pinned (must match Reanimated) |
-| `react-native-screens` | ~4.23 | → SDK-56 pinned |
-| `react-native-gesture-handler` | ~2.30 | → SDK-56 pinned |
-| `react-native-safe-area-context` | ~5.6 | → SDK-56 pinned |
-| `react-native-svg` | 15.15.3 | → SDK-56 pinned (charts + logo + icons depend on it) |
-| `@sentry/react-native` | ~7.11 | **Manual check** — confirm an SDK-56/RN-0.85-compatible release; bump if needed |
-| `expo-speech-recognition` | 3.1.3 | → **56.0.0** (the whole point) |
-| `@supabase/supabase-js`, `@tanstack/react-query` | current | JS-only — low risk, leave unless peer warnings |
+| Package                                                                      | Now     | Action                                                                          |
+| ---------------------------------------------------------------------------- | ------- | ------------------------------------------------------------------------------- |
+| `expo` + all `expo-*` (router, sqlite, notifications, haptics, speech, etc.) | 55.x    | `expo install --fix` → 56.x                                                     |
+| `react-native`                                                               | 0.83.6  | → 0.85.x (via `expo install --fix`)                                             |
+| `react-native-reanimated`                                                    | 4.2.1   | → SDK-56 pinned 4.x (verify Worklets pairing)                                   |
+| `react-native-worklets`                                                      | 0.7.4   | → SDK-56 pinned (must match Reanimated)                                         |
+| `react-native-screens`                                                       | ~4.23   | → SDK-56 pinned                                                                 |
+| `react-native-gesture-handler`                                               | ~2.30   | → SDK-56 pinned                                                                 |
+| `react-native-safe-area-context`                                             | ~5.6    | → SDK-56 pinned                                                                 |
+| `react-native-svg`                                                           | 15.15.3 | → SDK-56 pinned (charts + logo + icons depend on it)                            |
+| `@sentry/react-native`                                                       | ~7.11   | **Manual check** — confirm an SDK-56/RN-0.85-compatible release; bump if needed |
+| `expo-speech-recognition`                                                    | 3.1.3   | → **56.0.0** (the whole point)                                                  |
+| `@supabase/supabase-js`, `@tanstack/react-query`                             | current | JS-only — low risk, leave unless peer warnings                                  |
 
 ## Risk assessment (app-specific)
 
-- **Local-first SQLite as source of truth** (`expo-sqlite`) — the spine of the app. Highest-value thing to re-verify: DB init + migrations on a fresh install, the outbox/sync engine round-trip, and that no `execAsync`/transaction semantics changed in the `expo-sqlite` 56 line. *Mitigation:* our 367 Jest tests cover query/sync logic against the `better-sqlite3` mock and stay valid; the device pass must exercise a real workout end-to-end.
-- **Reanimated 4 + Worklets pairing** — version skew between `react-native-reanimated` and `react-native-worklets` is the classic breakage. *Mitigation:* take both from `expo install --fix` together; smoke-test the signature complete-set moment, rest bar, and `FadeInView`.
-- **Sentry** — `@sentry/react-native` tracks RN closely; ~7.11 may predate RN 0.85. *Mitigation:* check its changelog, bump to the RN-0.85 line; it's DSN-gated so failure is non-fatal.
+- **Local-first SQLite as source of truth** (`expo-sqlite`) — the spine of the app. Highest-value thing to re-verify: DB init + migrations on a fresh install, the outbox/sync engine round-trip, and that no `execAsync`/transaction semantics changed in the `expo-sqlite` 56 line. _Mitigation:_ our 367 Jest tests cover query/sync logic against the `better-sqlite3` mock and stay valid; the device pass must exercise a real workout end-to-end.
+- **Reanimated 4 + Worklets pairing** — version skew between `react-native-reanimated` and `react-native-worklets` is the classic breakage. _Mitigation:_ take both from `expo install --fix` together; smoke-test the signature complete-set moment, rest bar, and `FadeInView`.
+- **Sentry** — `@sentry/react-native` tracks RN closely; ~7.11 may predate RN 0.85. _Mitigation:_ check its changelog, bump to the RN-0.85 line; it's DSN-gated so failure is non-fatal.
 - **Two RN versions at once (0.83→0.85)** — slightly more surface than a single-step jump, but New Arch is already on, so the usual New-Arch breakage is behind us.
 - **`react-native-web`** (`^0.21`) — only matters if the web target is still used; verify or drop.
 

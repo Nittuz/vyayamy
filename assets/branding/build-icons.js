@@ -73,12 +73,32 @@ write('icon-dark.png', iconSvg(1024, { field: IRON, rim: BONE, bore: EMBER }), 1
 // iOS 18 tinted variant — grayscale on transparent; the system applies the tint.
 write('icon-tinted.png', iconSvg(1024, { field: null, rim: '#FFFFFF', bore: '#FFFFFF' }), 1024);
 // Android adaptive foreground — mark only, extra safe-zone padding (system crops ~33%).
-write('adaptive-icon.png', iconSvg(1024, { field: null, rim: BONE, bore: EMBER, markFraction: 0.46 }), 1024);
+write(
+  'adaptive-icon.png',
+  iconSvg(1024, { field: null, rim: BONE, bore: EMBER, markFraction: 0.46 }),
+  1024,
+);
 // Android themed-icon monochrome layer — white on transparent.
-write('adaptive-icon-mono.png', iconSvg(1024, { field: null, rim: '#FFFFFF', bore: '#FFFFFF', markFraction: 0.46 }), 1024);
+write(
+  'adaptive-icon-mono.png',
+  iconSvg(1024, { field: null, rim: '#FFFFFF', bore: '#FFFFFF', markFraction: 0.46 }),
+  1024,
+);
 // Splash marks — transparent field, ink rim for light, bone rim for dark.
-write('splash-light.png', iconSvg(600, { field: null, rim: INK, bore: EMBER, markFraction: 0.8 }), 600);
-write('splash-dark.png', iconSvg(600, { field: null, rim: BONE, bore: EMBER, markFraction: 0.8 }), 600);
+write(
+  'splash-light.png',
+  iconSvg(600, { field: null, rim: INK, bore: EMBER, markFraction: 0.8 }),
+  600,
+);
+write(
+  'splash-dark.png',
+  iconSvg(600, { field: null, rim: BONE, bore: EMBER, markFraction: 0.8 }),
+  600,
+);
 // Notification icon — Android requires a white silhouette on transparent.
-write('notification-icon.png', iconSvg(96, { field: null, rim: '#FFFFFF', bore: '#FFFFFF', markFraction: 0.78 }), 96);
+write(
+  'notification-icon.png',
+  iconSvg(96, { field: null, rim: '#FFFFFF', bore: '#FFFFFF', markFraction: 0.78 }),
+  96,
+);
 console.log(`Done. (paper ${PAPER} / iron ${IRON} backgrounds set in app.config.ts)`);

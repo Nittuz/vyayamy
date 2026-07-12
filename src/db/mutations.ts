@@ -31,12 +31,64 @@ interface EnqueueArgs {
   payload?: Record<string, unknown>;
 }
 
-/** FK relationships used to cascade soft-deletes. table -> [(child, fk)] */
-const SOFT_DELETE_CASCADE: Partial<Record<SyncedTable, { table: SyncedTable; fk: string }[]>> = {
+/**
+ * FK relationships used to cascade deletes. table -> [(child, fk)].
+ * SHARED single source of truth (#9): soft-delete cascade here AND the
+ * quarantine discard cascade (src/sync/quarantine.ts) both walk this map —
+ * a new parent/child relationship added here covers both paths.
+ */
+export const SOFT_DELETE_CASCADE: Partial<
+  Record<SyncedTable, { table: SyncedTable; fk: string }[]>
+> = {
   workouts: [{ table: 'workout_exercises', fk: 'workout_id' }],
   workout_exercises: [{ table: 'sets', fk: 'workout_exercise_id' }],
   training_plans: [{ table: 'training_plan_slots', fk: 'plan_id' }],
 };
+
+type Db = Awaited<ReturnType<typeof getDb>>;
+
+/**
+ * Upsert a full row into a local table: INSERT ... ON CONFLICT(id) DO UPDATE
+ * over exactly the payload's keys (payload MUST include id). Shared by
+ * enqueueMutation, the direct-write query modules, and pull's column merge —
+ * one implementation of the insert-or-update SQL instead of four (#43).
+ *
+ * Runs on the caller's connection with NO transaction of its own, so callers
+ * can batch several writes atomically.
+ */
+export async function upsertRowLocal(
+  db: Db,
+  table: string,
+  payload: Record<string, unknown>,
+): Promise<void> {
+  const cols = Object.keys(payload);
+  const placeholders = cols.map(() => '?').join(', ');
+  const updateAssign = cols
+    .filter((c) => c !== 'id')
+    .map((c) => `${c} = excluded.${c}`)
+    .join(', ');
+  const values = cols.map((c) => toSqlite(payload[c]));
+  await db.runAsync(
+    `INSERT INTO ${table} (${cols.join(', ')}) VALUES (${placeholders})
+       ON CONFLICT(id) DO ${updateAssign.length > 0 ? `UPDATE SET ${updateAssign}` : 'NOTHING'}`,
+    values,
+  );
+}
+
+/** Append one outbox entry describing a row's server-side effect. Same
+ *  no-own-transaction contract as upsertRowLocal. */
+export async function appendOutbox(
+  db: Db,
+  table: string,
+  op: MutationOp,
+  rowId: string,
+  payload: Record<string, unknown>,
+): Promise<void> {
+  await db.runAsync(
+    `INSERT INTO outbox (table_name, op, row_id, payload_json) VALUES (?, ?, ?, ?)`,
+    [table, op, rowId, JSON.stringify(payload)],
+  );
+}
 
 export async function enqueueMutation(args: EnqueueArgs): Promise<void> {
   const db = await getDb();
@@ -48,28 +100,17 @@ export async function enqueueMutation(args: EnqueueArgs): Promise<void> {
       // sees orphaned-yet-live rows. Walk depth-first.
       await cascadeSoftDelete(args.table, args.rowId, now);
 
-      await db.runAsync(
-        `UPDATE ${args.table} SET deleted_at = ?, updated_at = ? WHERE id = ?`,
-        [now, now, args.rowId],
-      );
+      await db.runAsync(`UPDATE ${args.table} SET deleted_at = ?, updated_at = ? WHERE id = ?`, [
+        now,
+        now,
+        args.rowId,
+      ]);
     } else if (args.op === 'insert' || args.op === 'upsert') {
-      const payload: Record<string, unknown> = {
+      await upsertRowLocal(db, args.table, {
         id: args.rowId,
         updated_at: now,
         ...(args.payload ?? {}),
-      };
-      const cols = Object.keys(payload);
-      const placeholders = cols.map(() => '?').join(', ');
-      const updateAssign = cols
-        .filter((c) => c !== 'id')
-        .map((c) => `${c} = excluded.${c}`)
-        .join(', ');
-      const values = cols.map((c) => toSqlite(payload[c]));
-      await db.runAsync(
-        `INSERT INTO ${args.table} (${cols.join(', ')}) VALUES (${placeholders})
-           ON CONFLICT(id) DO UPDATE SET ${updateAssign}`,
-        values,
-      );
+      });
     } else {
       const patch: Record<string, unknown> = { ...(args.payload ?? {}), updated_at: now };
       const cols = Object.keys(patch);
@@ -83,17 +124,18 @@ export async function enqueueMutation(args: EnqueueArgs): Promise<void> {
       args.op === 'delete'
         ? { id: args.rowId, deleted_at: now }
         : { id: args.rowId, ...(args.payload ?? {}) };
-    await db.runAsync(
-      `INSERT INTO outbox (table_name, op, row_id, payload_json) VALUES (?, ?, ?, ?)`,
-      [args.table, args.op, args.rowId, JSON.stringify(payloadForServer)],
-    );
+    await appendOutbox(db, args.table, args.op, args.rowId, payloadForServer);
   });
 
   // The write committed — let the sync engine schedule a push (#34). Queries no
   // longer call triggerPush themselves.
   emitMutationCommitted();
 
-  async function cascadeSoftDelete(parent: SyncedTable, parentId: string, ts: string): Promise<void> {
+  async function cascadeSoftDelete(
+    parent: SyncedTable,
+    parentId: string,
+    ts: string,
+  ): Promise<void> {
     const children = SOFT_DELETE_CASCADE[parent];
     if (!children) return;
     for (const { table, fk } of children) {
@@ -103,14 +145,12 @@ export async function enqueueMutation(args: EnqueueArgs): Promise<void> {
       );
       for (const child of liveChildren) {
         await cascadeSoftDelete(table, child.id, ts);
-        await db.runAsync(
-          `UPDATE ${table} SET deleted_at = ?, updated_at = ? WHERE id = ?`,
-          [ts, ts, child.id],
-        );
-        await db.runAsync(
-          `INSERT INTO outbox (table_name, op, row_id, payload_json) VALUES (?, ?, ?, ?)`,
-          [table, 'delete', child.id, JSON.stringify({ id: child.id, deleted_at: ts })],
-        );
+        await db.runAsync(`UPDATE ${table} SET deleted_at = ?, updated_at = ? WHERE id = ?`, [
+          ts,
+          ts,
+          child.id,
+        ]);
+        await appendOutbox(db, table, 'delete', child.id, { id: child.id, deleted_at: ts });
       }
     }
   }

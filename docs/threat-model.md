@@ -12,24 +12,24 @@ the migration files under `supabase/migrations/`.
 
 ## Assets
 
-| Asset | Storage | Sensitivity |
-| --- | --- | --- |
-| Workout data (exercises, weights, reps, timestamps) | Local SQLite + Supabase | Medium |
-| Personal records | Local SQLite + Supabase | Medium |
-| User identity (Supabase user id) | AsyncStorage (Supabase auth) | High |
-| Magic-link session JWT | AsyncStorage (Supabase auth) | High |
-| Rest timer + override preferences | AsyncStorage (`@flexyug/*`) | Low |
+| Asset                                               | Storage                      | Sensitivity |
+| --------------------------------------------------- | ---------------------------- | ----------- |
+| Workout data (exercises, weights, reps, timestamps) | Local SQLite + Supabase      | Medium      |
+| Personal records                                    | Local SQLite + Supabase      | Medium      |
+| User identity (Supabase user id)                    | AsyncStorage (Supabase auth) | High        |
+| Magic-link session JWT                              | AsyncStorage (Supabase auth) | High        |
+| Rest timer + override preferences                   | AsyncStorage (`@flexyug/*`)  | Low         |
 
 ## Threat actors
 
-| Actor | Capability | In scope |
-| --- | --- | --- |
-| Casual observer of the phone screen | Visual inspection | Yes |
-| Thief with a non-jailbroken/non-rooted phone | OS-level only | Yes |
-| Thief with a jailbroken/rooted phone | App sandbox extraction | **No** (see "Risk acceptances" and "Open risks") |
-| Malicious app on the same device | Inter-app communication via deep links | Yes |
-| Network MITM | Wire-level traffic interception | Yes |
-| Compromised Supabase project key | Server-side access | Out of scope (Supabase RLS) |
+| Actor                                        | Capability                             | In scope                                         |
+| -------------------------------------------- | -------------------------------------- | ------------------------------------------------ |
+| Casual observer of the phone screen          | Visual inspection                      | Yes                                              |
+| Thief with a non-jailbroken/non-rooted phone | OS-level only                          | Yes                                              |
+| Thief with a jailbroken/rooted phone         | App sandbox extraction                 | **No** (see "Risk acceptances" and "Open risks") |
+| Malicious app on the same device             | Inter-app communication via deep links | Yes                                              |
+| Network MITM                                 | Wire-level traffic interception        | Yes                                              |
+| Compromised Supabase project key             | Server-side access                     | Out of scope (Supabase RLS)                      |
 
 ## Mitigations in place
 
@@ -59,8 +59,8 @@ rooted device, the database is extractable as plaintext.
 - Workout data is medium-sensitivity at most; a forensic adversary with
   jailbreak access has many higher-value targets on the device
 - SQLCipher integration adds a ~1MB native binary, requires key derivation
-  + secure storage of the key, and creates a recovery hazard if the key is
-  lost (the user's local data becomes permanently unreadable)
+  - secure storage of the key, and creates a recovery hazard if the key is
+    lost (the user's local data becomes permanently unreadable)
 - The Supabase mirror provides recovery if the local DB is wiped; the
   inverse (protecting against the case where someone has the device but
   not credentials) is poorly served by full encryption because
@@ -108,6 +108,7 @@ without knowing the user's credentials.
 ## Review cadence
 
 This document is reviewed when:
+
 - A new asset is added (e.g. body-measurement photos, payment data)
 - A new external integration ships (e.g. Apple Health, share-to-social)
 - A real incident occurs that updates our understanding of attacker

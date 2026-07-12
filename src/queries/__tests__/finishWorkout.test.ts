@@ -1,7 +1,12 @@
 import { getDb, initDb, resetDbForTests } from '@/db/client';
 import { addExerciseToWorkout } from '@/queries/exercises';
 import { addSet, updateSet } from '@/queries/sets';
-import { createWorkout, finishWorkout, getActiveWorkout, getRecentWorkouts } from '@/queries/workouts';
+import {
+  createWorkout,
+  finishWorkout,
+  getActiveWorkout,
+  getRecentWorkouts,
+} from '@/queries/workouts';
 import { setSyncState } from '@/sync/state';
 
 jest.mock('@/auth/supabase', () => ({

@@ -54,6 +54,8 @@ describe('deriveWorkoutStatus', () => {
   });
 
   test('is "completed" once ended_at is set', () => {
-    expect(deriveWorkoutStatus({ ...base, ended_at: '2026-01-01T11:00:00.000Z' })).toBe('completed');
+    expect(deriveWorkoutStatus({ ...base, ended_at: '2026-01-01T11:00:00.000Z' })).toBe(
+      'completed',
+    );
   });
 });

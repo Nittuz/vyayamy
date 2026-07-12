@@ -1,11 +1,11 @@
 /**
- * Today screen snapshot — persists render-ready state to AsyncStorage on
+ * Today screen snapshot — persists render-ready state via kvStore on
  * change; rehydrates synchronously at first paint on cold start.
  *
  * Caching strategy:
  *   - `hydrateSnapshot()` runs on app boot alongside initDb()
  *   - getCachedSnapshot() returns the in-memory cache (synchronous, cheap)
- *   - persistSnapshot() updates both cache and AsyncStorage
+ *   - persistSnapshot() updates both cache and the kvStore key
  *   - clearSnapshot() runs on sign-out
  *
  * Staleness: snapshots older than 7 days are discarded on hydrate.

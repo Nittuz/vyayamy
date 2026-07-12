@@ -10,10 +10,7 @@ import { getDb, initDb, resetDbForTests } from '@/db/client';
 import { createWorkout, finishWorkout } from '@/queries/workouts';
 import { addExerciseToWorkout } from '@/queries/exercises';
 import { addSet, updateSet } from '@/queries/sets';
-import {
-  getLastFinishedWorkoutWithSeeds,
-  repeatLastWorkout,
-} from '@/queries/repeatLastWorkout';
+import { getLastFinishedWorkoutWithSeeds, repeatLastWorkout } from '@/queries/repeatLastWorkout';
 import { setSyncState } from '@/sync/state';
 
 jest.mock('@/auth/supabase', () => ({
@@ -33,7 +30,14 @@ beforeEach(async () => {
   // Seed two exercises directly (not via outbox; these are catalog rows)
   await db.runAsync(
     'INSERT INTO exercises (id, name, muscle_group, user_id, created_at, updated_at) VALUES (?, ?, ?, ?, ?, ?)',
-    [EX_BENCH, 'Bench Press', 'Chest', null, '2026-01-01T00:00:00.000Z', '2026-01-01T00:00:00.000Z'],
+    [
+      EX_BENCH,
+      'Bench Press',
+      'Chest',
+      null,
+      '2026-01-01T00:00:00.000Z',
+      '2026-01-01T00:00:00.000Z',
+    ],
   );
   await db.runAsync(
     'INSERT INTO exercises (id, name, muscle_group, user_id, created_at, updated_at) VALUES (?, ?, ?, ?, ?, ?)',

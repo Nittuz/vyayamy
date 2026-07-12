@@ -26,6 +26,7 @@ import * as Sentry from '@sentry/react-native';
 
 import { supabase } from '@/auth/supabase';
 import { getDb } from '@/db/client';
+import { upsertRowLocal } from '@/db/mutations';
 import { SYNCED_TABLES, type SyncedTable } from '@/db/schema';
 import { withTransaction } from '@/db/transaction';
 
@@ -63,6 +64,21 @@ interface OutboxPending {
 
 export async function pullOnce(): Promise<void> {
   const db = await getDb();
+  // Local column names per table, resolved once per pull run (#56). Server rows
+  // are intersected against this before building the INSERT — an additive
+  // server column unknown to this build must not fail the row (per-row
+  // isolation would then skip it while the cursor advances past it: silent
+  // permanent loss until the row's updated_at next changes).
+  const localColumnsCache = new Map<SyncedTable, Set<string>>();
+  async function localColumns(table: SyncedTable): Promise<Set<string>> {
+    let cols = localColumnsCache.get(table);
+    if (!cols) {
+      const info = await db.getAllAsync<{ name: string }>(`PRAGMA table_info(${table})`);
+      cols = new Set(info.map((c) => c.name));
+      localColumnsCache.set(table, cols);
+    }
+    return cols;
+  }
   setSyncState({ pullInFlight: true });
   try {
     // Pull every table concurrently — the network fetches are independent and
@@ -88,10 +104,10 @@ export async function pullOnce(): Promise<void> {
   }
 
   async function pullTable(table: SyncedTable): Promise<void> {
-    const meta = await db.getFirstAsync<{ last_pulled_at: string | null; last_pulled_id: string | null }>(
-      'SELECT last_pulled_at, last_pulled_id FROM sync_meta WHERE table_name = ?',
-      [table],
-    );
+    const meta = await db.getFirstAsync<{
+      last_pulled_at: string | null;
+      last_pulled_id: string | null;
+    }>('SELECT last_pulled_at, last_pulled_id FROM sync_meta WHERE table_name = ?', [table]);
     let cursorTs = meta?.last_pulled_at ?? EPOCH;
     let cursorId = meta?.last_pulled_id ?? ZERO_UUID;
     // Rewind the READ cursor by the overlap (the stored cursor still advances to
@@ -116,6 +132,7 @@ export async function pullOnce(): Promise<void> {
       if (!data || data.length === 0) break;
 
       const ids = (data as Record<string, unknown>[]).map((r) => String(r.id));
+      const knownCols = await localColumns(table);
 
       await withTransaction(db, async () => {
         // Snapshot pending outbox entries INSIDE the transaction so a local edit
@@ -130,11 +147,7 @@ export async function pullOnce(): Promise<void> {
             const pending = pendingByRowId.get(rowId);
 
             // Pending insert/upsert/delete → local is authoritative until it drains.
-            if (
-              pending?.some(
-                (p) => p.op === 'insert' || p.op === 'upsert' || p.op === 'delete',
-              )
-            ) {
+            if (pending?.some((p) => p.op === 'insert' || p.op === 'upsert' || p.op === 'delete')) {
               continue;
             }
 
@@ -150,27 +163,20 @@ export async function pullOnce(): Promise<void> {
               }
             }
 
-            const cols = Object.keys(r).filter((c) => !protectedCols.has(c));
+            // Intersect with the LOCAL schema's columns (#56): a column the
+            // server added after this build shipped is simply ignored rather
+            // than failing the whole row's INSERT.
+            const cols = Object.keys(r).filter((c) => knownCols.has(c) && !protectedCols.has(c));
             if (cols.length === 0) continue;
-            // Always include id so ON CONFLICT(id) has its match column.
-            if (!cols.includes('id')) cols.unshift('id');
-
-            const placeholders = cols.map(() => '?').join(', ');
-            const updateAssign = cols
-              .filter((c) => c !== 'id')
-              .map((c) => `${c} = excluded.${c}`)
-              .join(', ');
-            const values = cols.map((c) => normalize(r[c]));
-
-            if (updateAssign.length === 0) {
+            if (cols.every((c) => c === 'id')) {
               // Only id survived after column-protection — nothing to do.
               continue;
             }
-            await db.runAsync(
-              `INSERT INTO ${table} (${cols.join(', ')}) VALUES (${placeholders})
-                 ON CONFLICT(id) DO UPDATE SET ${updateAssign}`,
-              values,
-            );
+            const payload: Record<string, unknown> = {};
+            // Always include id so ON CONFLICT(id) has its match column.
+            payload.id = r.id;
+            for (const c of cols) payload[c] = r[c];
+            await upsertRowLocal(db, table, payload);
           } catch (rowErr) {
             // Per-row isolation: a single un-mergeable row (schema drift, an
             // unexpected constraint) must not roll back the page or wedge the
@@ -233,13 +239,5 @@ export async function pullOnce(): Promise<void> {
     } catch {
       return {};
     }
-  }
-
-  function normalize(v: unknown): string | number | null {
-    if (v === null || v === undefined) return null;
-    if (typeof v === 'boolean') return v ? 1 : 0;
-    if (typeof v === 'number') return v;
-    if (typeof v === 'string') return v;
-    return JSON.stringify(v);
   }
 }

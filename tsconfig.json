@@ -6,21 +6,16 @@
     "noImplicitOverride": true,
     "exactOptionalPropertyTypes": false,
     "forceConsistentCasingInFileNames": true,
+    // app.config.ts imports src/ui/colors.ts with an explicit extension (the
+    // Expo config loader resolves it via Node type stripping). Legal because
+    // the base config sets noEmit.
+    "allowImportingTsExtensions": true,
     "baseUrl": ".",
     "paths": {
       "@/*": ["./src/*"],
       "@app/*": ["./app/*"]
     }
   },
-  "include": [
-    "**/*.ts",
-    "**/*.tsx",
-    ".expo/types/**/*.ts",
-    "expo-env.d.ts"
-  ],
-  "exclude": [
-    "node_modules",
-    "babel.config.js",
-    "jest.setup.js"
-  ]
+  "include": ["**/*.ts", "**/*.tsx", ".expo/types/**/*.ts", "expo-env.d.ts"],
+  "exclude": ["node_modules", "babel.config.js", "jest.setup.js"]
 }

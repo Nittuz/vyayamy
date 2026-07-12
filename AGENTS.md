@@ -10,9 +10,9 @@ A mobile-only, local-first strength-training journal built with Expo and React N
 
 ## Specs and ADRs
 
-Before implementing a non-trivial feature, check [docs/specs/](docs/specs/) for an existing design spec. If none exists for the work, draft one (or invoke the brainstorming flow) rather than improvising in code. Specs capture the *what* and *how* of a feature before implementation; they are mutable until the feature ships, then frozen.
+Before implementing a non-trivial feature, check [docs/specs/](docs/specs/) for an existing design spec. If none exists for the work, draft one (or invoke the brainstorming flow) rather than improvising in code. Specs capture the _what_ and _how_ of a feature before implementation; they are mutable until the feature ships, then frozen.
 
-[docs/adr/](docs/adr/) holds architectural decision records: the *why* behind long-lived choices like local-first SQLite, the outbox sync model, and server-owned `updated_at`. **ADRs are read-only for agents.** Propose changes to a human; never write ADRs autonomously, never edit accepted ADRs. To change a decision, the human writes a new ADR that supersedes the old one.
+[docs/adr/](docs/adr/) holds architectural decision records: the _why_ behind long-lived choices like local-first SQLite, the outbox sync model, and server-owned `updated_at`. **ADRs are read-only for agents.** Propose changes to a human; never write ADRs autonomously, never edit accepted ADRs. To change a decision, the human writes a new ADR that supersedes the old one.
 
 ## Stack guardrails
 
@@ -41,19 +41,19 @@ Explicitly forbidden:
 
 ## Key directories
 
-| Path                                           | Purpose                                                                 |
-| ---------------------------------------------- | ----------------------------------------------------------------------- |
-| [app/](app/)                                   | Expo Router routes; files here become screens                           |
-| [src/screens/](src/screens/)                   | Large screen components consumed by [app/](app/) route files            |
-| [src/components/](src/components/)             | Shared presentational components (no data fetching)                     |
-| [src/ui/](src/ui/)                             | Theme, primitives, charts, error boundary, sync indicator               |
-| [src/queries/](src/queries/)                   | React Query hooks reading SQLite, one file per domain                   |
-| [src/db/](src/db/)                             | SQLite schema, client, `enqueueMutation`, UUID helpers, types           |
-| [src/sync/](src/sync/)                         | `engine.ts`, `push.ts`, `pull.ts`, `state.ts`, `quarantine.ts`, ... (the only place that talks to Supabase tables) |
-| [src/auth/](src/auth/)                         | Supabase client singleton, `AuthProvider`, `useAuth`                    |
-| [src/core/](src/core/)                         | Pure domain logic (PR detection, formatting, sync helpers)              |
-| [src/lib/](src/lib/)                           | Cross-cutting services (`errorReporting.ts`, `restNotifications.ts`)    |
-| [supabase/migrations/](supabase/migrations/)   | Numbered SQL migrations                                                 |
+| Path                                         | Purpose                                                                                                            |
+| -------------------------------------------- | ------------------------------------------------------------------------------------------------------------------ |
+| [app/](app/)                                 | Expo Router routes; files here become screens                                                                      |
+| [src/screens/](src/screens/)                 | Large screen components consumed by [app/](app/) route files                                                       |
+| [src/components/](src/components/)           | Shared presentational components (no data fetching)                                                                |
+| [src/ui/](src/ui/)                           | Theme, primitives, charts, error boundary, sync indicator                                                          |
+| [src/queries/](src/queries/)                 | React Query hooks reading SQLite, one file per domain                                                              |
+| [src/db/](src/db/)                           | SQLite schema, client, `enqueueMutation`, UUID helpers, types                                                      |
+| [src/sync/](src/sync/)                       | `engine.ts`, `push.ts`, `pull.ts`, `state.ts`, `quarantine.ts`, ... (the only place that talks to Supabase tables) |
+| [src/auth/](src/auth/)                       | Supabase client singleton, `AuthProvider`, `useAuth`                                                               |
+| [src/core/](src/core/)                       | Pure domain logic (PR detection, formatting, sync helpers)                                                         |
+| [src/lib/](src/lib/)                         | Cross-cutting services (`errorReporting.ts`, `restNotifications.ts`)                                               |
+| [supabase/migrations/](supabase/migrations/) | Numbered SQL migrations                                                                                            |
 
 ## Golden paths
 
@@ -68,7 +68,7 @@ Explicitly forbidden:
 
 1. Create a route file under [app/](app/), e.g. `app/foo/index.tsx`
 2. Put the actual screen under [src/screens/](src/screens/) and re-export it as the default export from the route file
-3. All routes are protected by the single root-level auth gate in [app/_layout.tsx](app/_layout.tsx) (#91); new routes are covered automatically. Do not add per-route guards or re-check auth inside screens.
+3. All routes are protected by the single root-level auth gate in [app/\_layout.tsx](app/_layout.tsx) (#91); new routes are covered automatically. Do not add per-route guards or re-check auth inside screens.
 
 ### Add a new synced table
 
@@ -105,7 +105,7 @@ npm test            # jest (ts-jest + better-sqlite3 mock)
 npm run lint
 ```
 
-After substantive edits run the first two at minimum. The integration test [src/__tests__/offline-workout.test.ts](src/__tests__/offline-workout.test.ts) exercises the full offline-write → outbox → push-on-reconnect path; keep it green.
+After substantive edits run the first two at minimum. The integration test [src/**tests**/offline-workout.test.ts](src/__tests__/offline-workout.test.ts) exercises the full offline-write → outbox → push-on-reconnect path; keep it green.
 
 ## Pointers
 

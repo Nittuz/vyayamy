@@ -7,12 +7,11 @@ import { useMutation, useQueryClient } from '@tanstack/react-query';
 import type { QueryClient } from '@tanstack/react-query';
 
 import { getDb } from '@/db/client';
-import { enqueueMutation } from '@/db/mutations';
+import { appendOutbox, enqueueMutation, upsertRowLocal } from '@/db/mutations';
 import { withTransaction } from '@/db/transaction';
 import type { Set as SetRow } from '@/db/types';
 import { nowIso, uuidv4 } from '@/db/uuid';
 import { emitMutationCommitted } from '@/db/mutationEvents';
-
 
 import { queryKeys, setWriteInvalidationKeys } from './keys';
 
@@ -42,8 +41,10 @@ export async function addSet(
 ): Promise<string> {
   const db = await getDb();
   const id = uuidv4();
-  // Compute next order_index inside the same transaction as the insert so two
+  // NOT converted to enqueueMutation on purpose: the COALESCE(MAX(order_index),
+  // -1) + 1 read must run inside the SAME transaction as the insert so two
   // rapid taps cannot both read MAX=N and write duplicate order_index = N+1.
+  // enqueueMutation opens its own transaction and cannot host that read.
   await withTransaction(db, async () => {
     const result = await db.getFirstAsync<{ next_order: number }>(
       `SELECT COALESCE(MAX(order_index), -1) + 1 AS next_order
@@ -51,7 +52,7 @@ export async function addSet(
       [weId],
     );
     const nextOrder = result?.next_order ?? 0;
-    const payload = {
+    await upsertRowLocal(db, 'sets', {
       id,
       workout_exercise_id: weId,
       order_index: nextOrder,
@@ -61,37 +62,17 @@ export async function addSet(
       completed: 0,
       completed_at: null,
       updated_at: nowIso(),
-    };
-    const cols = Object.keys(payload);
-    const placeholders = cols.map(() => '?').join(', ');
-    const updateAssign = cols
-      .filter((c) => c !== 'id')
-      .map((c) => `${c} = excluded.${c}`)
-      .join(', ');
-    const values = cols.map((c) => (payload as Record<string, unknown>)[c] ?? null);
-    await db.runAsync(
-      `INSERT INTO sets (${cols.join(', ')}) VALUES (${placeholders})
-         ON CONFLICT(id) DO UPDATE SET ${updateAssign}`,
-      values as (string | number | null)[],
-    );
-    await db.runAsync(
-      `INSERT INTO outbox (table_name, op, row_id, payload_json) VALUES (?, ?, ?, ?)`,
-      [
-        'sets',
-        'insert',
-        id,
-        JSON.stringify({
-          id,
-          workout_exercise_id: weId,
-          order_index: nextOrder,
-          weight: args.weight ?? null,
-          reps: args.reps ?? null,
-          units: args.units ?? null,
-          completed: false,
-          completed_at: null,
-        }),
-      ],
-    );
+    });
+    await appendOutbox(db, 'sets', 'insert', id, {
+      id,
+      workout_exercise_id: weId,
+      order_index: nextOrder,
+      weight: args.weight ?? null,
+      reps: args.reps ?? null,
+      units: args.units ?? null,
+      completed: false,
+      completed_at: null,
+    });
   });
   emitMutationCommitted();
   return id;
@@ -113,13 +94,24 @@ export async function deleteSet(setId: string): Promise<void> {
   emitMutationCommitted();
 }
 
+// Lazy import keeps expo-constants (ESM) off the jest module graph — same
+// idiom as plans.ts / exercises.ts / db/client.ts.
+function reportMutationError(err: unknown, mutation: string): void {
+  void import('@/lib/errorReporting').then(({ captureException }) =>
+    captureException(err, { mutation }),
+  );
+}
+
 export function useAddSet(onError?: (msg: string) => void) {
   const qc = useQueryClient();
   return useMutation({
     mutationFn: (args: { weId: string; weight?: number | null; reps?: number | null }) =>
       addSet(args.weId, args),
     onSuccess: (_id, vars) => invalidateSetWrite(qc, vars.weId),
-    onError: (err) => onError?.(err instanceof Error ? err.message : 'Failed to add set'),
+    onError: (err) => {
+      reportMutationError(err, 'addSet');
+      onError?.("Couldn't add the set. Try again.");
+    },
   });
 }
 
@@ -153,7 +145,8 @@ export function useUpdateSet(onError?: (msg: string) => void) {
     },
     onError: (err, vars, ctx) => {
       if (ctx?.prev) qc.setQueryData(queryKeys.sets.byWorkoutExercise(vars.weId), ctx.prev);
-      onError?.(err instanceof Error ? err.message : 'Failed to update set');
+      reportMutationError(err, 'updateSet');
+      onError?.("Couldn't save the set. Try again.");
     },
     onSettled: (_r, _err, vars) => invalidateSetWrite(qc, vars.weId),
   });
@@ -164,6 +157,9 @@ export function useDeleteSet(onError?: (msg: string) => void) {
   return useMutation({
     mutationFn: (args: { setId: string; weId: string }) => deleteSet(args.setId),
     onSuccess: (_r, vars) => invalidateSetWrite(qc, vars.weId),
-    onError: (err) => onError?.(err instanceof Error ? err.message : 'Failed to delete set'),
+    onError: (err) => {
+      reportMutationError(err, 'deleteSet');
+      onError?.("Couldn't delete the set. Try again.");
+    },
   });
 }

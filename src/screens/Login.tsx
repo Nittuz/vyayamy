@@ -15,17 +15,26 @@ import { useAuth } from '@/auth/useAuth';
 import { brand } from '@/ui/brand';
 import { Button } from '@/ui/Button';
 import { FBarMark } from '@/ui/Logo';
+import { OutlineDisplay } from '@/ui/OutlineDisplay';
 import { Plate } from '@/ui/Plate';
+import { SettleSlam } from '@/ui/SettleSlam';
 import { Text } from '@/ui/Text';
 import { useTheme, type Theme } from '@/ui/useTheme';
 
-// Two paths are supported (magic link + password). Keep the copy path-specific
-// and generic enough not to leak whether an account exists (#92).
+// Copy is path-specific but generic enough not to leak whether an account
+// exists (#92). The link error covers expired, used, and malformed codes with
+// one neutral line plus both recovery paths (#94).
 const MAGIC_LINK_ERROR = "Couldn't send your magic link. Check the email address and try again.";
 const PASSWORD_ERROR = "Couldn't sign in. Check your email and password and try again.";
+const LINK_FAILED_ERROR =
+  "That sign-in link didn't work. It may have expired. Send yourself a fresh link, or sign in with your password.";
+
+// The wordmark carries this screen's one outlined word: solid FLEX, stroked YUG.
+const WORDMARK_SOLID = brand.name.slice(0, 4);
+const WORDMARK_OUTLINE = brand.name.slice(4);
 
 export default function LoginScreen() {
-  const { session, loading } = useAuth();
+  const { session, loading, authError, clearAuthError } = useAuth();
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [usePassword, setUsePassword] = useState(false);
@@ -41,6 +50,10 @@ export default function LoginScreen() {
 
   async function handleSubmit() {
     setError(null);
+    // Recovering from a failed link: drop the stale sent state along with the
+    // error, so the form (not the old sent card) hosts the in-flight spinner.
+    if (authError) setSent(false);
+    clearAuthError();
     setSending(true);
     const redirectTo = Linking.createURL('/login');
     const { error: err } = await signInWithOtp(email.trim(), redirectTo);
@@ -56,6 +69,7 @@ export default function LoginScreen() {
 
   async function handlePasswordSignIn() {
     setError(null);
+    clearAuthError();
     setSigningIn(true);
     const { error: err } = await signInWithPassword(email.trim(), password);
     setSigningIn(false);
@@ -63,6 +77,12 @@ export default function LoginScreen() {
   }
 
   const emailEmpty = email.trim().length === 0;
+  const formError = error ?? (authError ? LINK_FAILED_ERROR : null);
+  // A failed link exchange overrides the sent state: the recovery form
+  // (resend CTA + password path) shows with the error instead of a dead-end
+  // "check your email" card. Actions that clear authError also reset `sent`,
+  // so the sent card never reappears out from under the user.
+  const showSent = sent && !authError;
 
   return (
     <SafeAreaView style={styles.container}>
@@ -70,28 +90,48 @@ export default function LoginScreen() {
         behavior={Platform.OS === 'ios' ? 'padding' : undefined}
         style={styles.kav}
       >
-        <View style={styles.header}>
+        <SettleSlam style={styles.header}>
           <FBarMark size={96} />
-          <Text variant="displayXL" color={theme.color.inkHero}>
-            {brand.name}
-          </Text>
-          <Text variant="label" color={theme.color.inkSecondary}>
+          <View
+            style={styles.wordmark}
+            accessible
+            accessibilityRole="header"
+            accessibilityLabel={brand.name}
+          >
+            <Text variant="displayXL" color={theme.color.inkHero}>
+              {WORDMARK_SOLID}
+            </Text>
+            <OutlineDisplay size="displayXL">{WORDMARK_OUTLINE}</OutlineDisplay>
+          </View>
+          <Text variant="label" color={theme.color.inkTertiary}>
             {brand.tagline}
           </Text>
-        </View>
+        </SettleSlam>
 
         <Plate faceStyle={styles.cardFace}>
-          {sent ? (
+          {showSent ? (
             <View style={styles.sent}>
               <Text variant="title" color={theme.color.inkHero}>
                 Check your email
               </Text>
-              <Text variant="body" color={theme.color.ink} style={styles.centerText}>
-                We sent a sign-in link to {email}
+              <Text variant="numeral" color={theme.color.ink} style={styles.centerText}>
+                {email.trim()}
               </Text>
               <Text variant="meta" color={theme.color.inkSecondary} style={styles.centerText}>
-                Open the link on this device; it&apos;ll bring you back to the app.
+                Your sign-in link is on its way. Open it on this device and it will bring you
+                straight back here.
               </Text>
+              {error ? (
+                <Text
+                  variant="meta"
+                  color={theme.color.danger}
+                  style={styles.centerText}
+                  accessibilityLiveRegion="polite"
+                >
+                  {error}
+                </Text>
+              ) : null}
+              <View style={styles.rule} />
               <View style={styles.actions}>
                 <Button
                   label="Resend link"
@@ -113,7 +153,7 @@ export default function LoginScreen() {
             </View>
           ) : (
             <View style={styles.form}>
-              <Text variant="label" color={theme.color.inkTertiary}>
+              <Text variant="meta" color={theme.color.inkTertiary}>
                 Email address
               </Text>
               <TextInput
@@ -130,7 +170,7 @@ export default function LoginScreen() {
               />
               {usePassword ? (
                 <>
-                  <Text variant="label" color={theme.color.inkTertiary}>
+                  <Text variant="meta" color={theme.color.inkTertiary}>
                     Password
                   </Text>
                   <TextInput
@@ -148,9 +188,9 @@ export default function LoginScreen() {
                 </>
               ) : null}
 
-              {error ? (
-                <Text variant="meta" color={theme.color.danger}>
-                  {error}
+              {formError ? (
+                <Text variant="meta" color={theme.color.danger} accessibilityLiveRegion="polite">
+                  {formError}
                 </Text>
               ) : null}
 
@@ -179,7 +219,9 @@ export default function LoginScreen() {
                 size="row"
                 onPress={() => {
                   setUsePassword((v) => !v);
+                  setSent(false);
                   setError(null);
+                  clearAuthError();
                 }}
               />
             </View>
@@ -195,6 +237,7 @@ const makeStyles = (theme: Theme) =>
     container: { flex: 1, backgroundColor: theme.color.bg },
     kav: { flex: 1, justifyContent: 'center', padding: theme.space.page, gap: theme.space.s8 },
     header: { alignItems: 'center', gap: theme.space.s3 },
+    wordmark: { flexDirection: 'row', alignItems: 'flex-end' },
     cardFace: { padding: theme.space.s6, gap: theme.space.s5 },
     centerText: { textAlign: 'center' },
     form: { gap: theme.space.s3 },
@@ -202,7 +245,7 @@ const makeStyles = (theme: Theme) =>
       height: theme.touch.min + 4,
       paddingHorizontal: theme.space.s4,
       borderRadius: theme.radius.sm,
-      borderWidth: theme.depth.rule,
+      borderWidth: theme.depth.hairline,
       borderColor: theme.color.borderStrong,
       fontSize: theme.font.size.body,
       fontFamily: theme.font.family.sans,
@@ -211,5 +254,11 @@ const makeStyles = (theme: Theme) =>
     },
     fullBtn: { alignSelf: 'stretch', marginTop: theme.space.s2 },
     sent: { alignItems: 'center', gap: theme.space.s2 },
-    actions: { alignSelf: 'stretch', gap: theme.space.s2, marginTop: theme.space.s4 },
+    rule: {
+      alignSelf: 'stretch',
+      height: theme.depth.hairline,
+      backgroundColor: theme.color.border,
+      marginTop: theme.space.s3,
+    },
+    actions: { alignSelf: 'stretch', gap: theme.space.s2, marginTop: theme.space.s2 },
   });

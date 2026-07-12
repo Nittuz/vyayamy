@@ -1,8 +1,6 @@
 import {
-  advanceCursor,
   findNextExercise,
   shouldConfirmLeavingSet,
-  type ActiveCursor,
   type AutoStagedSet,
   type ExerciseShape,
   type SetShape,
@@ -19,53 +17,11 @@ const set = (over: Partial<SetShape> = {}): SetShape => ({
   ...over,
 });
 
-const ex = (id: string, setIds: string[]): ExerciseShape => ({
-  id,
-  exerciseId: `ex-${id}`,
-  exerciseName: `Exercise ${id}`,
-  orderIndex: 0,
-  muscleGroup: null,
-  sets: setIds.map((sid, i) => ({
-    id: sid,
-    weId: id,
-    orderIndex: i,
-    weight: 100,
-    reps: 5,
-    units: 'kg' as const,
-    completed: false,
-  })),
-});
-
-describe('advanceCursor', () => {
-  test('advances to next set within same exercise', () => {
-    const exercises = [ex('we1', ['s1', 's2', 's3'])];
-    const cursor: ActiveCursor = { weId: 'we1', setId: 's1' };
-    expect(advanceCursor(exercises, cursor)).toEqual({ weId: 'we1', setId: 's2' });
-  });
-
-  test('advances to first set of next exercise when current is the last set', () => {
-    const exercises = [ex('we1', ['s1', 's2']), ex('we2', ['s3', 's4'])];
-    const cursor: ActiveCursor = { weId: 'we1', setId: 's2' };
-    expect(advanceCursor(exercises, cursor)).toEqual({ weId: 'we2', setId: 's3' });
-  });
-
-  test('returns null (finish workout) when on last set of last exercise', () => {
-    const exercises = [ex('we1', ['s1', 's2'])];
-    const cursor: ActiveCursor = { weId: 'we1', setId: 's2' };
-    expect(advanceCursor(exercises, cursor)).toBeNull();
-  });
-
-  test('skips empty exercises (zero sets)', () => {
-    const exercises = [ex('we1', ['s1']), ex('we2', []), ex('we3', ['s2'])];
-    const cursor: ActiveCursor = { weId: 'we1', setId: 's1' };
-    expect(advanceCursor(exercises, cursor)).toEqual({ weId: 'we3', setId: 's2' });
-  });
-
-  test('returns null when cursor refers to a set that does not exist', () => {
-    const exercises = [ex('we1', ['s1'])];
-    expect(advanceCursor(exercises, { weId: 'we1', setId: 'ghost' })).toBeNull();
-  });
-});
+// advanceCursor and its tests were deleted (#21/#77): it was dead code whose
+// pre-declared-sets progression model diverged from the shipped flow, which
+// auto-stages a new set in the same exercise on completion and repositions a
+// stale cursor via findInitialCursor. The real logic is pinned in
+// activeSetCursor.test.ts (resolveCursor / planStagedSet).
 
 const exWithGroup = (id: string, group: string | null, setIds: string[] = []): ExerciseShape => ({
   id,
@@ -154,7 +110,11 @@ describe('shouldConfirmLeavingSet', () => {
 
   test('warns when the staged ref points at a different set', () => {
     expect(
-      shouldConfirmLeavingSet(set({ id: 's2', weight: 600, reps: 9 }), { id: 's1', weight: 600, reps: 9 }),
+      shouldConfirmLeavingSet(set({ id: 's2', weight: 600, reps: 9 }), {
+        id: 's1',
+        weight: 600,
+        reps: 9,
+      }),
     ).toBe(true);
   });
 });

@@ -6,7 +6,7 @@
 
 ## Problem
 
-FlexYug today is a well-mannered indie strength tracker built on a genuinely strong local-first architecture. The visible product is *good but anonymous*: a header row + spreadsheet of `Set / Weight / Reps / Done` indistinguishable at 10 paces from Strong, Hevy, FitNotes, and a dozen others. There is no on-screen element a person would screenshot and recognize as Vyayamy.
+FlexYug today is a well-mannered indie strength tracker built on a genuinely strong local-first architecture. The visible product is _good but anonymous_: a header row + spreadsheet of `Set / Weight / Reps / Done` indistinguishable at 10 paces from Strong, Hevy, FitNotes, and a dozen others. There is no on-screen element a person would screenshot and recognize as Vyayamy.
 
 The 2026-05-26 design audit (in this conversation) named three highest-leverage moves to close the gap from "good app" to a piece of software a designer would screenshot:
 
@@ -58,41 +58,41 @@ Replace the current `src/ui/theme.ts` palette. Single source of truth: a `lightC
 
 **Dark mode (default-feeling):**
 
-| Token | Value | Use |
-| --- | --- | --- |
-| `bg` | `#0F1411` | Screen background (oxide near-black) |
-| `surface` | `#161B18` | Cards, raised surfaces |
-| `border` | `#1A2420` | Hairlines, dividers |
-| `borderStrong` | `#1F2925` | Card outlines |
-| `ink` | `#C9D4CC` | Body text |
-| `inkSecondary` | `#8C9A92` | Secondary text |
-| `inkTertiary` | `#5E6862` | Tertiary, placeholder |
-| `inkHero` | `#E8F0EA` | Hero numerals only |
-| `accent` | `#6DA37E` | Stepper chevrons, completion ring, sync-online dot, rest-bar fill |
-| `accentSoft` | `rgba(109, 163, 126, 0.12)` | Active set highlight |
-| `success` | `#6DA37E` | Same as accent (no separate green) |
-| `danger` | `#C76B58` | Errors (warm rust, not jarring red) |
-| `dangerSoft` | `rgba(199, 107, 88, 0.12)` | Error pill backgrounds |
-| `onAccent` | `#0F1411` | Text on accent fill |
+| Token          | Value                       | Use                                                               |
+| -------------- | --------------------------- | ----------------------------------------------------------------- |
+| `bg`           | `#0F1411`                   | Screen background (oxide near-black)                              |
+| `surface`      | `#161B18`                   | Cards, raised surfaces                                            |
+| `border`       | `#1A2420`                   | Hairlines, dividers                                               |
+| `borderStrong` | `#1F2925`                   | Card outlines                                                     |
+| `ink`          | `#C9D4CC`                   | Body text                                                         |
+| `inkSecondary` | `#8C9A92`                   | Secondary text                                                    |
+| `inkTertiary`  | `#5E6862`                   | Tertiary, placeholder                                             |
+| `inkHero`      | `#E8F0EA`                   | Hero numerals only                                                |
+| `accent`       | `#6DA37E`                   | Stepper chevrons, completion ring, sync-online dot, rest-bar fill |
+| `accentSoft`   | `rgba(109, 163, 126, 0.12)` | Active set highlight                                              |
+| `success`      | `#6DA37E`                   | Same as accent (no separate green)                                |
+| `danger`       | `#C76B58`                   | Errors (warm rust, not jarring red)                               |
+| `dangerSoft`   | `rgba(199, 107, 88, 0.12)`  | Error pill backgrounds                                            |
+| `onAccent`     | `#0F1411`                   | Text on accent fill                                               |
 
 **Light mode (warm-paper inverse):**
 
-| Token | Value | Use |
-| --- | --- | --- |
-| `bg` | `#F4F1EB` | Screen background (warm cream) |
-| `surface` | `#FFFFFF` | Cards |
-| `border` | `#E5DFD3` | Hairlines |
-| `borderStrong` | `#D6CFC0` | Card outlines |
-| `ink` | `#1A1F1C` | Body text |
-| `inkSecondary` | `#5A625C` | Secondary text |
-| `inkTertiary` | `#9CA39E` | Tertiary, placeholder |
-| `inkHero` | `#0A0E0B` | Hero numerals only |
-| `accent` | `#3D6E52` | Darker green for contrast on cream |
-| `accentSoft` | `rgba(61, 110, 82, 0.10)` | Active set highlight |
-| `success` | `#3D6E52` | Same as accent |
-| `danger` | `#8A4030` | Darker rust |
-| `dangerSoft` | `rgba(138, 64, 48, 0.10)` | Error pill backgrounds |
-| `onAccent` | `#FFFFFF` | Text on accent fill |
+| Token          | Value                     | Use                                |
+| -------------- | ------------------------- | ---------------------------------- |
+| `bg`           | `#F4F1EB`                 | Screen background (warm cream)     |
+| `surface`      | `#FFFFFF`                 | Cards                              |
+| `border`       | `#E5DFD3`                 | Hairlines                          |
+| `borderStrong` | `#D6CFC0`                 | Card outlines                      |
+| `ink`          | `#1A1F1C`                 | Body text                          |
+| `inkSecondary` | `#5A625C`                 | Secondary text                     |
+| `inkTertiary`  | `#9CA39E`                 | Tertiary, placeholder              |
+| `inkHero`      | `#0A0E0B`                 | Hero numerals only                 |
+| `accent`       | `#3D6E52`                 | Darker green for contrast on cream |
+| `accentSoft`   | `rgba(61, 110, 82, 0.10)` | Active set highlight               |
+| `success`      | `#3D6E52`                 | Same as accent                     |
+| `danger`       | `#8A4030`                 | Darker rust                        |
+| `dangerSoft`   | `rgba(138, 64, 48, 0.10)` | Error pill backgrounds             |
+| `onAccent`     | `#FFFFFF`                 | Text on accent fill                |
 
 The **brand** color (saffron `#E05A2C` from the old palette) is removed from the working theme. Saffron stays only on the logo mark and is reserved for the splash screen. The new accent green carries primary affordances. This is a deliberate retreat from "brand-color-as-garnish" — the language is the accent, not the logo.
 
@@ -105,16 +105,16 @@ Add Geist Sans + Geist Mono via `expo-google-fonts/geist` and `expo-google-fonts
 ```ts
 export const font = {
   family: {
-    sans: 'Geist',         // Maps to Geist_400Regular, etc.
-    mono: 'GeistMono',     // Maps to GeistMono_400Regular, etc.
+    sans: 'Geist', // Maps to Geist_400Regular, etc.
+    mono: 'GeistMono', // Maps to GeistMono_400Regular, etc.
   },
   size: {
-    hero: 82,              // The set number (Active-Set card)
-    display: 28,           // Today greeting title
-    title: 20,             // Exercise name
-    body: 14,              // Body copy
-    meta: 12,              // Secondary
-    micro: 10,             // UPPERCASE tracked labels
+    hero: 82, // The set number (Active-Set card)
+    display: 28, // Today greeting title
+    title: 20, // Exercise name
+    body: 14, // Body copy
+    meta: 12, // Secondary
+    micro: 10, // UPPERCASE tracked labels
   },
   weight: {
     regular: '400',
@@ -122,18 +122,18 @@ export const font = {
     semibold: '600',
   },
   tracking: {
-    hero: -3.5,            // Hero numerals
-    title: -0.3,           // Titles
-    body: 0,               // Body
-    micro: 1.5,            // UPPERCASE micro labels (positive tracking)
+    hero: -3.5, // Hero numerals
+    title: -0.3, // Titles
+    body: 0, // Body
+    micro: 1.5, // UPPERCASE micro labels (positive tracking)
   },
   lineHeight: {
-    hero: 0.92,            // Tight for big numerals
+    hero: 0.92, // Tight for big numerals
     title: 1.2,
     body: 1.4,
     meta: 1.6,
   },
-}
+};
 ```
 
 **Rules:**
@@ -155,10 +155,12 @@ Replace `src/screens/Today.tsx` content. New layout, top to bottom:
    - **No active, no last workout** (true first launch) → render an empty Repeat-slot card with body `Your first workout will live here.`
 
 **Repeat card** (rendered when there is a last completed workout and no active one):
-   - Top label: derived title (e.g. `PUSH · DAY 1`) — currently the workout's `title` field, falling back to "WORKOUT" if blank. (Smart derivation of titles from exercise list is Phase 4.)
-   - Subtitle: exercise list summary (up to 4 exercises shown as `Bench Press · 185 × 5`, each line). Uses last set per exercise.
-   - CTA row: `→ Repeat workout` in accent color.
-   - Tappable as a single hit area. Tap → `repeatLastWorkout()` mutation creates a new workout with the same exercises in the same order, each exercise pre-seeded with one new empty set whose `weight` and `reps` are copied from the most-recent *completed* set of that exercise in the previous workout. Router pushes `/workout/active`.
+
+- Top label: derived title (e.g. `PUSH · DAY 1`) — currently the workout's `title` field, falling back to "WORKOUT" if blank. (Smart derivation of titles from exercise list is Phase 4.)
+- Subtitle: exercise list summary (up to 4 exercises shown as `Bench Press · 185 × 5`, each line). Uses last set per exercise.
+- CTA row: `→ Repeat workout` in accent color.
+- Tappable as a single hit area. Tap → `repeatLastWorkout()` mutation creates a new workout with the same exercises in the same order, each exercise pre-seeded with one new empty set whose `weight` and `reps` are copied from the most-recent _completed_ set of that exercise in the previous workout. Router pushes `/workout/active`.
+
 4. **Secondary row**: two equal-weight buttons, `+ Blank` and `Templates`. Blank does today's existing behavior. Templates routes to the existing templates surface (no change in Phase 1; this just makes it discoverable from home).
 5. **`RECENT`** section header (micro label), then last 3 workouts as one-line rows: name (Geist Sans medium), `4 days · 14 sets` meta (Geist Mono, dim).
 
@@ -194,12 +196,12 @@ SET 3  185 × 5        ✓
 
 **Stepper interaction:**
 
-- Tapping the weight portion of `185 × 5` focuses *just* the weight. Reps dim to 55% opacity. Two chevrons (▲ ▼) appear above and below the weight in accent color. Below the weight, a unit label (`LB` / `KG`) appears.
+- Tapping the weight portion of `185 × 5` focuses _just_ the weight. Reps dim to 55% opacity. Two chevrons (▲ ▼) appear above and below the weight in accent color. Below the weight, a unit label (`LB` / `KG`) appears.
 - ▲ = +1 plate (5 lb default, 2.5 kg if metric, configurable per exercise as Phase 3 work — Phase 1 uses a global default from user profile units field).
 - ▼ = −1 plate.
 - Long-press a chevron = ramp acceleration (5 lb every 200ms after a 600ms hold).
 - A subtle hint line replaces `TARGET · …` while focused: `+5 LB · TAP NUMBER FOR KEYPAD` in accent.
-- Tapping the *number* itself (not the chevrons) opens the system numeric keypad with the current value selected.
+- Tapping the _number_ itself (not the chevrons) opens the system numeric keypad with the current value selected.
 - Tapping outside the stepper area defocuses and reverts to the idle state.
 - Same pattern for reps (chevrons = ±1 rep, no plate-jump notion; unit label "REPS").
 
@@ -248,21 +250,21 @@ Replace the existing dark pill at the top of the active-workout screen with a **
 
 ### Motion system
 
-Define and *use sparingly* in `src/ui/motion.ts`:
+Define and _use sparingly_ in `src/ui/motion.ts`:
 
 ```ts
 export const motion = {
   spring: {
-    snappy:    { damping: 22, stiffness: 240 },   // Card lift, swipe-up complete
-    settle:    { damping: 22, stiffness: 200 },   // Next-set slide-in
-    rebound:   { damping: 18, stiffness: 280 },   // Below-threshold swipe return
+    snappy: { damping: 22, stiffness: 240 }, // Card lift, swipe-up complete
+    settle: { damping: 22, stiffness: 200 }, // Next-set slide-in
+    rebound: { damping: 18, stiffness: 280 }, // Below-threshold swipe return
   },
   duration: {
     fast: 150,
     base: 220,
     slow: 320,
   },
-}
+};
 ```
 
 Motion is **only** used in three places in Phase 1:
@@ -279,24 +281,24 @@ Replace the current ad-hoc usage with a small `src/ui/haptics.ts` wrapper:
 
 ```ts
 export const haptics = {
-  light:    () => Haptics.impactAsync(Light).catch(() => {}),
-  medium:   () => Haptics.impactAsync(Medium).catch(() => {}),
-  rigid:    () => Haptics.impactAsync(Rigid).catch(() => {}),
-  success:  () => Haptics.notificationAsync(Success).catch(() => {}),
+  light: () => Haptics.impactAsync(Light).catch(() => {}),
+  medium: () => Haptics.impactAsync(Medium).catch(() => {}),
+  rigid: () => Haptics.impactAsync(Rigid).catch(() => {}),
+  success: () => Haptics.notificationAsync(Success).catch(() => {}),
 };
 ```
 
 Triggers in Phase 1:
 
-| Trigger | Type | Where |
-| --- | --- | --- |
-| Stepper increment (single tap) | `light` | Active-Set card stepper |
-| Stepper ramp tick (during long-press) | `light` (throttled to 200ms) | Active-Set card stepper |
-| Swipe-up crosses completion threshold | `rigid` | Active-Set card pan handler |
-| Set completed (routine — not last in exercise) | `light` | After mutation, before next-set slide |
-| Set completed (last set in exercise) | `medium` | Higher-weight moment |
-| Rest timer reaches target | `success` | `useRestTimer.ts` (existing) |
-| Long-press to skip rest | `light` | Rest bar handler |
+| Trigger                                        | Type                         | Where                                 |
+| ---------------------------------------------- | ---------------------------- | ------------------------------------- |
+| Stepper increment (single tap)                 | `light`                      | Active-Set card stepper               |
+| Stepper ramp tick (during long-press)          | `light` (throttled to 200ms) | Active-Set card stepper               |
+| Swipe-up crosses completion threshold          | `rigid`                      | Active-Set card pan handler           |
+| Set completed (routine — not last in exercise) | `light`                      | After mutation, before next-set slide |
+| Set completed (last set in exercise)           | `medium`                     | Higher-weight moment                  |
+| Rest timer reaches target                      | `success`                    | `useRestTimer.ts` (existing)          |
+| Long-press to skip rest                        | `light`                      | Rest bar handler                      |
 
 The existing `Heavy` on long-press-to-delete-set is preserved (file `SetsTable.tsx:120` — when SetsTable is removed in this phase, that haptic moves to the ghost-stack edit interaction which is Phase 3; for Phase 1 the destructive-haptic line is removed without replacement).
 
@@ -307,6 +309,7 @@ Phase 1 touches the theme tokens (`src/ui/theme.ts`) and only rebuilds two scree
 Resolution: **the new theme is additive**. The new tokens (`bg`, `surface`, `ink`, `inkHero`, `accent`, etc., as defined in the Color system tables above) live in `src/ui/colors.ts`. The existing `src/ui/theme.ts` color object stays exactly as it is for Phase 1 and is mapped via a small compatibility shim — each old token (`brand`, `pr`, `accentMuted`, `successSoft`, etc.) resolves to the closest new token in the active theme (light or dark). The non-Phase-1 screens render in the new palette automatically via the shim, but they're not re-laid-out — that's a Phase 3/4 sweep.
 
 In practice this means:
+
 - `src/ui/theme.ts` is kept as the public import path for the rest of the app.
 - Internally, `theme.color` becomes the result of `useTheme()` (which reads `useColorScheme()` and returns the right token set).
 - A small `legacyColorMap` table maps old token names to new ones (e.g. `brand → accent`, `pr → accent`, `successSoft → accentSoft`, `chartAxis → inkTertiary`).
@@ -371,6 +374,6 @@ Each step lands as a commit with a passing test suite. The app is usable at ever
 ## Open questions
 
 - **What's the unit default?** The `profiles.units` column already exists in the schema; user profile can be `kg` or `lb`. Stepper increment defaults: `5 lb` if lb, `2.5 kg` if kg. Confirmed assumption.
-- **What if the last workout has *no* completed sets** (workout was started and immediately finished, or all sets were skipped)? Repeat card still renders with the same exercises but with placeholder seeds (`– × –`, opens stepper at `135 × 5` default). Confirmed assumption.
+- **What if the last workout has _no_ completed sets** (workout was started and immediately finished, or all sets were skipped)? Repeat card still renders with the same exercises but with placeholder seeds (`– × –`, opens stepper at `135 × 5` default). Confirmed assumption.
 - **What if the user has multiple workout types on a rotation (Push / Pull / Legs)** and the "last workout" is the wrong one? Phase 1 ignores this; the Repeat card always shows "most recent". Smart rotation detection is a Phase 4 / future-spec topic.
 - **Does the swipe-up gesture conflict with vertical scrolling of the ghost stack?** The active card itself is fixed; only the ghost stack scrolls. Pan handler only activates on the card area, not the ghost stack. Verified at design time; verify on device during step 5.

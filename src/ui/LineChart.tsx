@@ -1,13 +1,15 @@
 /**
- * Forged Iron SVG line chart — skin-aware, react-native-svg only.
+ * Blacktop SVG line chart — skin-aware, react-native-svg only.
  *
  * Built on react-native-svg (avoids the victory-native / React 19 peer
- * conflict; do NOT add victory/recharts/skia). One series over time: a soft area
- * fill under a rounded accent line, data-driven y-scaling (does NOT force a 0
- * baseline, so real variation is visible), hard 2px axis rules with faint
- * gridlines, Geist Mono tick labels (the app's numeral signature), optional
- * ember PR markers, and an optional tap-scrub read-out. Colors come from the
- * active skin via useTheme().
+ * conflict; do NOT add victory/recharts/skia). One series over time: an
+ * accentSoft area fill under a volt accent line, data-driven y-scaling (does
+ * NOT force a 0 baseline, so real variation is visible), hard 2px axis rules
+ * with faint gridlines, Geist Mono tick labels in compact notation (10000 →
+ * "10k", so a 5-digit tick can never overflow the gutter and clip to "000"),
+ * ink-ringed PR markers (chalk in dark, ink in light — volt stays reserved
+ * for the line itself), and an optional tap-scrub read-out. Colors come from
+ * the active skin via useTheme().
  */
 import { useMemo } from 'react';
 import { StyleSheet, View } from 'react-native';
@@ -15,7 +17,7 @@ import { Gesture, GestureDetector } from 'react-native-gesture-handler';
 import { runOnJS } from 'react-native-reanimated';
 import Svg, { Circle, Line, Path, Text as SvgText } from 'react-native-svg';
 
-import { chartTicks } from './chartTicks';
+import { chartTicks, formatCompactTick } from './chartTicks';
 import { Text } from './Text';
 import { useTheme } from './useTheme';
 
@@ -34,7 +36,7 @@ interface Props {
   yTickFormatter?: (v: number) => string;
   /** Appended to the top y-tick only, e.g. " kg" — keeps the axis uncluttered. */
   unitSuffix?: string;
-  /** Data x-values that set a record; each is ringed in ember with a "PR" label. */
+  /** Data x-values that set a record; each is ringed in ink with a "PR" label. */
   markers?: { x: number }[];
   /**
    * When provided, the chart becomes tap-scrubbable: a Pan gesture maps touch x
@@ -53,7 +55,7 @@ export function LineChart({
   width,
   height,
   xTickFormatter = (v) => String(v),
-  yTickFormatter = (v) => String(Math.round(v)),
+  yTickFormatter = formatCompactTick,
   unitSuffix,
   markers,
   onScrub,
@@ -169,24 +171,21 @@ export function LineChart({
   const panGesture = useMemo(() => {
     if (!onScrub || !reportNearest) return null;
     const clear = () => onScrub(null);
-    return Gesture.Pan()
-      // Engage horizontally only so it doesn't fight the parent ScrollView.
-      .activeOffsetX([-8, 8])
-      .failOffsetY([-12, 12])
-      .onBegin((e) => runOnJS(reportNearest)(e.x))
-      .onUpdate((e) => runOnJS(reportNearest)(e.x))
-      .onEnd(() => runOnJS(clear)())
-      .onFinalize(() => runOnJS(clear)());
+    return (
+      Gesture.Pan()
+        // Engage horizontally only so it doesn't fight the parent ScrollView.
+        .activeOffsetX([-8, 8])
+        .failOffsetY([-12, 12])
+        .onBegin((e) => runOnJS(reportNearest)(e.x))
+        .onUpdate((e) => runOnJS(reportNearest)(e.x))
+        .onEnd(() => runOnJS(clear)())
+        .onFinalize(() => runOnJS(clear)())
+    );
   }, [onScrub, reportNearest]);
 
   if (!chart || data.length === 0) {
     return (
-      <View
-        style={[
-          styles.empty,
-          { width, height, backgroundColor: theme.color.bg, borderRadius: theme.radius.md },
-        ]}
-      >
+      <View style={[styles.empty, { width, height, backgroundColor: theme.color.bg }]}>
         <Text variant="meta" color={theme.color.inkTertiary}>
           No data yet
         </Text>
@@ -282,7 +281,8 @@ export function LineChart({
         <Circle key={`pt-${i}`} cx={p.x} cy={p.y} r={2.5} fill={theme.color.accent} />
       ))}
 
-      {/* PR markers: ember ring + a tiny mono "PR" micro-label above */}
+      {/* PR markers: ink ring (chalk in dark, ink in light) + a tiny mono "PR"
+          micro-label above — volt stays reserved for the line itself */}
       {chart.markerPoints.map((p, i) => (
         <Circle
           key={`mk-${i}`}
@@ -290,7 +290,7 @@ export function LineChart({
           cy={p.y}
           r={6}
           fill="none"
-          stroke={theme.color.accent}
+          stroke={theme.color.ink}
           strokeWidth={2}
         />
       ))}
@@ -299,7 +299,7 @@ export function LineChart({
           key={`ml-${i}`}
           x={p.x}
           y={p.y - 12}
-          fill={theme.color.accent}
+          fill={theme.color.ink}
           fontFamily={theme.font.family.mono}
           fontSize={8}
           textAnchor="middle"
@@ -308,13 +308,13 @@ export function LineChart({
         </SvgText>
       ))}
 
-      {/* emphasize the latest point */}
+      {/* emphasize the latest point (full-bleed chart sits on bg, not surface) */}
       <Circle
         cx={chart.last.x}
         cy={chart.last.y}
         r={4.5}
         fill={theme.color.accent}
-        stroke={theme.color.surface}
+        stroke={theme.color.bg}
         strokeWidth={2}
       />
 

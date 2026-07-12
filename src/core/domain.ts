@@ -15,7 +15,16 @@ import type {
   WorkoutExercise,
 } from '@/db/types';
 
-export type { Exercise, PersonalRecord, Profile, Template, TrainingPlan, TrainingPlanSlot, Workout, WorkoutExercise };
+export type {
+  Exercise,
+  PersonalRecord,
+  Profile,
+  Template,
+  TrainingPlan,
+  TrainingPlanSlot,
+  Workout,
+  WorkoutExercise,
+};
 export type { Set } from '@/db/types';
 
 export type Units = Profile['units'];

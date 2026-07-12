@@ -81,6 +81,27 @@ export function chartTicks(dataMin: number, dataMax: number, desiredCount = 4): 
   return { ...buildTicks(min, max, step), step };
 }
 
+/**
+ * Compact mono tick label: 10000 → "10k", 2500 → "2.5k", 1000000 → "1M";
+ * sub-1000 values pass through with a trailing ".0" trimmed.
+ *
+ * Fixes the device-observed axis bug where a 5-digit top tick ("10000 kg")
+ * overflowed the chart's fixed left gutter and clipped to "000 kg". Keeps up
+ * to two decimals so close-together thousand-scale ticks (9950 vs 10000)
+ * never collapse into the same label.
+ */
+export function formatCompactTick(value: number): string {
+  if (!Number.isFinite(value)) return String(value);
+  const abs = Math.abs(value);
+  if (abs >= 1_000_000) return `${trimNum(value / 1_000_000)}M`;
+  if (abs >= 1000) return `${trimNum(value / 1000)}k`;
+  return trimNum(value);
+}
+
+function trimNum(n: number): string {
+  return String(Math.round(n * 100) / 100);
+}
+
 function buildTicks(min: number, max: number, step: number): Omit<ChartTicks, 'step'> {
   const ticks: number[] = [];
   // Guard against floating-point drift accumulating an extra/short tick.

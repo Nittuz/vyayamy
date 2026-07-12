@@ -2,8 +2,7 @@ import { useColorScheme } from 'react-native';
 
 import { type PaletteTokens } from './colors';
 import { motion } from './motion';
-import { skins, type SkinId } from './skins';
-import { useSkin } from './SkinContext';
+import { DEFAULT_SKIN, skins, type SkinId } from './skins';
 import { typography } from './typography';
 
 export const space = {
@@ -21,26 +20,31 @@ export const space = {
   page: 20,
 } as const;
 
-// Forged Iron corners are near-sharp: the slab + 2px rule carry the form,
-// not rounding. Token names survive so consumers don't change.
+// Blacktop shape lock: all-sharp. Token names survive so consumers don't
+// change, but every corner collapses to 0; `full` remains for the avatar only.
 export const radius = {
-  sm: 2,
-  md: 4,
-  lg: 6,
+  sm: 0,
+  md: 0,
+  lg: 0,
   full: 9999,
-  card: 4,
-  button: 2,
+  card: 0,
+  button: 0,
 } as const;
 
-/** Hard-offset slab depths and rule weights — the Forged Iron z-axis. */
+/**
+ * Rule weights. Blacktop retires the slab z-axis (shadows are gone; elevation
+ * is inversion) — slab/slabSm survive only so legacy consumers keep compiling.
+ * `hairline` is the Plate border weight: 1.5px structural rule.
+ */
 export const depth = {
   slab: 4,
   slabSm: 2,
+  hairline: 1.5,
   rule: 2,
   ruleHeavy: 3,
 } as const;
 
-/** Pressed faces translate this far toward their slab (direct manipulation, not animation). */
+/** Legacy press-sink distance — retired (press is now a 60ms opacity/scale dip). */
 export const press = {
   translate: 3,
 } as const;
@@ -86,6 +90,5 @@ export function buildTheme(skin: SkinId, scheme: 'light' | 'dark'): Theme {
 export function useTheme(): Theme {
   const raw = useColorScheme();
   const scheme: 'light' | 'dark' = raw === 'light' ? 'light' : 'dark';
-  const { skin } = useSkin();
-  return buildTheme(skin, scheme);
+  return buildTheme(DEFAULT_SKIN, scheme);
 }

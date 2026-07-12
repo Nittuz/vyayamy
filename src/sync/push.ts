@@ -21,9 +21,8 @@
  *     window is left behind; the FIFO never blocks on the head row.
  */
 import { supabase } from '@/auth/supabase';
+import { isTransientSyncMessage } from '@/core/syncHelpers';
 import { getDb } from '@/db/client';
-import type { SyncedTable } from '@/db/schema';
-import { withTransaction } from '@/db/transaction';
 
 import { setSyncState } from './state';
 
@@ -44,10 +43,6 @@ interface OutboxRow {
 
 export const MAX_ATTEMPTS = 5;
 const BATCH_LIMIT = 50;
-
-/** Per-table override for upsert conflict target. Defaults to the PK (id).
- *  (personal_records is no longer synced — it is a local derived cache, #138.) */
-const UPSERT_CONFLICT_TARGET: Partial<Record<SyncedTable, string>> = {};
 
 /** Columns the server owns; never send them. */
 const SERVER_OWNED_COLUMNS = new Set(['updated_at']);
@@ -76,21 +71,9 @@ export function isTransientError(err: unknown): boolean {
   if (typeof e.status === 'number' && e.status >= 500) return true;
   if (e.status === 429) return true;
   if (e.code === 'PGRST301' || e.code === 'PGRST302') return true; // JWT expired/missing
-  const msg = (e.message ?? '').toLowerCase();
-  if (
-    msg.includes('network') ||
-    msg.includes('fetch') ||
-    msg.includes('timeout') ||
-    msg.includes('econn') ||
-    msg.includes('jwt') ||
-    msg.includes('rate limit') ||
-    msg.includes('too many requests') ||
-    msg.includes('temporarily unavailable') ||
-    msg.includes('service unavailable')
-  ) {
-    return true;
-  }
-  return false;
+  // Message-level matching delegates to the shared classifier (#42) so push
+  // retry classification and UI toast suppression can never drift apart again.
+  return isTransientSyncMessage(e.message ?? '');
 }
 
 function stripServerOwned(payload: Record<string, unknown>): Record<string, unknown> {
@@ -172,74 +155,58 @@ async function drainBatch(
     const payload = stripServerOwned(rawPayload);
 
     try {
-        const tbl = fromDynamic(row.table_name);
-        if (row.op === 'delete') {
-          // Send only the tombstone marker; server overwrites updated_at.
-          // .select('id') lets us verify a row actually matched — a 0-row
-          // PostgREST update reports no error, which would otherwise delete the
-          // outbox row and silently drop the write (#0).
-          const { data, error } = await tbl
-            .update({ deleted_at: new Date().toISOString() } as never)
-            .eq('id', row.row_id)
-            .select('id');
-          if (error) throw error;
-          assertServerRowMatched(data, row);
-        } else if (row.op === 'update') {
-          const { data, error } = await tbl
-            .update(payload as never)
-            .eq('id', row.row_id)
-            .select('id');
-          if (error) throw error;
-          assertServerRowMatched(data, row);
-        } else {
-          // 'insert' is treated as upsert(by-id) for kill-mid-ack idempotency.
-          // 'upsert' uses the table-specific composite target if set.
-          const conflictTarget = UPSERT_CONFLICT_TARGET[row.table_name as SyncedTable];
-          const opts = conflictTarget ? { onConflict: conflictTarget } : undefined;
-          if (opts?.onConflict && opts.onConflict !== 'id') {
-            // Composite-key upsert. Capture the server-returned row id and
-            // reconcile if it differs from the local one (per audit fix #2).
-            const { data: serverRow, error: upsertErr } = await tbl
-              .upsert(payload as never, opts)
-              .select('id')
-              .single();
-            if (upsertErr) throw upsertErr;
-            const serverId = (serverRow as { id?: string } | null)?.id;
-            if (typeof serverId === 'string' && serverId !== row.row_id) {
-              await reconcileLocalRowId(row.table_name, row.row_id, serverId);
-            }
-          } else {
-            const { error } = opts
-              ? await tbl.upsert(payload as never, opts)
-              : await tbl.upsert(payload as never);
-            if (error) throw error;
-          }
-        }
+      const tbl = fromDynamic(row.table_name);
+      if (row.op === 'delete') {
+        // Send only the tombstone marker; server overwrites updated_at.
+        // .select('id') lets us verify a row actually matched — a 0-row
+        // PostgREST update reports no error, which would otherwise delete the
+        // outbox row and silently drop the write (#0).
+        const { data, error } = await tbl
+          .update({ deleted_at: new Date().toISOString() } as never)
+          .eq('id', row.row_id)
+          .select('id');
+        if (error) throw error;
+        assertServerRowMatched(data, row);
+      } else if (row.op === 'update') {
+        const { data, error } = await tbl
+          .update(payload as never)
+          .eq('id', row.row_id)
+          .select('id');
+        if (error) throw error;
+        assertServerRowMatched(data, row);
+      } else {
+        // 'insert'/'upsert' both go up as upsert on the PK (id) for
+        // kill-mid-ack idempotency. (The composite-conflict-target branch
+        // and its local-id reconciliation died with personal_records sync,
+        // #138 — every remaining synced table upserts on id.)
+        const { error } = await tbl.upsert(payload as never);
+        if (error) throw error;
+      }
 
-        await db.runAsync('DELETE FROM outbox WHERE id = ?', [row.id]);
-        succeeded += 1;
-      } catch (err) {
-        const msg = errorMessage(err);
-        if (firstError === null) firstError = msg;
+      await db.runAsync('DELETE FROM outbox WHERE id = ?', [row.id]);
+      succeeded += 1;
+    } catch (err) {
+      const msg = errorMessage(err);
+      if (firstError === null) firstError = msg;
 
-        if (isTransientError(err)) {
-          // Don't increment attempts; just log so the UI can show a status.
-          await db.runAsync('UPDATE outbox SET last_error = ? WHERE id = ?', [msg, row.id]);
-        } else {
-          const nextAttempts = row.attempts + 1;
-          const nextAt =
-            nextAttempts < MAX_ATTEMPTS
-              ? new Date(Date.now() + backoffMs(nextAttempts)).toISOString()
-              : null;
-          await db.runAsync(
-            `UPDATE outbox
+      if (isTransientError(err)) {
+        // Don't increment attempts; just log so the UI can show a status.
+        await db.runAsync('UPDATE outbox SET last_error = ? WHERE id = ?', [msg, row.id]);
+      } else {
+        const nextAttempts = row.attempts + 1;
+        const nextAt =
+          nextAttempts < MAX_ATTEMPTS
+            ? new Date(Date.now() + backoffMs(nextAttempts)).toISOString()
+            : null;
+        await db.runAsync(
+          `UPDATE outbox
                SET attempts = ?, last_error = ?, next_attempt_at = ?
                WHERE id = ?`,
-            [nextAttempts, msg, nextAt, row.id],
-          );
-        }
+          [nextAttempts, msg, nextAt, row.id],
+        );
       }
     }
+  }
 
   return { succeeded, firstError };
 }
@@ -265,24 +232,4 @@ function errorMessage(err: unknown): string {
     if (typeof m === 'string') return m;
   }
   return String(err);
-}
-
-/** Tables for which reconcileLocalRowId is permitted to run. */
-const RECONCILE_SAFE_TABLES = new Set(['personal_records']);
-
-/**
- * Update a local row's primary key to match the server-authoritative id
- * after a composite-key upsert revealed a different id existed.
- * Done in a transaction so a crash mid-update doesn't leave dangling refs.
- */
-async function reconcileLocalRowId(
-  table: string,
-  oldId: string,
-  newId: string,
-): Promise<void> {
-  if (!RECONCILE_SAFE_TABLES.has(table)) return;
-  const db = await getDb();
-  await withTransaction(db, async () => {
-    await db.runAsync(`UPDATE ${table} SET id = ? WHERE id = ?`, [newId, oldId]);
-  });
 }

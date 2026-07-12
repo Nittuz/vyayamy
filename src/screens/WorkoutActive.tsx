@@ -12,17 +12,19 @@ import {
   completedSetsBeforeCursor,
   type ExerciseShape,
   findExercise,
-  findInitialCursor,
   findNextExercise,
   findPrevExercise,
   findSet,
   firstIncompleteSet,
+  planStagedSet,
+  resolveCursor,
+  type SetShape,
   shouldConfirmLeavingSet,
+  workoutHeaderTitle,
 } from '@/components/activeSet';
 import { EditableTitle } from '@/components/EditableTitle';
+import { EditSetSheet } from '@/components/EditSetSheet';
 import { ExercisePicker } from '@/components/ExercisePicker';
-import { RestOverrideSheet } from '@/components/RestOverrideSheet';
-import { RestProgressBar } from '@/components/RestProgressBar';
 import { SessionVolumeBar, type BankSignal } from '@/components/SessionVolumeBar';
 import { SyncErrorStripe } from '@/components/SyncErrorStripe';
 import { VoiceMicButton } from '@/components/VoiceMicButton';
@@ -45,14 +47,16 @@ import {
 } from '@/queries/workouts';
 import { useWorkoutDetail } from '@/queries/workoutDetail';
 import { DEFAULT_UNITS, sumVolume } from '@/core/units';
-import { dayOfWeek } from '@/lib/dayOfWeek';
+import { effectiveRest, getOverrides } from '@/rest/overrides';
+import { RestOverrideSheet } from '@/rest/RestOverrideSheet';
+import { RestProgressBar } from '@/rest/RestProgressBar';
+import { useRestTimer } from '@/rest/useRestTimer';
 import { Button } from '@/ui/Button';
 import { ConfirmSheet } from '@/ui/ConfirmSheet';
+import { EmptyState } from '@/ui/EmptyState';
 import { haptics } from '@/ui/haptics';
-import { useRestTimer } from '@/ui/hooks/useRestTimer';
-import { Icon } from '@/ui/icons';
-import { effectiveRest, getOverrides } from '@/ui/restOverrides';
 import { SessionRecap } from '@/ui/SessionRecap';
+import { SettleSlam } from '@/ui/SettleSlam';
 import { SyncIndicator } from '@/ui/SyncIndicator';
 import { Text } from '@/ui/Text';
 import { useSyncAwareErrorToast } from '@/ui/ToastContext';
@@ -102,6 +106,15 @@ export default function WorkoutActiveScreen() {
   const [leaveConfirm, setLeaveConfirm] = useState<null | (() => void)>(null);
   const [discardConfirm, setDiscardConfirm] = useState(false);
 
+  // Banked-set editing (backlog 1.1): the target survives close so the sheet
+  // keeps its content through the exit animation.
+  const [editTarget, setEditTarget] = useState<{ set: SetShape; number: number } | null>(null);
+  const [editOpen, setEditOpen] = useState(false);
+  const onEditSet = useCallback((s: SetShape, displayIndex: number) => {
+    setEditTarget({ set: s, number: displayIndex });
+    setEditOpen(true);
+  }, []);
+
   useEffect(() => {
     void getOverrides().then(setOverridesState);
   }, []);
@@ -133,7 +146,12 @@ export default function WorkoutActiveScreen() {
 
   const currentExForRest = cursor ? findExercise(exercises, cursor.weId) : null;
   const restSeconds = useMemo(
-    () => effectiveRest(overrides, currentExForRest?.exerciseId ?? '', currentExForRest?.muscleGroup ?? null),
+    () =>
+      effectiveRest(
+        overrides,
+        currentExForRest?.exerciseId ?? '',
+        currentExForRest?.muscleGroup ?? null,
+      ),
     [overrides, currentExForRest?.exerciseId, currentExForRest?.muscleGroup],
   );
   const timer = useRestTimer({ targetSeconds: restSeconds });
@@ -152,51 +170,16 @@ export default function WorkoutActiveScreen() {
   const autoStaged = useRef<AutoStagedSet | null>(null);
 
   // Initialize cursor when exercises first load, or reposition when the cursor
-  // points at a set that no longer exists / is already completed. cursor is read
-  // here only to check validity — the setter is always called conditionally.
+  // points at a set that no longer exists / is already completed. The decision
+  // lives in resolveCursor (pure, characterization-tested, #21/#77); this
+  // effect only applies its outcome. cursor is read only to check validity —
+  // the setter is called only when the resolution carries a cursor.
   // eslint-disable-next-line react-hooks/exhaustive-deps
   useEffect(() => {
-    if (exercises.length === 0) {
-      setCursor(null);
-      didInitCursor.current = false;
-      return;
-    }
-    // Add-from-recap: target the just-added exercise's staged set once it loads.
-    if (pendingTargetWeId.current) {
-      const target = findExercise(exercises, pendingTargetWeId.current);
-      if (target) {
-        const set = firstIncompleteSet(target);
-        if (set) {
-          pendingTargetWeId.current = null;
-          didInitCursor.current = true;
-          setCursor({ weId: target.id, setId: set.id });
-        }
-      }
-      return; // exercise not in the cached data yet → wait for the next render
-    }
-    if (cursor) {
-      didInitCursor.current = true; // we have a real cursor → initialized
-      const ex = findExercise(exercises, cursor.weId);
-      if (ex) {
-        const set = findSet(ex, cursor.setId);
-        // Set not in the cached data yet — it was just created (advancing to a
-        // new exercise stages a set before the query refetch lands). Keep the
-        // cursor; the data will catch up.
-        if (!set) return;
-        if (!set.completed) return; // valid working set
-        // set exists and is completed → fall through and reposition
-      }
-      // cursor points at a missing exercise or a completed set → reposition
-      setCursor(findInitialCursor(exercises));
-      return;
-    }
-    // cursor is null: initialize on first load. Once the user has finished
-    // (deliberate null via "finish →"), leave it null so the recap shows and we
-    // don't bounce them back into the first incomplete set.
-    if (!didInitCursor.current) {
-      didInitCursor.current = true;
-      setCursor(findInitialCursor(exercises));
-    }
+    const res = resolveCursor(exercises, cursor, didInitCursor.current, pendingTargetWeId.current);
+    didInitCursor.current = res.didInit;
+    pendingTargetWeId.current = res.pendingTargetWeId;
+    if (res.cursor !== undefined) setCursor(res.cursor);
   }, [exercises, cursor]);
 
   const onChangeWeight = useCallback(
@@ -228,8 +211,7 @@ export default function WorkoutActiveScreen() {
       timer.start();
       // Auto-stage the next set with the same weight × reps (Phase 3)
       const currentSetData = currentExForRest && findSet(currentExForRest, cursor.setId);
-      const stagedWeight = currentSetData?.weight ?? null;
-      const stagedReps = currentSetData?.reps ?? null;
+      const staged = planStagedSet(currentSetData ?? null, units);
 
       // Did the set just banked beat the all-time heaviest for this exercise?
       if (prTracker.current == null) {
@@ -248,14 +230,9 @@ export default function WorkoutActiveScreen() {
         setSessionPRs((prev) => (prev.includes(name) ? prev : [...prev, name]));
       }
 
-      const newSetId = await addSet(cursor.weId, {
-        weight: stagedWeight,
-        reps: stagedReps,
-        // Same session → same logging unit as the set just completed.
-        units: stagedWeight != null ? units : null,
-      });
+      const newSetId = await addSet(cursor.weId, staged);
       // Record what we pre-filled so an untouched staged set advances silently.
-      autoStaged.current = { id: newSetId, weight: stagedWeight, reps: stagedReps };
+      autoStaged.current = { id: newSetId, weight: staged.weight, reps: staged.reps };
       refreshDetail();
       setCursor({ weId: cursor.weId, setId: newSetId });
     } finally {
@@ -305,7 +282,7 @@ export default function WorkoutActiveScreen() {
         // the cursor on a completed set makes the cursor-reset effect bounce it
         // back to the first incomplete set (an earlier exercise). Stage a fresh
         // set only if every set in the next exercise is already done.
-        let nextSetId = nextEx.sets.find((s) => !s.completed)?.id;
+        let nextSetId = firstIncompleteSet(nextEx)?.id;
         if (!nextSetId) {
           nextSetId = await addSet(nextEx.id);
           refreshDetail();
@@ -325,12 +302,16 @@ export default function WorkoutActiveScreen() {
   }, [cursor, currentExForRest, exercises, refreshDetail]);
 
   const onPrevExercise = useCallback(() => {
-    if (!cursor) return;
+    if (!cursor || !currentExForRest) return;
     const prevEx = findPrevExercise(exercises, cursor.weId);
     if (!prevEx) return;
+    // Same guard as next-exercise (#12 asymmetry): leaving a set the user
+    // actually entered warns in BOTH directions, not just forward.
+    const currentSet = findSet(currentExForRest, cursor.setId);
+    const needsConfirm = shouldConfirmLeavingSet(currentSet, autoStaged.current);
     // Mirror next-exercise: target prev's first INCOMPLETE set (not sets[0], which
     // may be completed and would make the cursor-reset effect bounce away, #13).
-    void (async () => {
+    const goBack = async () => {
       let setId = firstIncompleteSet(prevEx)?.id;
       if (!setId) {
         setId = await addSet(prevEx.id);
@@ -338,8 +319,13 @@ export default function WorkoutActiveScreen() {
       }
       setCursor({ weId: prevEx.id, setId });
       haptics.medium();
-    })();
-  }, [cursor, exercises, refreshDetail]);
+    };
+    if (!needsConfirm) {
+      void goBack();
+    } else {
+      setLeaveConfirm(() => () => void goBack());
+    }
+  }, [cursor, currentExForRest, exercises, refreshDetail]);
 
   // Hands-free voice session. Data commands route through the tested dispatch
   // layer; "done" reuses the screen's canonical completion (timer + auto-stage);
@@ -361,13 +347,16 @@ export default function WorkoutActiveScreen() {
     onCompleteSet: () => void onComplete(),
   });
 
-  const hasNextExercise = currentExForRest ? findNextExercise(exercises, currentExForRest.id) !== null : false;
+  const hasNextExercise = currentExForRest
+    ? findNextExercise(exercises, currentExForRest.id) !== null
+    : false;
 
   const screenOptions = useMemo(
     () => ({
       headerTitle: () => (
         <EditableTitle
-          value={(activeQuery.data?.title || dayOfWeek(new Date())).toString()}
+          // Fallback is the day the workout STARTED, never "today" (1.7/#156).
+          value={workoutHeaderTitle(activeQuery.data?.title, activeQuery.data?.started_at)}
           onCommit={(next) => {
             if (activeQuery.data) {
               updateTitle.mutate({ workoutId: activeQuery.data.id, title: next });
@@ -393,17 +382,23 @@ export default function WorkoutActiveScreen() {
   }
 
   if (!activeQuery.data || !detail.data) {
+    // Composed empty state (Blacktop spec): mark + one display line + one CTA —
+    // never copy floating in a void.
     return (
-      <SafeAreaView style={[styles.container, styles.center, { backgroundColor: theme.color.bg }]}>
-        <Text variant="body" color={theme.color.inkSecondary}>
-          No active workout.
-        </Text>
-        <Button
-          label="Back to Today"
-          kind="ghost"
-          size="row"
-          onPress={() => router.replace('/today')}
-          accessibilityLabel="Back to today"
+      <SafeAreaView
+        style={[
+          styles.container,
+          styles.center,
+          { backgroundColor: theme.color.bg, paddingHorizontal: theme.space.page },
+        ]}
+      >
+        <EmptyState
+          title="No active workout."
+          cta={{
+            label: 'Back to Today',
+            kind: 'secondary',
+            onPress: () => router.replace('/today'),
+          }}
         />
       </SafeAreaView>
     );
@@ -414,20 +409,25 @@ export default function WorkoutActiveScreen() {
     return (
       <SafeAreaView style={[styles.container, { backgroundColor: theme.color.bg }]}>
         <Stack.Screen options={screenOptions} />
-        <View style={[styles.center, { flex: 1, gap: theme.space.s4, paddingHorizontal: theme.space.page }]}>
-          <Text variant="body" color={theme.color.inkSecondary} style={styles.centerText}>
-            Add your first exercise to begin.
-          </Text>
-          <Button
-            label="Add exercise"
-            icon="plus"
-            size="cta"
-            onPress={() => setPickerOpen(true)}
-            accessibilityLabel="Add your first exercise"
-            style={styles.fullBtn}
+        <View
+          style={[
+            styles.center,
+            { flex: 1, gap: theme.space.s4, paddingHorizontal: theme.space.page },
+          ]}
+        >
+          <EmptyState
+            title="No exercises yet."
+            hint="Add your first exercise to begin."
+            cta={{
+              label: 'Add exercise',
+              kind: 'secondary',
+              icon: 'plus',
+              onPress: () => setPickerOpen(true),
+              accessibilityLabel: 'Add your first exercise',
+            }}
           />
-          {/* Escape hatch: an exercise-less workout could otherwise be neither
-              finished nor discarded, stranding the user (#18). */}
+          {/* Escape hatch (ghost secondary): an exercise-less workout could
+              otherwise be neither finished nor discarded, stranding the user (#18). */}
           <Button
             label="Discard workout"
             kind="ghost"
@@ -460,10 +460,17 @@ export default function WorkoutActiveScreen() {
     return (
       <SafeAreaView style={[styles.container, { backgroundColor: theme.color.bg }]}>
         <Stack.Screen options={screenOptions} />
-        <View style={[styles.center, { flex: 1, gap: theme.space.s6, paddingHorizontal: theme.space.page }]}>
-          <Text variant="display" color={theme.color.inkHero} style={styles.centerText}>
-            Workout complete
-          </Text>
+        <View
+          style={[
+            styles.center,
+            { flex: 1, gap: theme.space.s6, paddingHorizontal: theme.space.page },
+          ]}
+        >
+          <SettleSlam>
+            <Text variant="display" color={theme.color.inkHero} style={styles.centerText}>
+              Workout complete
+            </Text>
+          </SettleSlam>
           <SessionRecap
             volume={totalVolume(exercises, units)}
             setCount={totalSetsCompleted(exercises)}
@@ -552,11 +559,14 @@ export default function WorkoutActiveScreen() {
           onChangeWeight={onChangeWeight}
           onChangeReps={onChangeReps}
           onComplete={onComplete}
+          onEditSet={onEditSet}
           voice={{
             phase: voice.ui.phase,
             partial: voice.ui.phase === 'listening' ? voice.ui.partial : undefined,
             feedback:
-              voice.ui.phase === 'pending' || voice.ui.phase === 'applied' || voice.ui.phase === 'error'
+              voice.ui.phase === 'pending' ||
+              voice.ui.phase === 'applied' ||
+              voice.ui.phase === 'error'
                 ? voice.ui.label
                 : undefined,
           }}
@@ -587,10 +597,12 @@ export default function WorkoutActiveScreen() {
           accessibilityLabel="Add exercise to workout"
         />
       </ScrollView>
-      {/* Primary progression control in the thumb zone, not the top header (#1.5). */}
+      {/* Primary progression control in the thumb zone, not the top header (#1.5).
+          Volt is reserved for the finish CTA; mid-workout progression is a panel. */}
       <View style={styles.bottomBar}>
         <Button
           label={hasNextExercise ? 'Next exercise' : 'Finish workout'}
+          kind={hasNextExercise ? 'secondary' : 'primary'}
           size="cta"
           icon="arrow-right"
           onPress={onNextExercise}
@@ -613,6 +625,21 @@ export default function WorkoutActiveScreen() {
           currentOverride={overrides[currentEx.exerciseId] ?? null}
           onClose={() => setOverrideSheetOpen(false)}
           onChanged={() => void reloadOverrides()}
+        />
+      ) : null}
+      {editTarget ? (
+        <EditSetSheet
+          visible={editOpen}
+          set={editTarget.set}
+          setNumber={editTarget.number}
+          exerciseName={currentEx.exerciseName}
+          exerciseId={currentEx.exerciseId}
+          userId={userId}
+          units={units}
+          weightStep={weightStep}
+          weightUnit={weightUnit}
+          onClose={() => setEditOpen(false)}
+          onError={toastError}
         />
       ) : null}
       <ConfirmSheet

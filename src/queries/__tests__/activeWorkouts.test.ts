@@ -2,7 +2,7 @@ import { getDb, initDb, resetDbForTests } from '@/db/client';
 import { createWorkout, finishWorkout } from '@/queries/workouts';
 import { addExerciseToWorkout } from '@/queries/exercises';
 import { addSet } from '@/queries/sets';
-import { getActiveWorkoutCollisions } from '@/queries/activeWorkouts';
+import { finishOtherActiveWorkouts, getActiveWorkoutCollisions } from '@/queries/activeWorkouts';
 import { setSyncState } from '@/sync/state';
 
 jest.mock('@/auth/supabase', () => ({
@@ -68,6 +68,51 @@ test('returns workouts ordered by started_at DESC', async () => {
   const result = await getActiveWorkoutCollisions(USER_ID);
   expect(result.workouts[0]!.id).toBe(w2);
   expect(result.workouts[1]!.id).toBe(w1);
+});
+
+test('finishOtherActiveWorkouts marks the others finished, never deletes (#111)', async () => {
+  const w1 = await createWorkout({ userId: USER_ID, title: 'Push' });
+  const w2 = await createWorkout({ userId: USER_ID, title: 'Pull' });
+  const w3 = await createWorkout({ userId: USER_ID, title: 'Legs' });
+
+  await finishOtherActiveWorkouts(USER_ID, w2);
+
+  // Only the kept workout is still active.
+  const after = await getActiveWorkoutCollisions(USER_ID);
+  expect(after.workouts.map((w) => w.id)).toEqual([w2]);
+
+  // The others are finished, not soft-deleted.
+  const db = await getDb();
+  for (const id of [w1, w3]) {
+    const row = await db.getFirstAsync<{ ended_at: string | null; deleted_at: string | null }>(
+      'SELECT ended_at, deleted_at FROM workouts WHERE id = ?',
+      [id],
+    );
+    expect(row!.ended_at).not.toBeNull();
+    expect(row!.deleted_at).toBeNull();
+  }
+
+  // Outbox carries ended_at updates for the others — no delete tombstones.
+  const ops = await db.getAllAsync<{ op: string; row_id: string }>(
+    "SELECT op, row_id FROM outbox WHERE table_name = 'workouts' AND row_id IN (?, ?)",
+    [w1, w3],
+  );
+  expect(ops.filter((o) => o.op === 'update')).toHaveLength(2);
+  expect(ops.filter((o) => o.op === 'delete')).toHaveLength(0);
+});
+
+test('finishOtherActiveWorkouts leaves other users untouched', async () => {
+  const mine = await createWorkout({ userId: USER_ID, title: 'Mine' });
+  const stranger = await createWorkout({ userId: 'someone-else', title: 'Theirs' });
+
+  await finishOtherActiveWorkouts(USER_ID, mine);
+
+  const db = await getDb();
+  const row = await db.getFirstAsync<{ ended_at: string | null }>(
+    'SELECT ended_at FROM workouts WHERE id = ?',
+    [stranger],
+  );
+  expect(row!.ended_at).toBeNull();
 });
 
 test('ignores soft-deleted workouts', async () => {

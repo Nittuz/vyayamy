@@ -1,5 +1,9 @@
 import { getDb, initDb, resetDbForTests } from '@/db/client';
-import { getGroupedPRs, getHeaviestWeightHistory, recordWorkoutPRs } from '@/queries/personalRecords';
+import {
+  getGroupedPRs,
+  getHeaviestWeightHistory,
+  recordWorkoutPRs,
+} from '@/queries/personalRecords';
 import { setSyncState } from '@/sync/state';
 
 jest.mock('@/auth/supabase', () => ({
@@ -56,9 +60,27 @@ describe('getGroupedPRs', () => {
   test('groups records per exercise and sorts groups by exercise name', async () => {
     await insertExercise('ex-bench', 'Bench Press', 'Chest');
     await insertExercise('ex-squat', 'Back Squat', 'Legs');
-    await insertPR({ id: 'pr1', exerciseId: 'ex-bench', type: 'heaviest_weight', value: 225, achievedAt: oldIso() });
-    await insertPR({ id: 'pr2', exerciseId: 'ex-bench', type: 'best_volume', value: 4500, achievedAt: oldIso() });
-    await insertPR({ id: 'pr3', exerciseId: 'ex-squat', type: 'heaviest_weight', value: 315, achievedAt: oldIso() });
+    await insertPR({
+      id: 'pr1',
+      exerciseId: 'ex-bench',
+      type: 'heaviest_weight',
+      value: 225,
+      achievedAt: oldIso(),
+    });
+    await insertPR({
+      id: 'pr2',
+      exerciseId: 'ex-bench',
+      type: 'best_volume',
+      value: 4500,
+      achievedAt: oldIso(),
+    });
+    await insertPR({
+      id: 'pr3',
+      exerciseId: 'ex-squat',
+      type: 'heaviest_weight',
+      value: 315,
+      achievedAt: oldIso(),
+    });
 
     const groups = await getGroupedPRs(USER);
 
@@ -70,8 +92,20 @@ describe('getGroupedPRs', () => {
 
   test('formats display values per PR type', async () => {
     await insertExercise('ex', 'Deadlift', 'Back');
-    await insertPR({ id: 'a', exerciseId: 'ex', type: 'heaviest_weight', value: 405, achievedAt: oldIso() });
-    await insertPR({ id: 'b', exerciseId: 'ex', type: 'best_volume', value: 6000, achievedAt: oldIso() });
+    await insertPR({
+      id: 'a',
+      exerciseId: 'ex',
+      type: 'heaviest_weight',
+      value: 405,
+      achievedAt: oldIso(),
+    });
+    await insertPR({
+      id: 'b',
+      exerciseId: 'ex',
+      type: 'best_volume',
+      value: 6000,
+      achievedAt: oldIso(),
+    });
     await insertPR({
       id: 'c',
       exerciseId: 'ex',
@@ -89,8 +123,20 @@ describe('getGroupedPRs', () => {
 
   test('flags records achieved within the last 7 days as recent', async () => {
     await insertExercise('ex', 'Press', 'Shoulders');
-    await insertPR({ id: 'recent', exerciseId: 'ex', type: 'heaviest_weight', value: 100, achievedAt: recentIso() });
-    await insertPR({ id: 'old', exerciseId: 'ex', type: 'best_volume', value: 100, achievedAt: oldIso() });
+    await insertPR({
+      id: 'recent',
+      exerciseId: 'ex',
+      type: 'heaviest_weight',
+      value: 100,
+      achievedAt: recentIso(),
+    });
+    await insertPR({
+      id: 'old',
+      exerciseId: 'ex',
+      type: 'best_volume',
+      value: 100,
+      achievedAt: oldIso(),
+    });
 
     const [group] = await getGroupedPRs(USER);
     expect(group!.hasRecent).toBe(true);
@@ -99,7 +145,13 @@ describe('getGroupedPRs', () => {
   });
 
   test('falls back to "Unknown" when the exercise row is missing', async () => {
-    await insertPR({ id: 'pr', exerciseId: 'ghost', type: 'heaviest_weight', value: 100, achievedAt: oldIso() });
+    await insertPR({
+      id: 'pr',
+      exerciseId: 'ghost',
+      type: 'heaviest_weight',
+      value: 100,
+      achievedAt: oldIso(),
+    });
     const [group] = await getGroupedPRs(USER);
     expect(group!.exerciseName).toBe('Unknown');
     expect(group!.muscleGroup).toBeNull();
@@ -107,8 +159,21 @@ describe('getGroupedPRs', () => {
 
   test('excludes soft-deleted records', async () => {
     await insertExercise('ex', 'Row', 'Back');
-    await insertPR({ id: 'live', exerciseId: 'ex', type: 'heaviest_weight', value: 100, achievedAt: oldIso() });
-    await insertPR({ id: 'dead', exerciseId: 'ex', type: 'best_volume', value: 100, achievedAt: oldIso(), deleted: true });
+    await insertPR({
+      id: 'live',
+      exerciseId: 'ex',
+      type: 'heaviest_weight',
+      value: 100,
+      achievedAt: oldIso(),
+    });
+    await insertPR({
+      id: 'dead',
+      exerciseId: 'ex',
+      type: 'best_volume',
+      value: 100,
+      achievedAt: oldIso(),
+      deleted: true,
+    });
 
     const [group] = await getGroupedPRs(USER);
     expect(group!.records.map((r) => r.id)).toEqual(['live']);
@@ -172,7 +237,9 @@ describe('recordWorkoutPRs', () => {
     );
     expect(prOutbox?.c).toBe(0);
     // ...but the local cache was written.
-    const prCount = await db.getFirstAsync<{ c: number }>('SELECT COUNT(*) AS c FROM personal_records');
+    const prCount = await db.getFirstAsync<{ c: number }>(
+      'SELECT COUNT(*) AS c FROM personal_records',
+    );
     expect(prCount!.c).toBeGreaterThan(0);
   });
 
@@ -196,14 +263,20 @@ describe('recordWorkoutPRs', () => {
       { weight: 150, reps: 5, completed: true }, // the next-best
     ]);
     await recordWorkoutPRs(USER, 'w');
-    expect((await getGroupedPRs(USER))[0]!.records.find((r) => r.type === 'heaviest_weight')!.displayValue).toBe('200');
+    expect(
+      (await getGroupedPRs(USER))[0]!.records.find((r) => r.type === 'heaviest_weight')!
+        .displayValue,
+    ).toBe('200');
 
     // Soft-delete the 200 set, then recompute: the phantom PR must drop to 150.
     const db = await getDb();
     await db.runAsync(`UPDATE sets SET deleted_at = ? WHERE id = 'we-s0'`, [T]);
     await recordWorkoutPRs(USER, 'w');
 
-    expect((await getGroupedPRs(USER))[0]!.records.find((r) => r.type === 'heaviest_weight')!.displayValue).toBe('150');
+    expect(
+      (await getGroupedPRs(USER))[0]!.records.find((r) => r.type === 'heaviest_weight')!
+        .displayValue,
+    ).toBe('150');
   });
 });
 
@@ -230,15 +303,44 @@ describe('getHeaviestWeightHistory', () => {
     await db.runAsync(
       `INSERT INTO sets (id, workout_exercise_id, order_index, weight, reps, completed, completed_at, created_at, updated_at, deleted_at)
          VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
-      [args.setId, weId, 0, args.weight, 5, args.completed ? 1 : 0, args.completedAt, T, T, args.deleted ? T : null],
+      [
+        args.setId,
+        weId,
+        0,
+        args.weight,
+        5,
+        args.completed ? 1 : 0,
+        args.completedAt,
+        T,
+        T,
+        args.deleted ? T : null,
+      ],
     );
   }
 
   test('returns the per-day maximum completed weight, sorted ascending', async () => {
     await insertExercise('ex', 'Bench', 'Chest');
-    await seedSet({ setId: 's1', exerciseId: 'ex', weight: 100, completed: true, completedAt: '2026-02-01T10:00:00.000Z' });
-    await seedSet({ setId: 's2', exerciseId: 'ex', weight: 120, completed: true, completedAt: '2026-02-01T11:00:00.000Z' });
-    await seedSet({ setId: 's3', exerciseId: 'ex', weight: 110, completed: true, completedAt: '2026-02-03T10:00:00.000Z' });
+    await seedSet({
+      setId: 's1',
+      exerciseId: 'ex',
+      weight: 100,
+      completed: true,
+      completedAt: '2026-02-01T10:00:00.000Z',
+    });
+    await seedSet({
+      setId: 's2',
+      exerciseId: 'ex',
+      weight: 120,
+      completed: true,
+      completedAt: '2026-02-01T11:00:00.000Z',
+    });
+    await seedSet({
+      setId: 's3',
+      exerciseId: 'ex',
+      weight: 110,
+      completed: true,
+      completedAt: '2026-02-03T10:00:00.000Z',
+    });
 
     const points = await getHeaviestWeightHistory(USER, 'ex');
     expect(points).toEqual([
@@ -249,10 +351,35 @@ describe('getHeaviestWeightHistory', () => {
 
   test('ignores incomplete, deleted, and null-weight sets', async () => {
     await insertExercise('ex', 'Bench', 'Chest');
-    await seedSet({ setId: 'incomplete', exerciseId: 'ex', weight: 200, completed: false, completedAt: null });
-    await seedSet({ setId: 'deleted', exerciseId: 'ex', weight: 300, completed: true, completedAt: '2026-02-05T10:00:00.000Z', deleted: true });
-    await seedSet({ setId: 'nullw', exerciseId: 'ex', weight: null, completed: true, completedAt: '2026-02-05T10:00:00.000Z' });
-    await seedSet({ setId: 'good', exerciseId: 'ex', weight: 150, completed: true, completedAt: '2026-02-06T10:00:00.000Z' });
+    await seedSet({
+      setId: 'incomplete',
+      exerciseId: 'ex',
+      weight: 200,
+      completed: false,
+      completedAt: null,
+    });
+    await seedSet({
+      setId: 'deleted',
+      exerciseId: 'ex',
+      weight: 300,
+      completed: true,
+      completedAt: '2026-02-05T10:00:00.000Z',
+      deleted: true,
+    });
+    await seedSet({
+      setId: 'nullw',
+      exerciseId: 'ex',
+      weight: null,
+      completed: true,
+      completedAt: '2026-02-05T10:00:00.000Z',
+    });
+    await seedSet({
+      setId: 'good',
+      exerciseId: 'ex',
+      weight: 150,
+      completed: true,
+      completedAt: '2026-02-06T10:00:00.000Z',
+    });
 
     const points = await getHeaviestWeightHistory(USER, 'ex');
     expect(points).toEqual([{ achievedAt: '2026-02-06', weight: 150 }]);

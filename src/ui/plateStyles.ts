@@ -1,104 +1,138 @@
 /**
  * Pure style resolver for the Plate primitive (no react-native runtime import,
- * so it is unit-testable). A Plate is the Forged Iron card: a face with a 2px
- * structural rule sitting on a hard offset slab.
+ * so it is unit-testable). Blacktop materiality: shadows are retired — a Plate
+ * is a flat face whose tone decides fill, foreground ink, and default border.
+ * Elevation is inversion (chalk face, blacktop ink), never depth.
  *
- * Technique (both platforms, no native shadow APIs): the container reserves
- * offset space on the right/bottom; an absolutely-positioned slab View fills
- * the offset rectangle behind the face. Native shadows are wrong here — they
- * translate WITH the pressed face, so the face could never sink into its slab.
+ * Tones (one semantic per treatment):
+ *   panel    — default resting surface (surface fill + 1.5px `border` rule)
+ *   inverted — THE elevation/emphasis state (ink fill, bg-colored type)
+ *   ghost    — transparent, borderless ("available")
+ *   volt     — accent fill ("act now / achievement"; primary CTA + PR only)
+ *
+ * Legacy Forged Iron tone values are mapped so pre-overhaul call sites keep
+ * compiling with sensible appearance until the per-screen phase migrates them:
+ * surface→panel, surface2→panel, bg→ghost, accent→volt. `danger` keeps its
+ * filled look (QuarantineBanner) until screens move to ghost-destructive.
  */
 import type { ViewStyle } from 'react-native';
 
 import type { Theme } from './useTheme';
 
+/** Legacy prop — slab offsets are retired; accepted and ignored for compat. */
 export type PlateOffset = 'md' | 'sm' | 'none';
-export type PlateTone = 'surface' | 'surface2' | 'accent' | 'danger' | 'bg';
+
+export type PlateTone =
+  // Blacktop tones
+  | 'panel'
+  | 'inverted'
+  | 'ghost'
+  | 'volt'
+  // Legacy Forged Iron tones (mapped)
+  | 'surface'
+  | 'surface2'
+  | 'accent'
+  | 'danger'
+  | 'bg';
+
 export type PlateBorder = 'strong' | 'soft' | 'none';
 
 export interface PlateStyleOptions {
+  /** Ignored — the offset slab retired with the Blacktop overhaul. */
   offset?: PlateOffset;
   tone?: PlateTone;
+  /** Omit to take the tone's default (panel: soft hairline; others: none). */
   border?: PlateBorder;
   radius?: keyof Theme['radius'];
 }
 
 export interface PlateStyles {
   container: ViewStyle;
+  /** Always null — the slab shadow retired; key kept for composed consumers. */
   slab: ViewStyle | null;
   face: ViewStyle;
-  /** Merged over `face` while pressed — the face sinks toward its slab. */
-  facePressed: ViewStyle;
+  /** Recommended foreground color for text/icons sitting on this tone. */
+  ink: string;
 }
 
-export function plateOffsetPx(theme: Theme, offset: PlateOffset): number {
-  switch (offset) {
-    case 'md':
-      return theme.depth.slab;
-    case 'sm':
-      return theme.depth.slabSm;
-    case 'none':
-      return 0;
-  }
-}
+type CanonicalTone = 'panel' | 'inverted' | 'ghost' | 'volt' | 'danger';
 
-function toneColor(theme: Theme, tone: PlateTone): string {
+export function canonicalTone(tone: PlateTone): CanonicalTone {
   switch (tone) {
+    case 'panel':
     case 'surface':
-      return theme.color.surface;
     case 'surface2':
-      return theme.color.surface2;
-    case 'accent':
-      return theme.color.accent;
-    case 'danger':
-      return theme.color.danger;
+      return 'panel';
+    case 'inverted':
+      return 'inverted';
+    case 'ghost':
     case 'bg':
-      return theme.color.bg;
+      return 'ghost';
+    case 'volt':
+    case 'accent':
+      return 'volt';
+    case 'danger':
+      return 'danger';
   }
 }
 
-function borderStyle(theme: Theme, border: PlateBorder): Pick<ViewStyle, 'borderWidth' | 'borderColor'> {
+function toneAppearance(
+  theme: Theme,
+  tone: CanonicalTone,
+): { fill: string; ink: string; defaultBorder: PlateBorder } {
+  switch (tone) {
+    case 'panel':
+      return { fill: theme.color.surface, ink: theme.color.ink, defaultBorder: 'soft' };
+    case 'inverted':
+      // Dark: chalk face, blacktop type. Light: black panel, chalk type.
+      return { fill: theme.color.ink, ink: theme.color.bg, defaultBorder: 'none' };
+    case 'ghost':
+      return { fill: 'transparent', ink: theme.color.ink, defaultBorder: 'none' };
+    case 'volt':
+      return { fill: theme.color.accent, ink: theme.color.onAccent, defaultBorder: 'none' };
+    case 'danger':
+      return { fill: theme.color.danger, ink: theme.color.onAccent, defaultBorder: 'none' };
+  }
+}
+
+function borderStyle(
+  theme: Theme,
+  border: PlateBorder,
+): Pick<ViewStyle, 'borderWidth' | 'borderColor'> {
   switch (border) {
     case 'strong':
-      return { borderWidth: theme.depth.rule, borderColor: theme.color.borderStrong };
+      return { borderWidth: theme.depth.hairline, borderColor: theme.color.borderStrong };
     case 'soft':
-      return { borderWidth: theme.depth.rule, borderColor: theme.color.border };
+      return { borderWidth: theme.depth.hairline, borderColor: theme.color.border };
     case 'none':
       return { borderWidth: 0 };
   }
 }
 
 export function resolvePlateStyles(theme: Theme, options: PlateStyleOptions = {}): PlateStyles {
-  const { offset = 'md', tone = 'surface', border = 'strong', radius = 'card' } = options;
-  const offsetPx = plateOffsetPx(theme, offset);
-  const borderRadius = theme.radius[radius];
-
-  const container: ViewStyle =
-    offsetPx > 0 ? { paddingRight: offsetPx, paddingBottom: offsetPx } : {};
-
-  const slab: ViewStyle | null =
-    offsetPx > 0
-      ? {
-          position: 'absolute',
-          top: offsetPx,
-          left: offsetPx,
-          right: 0,
-          bottom: 0,
-          backgroundColor: theme.color.slab,
-          borderRadius,
-        }
-      : null;
+  const { tone = 'panel', radius = 'card' } = options;
+  const appearance = toneAppearance(theme, canonicalTone(tone));
+  const border = options.border ?? appearance.defaultBorder;
 
   const face: ViewStyle = {
-    backgroundColor: toneColor(theme, tone),
-    borderRadius,
+    backgroundColor: appearance.fill,
+    borderRadius: theme.radius[radius],
     ...borderStyle(theme, border),
   };
 
-  // The sink is capped by the slab depth: a flat Plate doesn't move when pressed.
-  const sink = Math.min(theme.press.translate, offsetPx);
-  const facePressed: ViewStyle =
-    sink > 0 ? { transform: [{ translateX: sink }, { translateY: sink }] } : {};
+  return { container: {}, slab: null, face, ink: appearance.ink };
+}
 
-  return { container, slab, face, facePressed };
+/** Press feedback targets: a 60ms dip (see motion.duration.press). */
+export const PRESS_DIP_OPACITY = 0.8;
+export const PRESS_DIP_SCALE = 0.985;
+
+/**
+ * The pressed-state target style. Reduced motion drops the scale component —
+ * the dip becomes opacity only (and Plate applies it instantly, no timing).
+ */
+export function resolvePressedStyle(reduceMotion: boolean): ViewStyle {
+  return reduceMotion
+    ? { opacity: PRESS_DIP_OPACITY }
+    : { opacity: PRESS_DIP_OPACITY, transform: [{ scale: PRESS_DIP_SCALE }] };
 }

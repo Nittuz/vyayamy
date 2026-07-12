@@ -55,7 +55,11 @@ test('updateProfile upserts a new profile via the outbox and locally', async () 
   expect(outbox).toHaveLength(1);
   expect(outbox[0]!.op).toBe('upsert');
   expect(outbox[0]!.table_name).toBe('profiles');
-  expect(JSON.parse(outbox[0]!.payload_json)).toMatchObject({ id: USER, display_name: 'Naren', units: 'lb' });
+  expect(JSON.parse(outbox[0]!.payload_json)).toMatchObject({
+    id: USER,
+    display_name: 'Naren',
+    units: 'lb',
+  });
 });
 
 test('updateProfile patches an existing profile, leaving untouched fields intact', async () => {

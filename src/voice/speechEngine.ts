@@ -37,7 +37,8 @@ export const onDeviceEngine: SpeechEngine = {
   start(onEvent, onError) {
     const resultSub = ExpoSpeechRecognitionModule.addListener('result', (e) => {
       const best = e.results?.[0];
-      if (best) onEvent({ transcript: best.transcript, isFinal: e.isFinal, confidence: best.confidence });
+      if (best)
+        onEvent({ transcript: best.transcript, isFinal: e.isFinal, confidence: best.confidence });
     });
     const errorSub = ExpoSpeechRecognitionModule.addListener('error', (e) => {
       onError(e.message ?? String(e.error));

@@ -20,7 +20,10 @@ export interface DispatchResult {
 }
 
 /** Apply a data command via existing local-first mutations. Returns feedback + an undo. */
-export async function dispatchCommand(command: Command, ctx: DispatchContext): Promise<DispatchResult> {
+export async function dispatchCommand(
+  command: Command,
+  ctx: DispatchContext,
+): Promise<DispatchResult> {
   switch (command.kind) {
     case 'setValues': {
       if (!ctx.activeSetId) return { ok: false, message: 'No active set' };
@@ -42,7 +45,7 @@ export async function dispatchCommand(command: Command, ctx: DispatchContext): P
       const setId = ctx.activeSetId;
       return {
         ok: true,
-        message: `${command.weight ?? prior?.weight ?? '—'} × ${command.reps ?? prior?.reps ?? '—'}`,
+        message: `${command.weight ?? prior?.weight ?? '-'} × ${command.reps ?? prior?.reps ?? '-'}`,
         undo: async () => {
           await updateSet(setId, {
             weight: prior?.weight ?? null,

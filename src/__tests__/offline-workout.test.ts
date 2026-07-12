@@ -80,7 +80,6 @@ beforeEach(async () => {
   setSyncState({ online: false, pendingOutbox: 0, lastError: null });
 });
 
-
 test('offline workout end-to-end → outbox drain matches local state', async () => {
   const exerciseId = uuidv4();
   const db = await getDb();
@@ -110,10 +109,9 @@ test('offline workout end-to-end → outbox drain matches local state', async ()
     id: string;
     completed: number;
     weight: number | null;
-  }>(
-    'SELECT id, completed, weight FROM sets WHERE workout_exercise_id = ? ORDER BY order_index',
-    [weId],
-  );
+  }>('SELECT id, completed, weight FROM sets WHERE workout_exercise_id = ? ORDER BY order_index', [
+    weId,
+  ]);
   // Phase 3: addExerciseToWorkout auto-stages one empty set (order_index 0),
   // then the two explicit addSet calls add order_index 1 and 2.
   expect(localSets).toHaveLength(3);
@@ -173,7 +171,9 @@ test('push retries on failure and keeps row in outbox', async () => {
     chain.upsert = (p: Record<string, unknown>) => {
       if (!failed) {
         failed = true;
-        return Promise.resolve({ error: { message: 'duplicate key value violates unique constraint' } });
+        return Promise.resolve({
+          error: { message: 'duplicate key value violates unique constraint' },
+        });
       }
       return realUpsert(p);
     };

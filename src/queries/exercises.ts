@@ -7,7 +7,7 @@
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 
 import { getDb } from '@/db/client';
-import { enqueueMutation } from '@/db/mutations';
+import { appendOutbox, enqueueMutation, upsertRowLocal } from '@/db/mutations';
 import { withTransaction } from '@/db/transaction';
 import type { Exercise } from '@/db/types';
 import { uuidv4 } from '@/db/uuid';
@@ -17,7 +17,11 @@ import { addSet } from '@/queries/sets';
 import { maybeUpdateAutoTitle } from './workouts';
 import { queryKeys } from './keys';
 
-export async function searchExercises(userId: string, query: string, limit = 50): Promise<Exercise[]> {
+export async function searchExercises(
+  userId: string,
+  query: string,
+  limit = 50,
+): Promise<Exercise[]> {
   const db = await getDb();
   const like = `%${query.trim()}%`;
   return db.getAllAsync<Exercise>(
@@ -76,32 +80,19 @@ export async function addExerciseToWorkout(args: {
       [args.workoutId],
     );
     const nextOrder = result?.next_order ?? 0;
-    const cols = ['id', 'workout_id', 'exercise_id', 'order_index', 'updated_at'];
-    const values = [id, args.workoutId, args.exerciseId, nextOrder, now];
-    const placeholders = cols.map(() => '?').join(', ');
-    const updateAssign = cols
-      .filter((c) => c !== 'id')
-      .map((c) => `${c} = excluded.${c}`)
-      .join(', ');
-    await db.runAsync(
-      `INSERT INTO workout_exercises (${cols.join(', ')}) VALUES (${placeholders})
-         ON CONFLICT(id) DO UPDATE SET ${updateAssign}`,
-      values,
-    );
-    await db.runAsync(
-      `INSERT INTO outbox (table_name, op, row_id, payload_json) VALUES (?, ?, ?, ?)`,
-      [
-        'workout_exercises',
-        'insert',
-        id,
-        JSON.stringify({
-          id,
-          workout_id: args.workoutId,
-          exercise_id: args.exerciseId,
-          order_index: nextOrder,
-        }),
-      ],
-    );
+    await upsertRowLocal(db, 'workout_exercises', {
+      id,
+      workout_id: args.workoutId,
+      exercise_id: args.exerciseId,
+      order_index: nextOrder,
+      updated_at: now,
+    });
+    await appendOutbox(db, 'workout_exercises', 'insert', id, {
+      id,
+      workout_id: args.workoutId,
+      exercise_id: args.exerciseId,
+      order_index: nextOrder,
+    });
   });
   emitMutationCommitted();
   // Phase 3: every exercise starts with one empty set staged so the user
@@ -110,12 +101,24 @@ export async function addExerciseToWorkout(args: {
   return id;
 }
 
+// Raw driver text stays out of the UI (backlog 8.5): callers get friendly
+// copy, Sentry gets the real error. Dynamic import keeps pure-TS jest suites
+// from loading expo-constants (db/client.ts precedent).
+function reportMutationError(err: unknown, mutation: string): void {
+  void import('@/lib/errorReporting').then(({ captureException }) =>
+    captureException(err, { mutation }),
+  );
+}
+
 export function useCreateCustomExercise(onError?: (msg: string) => void) {
   const qc = useQueryClient();
   return useMutation({
     mutationFn: createCustomExercise,
     onSuccess: () => qc.invalidateQueries({ queryKey: queryKeys.exercises.all }),
-    onError: (err) => onError?.(err instanceof Error ? err.message : 'Failed to create exercise'),
+    onError: (err) => {
+      reportMutationError(err, 'createCustomExercise');
+      onError?.("Couldn't create the exercise. Try again.");
+    },
   });
 }
 
@@ -130,6 +133,9 @@ export function useAddExerciseToWorkout(onError?: (msg: string) => void) {
       await maybeUpdateAutoTitle(vars.workoutId);
       qc.invalidateQueries({ queryKey: queryKeys.workouts.all });
     },
-    onError: (err) => onError?.(err instanceof Error ? err.message : 'Failed to add exercise'),
+    onError: (err) => {
+      reportMutationError(err, 'addExerciseToWorkout');
+      onError?.("Couldn't add the exercise. Try again.");
+    },
   });
 }

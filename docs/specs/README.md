@@ -30,20 +30,25 @@ flowchart LR
 
 ## Index
 
-| Date | Title | Status |
-| --- | --- | --- |
+| Date                                            | Title                             | Status      |
+| ----------------------------------------------- | --------------------------------- | ----------- |
 | [2026-05-26](2026-05-26-docs-uplevel-design.md) | Docs Uplevel: ADRs + Design Specs | implemented |
 
 ### Archived
 
 Implemented phase specs, frozen and kept for historical context under [archive/](archive/). The behavior they describe now lives in the code and in [../adr/](../adr/); revise via a new spec or ADR, not by editing these.
 
-| Date | Title | Status |
-| --- | --- | --- |
-| [2026-05-26](archive/2026-05-26-uplevel-phase-1-signature-design.md) | Uplevel Phase 1 — Signature | implemented |
-| [2026-05-27](archive/2026-05-27-uplevel-phase-2-trust-design.md) | Uplevel Phase 2 — Trust | implemented |
-| [2026-05-27](archive/2026-05-27-uplevel-phase-3-restraint-design.md) | Uplevel Phase 3 — Restraint | implemented |
-| [2026-05-28](archive/2026-05-28-uplevel-phase-4-dimensions-design.md) | Uplevel Phase 4 — Dimensions | implemented |
+| Date                                                                  | Title                                       | Status      |
+| --------------------------------------------------------------------- | ------------------------------------------- | ----------- |
+| [2026-05-26](archive/2026-05-26-uplevel-phase-1-signature-design.md)  | Uplevel Phase 1 — Signature                 | implemented |
+| [2026-05-27](archive/2026-05-27-uplevel-phase-2-trust-design.md)      | Uplevel Phase 2 — Trust                     | implemented |
+| [2026-05-27](archive/2026-05-27-uplevel-phase-3-restraint-design.md)  | Uplevel Phase 3 — Restraint                 | implemented |
+| [2026-05-28](archive/2026-05-28-uplevel-phase-4-dimensions-design.md) | Uplevel Phase 4 — Dimensions                | implemented |
+| [2026-05-31](archive/2026-05-31-restrained-flourish-design.md)        | Restrained Flourish — design                | implemented |
+| [2026-05-31](archive/2026-05-31-restrained-flourish.md)               | Restrained Flourish — implementation plan   | implemented |
+| [2026-05-31](archive/2026-05-31-voice-workout-logging-design.md)      | Voice Workout Logging — design              | implemented |
+| [2026-05-31](archive/2026-05-31-voice-workout-logging.md)             | Voice Workout Logging — implementation plan | implemented |
+| [2026-06-01](archive/2026-06-01-expo-sdk-56-migration-scoping.md)     | Expo SDK 56 Migration — scoping             | implemented |
 
 ## Template
 

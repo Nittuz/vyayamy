@@ -69,24 +69,24 @@ Key properties:
 
 ## High-Level Architecture
 
-| Concern             | Solution                                                                |
-| ------------------- | ----------------------------------------------------------------------- |
-| UI rendering        | React Native (Expo SDK 56), React 19 functional components              |
-| Navigation          | Expo Router (file-based under [app/](app/), typed routes)               |
-| Local state         | `useState` / `useReducer` inside components                             |
-| Server state        | TanStack React Query 5, backed by SQLite reads                          |
-| Local persistence   | `expo-sqlite` ([src/db/](src/db/))                                      |
-| Sync                | In-house outbox + incremental pull ([src/sync/](src/sync/))             |
-| Auth                | Supabase GoTrue, OTP + PKCE, `expo-linking` deep link exchange          |
-| Remote persistence  | Supabase Postgres + PostgREST, reached only by the sync engine          |
-| Authorization       | Row Level Security in Postgres                                          |
-| Styling             | `useTheme()` + `makeStyles(theme)`; tokens in [src/ui/colors.ts](src/ui/colors.ts) / [src/ui/typography.ts](src/ui/typography.ts) |
-| Charts              | `react-native-svg` via [src/ui/LineChart.tsx](src/ui/LineChart.tsx)     |
-| Haptics             | `expo-haptics`                                                          |
-| Timers              | `setInterval` foreground, `expo-notifications` for background rest cue  |
-| Error reporting     | `@sentry/react-native` gated by DSN                                     |
-| Testing             | Jest + `ts-jest`, `better-sqlite3` in-memory mock of `expo-sqlite`      |
-| Build / distribution | EAS Build, EAS Submit                                                  |
+| Concern              | Solution                                                                                                                          |
+| -------------------- | --------------------------------------------------------------------------------------------------------------------------------- |
+| UI rendering         | React Native (Expo SDK 56), React 19 functional components                                                                        |
+| Navigation           | Expo Router (file-based under [app/](app/), typed routes)                                                                         |
+| Local state          | `useState` / `useReducer` inside components                                                                                       |
+| Server state         | TanStack React Query 5, backed by SQLite reads                                                                                    |
+| Local persistence    | `expo-sqlite` ([src/db/](src/db/))                                                                                                |
+| Sync                 | In-house outbox + incremental pull ([src/sync/](src/sync/))                                                                       |
+| Auth                 | Supabase GoTrue, OTP + PKCE, `expo-linking` deep link exchange                                                                    |
+| Remote persistence   | Supabase Postgres + PostgREST, reached only by the sync engine                                                                    |
+| Authorization        | Row Level Security in Postgres                                                                                                    |
+| Styling              | `useTheme()` + `makeStyles(theme)`; tokens in [src/ui/colors.ts](src/ui/colors.ts) / [src/ui/typography.ts](src/ui/typography.ts) |
+| Charts               | `react-native-svg` via [src/ui/LineChart.tsx](src/ui/LineChart.tsx)                                                               |
+| Haptics              | `expo-haptics`                                                                                                                    |
+| Timers               | `setInterval` foreground, `expo-notifications` for background rest cue                                                            |
+| Error reporting      | `@sentry/react-native` gated by DSN                                                                                               |
+| Testing              | Jest + `ts-jest`, `better-sqlite3` in-memory mock of `expo-sqlite`                                                                |
+| Build / distribution | EAS Build, EAS Submit                                                                                                             |
 
 There is no server-side rendering, no ORM, no middleware, and no custom HTTP layer. UI code does not call `supabase.from()` directly; only the sync engine does.
 
@@ -96,7 +96,7 @@ There is no server-side rendering, no ORM, no middleware, and no custom HTTP lay
 
 ### Provider Tree
 
-Defined in [app/_layout.tsx](app/_layout.tsx). Order matters:
+Defined in [app/\_layout.tsx](app/_layout.tsx). Order matters:
 
 ```
 ErrorBoundary
@@ -115,22 +115,22 @@ ErrorBoundary
 
 Expo Router maps the filesystem under [app/](app/) to routes:
 
-| Route                   | File                                                       | Notes                       |
-| ----------------------- | ---------------------------------------------------------- | --------------------------- |
-| `/(tabs)/today`         | [app/(tabs)/today.tsx](app/(tabs)/today.tsx)               | Dashboard                   |
-| `/history`              | [app/history/index.tsx](app/history/index.tsx)             | Past workouts (stack route) |
-| `/(tabs)/progress`      | [app/(tabs)/progress.tsx](app/(tabs)/progress.tsx)         | PRs + charts                |
-| `/(tabs)/profile`       | [app/(tabs)/profile.tsx](app/(tabs)/profile.tsx)           | Settings                    |
-| `/workout/active`       | [app/workout/active.tsx](app/workout/active.tsx)           | Live session                |
-| `/history/[id]`         | [app/history/[id].tsx](app/history/[id].tsx)               | Dynamic detail route        |
-| `/profile/plan`         | [app/profile/plan/index.tsx](app/profile/plan/index.tsx)   | Training plan               |
-| `/profile/plan/setup`   | [app/profile/plan/setup.tsx](app/profile/plan/setup.tsx)   | Plan setup wizard           |
-| `/login`                | [app/login.tsx](app/login.tsx)                             | OTP sign-in                 |
-| `*`                     | [app/+not-found.tsx](app/+not-found.tsx)                   | Catch-all                   |
+| Route                 | File                                                     | Notes                       |
+| --------------------- | -------------------------------------------------------- | --------------------------- |
+| `/(tabs)/today`       | [app/(tabs)/today.tsx](<app/(tabs)/today.tsx>)           | Dashboard                   |
+| `/history`            | [app/history/index.tsx](app/history/index.tsx)           | Past workouts (stack route) |
+| `/(tabs)/progress`    | [app/(tabs)/progress.tsx](<app/(tabs)/progress.tsx>)     | PRs + charts                |
+| `/(tabs)/profile`     | [app/(tabs)/profile.tsx](<app/(tabs)/profile.tsx>)       | Settings                    |
+| `/workout/active`     | [app/workout/active.tsx](app/workout/active.tsx)         | Live session                |
+| `/history/[id]`       | [app/history/[id].tsx](app/history/[id].tsx)             | Dynamic detail route        |
+| `/profile/plan`       | [app/profile/plan/index.tsx](app/profile/plan/index.tsx) | Training plan               |
+| `/profile/plan/setup` | [app/profile/plan/setup.tsx](app/profile/plan/setup.tsx) | Plan setup wizard           |
+| `/login`              | [app/login.tsx](app/login.tsx)                           | OTP sign-in                 |
+| `*`                   | [app/+not-found.tsx](app/+not-found.tsx)                 | Catch-all                   |
 
 Route files are thin; the real screens live in [src/screens/](src/screens/) and are imported by the route file. This keeps routing declarative and lets screens stay portable across navigation choices.
 
-A single root-level auth gate in `AppNavigator` ([app/_layout.tsx](app/_layout.tsx)) redirects every route except `/login` to `/login` until a session exists, so sibling stack routes cannot be reached by deep link without authentication.
+A single root-level auth gate in `AppNavigator` ([app/\_layout.tsx](app/_layout.tsx)) redirects every route except `/login` to `/login` until a session exists, so sibling stack routes cannot be reached by deep link without authentication.
 
 ---
 
@@ -273,39 +273,39 @@ erDiagram
 
 ### Table descriptions
 
-| Table                    | Purpose                                                                 |
-| ------------------------ | ----------------------------------------------------------------------- |
-| `profiles`               | Extends `auth.users`; display name + units preference                   |
-| `exercises`              | Catalog; `user_id IS NULL` for global seeded rows, otherwise user-created |
-| `workouts`               | Training session with start/end timestamps and optional template link   |
-| `workout_exercises`      | Junction: workout ↔ exercise with ordering                              |
-| `sets`                   | Individual sets (weight, reps, per-set units, completion); `units` is stamped per set when a weight is written, so changing the profile preference never reinterprets historical sets |
-| `personal_records`       | Local-only derived cache: best-ever lifts per `(user_id, exercise_id, type)`, recomputed from synced sets; not pushed or pulled (#138) |
-| `templates`              | Reusable routines (ordered UUID array)                                  |
-| `training_plans`         | Weekly or rotating-cycle schedule                                       |
-| `training_plan_slots`    | Maps each day / cycle position in a plan to a template or rest day      |
-| `plan_presets`           | Read-only catalog: preset plans for the Plan Setup wizard               |
-| `plan_preset_templates`  | Templates inside a preset                                               |
-| `plan_preset_exercises`  | Exercises inside a preset template (cloned on apply)                    |
-| `plan_preset_slots`      | Slot schedule for a preset (cloned on apply)                            |
+| Table                   | Purpose                                                                                                                                                                               |
+| ----------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `profiles`              | Extends `auth.users`; display name + units preference                                                                                                                                 |
+| `exercises`             | Catalog; `user_id IS NULL` for global seeded rows, otherwise user-created                                                                                                             |
+| `workouts`              | Training session with start/end timestamps and optional template link                                                                                                                 |
+| `workout_exercises`     | Junction: workout ↔ exercise with ordering                                                                                                                                            |
+| `sets`                  | Individual sets (weight, reps, per-set units, completion); `units` is stamped per set when a weight is written, so changing the profile preference never reinterprets historical sets |
+| `personal_records`      | Local-only derived cache: best-ever lifts per `(user_id, exercise_id, type)`, recomputed from synced sets; not pushed or pulled (#138)                                                |
+| `templates`             | Reusable routines (ordered UUID array)                                                                                                                                                |
+| `training_plans`        | Weekly or rotating-cycle schedule                                                                                                                                                     |
+| `training_plan_slots`   | Maps each day / cycle position in a plan to a template or rest day                                                                                                                    |
+| `plan_presets`          | Read-only catalog: preset plans for the Plan Setup wizard                                                                                                                             |
+| `plan_preset_templates` | Templates inside a preset                                                                                                                                                             |
+| `plan_preset_exercises` | Exercises inside a preset template (cloned on apply)                                                                                                                                  |
+| `plan_preset_slots`     | Slot schedule for a preset (cloned on apply)                                                                                                                                          |
 
 ### Sync-support columns
 
 Added by `supabase/migrations/00004_sync_support.sql` and tightened by `00009_security_hardening.sql`:
 
-| Column        | Purpose                                                                                              |
-| ------------- | ---------------------------------------------------------------------------------------------------- |
-| `updated_at`  | Owned by a `BEFORE INSERT OR UPDATE` trigger; the client never sets it. High-water mark is immune to clock skew. |
-| `deleted_at`  | Soft-delete tombstone; application reads filter `IS NULL`                                           |
+| Column       | Purpose                                                                                                          |
+| ------------ | ---------------------------------------------------------------------------------------------------------------- |
+| `updated_at` | Owned by a `BEFORE INSERT OR UPDATE` trigger; the client never sets it. High-water mark is immune to clock skew. |
+| `deleted_at` | Soft-delete tombstone; application reads filter `IS NULL`                                                        |
 
 Every table also has an `idx_<table>_updated_at` index; incremental pull always queries `WHERE (updated_at, id) > :cursor ORDER BY updated_at, id`.
 
 ### Client-only tables
 
-| Table       | Columns                                                                                                                       |
-| ----------- | ----------------------------------------------------------------------------------------------------------------------------- |
-| `outbox`    | `id`, `table_name`, `op`, `row_id`, `payload_json`, `created_at`, `attempts`, `last_error`, `next_attempt_at`                 |
-| `sync_meta` | `table_name` (PK), `last_pulled_at`, `last_pulled_id`                                                                          |
+| Table       | Columns                                                                                                       |
+| ----------- | ------------------------------------------------------------------------------------------------------------- |
+| `outbox`    | `id`, `table_name`, `op`, `row_id`, `payload_json`, `created_at`, `attempts`, `last_error`, `next_attempt_at` |
+| `sync_meta` | `table_name` (PK), `last_pulled_at`, `last_pulled_id`                                                         |
 
 ---
 
@@ -351,10 +351,10 @@ PR logic runs client-side in [src/core/pr-detection.ts](src/core/pr-detection.ts
 
 Record types:
 
-| Type                  | Value shape                                                    |
-| --------------------- | -------------------------------------------------------------- |
-| `heaviest_weight`     | `number`: max weight in any completed set                      |
-| `best_volume`         | `number`: max single-set volume (weight x reps)                |
+| Type                  | Value shape                                                                 |
+| --------------------- | --------------------------------------------------------------------------- |
+| `heaviest_weight`     | `number`: max weight in any completed set                                   |
+| `best_volume`         | `number`: max single-set volume (weight x reps)                             |
 | `most_reps_at_weight` | `{ weight, reps }`: highest reps at any weight (ties go to the heavier set) |
 
 Upserts use the unique index `(user_id, exercise_id, type)` on the `personal_records` table.
@@ -377,7 +377,7 @@ To survive backgrounding and screen lock, the same hook schedules a local notifi
 
 [src/lib/errorReporting.ts](src/lib/errorReporting.ts) wraps `@sentry/react-native`:
 
-- `initErrorReporting()` at module load in [app/_layout.tsx](app/_layout.tsx); returns early if `EXPO_PUBLIC_SENTRY_DSN` is not set
+- `initErrorReporting()` at module load in [app/\_layout.tsx](app/_layout.tsx); returns early if `EXPO_PUBLIC_SENTRY_DSN` is not set
 - `captureException(err, extra?)` is called by the root [src/ui/ErrorBoundary.tsx](src/ui/ErrorBoundary.tsx) and by any code path that wants to annotate a failure
 - `setUser(user)` is called on `onAuthStateChange` so crash reports carry identity
 

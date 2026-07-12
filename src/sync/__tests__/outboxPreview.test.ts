@@ -46,15 +46,42 @@ test('returns up to default limit (5) most-recent entries by id DESC', async () 
 });
 
 test('respects custom limit', async () => {
-  await insertOutbox({ table: 'sets', op: 'update', rowId: 'a', createdAt: new Date().toISOString() });
-  await insertOutbox({ table: 'sets', op: 'update', rowId: 'b', createdAt: new Date().toISOString() });
-  await insertOutbox({ table: 'sets', op: 'update', rowId: 'c', createdAt: new Date().toISOString() });
+  await insertOutbox({
+    table: 'sets',
+    op: 'update',
+    rowId: 'a',
+    createdAt: new Date().toISOString(),
+  });
+  await insertOutbox({
+    table: 'sets',
+    op: 'update',
+    rowId: 'b',
+    createdAt: new Date().toISOString(),
+  });
+  await insertOutbox({
+    table: 'sets',
+    op: 'update',
+    rowId: 'c',
+    createdAt: new Date().toISOString(),
+  });
   expect(await getOutboxPreview(2)).toHaveLength(2);
 });
 
 test('excludes quarantined entries (attempts >= MAX_ATTEMPTS)', async () => {
-  await insertOutbox({ table: 'sets', op: 'update', rowId: 'a', createdAt: new Date().toISOString(), attempts: 5 });
-  await insertOutbox({ table: 'sets', op: 'update', rowId: 'b', createdAt: new Date().toISOString(), attempts: 0 });
+  await insertOutbox({
+    table: 'sets',
+    op: 'update',
+    rowId: 'a',
+    createdAt: new Date().toISOString(),
+    attempts: 5,
+  });
+  await insertOutbox({
+    table: 'sets',
+    op: 'update',
+    rowId: 'b',
+    createdAt: new Date().toISOString(),
+    attempts: 0,
+  });
   const preview = await getOutboxPreview();
   expect(preview).toHaveLength(1);
   expect(preview[0]!.row_id).toBe('b');

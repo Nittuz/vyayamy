@@ -1,5 +1,5 @@
 import { router } from 'expo-router';
-import { useEffect, useMemo, useRef, useState } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import {
   ActivityIndicator,
   SafeAreaView,
@@ -9,7 +9,6 @@ import {
   View,
 } from 'react-native';
 
-import { safeRoute } from '@/lib/safeRoute';
 import { useAuth } from '@/auth/useAuth';
 import type { SlotDraft } from '@/core/domain';
 import {
@@ -22,7 +21,10 @@ import {
 import { type HydratedPreset, useListPlanPresets } from '@/queries/planPresets';
 import { Button } from '@/ui/Button';
 import { Plate } from '@/ui/Plate';
+import { resolvePlateStyles } from '@/ui/plateStyles';
+import { Segment } from '@/ui/Segment';
 import { Text } from '@/ui/Text';
+import { useToast } from '@/ui/ToastContext';
 import { useTheme, type Theme } from '@/ui/useTheme';
 
 const DAY_LABELS = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
@@ -30,13 +32,17 @@ const DAY_LABELS = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
 export default function PlanSetupScreen() {
   const { user } = useAuth();
   const userId = user?.id;
+  const { showToast } = useToast();
+  const toastError = useCallback((msg: string) => showToast(msg, 'error'), [showToast]);
   const existing = useActivePlan(userId);
   const templates = useTemplates(userId);
   const presets = useListPlanPresets();
-  const save = useSaveActivePlan();
-  const apply = useApplyPresetAndSavePlan();
+  const save = useSaveActivePlan(toastError);
+  const apply = useApplyPresetAndSavePlan(toastError);
   const theme = useTheme();
   const styles = useMemo(() => makeStyles(theme), [theme]);
+  // Recommended foreground for the inverted (training-day) plates.
+  const invertedInk = resolvePlateStyles(theme, { tone: 'inverted' }).ink;
 
   const [name, setName] = useState('My plan');
   const [planType, setPlanType] = useState<'weekly' | 'cycle'>('weekly');
@@ -159,38 +165,43 @@ export default function PlanSetupScreen() {
 
   async function onSave() {
     if (!userId) return;
-    if (stagedPreset) {
-      await apply.mutateAsync({
-        userId,
-        preset: stagedPreset,
-        name,
-        slots: slots.map((s) => ({
-          presetTemplateId: s.isRestDay ? null : s.templateId,
-          isRestDay: s.isRestDay,
-          label: s.label || null,
-          ...(planType === 'weekly'
-            ? { dayOfWeek: s.dayOfWeek }
-            : { cyclePosition: s.cyclePosition }),
-        })),
-      });
-    } else {
-      await save.mutateAsync({
-        userId,
-        planId: existing.data?.plan.id,
-        name,
-        planType,
-        slots: slots.map((s) => ({
-          templateId: s.isRestDay ? null : s.templateId,
-          isRestDay: s.isRestDay,
-          label: s.label || null,
-          ...(planType === 'weekly'
-            ? { dayOfWeek: s.dayOfWeek }
-            : { cyclePosition: s.cyclePosition }),
-        })),
-      });
+    try {
+      if (stagedPreset) {
+        await apply.mutateAsync({
+          userId,
+          preset: stagedPreset,
+          name,
+          slots: slots.map((s) => ({
+            presetTemplateId: s.isRestDay ? null : s.templateId,
+            isRestDay: s.isRestDay,
+            label: s.label || null,
+            ...(planType === 'weekly'
+              ? { dayOfWeek: s.dayOfWeek }
+              : { cyclePosition: s.cyclePosition }),
+          })),
+        });
+      } else {
+        await save.mutateAsync({
+          userId,
+          planId: existing.data?.plan.id,
+          name,
+          planType,
+          slots: slots.map((s) => ({
+            templateId: s.isRestDay ? null : s.templateId,
+            isRestDay: s.isRestDay,
+            label: s.label || null,
+            ...(planType === 'weekly'
+              ? { dayOfWeek: s.dayOfWeek }
+              : { cyclePosition: s.cyclePosition }),
+          })),
+        });
+      }
+    } catch {
+      // The mutation's onError already surfaced a toast; stay on the form.
+      return;
     }
     if (router.canGoBack()) router.back();
-    else router.replace(safeRoute('/profile/plan'));
+    else router.replace('/profile/plan');
   }
 
   if (!userId) return null;
@@ -210,9 +221,9 @@ export default function PlanSetupScreen() {
         ) : null}
 
         {stagedPreset ? (
-          <Plate tone="surface2" border="strong" faceStyle={styles.stagedFace}>
+          <Plate border="strong" faceStyle={styles.stagedFace}>
             <View style={styles.stagedText}>
-              <Text variant="label" color={theme.color.inkTertiary}>
+              <Text variant="meta" color={theme.color.inkTertiary}>
                 Starting from preset
               </Text>
               <Text variant="card" color={theme.color.ink} style={styles.stagedName}>
@@ -224,7 +235,7 @@ export default function PlanSetupScreen() {
         ) : null}
 
         <Plate faceStyle={styles.cardFace}>
-          <Text variant="label" color={theme.color.inkTertiary}>
+          <Text variant="meta" color={theme.color.inkTertiary}>
             Plan name
           </Text>
           <TextInput
@@ -237,34 +248,17 @@ export default function PlanSetupScreen() {
         </Plate>
 
         <Plate faceStyle={styles.cardFace}>
-          <Text variant="label" color={theme.color.inkTertiary}>
+          <Text variant="meta" color={theme.color.inkTertiary}>
             Schedule type
           </Text>
-          <View style={styles.segment}>
-            {(['weekly', 'cycle'] as const).map((t) => {
-              const active = planType === t;
-              return (
-                <Plate
-                  key={t}
-                  offset="none"
-                  tone={active ? 'accent' : 'surface'}
-                  border={active ? 'strong' : 'soft'}
-                  radius="sm"
-                  onPress={() => setPlanTypeAndReset(t)}
-                  accessibilityState={{ selected: active }}
-                  style={styles.segmentItem}
-                  faceStyle={styles.segmentFace}
-                >
-                  <Text
-                    variant="card"
-                    color={active ? theme.color.onAccent : theme.color.inkSecondary}
-                  >
-                    {t === 'weekly' ? 'Weekly' : 'Cycle'}
-                  </Text>
-                </Plate>
-              );
-            })}
-          </View>
+          <Segment
+            options={[
+              { value: 'weekly', label: 'Weekly', accessibilityLabel: 'Weekly schedule' },
+              { value: 'cycle', label: 'Cycle', accessibilityLabel: 'Rotating cycle' },
+            ]}
+            value={planType}
+            onChange={setPlanTypeAndReset}
+          />
         </Plate>
 
         <View style={styles.section}>
@@ -272,26 +266,36 @@ export default function PlanSetupScreen() {
             Days
           </Text>
           {slots.map((slot, idx) => (
-            <Plate key={slot.key} faceStyle={styles.slotFace}>
+            // Training days are inverted plates (the emphasis state, matching
+            // TrainingPlan); rest days stay quiet ghost rows.
+            <Plate
+              key={slot.key}
+              tone={slot.isRestDay ? 'ghost' : 'inverted'}
+              border={slot.isRestDay ? 'soft' : 'none'}
+              faceStyle={styles.slotFace}
+            >
               <View style={styles.slotHeader}>
-                <Text variant="card" color={theme.color.ink} style={styles.slotHeaderText}>
+                <Text
+                  variant="card"
+                  color={slot.isRestDay ? theme.color.inkTertiary : invertedInk}
+                  style={styles.slotHeaderText}
+                >
                   {planType === 'weekly'
                     ? DAY_LABELS[slot.dayOfWeek ?? idx]
                     : `Day ${(slot.cyclePosition ?? idx) + 1}`}
                 </Text>
+                {/* Selection is inversion, never a heavier border: the toggle
+                    flips to the inverted chip when ON; OFF sits ghost on the
+                    inverted training row, so invertedInk is right either way. */}
                 <Plate
-                  offset="none"
-                  tone={slot.isRestDay ? 'accent' : 'surface'}
-                  border={slot.isRestDay ? 'strong' : 'soft'}
-                  radius="sm"
+                  tone={slot.isRestDay ? 'inverted' : 'ghost'}
+                  border={slot.isRestDay ? 'none' : 'soft'}
                   onPress={() => setSlotAt(idx, { isRestDay: !slot.isRestDay })}
+                  accessibilityLabel="Rest day"
                   accessibilityState={{ selected: slot.isRestDay }}
                   faceStyle={styles.toggleFace}
                 >
-                  <Text
-                    variant="meta"
-                    color={slot.isRestDay ? theme.color.onAccent : theme.color.inkSecondary}
-                  >
+                  <Text variant="meta" color={invertedInk}>
                     Rest day
                   </Text>
                 </Plate>
@@ -299,7 +303,8 @@ export default function PlanSetupScreen() {
               {!slot.isRestDay ? (
                 <View style={styles.templatePicker}>
                   <TemplatePill
-                    label="—"
+                    label="None"
+                    accessibilityLabel="No template"
                     active={slot.templateId === null}
                     onPress={() => setSlotAt(idx, { templateId: null })}
                   />
@@ -346,24 +351,30 @@ function TemplatePill({
   label,
   active,
   onPress,
+  accessibilityLabel,
 }: {
   label: string;
   active: boolean;
   onPress: () => void;
+  accessibilityLabel?: string;
 }) {
   const theme = useTheme();
   const styles = useMemo(() => makeStyles(theme), [theme]);
+  // One chip idiom: idle = ghost + soft hairline ("available"), selected =
+  // inversion ("current"), never volt. The pills sit ON the training day's
+  // inverted (chalk) face, so the selected chip re-inverts relative to the
+  // row — the panel fill — which reads as inversion in both schemes.
+  const rowInk = resolvePlateStyles(theme, { tone: 'inverted' }).ink;
   return (
     <Plate
-      offset="none"
-      tone={active ? 'accent' : 'surface'}
-      border={active ? 'strong' : 'soft'}
-      radius="sm"
+      tone={active ? 'panel' : 'ghost'}
+      border="soft"
       onPress={onPress}
+      accessibilityLabel={accessibilityLabel ?? label}
       accessibilityState={{ selected: active }}
       faceStyle={styles.pillFace}
     >
-      <Text variant="meta" color={active ? theme.color.onAccent : theme.color.inkSecondary}>
+      <Text variant="card" color={active ? theme.color.ink : rowInk}>
         {label}
       </Text>
     </Plate>
@@ -395,19 +406,15 @@ function PresetPicker({
 
   return (
     <View style={styles.presetSection}>
-      <Text variant="label" color={theme.color.inkTertiary} style={styles.sectionTitle}>
+      <Text variant="card" color={theme.color.ink}>
         Start from a preset
       </Text>
       <Text variant="meta" color={theme.color.inkSecondary}>
         Pick a template plan to start from, or scroll down to build your own.
       </Text>
 
-      {generic.length > 0 ? (
-        <PresetGroup title="Generic" items={generic} onPick={onPick} />
-      ) : null}
-      {programs.length > 0 ? (
-        <PresetGroup title="Programs" items={programs} onPick={onPick} />
-      ) : null}
+      {generic.length > 0 ? <PresetGroup title="Generic" items={generic} onPick={onPick} /> : null}
+      {programs.length > 0 ? <PresetGroup title="Plans" items={programs} onPick={onPick} /> : null}
     </View>
   );
 }
@@ -425,7 +432,7 @@ function PresetGroup({
   const styles = useMemo(() => makeStyles(theme), [theme]);
   return (
     <View style={styles.presetGroup}>
-      <Text variant="label" color={theme.color.inkTertiary}>
+      <Text variant="meta" color={theme.color.inkTertiary}>
         {title}
       </Text>
       {items.map((p) => (
@@ -439,7 +446,7 @@ function PresetGroup({
             </Text>
           ) : null}
           <Text
-            variant="meta"
+            variant="strip"
             color={theme.color.inkTertiary}
             numberOfLines={2}
             style={styles.presetPreview}
@@ -460,7 +467,9 @@ function summarizeSlots(p: HydratedPreset): string {
       if (s.day_of_week == null) continue;
       byDay.set(
         s.day_of_week,
-        s.is_rest_day ? 'Rest' : (s.preset_template_id && tplName.get(s.preset_template_id)) || '—',
+        s.is_rest_day
+          ? 'Rest'
+          : (s.preset_template_id && tplName.get(s.preset_template_id)) || 'None',
       );
     }
     return DAY_LABELS.map((d, i) => `${d}: ${byDay.get(i) ?? 'Rest'}`).join(' · ');
@@ -471,7 +480,9 @@ function summarizeSlots(p: HydratedPreset): string {
     .map(
       (s, i) =>
         `D${i + 1}: ${
-          s.is_rest_day ? 'Rest' : (s.preset_template_id && tplName.get(s.preset_template_id)) || '—'
+          s.is_rest_day
+            ? 'Rest'
+            : (s.preset_template_id && tplName.get(s.preset_template_id)) || 'None'
         }`,
     )
     .join(' · ');
@@ -489,23 +500,29 @@ function activePlanHydrationKey(p: NonNullable<ActivePlan>): string {
 }
 
 function buildWeeklyDraft(): SlotDraft[] {
-  return Array.from({ length: 7 }, (_, i): SlotDraft => ({
-    key: `weekly-${i}`,
-    templateId: null,
-    isRestDay: true,
-    label: '',
-    dayOfWeek: i,
-  }));
+  return Array.from(
+    { length: 7 },
+    (_, i): SlotDraft => ({
+      key: `weekly-${i}`,
+      templateId: null,
+      isRestDay: true,
+      label: '',
+      dayOfWeek: i,
+    }),
+  );
 }
 
 function buildCycleDraft(n: number): SlotDraft[] {
-  return Array.from({ length: n }, (_, i): SlotDraft => ({
-    key: `cycle-${i}`,
-    templateId: null,
-    isRestDay: false,
-    label: '',
-    cyclePosition: i,
-  }));
+  return Array.from(
+    { length: n },
+    (_, i): SlotDraft => ({
+      key: `cycle-${i}`,
+      templateId: null,
+      isRestDay: false,
+      label: '',
+      cyclePosition: i,
+    }),
+  );
 }
 
 const makeStyles = (theme: Theme) =>
@@ -517,20 +534,12 @@ const makeStyles = (theme: Theme) =>
       height: theme.touch.min,
       paddingHorizontal: theme.space.s3,
       borderRadius: theme.radius.sm,
-      borderWidth: theme.depth.rule,
+      borderWidth: theme.depth.hairline,
       borderColor: theme.color.border,
       backgroundColor: theme.color.bg,
       fontSize: theme.font.size.body,
       color: theme.color.ink,
       fontFamily: theme.font.family.sans,
-    },
-    segment: { flexDirection: 'row', gap: theme.space.s2 },
-    segmentItem: { flex: 1 },
-    segmentFace: {
-      minHeight: theme.touch.min,
-      alignItems: 'center',
-      justifyContent: 'center',
-      paddingHorizontal: theme.space.s3,
     },
     section: { gap: theme.space.s2 },
     sectionTitle: { marginTop: theme.space.s2 },
@@ -538,6 +547,7 @@ const makeStyles = (theme: Theme) =>
     presetLoading: { alignItems: 'center', paddingVertical: theme.space.s6 },
     presetGroup: { gap: theme.space.s2, marginTop: theme.space.s2 },
     presetFace: { padding: theme.space.s4, gap: theme.space.s1 },
+    // Slot summaries are metadata: the strip variant carries the treatment.
     presetPreview: { marginTop: theme.space.s1 },
     stagedFace: {
       flexDirection: 'row',
@@ -558,6 +568,8 @@ const makeStyles = (theme: Theme) =>
     templatePicker: { flexDirection: 'row', flexWrap: 'wrap', gap: theme.space.s2 },
     pillFace: {
       minHeight: theme.touch.min,
+      minWidth: theme.touch.min,
+      alignItems: 'center',
       justifyContent: 'center',
       paddingHorizontal: theme.space.s3,
     },

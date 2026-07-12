@@ -10,12 +10,26 @@ import { useTheme } from './useTheme';
  * Kept under the historical name `FBarMark` so existing call sites (Today,
  * Login) don't need to change. `accent`/`ink` pass through to the mark.
  */
-export function FBarMark({ size = 40, accent, ink }: { size?: number; accent?: string; ink?: string }) {
+export function FBarMark({
+  size = 40,
+  accent,
+  ink,
+}: {
+  size?: number;
+  accent?: string;
+  ink?: string;
+}) {
   return <BrandMark size={size} accent={accent} ink={ink} />;
 }
 
 /** Full lockup — mark + Anton wordmark. Used on Login and the splash. */
-export function Logo({ size = 40, showWordmark = true }: { size?: number; showWordmark?: boolean }) {
+export function Logo({
+  size = 40,
+  showWordmark = true,
+}: {
+  size?: number;
+  showWordmark?: boolean;
+}) {
   const theme = useTheme();
   return (
     <View style={styles.container}>

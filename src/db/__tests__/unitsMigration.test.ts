@@ -28,7 +28,9 @@ async function makePreMigrationDb(units: 'kg' | 'lb'): Promise<void> {
       completed_at TEXT, created_at TEXT, updated_at TEXT, deleted_at TEXT
     );
   `);
-  await db.runAsync(`INSERT INTO profiles (id, units, updated_at) VALUES ('p1', ?, '2026-01-01')`, [units]);
+  await db.runAsync(`INSERT INTO profiles (id, units, updated_at) VALUES ('p1', ?, '2026-01-01')`, [
+    units,
+  ]);
   // A weight-bearing historical set + an empty staged set.
   await db.runAsync(
     `INSERT INTO sets (id, workout_exercise_id, order_index, weight, reps, completed, updated_at)

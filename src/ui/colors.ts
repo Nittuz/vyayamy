@@ -1,12 +1,17 @@
 /**
- * Forged Iron color tokens.
- * Two coordinated palettes — iron dark (default-feeling) and bone-paper light.
- * One hot ember accent per scheme; everything else is neutral iron and bone.
- * Consumed via `src/ui/useTheme.ts` which selects based on system color scheme.
+ * Blacktop color tokens (Direction C overhaul, 2026-07-11 spec).
+ * Two coordinated palettes — blacktop dark (default) and chalk light.
+ * True mono plus one volt signal; inversion is elevation, so everything else
+ * is neutral blacktop and chalk. Consumed via `src/ui/useTheme.ts`.
  *
- * Accent is tuned per scheme for WCAG: #E8602F clears 4.5 on the dark surfaces,
- * but raw ember fails on bone, so light uses the deeper #B83E14.
- * `src/ui/__tests__/contrast.test.ts` is the merge gate for any change here.
+ * Volt only ever sits on blacktop: raw volt fails as text on chalk, so the
+ * light accent is pressed-volt #55650B (same dark-olive-volt family), and volt
+ * appears in light mode only inside inverted black panels.
+ *
+ * Tuned off-spec for WCAG (see src/ui/__tests__/contrast.test.ts, the merge
+ * gate for any change here):
+ *   - dark inkTertiary #6E6E66 (spec #66665F was 2.72:1 on surface2, needs 3.0)
+ *   - light danger #AC3D2D (spec #B3402F was 4.42:1 on surface2, needs 4.5)
  */
 
 export interface PaletteTokens {
@@ -32,43 +37,45 @@ export interface PaletteTokens {
 }
 
 export const darkPalette: PaletteTokens = {
-  bg: '#0B0B0D',
-  surface: '#131316',
-  surface2: '#1B1B1F',
-  border: '#26262B',
-  borderStrong: '#404048',
-  ink: '#E8E5DE',
-  inkSecondary: '#A6A39B',
-  inkTertiary: '#74716A',
-  inkHero: '#F4F1E9',
-  accent: '#E8602F',
-  accentSoft: 'rgba(232, 96, 47, 0.14)',
-  success: '#E8602F',
-  successSoft: 'rgba(232, 96, 47, 0.14)',
-  danger: '#D6524A',
-  dangerSoft: 'rgba(214, 82, 74, 0.14)',
-  onAccent: '#0B0B0D',
-  overlay: 'rgba(0, 0, 0, 0.6)',
+  bg: '#121212',
+  surface: '#1A1A19',
+  surface2: '#232322',
+  border: '#333331',
+  borderStrong: '#55554F',
+  ink: '#F2F1ED',
+  inkSecondary: '#A8A8A1',
+  inkTertiary: '#6E6E66',
+  inkHero: '#FAF9F4',
+  accent: '#D8FF3E',
+  accentSoft: 'rgba(216, 255, 62, 0.12)',
+  // success = accent: one volt signal, achievement and action share it.
+  success: '#D8FF3E',
+  successSoft: 'rgba(216, 255, 62, 0.12)',
+  danger: '#FF6A55',
+  dangerSoft: 'rgba(255, 106, 85, 0.12)',
+  onAccent: '#121212',
+  overlay: 'rgba(0, 0, 0, 0.65)',
+  // Legacy token: slab shadows retired in plateStyles; kept for the token shape.
   slab: '#000000',
 };
 
 export const lightPalette: PaletteTokens = {
-  bg: '#ECEAE4',
-  surface: '#F7F5F0',
-  surface2: '#E0DED7',
-  border: '#C8C6BE',
-  borderStrong: '#17171A',
-  ink: '#1A1A1D',
-  inkSecondary: '#53524D',
-  inkTertiary: '#71706A',
-  inkHero: '#0C0C0E',
-  accent: '#B83E14',
-  accentSoft: 'rgba(184, 62, 20, 0.10)',
-  success: '#B83E14',
-  successSoft: 'rgba(184, 62, 20, 0.10)',
-  danger: '#A8312B',
-  dangerSoft: 'rgba(168, 49, 43, 0.10)',
-  onAccent: '#FFFFFF',
-  overlay: 'rgba(12, 12, 14, 0.4)',
-  slab: '#17171A',
+  bg: '#EFEEE9',
+  surface: '#F7F6F1',
+  surface2: '#E4E3DC',
+  border: '#CFCEC6',
+  borderStrong: '#141414',
+  ink: '#141414',
+  inkSecondary: '#4F4F4A',
+  inkTertiary: '#6E6E66',
+  inkHero: '#0C0C0C',
+  accent: '#55650B',
+  accentSoft: 'rgba(85, 101, 11, 0.12)',
+  success: '#55650B',
+  successSoft: 'rgba(85, 101, 11, 0.12)',
+  danger: '#AC3D2D',
+  dangerSoft: 'rgba(172, 61, 45, 0.10)',
+  onAccent: '#F2F1ED',
+  overlay: 'rgba(20, 20, 20, 0.45)',
+  slab: '#141414',
 };

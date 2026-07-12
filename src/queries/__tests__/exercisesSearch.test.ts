@@ -52,7 +52,11 @@ describe('searchExercises', () => {
 
 describe('createCustomExercise', () => {
   test('inserts a user-scoped exercise and queues an outbox insert', async () => {
-    const id = await createCustomExercise({ userId: USER, name: 'Cable Fly', muscleGroup: 'Chest' });
+    const id = await createCustomExercise({
+      userId: USER,
+      name: 'Cable Fly',
+      muscleGroup: 'Chest',
+    });
 
     const db = await getDb();
     const row = await db.getFirstAsync<{ name: string; user_id: string; muscle_group: string }>(

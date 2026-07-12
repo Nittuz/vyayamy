@@ -36,7 +36,10 @@ test('addSet stores the logging unit and enqueues it', async () => {
 
   const setId = await addSet(weId, { weight: 100, reps: 5, units: 'lb' });
 
-  const row = await db.getFirstAsync<{ units: string | null }>('SELECT units FROM sets WHERE id = ?', [setId]);
+  const row = await db.getFirstAsync<{ units: string | null }>(
+    'SELECT units FROM sets WHERE id = ?',
+    [setId],
+  );
   expect(row?.units).toBe('lb');
 
   const outbox = await db.getFirstAsync<{ payload_json: string }>(
@@ -51,12 +54,17 @@ test('an empty staged set carries no unit until a weight is written', async () =
   const db = await getDb();
 
   const setId = await addSet(weId); // staged, no weight
-  let row = await db.getFirstAsync<{ units: string | null }>('SELECT units FROM sets WHERE id = ?', [setId]);
+  let row = await db.getFirstAsync<{ units: string | null }>(
+    'SELECT units FROM sets WHERE id = ?',
+    [setId],
+  );
   expect(row?.units).toBeNull();
 
   // Entering a weight under the kg preference stamps the unit.
   await updateSet(setId, { weight: 60, units: 'kg' });
-  row = await db.getFirstAsync<{ units: string | null }>('SELECT units FROM sets WHERE id = ?', [setId]);
+  row = await db.getFirstAsync<{ units: string | null }>('SELECT units FROM sets WHERE id = ?', [
+    setId,
+  ]);
   expect(row?.units).toBe('kg');
 
   const outbox = await db.getFirstAsync<{ payload_json: string }>(

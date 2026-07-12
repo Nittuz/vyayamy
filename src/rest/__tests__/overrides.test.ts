@@ -4,8 +4,9 @@ import {
   clearOverride,
   effectiveRest,
   getOverrides,
+  REST_OVERRIDES_KEY,
   setOverride,
-} from '@/ui/restOverrides';
+} from '@/rest/overrides';
 
 const store: Record<string, string> = {};
 
@@ -17,6 +18,20 @@ beforeEach(() => {
   });
   (AsyncStorage.removeItem as jest.Mock).mockImplementation(async (k: string) => {
     delete store[k];
+  });
+});
+
+describe('persistence contract', () => {
+  // The storage key is a persisted contract with users' devices. Moving the
+  // module (e.g. #41's src/rest consolidation) must NEVER change it, or
+  // existing overrides would silently vanish.
+  test('storage key string is frozen', () => {
+    expect(REST_OVERRIDES_KEY).toBe('@flexyug/rest-overrides/v1');
+  });
+
+  test('persisted payload carries schemaVersion 1', async () => {
+    await setOverride('ex-1', 120);
+    expect(JSON.parse(store[REST_OVERRIDES_KEY] ?? 'null')?.schemaVersion).toBe(1);
   });
 });
 

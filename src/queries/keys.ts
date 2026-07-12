@@ -43,9 +43,7 @@ export const queryKeys = {
  * former left the active screen frozen offline until a sync push happened to
  * land. Keep this the single source of truth for set-write invalidation.
  */
-export function setWriteInvalidationKeys(
-  weId: string,
-): readonly (readonly (string)[])[] {
+export function setWriteInvalidationKeys(weId: string): readonly (readonly string[])[] {
   return [queryKeys.sets.byWorkoutExercise(weId), queryKeys.workouts.detailRoot];
 }
 

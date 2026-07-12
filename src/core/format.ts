@@ -30,7 +30,7 @@ export function formatRelativeDate(dateStr: string): string {
 }
 
 export function formatDuration(startedAt: string, endedAt: string | null): string {
-  if (!endedAt) return '—';
+  if (!endedAt) return '-';
   const start = new Date(startedAt).getTime();
   const end = new Date(endedAt).getTime();
   const mins = Math.round((end - start) / 60000);
@@ -57,11 +57,33 @@ export function getDateGroup(dateStr: string): string {
   return new Date(dateStr).toLocaleDateString(undefined, { month: 'long', year: 'numeric' });
 }
 
-export function getGreeting(): string {
-  const hour = new Date().getHours();
-  if (hour < 12) return 'Good morning';
-  if (hour < 17) return 'Good afternoon';
-  return 'Good evening';
+/** "Sunday morning" / "Friday night" — the Today screen's greeting line. */
+export function greetingFor(now: Date): string {
+  const h = now.getHours();
+  const day = ['Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday'][
+    now.getDay()
+  ];
+  const part = h < 5 ? 'night' : h < 12 ? 'morning' : h < 18 ? 'afternoon' : 'evening';
+  return `${day} ${part}`;
+}
+
+/** "MON 9:05" — compact local start time for the collision (resume-which) sheet. */
+export function formatStartLabel(iso: string): string {
+  const d = new Date(iso);
+  const days = ['SUN', 'MON', 'TUE', 'WED', 'THU', 'FRI', 'SAT'];
+  const day = days[d.getDay()];
+  const h = d.getHours();
+  const m = d.getMinutes().toString().padStart(2, '0');
+  return `${day} ${h}:${m}`;
+}
+
+/** "5H AGO" / "2D AGO" — coarse age of a quarantined sync row. */
+export function ageLabel(iso: string): string {
+  const ms = Date.now() - new Date(iso).getTime();
+  const hours = Math.floor(ms / (60 * 60 * 1000));
+  if (hours < 24) return `${hours}H AGO`;
+  const days = Math.floor(hours / 24);
+  return `${days}D AGO`;
 }
 
 export function formatMemberSince(dateStr: string): string {
@@ -89,7 +111,7 @@ export function getInitials(
 }
 
 export function formatWeight(weight: number | null, units: 'kg' | 'lb'): string {
-  if (weight == null) return '—';
+  if (weight == null) return '-';
   return `${weight} ${units}`;
 }
 

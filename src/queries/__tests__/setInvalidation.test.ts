@@ -28,7 +28,10 @@ import { queryKeys, setWriteInvalidationKeys } from '../keys';
 // Sync is offline in these tests, so the client is never called — stub it to
 // avoid loading the real supabase.ts (which imports ESM-only expo-constants).
 jest.mock('@/auth/supabase', () => ({
-  supabase: { from: () => ({}), auth: { onAuthStateChange: () => ({ data: { subscription: { unsubscribe() {} } } }) } },
+  supabase: {
+    from: () => ({}),
+    auth: { onAuthStateChange: () => ({ data: { subscription: { unsubscribe() {} } } }) },
+  },
 }));
 
 const USER_ID = 'user-invalidation-test';
@@ -89,7 +92,9 @@ test('a set write invalidates the workout-detail query (offline screen refresh)'
     // and reflects the completion. With the old `['sets', weId]`-only contract
     // this times out, because that key matches no mounted query.
     await waitFor(
-      () => observer.getCurrentResult().data?.exercises[0]?.sets.find((s) => s.id === setId)?.completed === true,
+      () =>
+        observer.getCurrentResult().data?.exercises[0]?.sets.find((s) => s.id === setId)
+          ?.completed === true,
     );
   } finally {
     unsubscribe();

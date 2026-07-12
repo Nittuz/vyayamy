@@ -2,15 +2,17 @@ import type { Command, ParseResult, VoiceContext, VoiceParser } from './commands
 import { wordsToNumber } from './numberWords';
 
 function normalize(t: string): string {
-  return t
-    .toLowerCase()
-    .replace(/[,!?]/g, ' ')
-    // Keep a decimal point between digits ("102.5") but drop sentence dots (#84).
-    .replace(/(\d)\.(\d)/g, '$1__DEC__$2')
-    .replace(/\./g, ' ')
-    .replace(/__DEC__/g, '.')
-    .replace(/\s+/g, ' ')
-    .trim();
+  return (
+    t
+      .toLowerCase()
+      .replace(/[,!?]/g, ' ')
+      // Keep a decimal point between digits ("102.5") but drop sentence dots (#84).
+      .replace(/(\d)\.(\d)/g, '$1__DEC__$2')
+      .replace(/\./g, ' ')
+      .replace(/__DEC__/g, '.')
+      .replace(/\s+/g, ' ')
+      .trim()
+  );
 }
 
 /** Parse a duration phrase like "two minute" / "ninety seconds". */
@@ -22,12 +24,54 @@ function parseDuration(s: string): number | undefined {
   return /^min/.test(m[1]!) ? n * 60 : n;
 }
 
-const FILLER = new Set(['log', 'set', 'put', 'do', 'make', 'it', 'to', 'the', 'weight', 'of', 'at']);
+const FILLER = new Set([
+  'log',
+  'set',
+  'put',
+  'do',
+  'make',
+  'it',
+  'to',
+  'the',
+  'weight',
+  'of',
+  'at',
+]);
 const NUM_WORDS = new Set([
-  'a', 'zero', 'oh', 'o', 'one', 'two', 'three', 'four', 'five', 'six', 'seven', 'eight', 'nine',
-  'ten', 'eleven', 'twelve', 'thirteen', 'fourteen', 'fifteen', 'sixteen', 'seventeen',
-  'eighteen', 'nineteen', 'twenty', 'thirty', 'forty', 'fifty', 'sixty', 'seventy',
-  'eighty', 'ninety', 'hundred', 'thousand', 'and',
+  'a',
+  'zero',
+  'oh',
+  'o',
+  'one',
+  'two',
+  'three',
+  'four',
+  'five',
+  'six',
+  'seven',
+  'eight',
+  'nine',
+  'ten',
+  'eleven',
+  'twelve',
+  'thirteen',
+  'fourteen',
+  'fifteen',
+  'sixteen',
+  'seventeen',
+  'eighteen',
+  'nineteen',
+  'twenty',
+  'thirty',
+  'forty',
+  'fifty',
+  'sixty',
+  'seventy',
+  'eighty',
+  'ninety',
+  'hundred',
+  'thousand',
+  'and',
 ]);
 
 /** Pull the first contiguous run of number tokens (digits or number-words) and parse it. */
@@ -69,9 +113,12 @@ export const GrammarParser: VoiceParser = {
     }
 
     if (/\b(stop|stop listening|cancel)\b/.test(t)) return high({ kind: 'stop' }, transcript);
-    if (/\b(undo|scratch that|never mind|delete that)\b/.test(t)) return high({ kind: 'undo' }, transcript);
-    if (/^(yes|yeah|yep|yup|correct|confirm|that's right)$/.test(t)) return high({ kind: 'confirm' }, transcript);
-    if (/\b(finish|end)\b.*\bworkout\b|\bend session\b/.test(t)) return high({ kind: 'finishWorkout' }, transcript);
+    if (/\b(undo|scratch that|never mind|delete that)\b/.test(t))
+      return high({ kind: 'undo' }, transcript);
+    if (/^(yes|yeah|yep|yup|correct|confirm|that's right)$/.test(t))
+      return high({ kind: 'confirm' }, transcript);
+    if (/\b(finish|end)\b.*\bworkout\b|\bend session\b/.test(t))
+      return high({ kind: 'finishWorkout' }, transcript);
 
     if (/\b(rest|timer)\b/.test(t) && /\b(start|rest|timer|take)\b/.test(t)) {
       const seconds = parseDuration(t);
@@ -79,10 +126,12 @@ export const GrammarParser: VoiceParser = {
     }
 
     if (/\bnext exercise\b/.test(t)) return high({ kind: 'nextExercise' }, transcript);
-    if (/\b(previous|prior|last) exercise\b/.test(t)) return high({ kind: 'prevExercise' }, transcript);
+    if (/\b(previous|prior|last) exercise\b/.test(t))
+      return high({ kind: 'prevExercise' }, transcript);
 
     // add a set / another set / one more  — MUST come before "add <exercise>"
-    if (/\b(add (a )?set|another set|one more( set)?)\b/.test(t)) return high({ kind: 'addSet' }, transcript);
+    if (/\b(add (a )?set|another set|one more( set)?)\b/.test(t))
+      return high({ kind: 'addSet' }, transcript);
 
     // add <exercise> — LOW confidence so the session confirms before creating +
     // syncing a custom exercise from a possibly-misheard utterance (#103).
@@ -132,7 +181,8 @@ export const GrammarParser: VoiceParser = {
     const repsOnly = t.match(/^(.*?)\breps?\b\s*$/);
     if (repsOnly) {
       const reps = firstNumberIn(repsOnly[1]!);
-      if (reps != null) return { command: { kind: 'setValues', reps }, confidence: 'high', transcript };
+      if (reps != null)
+        return { command: { kind: 'setValues', reps }, confidence: 'high', transcript };
     }
 
     // Bare control keyword (no values found above).

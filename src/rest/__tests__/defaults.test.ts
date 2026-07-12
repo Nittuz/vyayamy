@@ -1,4 +1,4 @@
-import { restForMuscleGroup } from '@/ui/restDefaults';
+import { restForMuscleGroup } from '@/rest/defaults';
 
 describe('restForMuscleGroup', () => {
   test('compound: chest → 180', () => {

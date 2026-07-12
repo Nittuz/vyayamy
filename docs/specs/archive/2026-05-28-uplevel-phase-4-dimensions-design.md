@@ -45,6 +45,7 @@ Phase 4 closes all five without touching the local-first write path, the visual 
 ### 1. Sync diagnostics sheet
 
 **Files touched:**
+
 - `src/components/SyncDiagnosticsSheet.tsx` — new
 - `src/ui/SyncIndicator.tsx` — wrap the existing pill in a `Pressable`, open the sheet on tap
 - `src/sync/state.ts` — extend `SyncState` to surface `lastErrorAt: string | null` (already partially there via `lastError`; add timestamp)
@@ -97,6 +98,7 @@ Phase 2's `src/sync/state.ts` exposes `getSyncState`, `setSyncState`, `subscribe
 ### 2. Per-exercise rest override
 
 **Files touched:**
+
 - `src/ui/restOverrides.ts` — new module: get/set/clear in AsyncStorage, `useRestOverrides()` hook
 - `src/ui/__tests__/restOverrides.test.ts` — unit tests against the kvStore mock pattern
 - `src/components/RestOverrideSheet.tsx` — new bottom sheet
@@ -108,6 +110,7 @@ Phase 2's `src/sync/state.ts` exposes `getSyncState`, `setSyncState`, `subscribe
 Key: `@flexyug/rest-overrides/v1`
 
 Value:
+
 ```ts
 {
   schemaVersion: 1,
@@ -185,6 +188,7 @@ const restSeconds = useMemo(
 ### 3. Composition-derived workout title
 
 **Files touched:**
+
 - `src/lib/compositionTitle.ts` — new, pure function + tests
 - `src/lib/__tests__/compositionTitle.test.ts`
 - `src/queries/exercises.ts` — extend `useAddExerciseToWorkout`'s `onSuccess` to maybe-update title
@@ -193,9 +197,7 @@ const restSeconds = useMemo(
 **Algorithm:**
 
 ```ts
-export function compositionTitle(
-  exerciseMuscleGroups: (string | null | undefined)[],
-): string {
+export function compositionTitle(exerciseMuscleGroups: (string | null | undefined)[]): string {
   // Take unique non-null/non-empty muscle groups in insertion order;
   // join with ' + '. Empty input returns ''.
   const seen = new Set<string>();
@@ -227,6 +229,7 @@ onSuccess: async (_id, vars) => {
 ```
 
 `maybeUpdateAutoTitle(workoutId)`:
+
 1. Fetch the workout's exercises + their muscle_groups via a direct SQL query
 2. If count < 3, return
 3. Fetch the workout row: title, started_at
@@ -246,6 +249,7 @@ This lives in `src/queries/workouts.ts` as `maybeUpdateAutoTitle`.
 ### 4. Line-height tokens wired into body prose
 
 **Files touched:**
+
 - `src/screens/Today.tsx`
 - `src/screens/WorkoutActive.tsx`
 - `src/components/CollisionSheet.tsx`
@@ -265,6 +269,7 @@ lineHeight: theme.font.size.body * theme.font.lineHeightMul.body, // 14 * 1.4 = 
 (or substitute `meta`/`title`/`hero` as applicable.)
 
 Don't touch:
+
 - Hero numerals (already use `lineHeight: hero * lineHeightMul.hero` per Phase 1)
 - Micro labels (intentionally tight)
 - Single-word buttons (lineHeight doesn't matter)
@@ -274,6 +279,7 @@ Don't touch:
 ### 5. Sync error stripe
 
 **Files touched:**
+
 - `src/components/SyncErrorStripe.tsx` — new
 - `src/screens/Today.tsx` — render at top of screen above all content
 - `src/screens/WorkoutActive.tsx` — render at top of screen above the rest progress bar
@@ -307,6 +313,7 @@ Don't touch:
 ### File-level changes summary
 
 **New:**
+
 - `src/components/SyncDiagnosticsSheet.tsx`
 - `src/components/RestOverrideSheet.tsx`
 - `src/components/SyncErrorStripe.tsx`
@@ -315,6 +322,7 @@ Don't touch:
 - `src/sync/outboxPreview.ts` + tests
 
 **Modified:**
+
 - `src/ui/SyncIndicator.tsx` — pressable wrapper
 - `src/components/RestProgressBar.tsx` — long-press → override sheet; short-press → skip
 - `src/screens/Today.tsx` — render SyncErrorStripe at top + line-height application
@@ -331,6 +339,7 @@ Don't touch:
 - `docs/specs/README.md` — index row
 
 **Untouched:**
+
 - All SQLite schema
 - Phase 1-3 commits and their visual / typography tokens (lineHeightMul exists; we're consuming it, not changing it)
 - All non-touched screens (`Progress`, `Profile`, `Login`, `TrainingPlan`, `History`, `HistoryDetail`)
@@ -346,16 +355,19 @@ Don't touch:
 ## Testing
 
 **Unit (Jest):**
+
 - `src/lib/__tests__/compositionTitle.test.ts` — empty, single, dedupe, all-null, mixed case
 - `src/ui/__tests__/restOverrides.test.ts` — round-trip via kvStore mock, get/set/clear, `effectiveRest` fallback
 - `src/sync/__tests__/outboxPreview.test.ts` — most-recent N, age computation, empty case
 - Extension to `src/sync/__tests__/quarantine.test.ts` if `getOutboxPreview` shares the test fixture
 
 **Integration:**
+
 - `src/__tests__/auto-title-e2e.test.ts` — add 3 exercises to a workout; verify title becomes composition; user-edited workout remains
 - `src/__tests__/rest-override-e2e.test.ts` — set override for exercise X; verify effectiveRest reads it; clear it; verify fallback
 
 **Device (manual checklist, in plan):**
+
 - Tap SyncIndicator → sheet opens with current state
 - Force sync now → pushes any pending, refreshes state
 - Long-press rest bar → override sheet opens; select 120s; rest bar now fills over 120

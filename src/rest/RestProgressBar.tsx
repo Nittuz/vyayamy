@@ -2,17 +2,19 @@
  * Rest countdown — the most-stared-at element on the screen (backlog 3.1 / #24).
  *
  * Was a 2px hairline with no numbers. Now a clear panel: a big mono countdown
- * (m:ss) against the target, a ≥44pt skip control, and a 3px progress rule that
- * crosses to accent as the target nears. The success haptic at the target is
- * owned by useRestTimer; this surface owns tap-to-skip (light) and long-press
- * for the override sheet (medium).
+ * (m:ss) against the target, a ≥44pt skip control, and a 3px ink progress rule
+ * (rest is neutral time, never a volt moment). The success haptic at the target
+ * is owned by useRestTimer; this surface owns tap-to-skip (light) and
+ * long-press for the override sheet (medium).
  */
-import { useEffect, useMemo, useRef } from 'react';
-import { Animated, Pressable, StyleSheet, View } from 'react-native';
+import { useEffect, useMemo } from 'react';
+import { Pressable, StyleSheet, View } from 'react-native';
+import Animated, { useAnimatedStyle, useSharedValue, withTiming } from 'react-native-reanimated';
 
 import { formatClock } from '@/core/format';
 import { haptics } from '@/ui/haptics';
 import { Icon } from '@/ui/icons';
+import { motion } from '@/ui/motion';
 import { Text } from '@/ui/Text';
 import { useTheme, type Theme } from '@/ui/useTheme';
 
@@ -24,21 +26,28 @@ interface Props {
   onOpenOverride?: () => void;
 }
 
-export function RestProgressBar({ running, elapsedSeconds, targetSeconds, onSkip, onOpenOverride }: Props) {
+export function RestProgressBar({
+  running,
+  elapsedSeconds,
+  targetSeconds,
+  onSkip,
+  onOpenOverride,
+}: Props) {
   const theme = useTheme();
   const styles = useMemo(() => makeStyles(theme), [theme]);
-  const widthAnim = useRef(new Animated.Value(0)).current;
+  const progress = useSharedValue(0);
 
   const fraction = Math.min(elapsedSeconds / Math.max(targetSeconds, 1), 1);
   const remaining = Math.max(0, targetSeconds - elapsedSeconds);
 
+  // Smooth the once-a-second tick into a continuous fill. Shared value only —
+  // no per-frame state. Width is a layout prop, so this runs off the native
+  // thread's fast path either way (same as the legacy JS-driven tween).
   useEffect(() => {
-    Animated.timing(widthAnim, {
-      toValue: fraction,
-      duration: 250,
-      useNativeDriver: false, // width animations require layout
-    }).start();
-  }, [fraction, widthAnim]);
+    progress.value = withTiming(fraction, { duration: motion.duration.base });
+  }, [fraction, progress]);
+
+  const fillStyle = useAnimatedStyle(() => ({ width: `${progress.value * 100}%` }));
 
   const handleSkip = () => {
     haptics.light();
@@ -63,8 +72,8 @@ export function RestProgressBar({ running, elapsedSeconds, targetSeconds, onSkip
     >
       <View style={styles.topRow}>
         <View style={styles.clockRow}>
-          <Text variant="label" color={theme.color.inkTertiary}>
-            Rest
+          <Text variant="strip" color={theme.color.inkTertiary}>
+            REST
           </Text>
           <Text variant="numeralLg" color={theme.color.inkHero} style={styles.clock}>
             {formatClock(remaining)}
@@ -73,6 +82,7 @@ export function RestProgressBar({ running, elapsedSeconds, targetSeconds, onSkip
             / {formatClock(targetSeconds)}
           </Text>
         </View>
+        {/* Skip is an available action, not an act-now moment: ghost ink, no volt. */}
         <Pressable
           onPress={handleSkip}
           hitSlop={8}
@@ -80,22 +90,14 @@ export function RestProgressBar({ running, elapsedSeconds, targetSeconds, onSkip
           accessibilityLabel="Skip rest"
           style={({ pressed }) => [styles.skip, pressed && styles.skipPressed]}
         >
-          <Text variant="label" color={theme.color.accent}>
+          <Text variant="body" color={theme.color.ink}>
             Skip
           </Text>
-          <Icon name="skip" size={16} color={theme.color.accent} />
+          <Icon name="skip" size={16} color={theme.color.ink} />
         </Pressable>
       </View>
       <View style={styles.track}>
-        <Animated.View
-          style={[
-            styles.fill,
-            {
-              backgroundColor: theme.color.accent,
-              width: widthAnim.interpolate({ inputRange: [0, 1], outputRange: ['0%', '100%'] }),
-            },
-          ]}
-        />
+        <Animated.View style={[styles.fill, { backgroundColor: theme.color.ink }, fillStyle]} />
       </View>
     </Pressable>
   );
@@ -108,9 +110,10 @@ const makeStyles = (theme: Theme) =>
       marginTop: theme.space.s3,
       paddingHorizontal: theme.space.s4,
       paddingVertical: theme.space.s3,
-      backgroundColor: theme.color.surface2,
-      borderWidth: theme.depth.rule,
-      borderColor: theme.color.borderStrong,
+      // Panel materiality: flat surface + 1.5px hairline (slab depth retired).
+      backgroundColor: theme.color.surface,
+      borderWidth: theme.depth.hairline,
+      borderColor: theme.color.border,
       borderRadius: theme.radius.card,
       gap: theme.space.s2,
     },

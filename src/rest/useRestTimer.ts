@@ -8,15 +8,15 @@
 import * as Haptics from 'expo-haptics';
 import { useCallback, useEffect, useRef, useState } from 'react';
 
-import { cancelRest, primeRestAlerts, scheduleRestDone } from '@/lib/restNotifications';
 import { getKv, registerUserScopedKv, removeKv, setKv } from '@/lib/kvStore';
 
+import { cancelRest, primeRestAlerts, scheduleRestDone } from './notifications';
 import {
   PersistedTimer,
   REST_TIMER_KEY,
   REST_TIMER_SCHEMA_VERSION,
   shouldRestoreTimer,
-} from './restTimerPolicy';
+} from './timerPolicy';
 
 // The live rest timer is per-user — wiped on sign-out via the registry (#36).
 registerUserScopedKv(REST_TIMER_KEY);
@@ -87,7 +87,8 @@ export function useRestTimer(args: UseRestTimerArgs = {}) {
       setElapsed(0);
       const now = Date.now();
       // A spoken "rest two minutes" overrides the exercise's configured rest (#105).
-      const target = secondsOverride != null && secondsOverride > 0 ? secondsOverride : targetSeconds;
+      const target =
+        secondsOverride != null && secondsOverride > 0 ? secondsOverride : targetSeconds;
       setActiveTarget(target);
       setStartedAt(now);
       void setKv<PersistedTimer>(REST_TIMER_KEY, {
@@ -113,8 +114,10 @@ export function useRestTimer(args: UseRestTimerArgs = {}) {
             targetSeconds: target,
             notificationId: id,
           });
-      });
-  }, [targetSeconds]);
+        });
+    },
+    [targetSeconds],
+  );
 
   const stop = useCallback(() => {
     setStartedAt(null);
@@ -141,10 +144,4 @@ export function useRestTimer(args: UseRestTimerArgs = {}) {
     start,
     stop,
   };
-}
-
-export function formatTimer(seconds: number): string {
-  const m = Math.floor(seconds / 60);
-  const s = seconds % 60;
-  return `${m}:${s.toString().padStart(2, '0')}`;
 }

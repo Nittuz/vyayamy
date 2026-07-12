@@ -1,72 +1,102 @@
-import { useEffect, useRef } from 'react';
-import { Animated, StyleSheet } from 'react-native';
+import { useEffect, useState } from 'react';
+import { AccessibilityInfo, StyleSheet } from 'react-native';
+import Animated, {
+  cancelAnimation,
+  useAnimatedStyle,
+  useSharedValue,
+  withRepeat,
+  withSequence,
+  withTiming,
+} from 'react-native-reanimated';
 
 import { useSyncStateLive } from '@/sync/useSyncStateLive';
+import { motion } from '@/ui/motion';
 import { useTheme } from '@/ui/useTheme';
 
 const PULSE_WINDOW_MS = 30_000;
 const PERSISTENT_AGE_MS = 5 * 60_000;
+const PULSE_LOW = 0.3;
+const PULSE_HIGH = 0.7;
+
+function pulseLoop() {
+  return withRepeat(
+    withSequence(
+      withTiming(PULSE_HIGH, { duration: motion.duration.pulse }),
+      withTiming(PULSE_LOW, { duration: motion.duration.pulse }),
+    ),
+    -1,
+    false,
+  );
+}
 
 export function SyncErrorStripe() {
   const theme = useTheme();
   const sync = useSyncStateLive();
-  const opacity = useRef(new Animated.Value(0)).current;
-  const loopRef = useRef<Animated.CompositeAnimation | null>(null);
+  const opacity = useSharedValue(0);
+  const [reduceMotion, setReduceMotion] = useState(false);
+
+  useEffect(() => {
+    let active = true;
+    AccessibilityInfo.isReduceMotionEnabled()
+      .then((r) => {
+        if (active) setReduceMotion(r);
+      })
+      .catch(() => {
+        /* default: motion allowed */
+      });
+    return () => {
+      active = false;
+    };
+  }, []);
 
   useEffect(() => {
     const now = Date.now();
     const lastErrorMs = sync.lastErrorAt ? new Date(sync.lastErrorAt).getTime() : null;
     const isRecentError = lastErrorMs !== null && now - lastErrorMs < PULSE_WINDOW_MS;
-    const isPersistent = sync.pendingOutbox > 0 && lastErrorMs !== null && now - lastErrorMs > PERSISTENT_AGE_MS;
-
-    // Stop existing loop
-    if (loopRef.current) {
-      loopRef.current.stop();
-      loopRef.current = null;
-    }
+    const isPersistent =
+      sync.pendingOutbox > 0 && lastErrorMs !== null && now - lastErrorMs > PERSISTENT_AGE_MS;
 
     if (isRecentError) {
+      if (reduceMotion) {
+        // Loops are suppressed under Reduce Motion — hold the stripe steady.
+        opacity.value = PULSE_HIGH;
+        return;
+      }
       // Pulse 0.3 ↔ 0.7
-      opacity.setValue(0.3);
-      const loop = Animated.loop(
-        Animated.sequence([
-          Animated.timing(opacity, { toValue: 0.7, duration: 500, useNativeDriver: true }),
-          Animated.timing(opacity, { toValue: 0.3, duration: 500, useNativeDriver: true }),
-        ]),
+      opacity.value = PULSE_LOW;
+      opacity.value = pulseLoop();
+      // Known flag (kept for parity with the legacy Animated version, not fixed
+      // here): the pulse outlives its 30s window — the timeout snaps the stripe
+      // down but the loop resumes until the sync state next changes.
+      const t = setTimeout(
+        () => {
+          opacity.value = 0;
+          opacity.value = pulseLoop();
+        },
+        PULSE_WINDOW_MS - (now - (lastErrorMs ?? now)),
       );
-      loop.start();
-      loopRef.current = loop;
-      // Re-evaluate after the pulse window expires
-      const t = setTimeout(() => {
-        // Force re-render via state read on next tick
-        opacity.setValue(0);
-      }, PULSE_WINDOW_MS - (now - (lastErrorMs ?? now)));
       return () => clearTimeout(t);
     }
 
     if (isPersistent) {
-      Animated.timing(opacity, { toValue: 0.7, duration: 200, useNativeDriver: true }).start();
+      opacity.value = withTiming(PULSE_HIGH, { duration: motion.duration.base });
       return;
     }
 
-    Animated.timing(opacity, { toValue: 0, duration: 200, useNativeDriver: true }).start();
-  }, [sync.lastErrorAt, sync.pendingOutbox, opacity]);
+    opacity.value = withTiming(0, { duration: motion.duration.base });
+  }, [sync.lastErrorAt, sync.pendingOutbox, reduceMotion, opacity]);
 
   useEffect(() => {
     return () => {
-      if (loopRef.current) loopRef.current.stop();
+      cancelAnimation(opacity);
     };
-  }, []);
+  }, [opacity]);
+
+  const animatedStyle = useAnimatedStyle(() => ({ opacity: opacity.value }));
 
   return (
     <Animated.View
-      style={[
-        styles.stripe,
-        {
-          backgroundColor: theme.color.danger,
-          opacity,
-        },
-      ]}
+      style={[styles.stripe, { backgroundColor: theme.color.danger }, animatedStyle]}
       pointerEvents="none"
     />
   );

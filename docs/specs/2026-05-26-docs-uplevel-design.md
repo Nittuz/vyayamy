@@ -10,7 +10,7 @@ FlexYug's documentation is healthy descriptive prose — README, ARCHITECTURE, A
 
 1. **Architectural decisions are buried.** The "Key Design Decisions" section at the bottom of `ARCHITECTURE.md` lists why SQLite is source of truth, why an outbox over CRDTs, why custom SVG charts, why `ts-jest`. These are foundational choices, but they live as prose paragraphs in a long file. There's no immutable record of when they were made, what alternatives were rejected, and what would have to be true to revisit them. Future-us (and AI agents) cannot find them by name.
 
-2. **Features are built without a written design phase.** There is no convention for "before we build feature X, here is what we are building and why". The deferred-work backlog in `docs/local-first-sync.md` (operation batching, exponential backoff, poisoned-row recovery UI, multi-device conflict detection) and `docs/design-system.md` (dark-mode activation, Sheet/ConfirmDialog primitives, skeletons) all describe *intent to build* without any written design preceding implementation.
+2. **Features are built without a written design phase.** There is no convention for "before we build feature X, here is what we are building and why". The deferred-work backlog in `docs/local-first-sync.md` (operation batching, exponential backoff, poisoned-row recovery UI, multi-device conflict detection) and `docs/design-system.md` (dark-mode activation, Sheet/ConfirmDialog primitives, skeletons) all describe _intent to build_ without any written design preceding implementation.
 
 The result: decisions are rediscovered instead of remembered, and features are designed in the editor at implementation time.
 
@@ -36,10 +36,10 @@ The result: decisions are rediscovered instead of remembered, and features are d
 
 ### Two doc types
 
-| Type | Lives in | Triggers | Lifecycle | Mutability |
-| --- | --- | --- | --- | --- |
-| **ADR** | `docs/adr/NNNN-slug.md` | A non-trivial decision is made (pick X over Y) for a long-lived choice | `proposed → accepted → superseded` | Immutable once accepted; never edited, only superseded by a new ADR |
-| **Design spec** | `docs/specs/YYYY-MM-DD-topic.md` | A feature is about to be built (or explored) | `draft → approved → implemented → archived` | Edited freely while in draft / approved; frozen on implementation |
+| Type            | Lives in                         | Triggers                                                               | Lifecycle                                   | Mutability                                                          |
+| --------------- | -------------------------------- | ---------------------------------------------------------------------- | ------------------------------------------- | ------------------------------------------------------------------- |
+| **ADR**         | `docs/adr/NNNN-slug.md`          | A non-trivial decision is made (pick X over Y) for a long-lived choice | `proposed → accepted → superseded`          | Immutable once accepted; never edited, only superseded by a new ADR |
+| **Design spec** | `docs/specs/YYYY-MM-DD-topic.md` | A feature is about to be built (or explored)                           | `draft → approved → implemented → archived` | Edited freely while in draft / approved; frozen on implementation   |
 
 ### Decision flow
 
@@ -56,7 +56,7 @@ flowchart TD
 
 ### When to use which — heuristics
 
-- **"Is this an ADR or a design spec?"** — If the artifact you'd write is *mostly* "we will use X over Y", it's an ADR. If it's *mostly* "here is how the feature works", it's a spec. A spec **uses** ADRs as constraints; it doesn't **make** them.
+- **"Is this an ADR or a design spec?"** — If the artifact you'd write is _mostly_ "we will use X over Y", it's an ADR. If it's _mostly_ "here is how the feature works", it's a spec. A spec **uses** ADRs as constraints; it doesn't **make** them.
 - **"Is this an ADR or just a code comment?"** — If you can change it later without breaking consumers and without anyone asking "why was it like this?", it's a code comment. ADRs are for choices that have gravity.
 - **"Is this an exploratory spec or premature?"** — A `Status: draft` spec is the right home for "I'm thinking about this; I may not ship it". The spec can be abandoned (`Status: archived` with a note in the body). No separate RFC track.
 
@@ -150,12 +150,12 @@ These index pages are updated by the author of each new ADR/spec in the same com
 
 Four ADRs, extracted from existing prose in `ARCHITECTURE.md` and the migration history. All start at `Status: accepted` with their actual decision date (best estimate from git history; the date column reflects when the decision was made, not when the ADR was written).
 
-| # | Title | Source |
-| --- | --- | --- |
-| 0001 | SQLite as source of truth | `ARCHITECTURE.md` "Key Design Decisions" §1; product principle "Mobile-only, always" |
-| 0002 | Outbox over CRDTs / sync frameworks | `ARCHITECTURE.md` "Key Design Decisions" §2 |
-| 0003 | Soft-delete tombstones, never hard delete | `docs/local-first-sync.md` "Principles" §4; implicit in `00004_sync_support.sql` |
-| 0004 | Server-owned `updated_at` | `supabase/migrations/00009_security_hardening.sql`; called out explicitly in push engine doc |
+| #    | Title                                     | Source                                                                                       |
+| ---- | ----------------------------------------- | -------------------------------------------------------------------------------------------- |
+| 0001 | SQLite as source of truth                 | `ARCHITECTURE.md` "Key Design Decisions" §1; product principle "Mobile-only, always"         |
+| 0002 | Outbox over CRDTs / sync frameworks       | `ARCHITECTURE.md` "Key Design Decisions" §2                                                  |
+| 0003 | Soft-delete tombstones, never hard delete | `docs/local-first-sync.md` "Principles" §4; implicit in `00004_sync_support.sql`             |
+| 0004 | Server-owned `updated_at`                 | `supabase/migrations/00009_security_hardening.sql`; called out explicitly in push engine doc |
 
 Excluded from this backfill (could be added later if they earn it): React Query over local DB, custom SVG charts, `ts-jest` over `jest-expo`. These are pragmatic engineering picks; they fit in code comments and the existing ARCHITECTURE prose rather than as standalone ADRs.
 
@@ -202,6 +202,6 @@ No feature flag, no migration. The change is purely additive plus three small in
 
 ## Open questions
 
-- **Should the four backfilled ADRs' dates reflect when the decision was *actually* made, or the date this spec lands?** Leaning: best-estimate actual date from git history (more honest; users can still see the ADR was filed retrospectively because its commit lands in 2026-05-26).
+- **Should the four backfilled ADRs' dates reflect when the decision was _actually_ made, or the date this spec lands?** Leaning: best-estimate actual date from git history (more honest; users can still see the ADR was filed retrospectively because its commit lands in 2026-05-26).
 - **Status of this spec after implementation.** Once the implementation plan ships, this spec flips to `Status: implemented`. The spec itself stays in `docs/specs/` as the historical record of how the system was stood up.
 - **First real design spec.** Not part of this rollout. The deferred-work backlog (poisoned-row recovery UI, dark-mode activation, exponential backoff, multi-device conflict detection) is the natural pool. Whichever is picked up next gets the first "real" spec.

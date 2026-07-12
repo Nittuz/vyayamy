@@ -12,18 +12,18 @@
 
 ## File Structure
 
-| File | Responsibility | Tested in harness? |
-|---|---|---|
-| `src/voice/numberWords.ts` | Spoken-numeral + digit → number | ✅ unit |
-| `src/voice/commands.ts` | `Command`, `Confidence`, `ParseResult`, `VoiceContext`, `VoiceParser` types | type-only |
-| `src/voice/grammar.ts` | `GrammarParser.parse(transcript, ctx)` → `ParseResult \| null` (pure) | ✅ unit |
-| `src/voice/dispatch.ts` | Data `Command` → existing mutations; returns feedback + undo | ✅ unit (SQLite mock) |
-| `src/voice/speechEngine.ts` | `SpeechEngine` interface + `expo-speech-recognition` adapter | ❌ device QA |
-| `src/voice/useVoiceSession.ts` | Listening lifecycle, confidence→apply/confirm/undo, timer/nav, UI state | ❌ device QA |
-| `src/components/VoiceMicButton.tsx` | Mic control + listening/disabled states | ❌ device QA |
-| `src/components/ActiveSetCard.tsx` (modify) | Inline-morph listening UI | ❌ device QA |
-| `src/screens/WorkoutActive.tsx` (modify) | Wire session to the active-set cursor | ❌ device QA |
-| `app.config.ts` (modify) | Mic + speech permissions, plugin | ❌ build config |
+| File                                        | Responsibility                                                              | Tested in harness?    |
+| ------------------------------------------- | --------------------------------------------------------------------------- | --------------------- |
+| `src/voice/numberWords.ts`                  | Spoken-numeral + digit → number                                             | ✅ unit               |
+| `src/voice/commands.ts`                     | `Command`, `Confidence`, `ParseResult`, `VoiceContext`, `VoiceParser` types | type-only             |
+| `src/voice/grammar.ts`                      | `GrammarParser.parse(transcript, ctx)` → `ParseResult \| null` (pure)       | ✅ unit               |
+| `src/voice/dispatch.ts`                     | Data `Command` → existing mutations; returns feedback + undo                | ✅ unit (SQLite mock) |
+| `src/voice/speechEngine.ts`                 | `SpeechEngine` interface + `expo-speech-recognition` adapter                | ❌ device QA          |
+| `src/voice/useVoiceSession.ts`              | Listening lifecycle, confidence→apply/confirm/undo, timer/nav, UI state     | ❌ device QA          |
+| `src/components/VoiceMicButton.tsx`         | Mic control + listening/disabled states                                     | ❌ device QA          |
+| `src/components/ActiveSetCard.tsx` (modify) | Inline-morph listening UI                                                   | ❌ device QA          |
+| `src/screens/WorkoutActive.tsx` (modify)    | Wire session to the active-set cursor                                       | ❌ device QA          |
+| `app.config.ts` (modify)                    | Mic + speech permissions, plugin                                            | ❌ build config       |
 
 Convention reminders (match existing tests): every DB-touching test does `await resetDbForTests(); await initDb();` in `beforeEach`, sets `setSyncState({ online: false })`, and mocks `@/auth/supabase`. Commit messages end with the `Co-Authored-By: Claude Opus 4.8 (1M context) <noreply@anthropic.com>` trailer.
 
@@ -32,6 +32,7 @@ Convention reminders (match existing tests): every DB-touching test does `await 
 ## Task 1: Spoken-number parsing (`numberWords.ts`)
 
 **Files:**
+
 - Create: `src/voice/numberWords.ts`
 - Test: `src/voice/__tests__/numberWords.test.ts`
 
@@ -85,12 +86,36 @@ Expected: FAIL — cannot find module `@/voice/numberWords`.
 ```ts
 // src/voice/numberWords.ts
 const SMALL: Record<string, number> = {
-  zero: 0, one: 1, two: 2, three: 3, four: 4, five: 5, six: 6, seven: 7,
-  eight: 8, nine: 9, ten: 10, eleven: 11, twelve: 12, thirteen: 13,
-  fourteen: 14, fifteen: 15, sixteen: 16, seventeen: 17, eighteen: 18, nineteen: 19,
+  zero: 0,
+  one: 1,
+  two: 2,
+  three: 3,
+  four: 4,
+  five: 5,
+  six: 6,
+  seven: 7,
+  eight: 8,
+  nine: 9,
+  ten: 10,
+  eleven: 11,
+  twelve: 12,
+  thirteen: 13,
+  fourteen: 14,
+  fifteen: 15,
+  sixteen: 16,
+  seventeen: 17,
+  eighteen: 18,
+  nineteen: 19,
 };
 const TENS: Record<string, number> = {
-  twenty: 20, thirty: 30, forty: 40, fifty: 50, sixty: 60, seventy: 70, eighty: 80, ninety: 90,
+  twenty: 20,
+  thirty: 30,
+  forty: 40,
+  fifty: 50,
+  sixty: 60,
+  seventy: 70,
+  eighty: 80,
+  ninety: 90,
 };
 
 const isUnit = (n: number) => n >= 1 && n <= 9;
@@ -115,11 +140,32 @@ export function wordsToNumber(input: string): number | null {
     let current = 0;
     let any = false;
     for (const t of tokens) {
-      if (t === 'a') { current += 1; any = true; continue; }
-      if (t === 'hundred') { current = (current === 0 ? 1 : current) * 100; any = true; continue; }
-      if (t === 'thousand') { result += (current === 0 ? 1 : current) * 1000; current = 0; any = true; continue; }
-      if (t in SMALL) { current += SMALL[t]!; any = true; continue; }
-      if (t in TENS) { current += TENS[t]!; any = true; continue; }
+      if (t === 'a') {
+        current += 1;
+        any = true;
+        continue;
+      }
+      if (t === 'hundred') {
+        current = (current === 0 ? 1 : current) * 100;
+        any = true;
+        continue;
+      }
+      if (t === 'thousand') {
+        result += (current === 0 ? 1 : current) * 1000;
+        current = 0;
+        any = true;
+        continue;
+      }
+      if (t in SMALL) {
+        current += SMALL[t]!;
+        any = true;
+        continue;
+      }
+      if (t in TENS) {
+        current += TENS[t]!;
+        any = true;
+        continue;
+      }
       return null;
     }
     return any ? result + current : null;
@@ -127,16 +173,26 @@ export function wordsToNumber(input: string): number | null {
 
   const vals: number[] = [];
   for (const t of tokens) {
-    if (t === 'a') { vals.push(1); continue; }
-    if (t in SMALL) { vals.push(SMALL[t]!); continue; }
-    if (t in TENS) { vals.push(TENS[t]!); continue; }
+    if (t === 'a') {
+      vals.push(1);
+      continue;
+    }
+    if (t in SMALL) {
+      vals.push(SMALL[t]!);
+      continue;
+    }
+    if (t in TENS) {
+      vals.push(TENS[t]!);
+      continue;
+    }
     return null;
   }
   if (vals.length === 0) return null;
   if (vals.length === 1) return vals[0]!;
 
   const [a, b, c] = vals as [number, number, number?];
-  if (vals.length === 3 && isUnit(a) && isTens(b) && c !== undefined && isUnit(c)) return a * 100 + b + c;
+  if (vals.length === 3 && isUnit(a) && isTens(b) && c !== undefined && isUnit(c))
+    return a * 100 + b + c;
   if (vals.length === 2 && isUnit(a) && (isTens(b) || isTeen(b))) return a * 100 + b;
   if (vals.length === 2 && isTens(a) && isUnit(b)) return a + b;
   return vals.reduce((s, n) => s + n, 0);
@@ -162,6 +218,7 @@ Co-Authored-By: Claude Opus 4.8 (1M context) <noreply@anthropic.com>"
 ## Task 2: Command model (`commands.ts`)
 
 **Files:**
+
 - Create: `src/voice/commands.ts`
 
 No test (types only). It is consumed and thereby type-checked by Tasks 3–4.
@@ -222,6 +279,7 @@ Co-Authored-By: Claude Opus 4.8 (1M context) <noreply@anthropic.com>"
 ## Task 3: Grammar parser — control & flow commands
 
 **Files:**
+
 - Create: `src/voice/grammar.ts`
 - Test: `src/voice/__tests__/grammar.control.test.ts`
 
@@ -297,7 +355,11 @@ import type { Command, ParseResult, VoiceContext, VoiceParser } from './commands
 import { wordsToNumber } from './numberWords';
 
 function normalize(t: string): string {
-  return t.toLowerCase().replace(/[.,!?]/g, ' ').replace(/\s+/g, ' ').trim();
+  return t
+    .toLowerCase()
+    .replace(/[.,!?]/g, ' ')
+    .replace(/\s+/g, ' ')
+    .trim();
 }
 
 /** Parse a leading/standalone duration phrase like "two minute" / "ninety seconds". */
@@ -325,18 +387,25 @@ export const GrammarParser: VoiceParser = {
     if (t === '') return null;
 
     if (/\b(stop|stop listening|cancel)\b/.test(t)) return high({ kind: 'stop' }, transcript);
-    if (/\b(undo|scratch that|never mind|delete that)\b/.test(t)) return high({ kind: 'undo' }, transcript);
-    if (/\b(finish|end)\b.*\bworkout\b|\bend session\b/.test(t)) return high({ kind: 'finishWorkout' }, transcript);
+    if (/\b(undo|scratch that|never mind|delete that)\b/.test(t))
+      return high({ kind: 'undo' }, transcript);
+    if (/\b(finish|end)\b.*\bworkout\b|\bend session\b/.test(t))
+      return high({ kind: 'finishWorkout' }, transcript);
 
     if (/\b(rest|timer)\b/.test(t) && /\b(start|rest|timer|take)\b/.test(t)) {
-      return high({ kind: 'startRest', ...(parseDuration(t) != null ? { seconds: parseDuration(t) } : {}) }, transcript);
+      return high(
+        { kind: 'startRest', ...(parseDuration(t) != null ? { seconds: parseDuration(t) } : {}) },
+        transcript,
+      );
     }
 
     if (/\bnext exercise\b/.test(t)) return high({ kind: 'nextExercise' }, transcript);
-    if (/\b(previous|prior|last) exercise\b/.test(t)) return high({ kind: 'prevExercise' }, transcript);
+    if (/\b(previous|prior|last) exercise\b/.test(t))
+      return high({ kind: 'prevExercise' }, transcript);
 
     // add a set / another set / one more  — MUST come before "add <exercise>"
-    if (/\b(add (a )?set|another set|one more( set)?)\b/.test(t)) return high({ kind: 'addSet' }, transcript);
+    if (/\b(add (a )?set|another set|one more( set)?)\b/.test(t))
+      return high({ kind: 'addSet' }, transcript);
 
     if (/\b(done|complete|completed|got it|logged|next set|mark (it )?done)\b/.test(t)) {
       return high({ kind: 'completeSet' }, transcript);
@@ -369,6 +438,7 @@ Co-Authored-By: Claude Opus 4.8 (1M context) <noreply@anthropic.com>"
 ## Task 4: Grammar parser — set-value commands & confidence
 
 **Files:**
+
 - Modify: `src/voice/grammar.ts`
 - Test: `src/voice/__tests__/grammar.setvalues.test.ts`
 
@@ -385,9 +455,17 @@ const parse = (t: string) => GrammarParser.parse(t, ctx);
 describe('GrammarParser — set values', () => {
   test('weight + reps via "for"/"by"/"times"', () => {
     expect(parse('185 for 5')!.command).toEqual({ kind: 'setValues', weight: 185, reps: 5 });
-    expect(parse('one eighty five for five')!.command).toEqual({ kind: 'setValues', weight: 185, reps: 5 });
+    expect(parse('one eighty five for five')!.command).toEqual({
+      kind: 'setValues',
+      weight: 185,
+      reps: 5,
+    });
     expect(parse('225 by 3')!.command).toEqual({ kind: 'setValues', weight: 225, reps: 3 });
-    expect(parse('log 135 times 8 reps')!.command).toEqual({ kind: 'setValues', weight: 135, reps: 8 });
+    expect(parse('log 135 times 8 reps')!.command).toEqual({
+      kind: 'setValues',
+      weight: 135,
+      reps: 8,
+    });
   });
 
   test('weight + reps is high confidence', () => {
@@ -406,8 +484,18 @@ describe('GrammarParser — set values', () => {
   });
 
   test('explicit unit override', () => {
-    expect(parse('100 kilos for 5')!.command).toEqual({ kind: 'setValues', weight: 100, reps: 5, unit: 'kg' });
-    expect(parse('two twenty five pounds for 3')!.command).toEqual({ kind: 'setValues', weight: 225, reps: 3, unit: 'lb' });
+    expect(parse('100 kilos for 5')!.command).toEqual({
+      kind: 'setValues',
+      weight: 100,
+      reps: 5,
+      unit: 'kg',
+    });
+    expect(parse('two twenty five pounds for 3')!.command).toEqual({
+      kind: 'setValues',
+      weight: 225,
+      reps: 3,
+      unit: 'lb',
+    });
   });
 
   test('correction "make it 195"', () => {
@@ -426,12 +514,52 @@ Expected: FAIL — set-value phrases currently return `null`.
 Add these helpers above `GrammarParser` (after `parseDuration`):
 
 ```ts
-const FILLER = new Set(['log', 'set', 'put', 'do', 'make', 'it', 'to', 'the', 'weight', 'of', 'at']);
+const FILLER = new Set([
+  'log',
+  'set',
+  'put',
+  'do',
+  'make',
+  'it',
+  'to',
+  'the',
+  'weight',
+  'of',
+  'at',
+]);
 const NUM_WORDS = new Set([
-  'a', 'zero', 'one', 'two', 'three', 'four', 'five', 'six', 'seven', 'eight', 'nine',
-  'ten', 'eleven', 'twelve', 'thirteen', 'fourteen', 'fifteen', 'sixteen', 'seventeen',
-  'eighteen', 'nineteen', 'twenty', 'thirty', 'forty', 'fifty', 'sixty', 'seventy',
-  'eighty', 'ninety', 'hundred', 'thousand', 'and',
+  'a',
+  'zero',
+  'one',
+  'two',
+  'three',
+  'four',
+  'five',
+  'six',
+  'seven',
+  'eight',
+  'nine',
+  'ten',
+  'eleven',
+  'twelve',
+  'thirteen',
+  'fourteen',
+  'fifteen',
+  'sixteen',
+  'seventeen',
+  'eighteen',
+  'nineteen',
+  'twenty',
+  'thirty',
+  'forty',
+  'fifty',
+  'sixty',
+  'seventy',
+  'eighty',
+  'ninety',
+  'hundred',
+  'thousand',
+  'and',
 ]);
 
 /** Pull the first contiguous run of number tokens (digits or number-words) and parse it. */
@@ -462,39 +590,39 @@ function detectUnit(t: string): 'kg' | 'lb' | undefined {
 Then, inside `GrammarParser.parse`, insert the set-value handling **immediately before the final `return null;`**:
 
 ```ts
-    // reps only: "<n> reps"
-    const repsOnly = t.match(/^(.*?)\breps?\b\s*$/);
+// reps only: "<n> reps"
+const repsOnly = t.match(/^(.*?)\breps?\b\s*$/);
 
-    // weight <connector> reps
-    const conn = t.match(/^(.*?)\b(?:for|by|times|x)\b(.*)$/);
-    if (conn) {
-      const weight = firstNumberIn(conn[1]!);
-      const reps = firstNumberIn(conn[2]!);
-      if (weight != null && reps != null) {
-        const unit = detectUnit(t);
-        return {
-          command: { kind: 'setValues', weight, reps, ...(unit ? { unit } : {}) },
-          confidence: 'high',
-          transcript,
-        };
-      }
-    }
+// weight <connector> reps
+const conn = t.match(/^(.*?)\b(?:for|by|times|x)\b(.*)$/);
+if (conn) {
+  const weight = firstNumberIn(conn[1]!);
+  const reps = firstNumberIn(conn[2]!);
+  if (weight != null && reps != null) {
+    const unit = detectUnit(t);
+    return {
+      command: { kind: 'setValues', weight, reps, ...(unit ? { unit } : {}) },
+      confidence: 'high',
+      transcript,
+    };
+  }
+}
 
-    if (repsOnly) {
-      const reps = firstNumberIn(repsOnly[1]!);
-      if (reps != null) return { command: { kind: 'setValues', reps }, confidence: 'high', transcript };
-    }
+if (repsOnly) {
+  const reps = firstNumberIn(repsOnly[1]!);
+  if (reps != null) return { command: { kind: 'setValues', reps }, confidence: 'high', transcript };
+}
 
-    // bare weight (incl. "make it 195") — low confidence
-    const bare = firstNumberIn(t);
-    if (bare != null) {
-      const unit = detectUnit(t);
-      return {
-        command: { kind: 'setValues', weight: bare, ...(unit ? { unit } : {}) },
-        confidence: 'low',
-        transcript,
-      };
-    }
+// bare weight (incl. "make it 195") — low confidence
+const bare = firstNumberIn(t);
+if (bare != null) {
+  const unit = detectUnit(t);
+  return {
+    command: { kind: 'setValues', weight: bare, ...(unit ? { unit } : {}) },
+    confidence: 'low',
+    transcript,
+  };
+}
 ```
 
 - [ ] **Step 4: Run both grammar test files**
@@ -516,6 +644,7 @@ Co-Authored-By: Claude Opus 4.8 (1M context) <noreply@anthropic.com>"
 ## Task 5: Dispatch — map data commands to mutations
 
 **Files:**
+
 - Create: `src/voice/dispatch.ts`
 - Test: `src/voice/__tests__/dispatch.test.ts`
 
@@ -623,7 +752,10 @@ test('addExercise creates a custom exercise when no match exists', async () => {
 
 test('setValues with no active set is a no-op failure', async () => {
   const ctx = await setup();
-  const res = await dispatchCommand({ kind: 'setValues', weight: 185 }, { ...ctx, activeSetId: null });
+  const res = await dispatchCommand(
+    { kind: 'setValues', weight: 185 },
+    { ...ctx, activeSetId: null },
+  );
   expect(res.ok).toBe(false);
 });
 ```
@@ -658,7 +790,10 @@ export interface DispatchResult {
 }
 
 /** Apply a data command via existing local-first mutations. Returns feedback + an undo. */
-export async function dispatchCommand(command: Command, ctx: DispatchContext): Promise<DispatchResult> {
+export async function dispatchCommand(
+  command: Command,
+  ctx: DispatchContext,
+): Promise<DispatchResult> {
   switch (command.kind) {
     case 'setValues': {
       if (!ctx.activeSetId) return { ok: false, message: 'No active set' };
@@ -684,22 +819,39 @@ export async function dispatchCommand(command: Command, ctx: DispatchContext): P
       if (!ctx.activeSetId) return { ok: false, message: 'No active set' };
       const setId = ctx.activeSetId;
       await updateSet(setId, { completed: true });
-      return { ok: true, message: 'Set complete', undo: async () => { await updateSet(setId, { completed: false }); } };
+      return {
+        ok: true,
+        message: 'Set complete',
+        undo: async () => {
+          await updateSet(setId, { completed: false });
+        },
+      };
     }
     case 'addSet': {
       if (!ctx.activeWeId) return { ok: false, message: 'No active exercise' };
       const newId = await addSet(ctx.activeWeId);
-      return { ok: true, message: 'Set added', undo: async () => { await deleteSet(newId); } };
+      return {
+        ok: true,
+        message: 'Set added',
+        undo: async () => {
+          await deleteSet(newId);
+        },
+      };
     }
     case 'addExercise': {
       const matches = await searchExercises(ctx.userId, command.name);
-      const match = matches.find((e) => e.name.toLowerCase() === command.name.toLowerCase()) ?? matches[0];
-      const exerciseId = match ? match.id : await createCustomExercise({ userId: ctx.userId, name: command.name });
+      const match =
+        matches.find((e) => e.name.toLowerCase() === command.name.toLowerCase()) ?? matches[0];
+      const exerciseId = match
+        ? match.id
+        : await createCustomExercise({ userId: ctx.userId, name: command.name });
       const weId = await addExerciseToWorkout({ workoutId: ctx.workoutId, exerciseId });
       return {
         ok: true,
         message: `Added ${match ? match.name : command.name}`,
-        undo: async () => { await enqueueMutation({ table: 'workout_exercises', op: 'delete', rowId: weId }); },
+        undo: async () => {
+          await enqueueMutation({ table: 'workout_exercises', op: 'delete', rowId: weId });
+        },
       };
     }
     default:
@@ -732,6 +884,7 @@ Co-Authored-By: Claude Opus 4.8 (1M context) <noreply@anthropic.com>"
 ## Task 6: Speech engine adapter (`speechEngine.ts`) — device QA
 
 **Files:**
+
 - Create: `src/voice/speechEngine.ts`
 - Modify: `package.json` (add `expo-speech-recognition`)
 - Modify: `app.config.ts` (plugin + iOS permission strings)
@@ -747,10 +900,7 @@ Expected: dependency added to `package.json`.
 
 ```ts
 // src/voice/speechEngine.ts
-import {
-  ExpoSpeechRecognitionModule,
-  addSpeechRecognitionListener,
-} from 'expo-speech-recognition';
+import { ExpoSpeechRecognitionModule, addSpeechRecognitionListener } from 'expo-speech-recognition';
 
 export interface SpeechEvent {
   transcript: string;
@@ -777,9 +927,12 @@ export const onDeviceEngine: SpeechEngine = {
   async start(onEvent, onError) {
     const resultSub = addSpeechRecognitionListener('result', (e) => {
       const best = e.results?.[0];
-      if (best) onEvent({ transcript: best.transcript, isFinal: e.isFinal, confidence: best.confidence });
+      if (best)
+        onEvent({ transcript: best.transcript, isFinal: e.isFinal, confidence: best.confidence });
     });
-    const errSub = addSpeechRecognitionListener('error', (e) => onError(e.message ?? 'speech error'));
+    const errSub = addSpeechRecognitionListener('error', (e) =>
+      onError(e.message ?? 'speech error'),
+    );
     (this as { _subs?: { remove: () => void }[] })._subs = [resultSub, errSub];
     ExpoSpeechRecognitionModule.start({
       lang: 'en-US',
@@ -829,6 +982,7 @@ Co-Authored-By: Claude Opus 4.8 (1M context) <noreply@anthropic.com>"
 ## Task 7: Voice session hook (`useVoiceSession.ts`) — device QA
 
 **Files:**
+
 - Create: `src/voice/useVoiceSession.ts`
 
 No unit test (hook needs an RN renderer not present in this harness). The pure parts it calls (`GrammarParser`, `dispatchCommand`) are already covered. Verified on-device in Task 9.
@@ -869,44 +1023,78 @@ export function useVoiceSession(deps: SessionDeps) {
 
   const resetSilence = useCallback(() => {
     if (timeout.current) clearTimeout(timeout.current);
-    timeout.current = setTimeout(() => { void stop(); }, deps.silenceTimeoutMs ?? 15000);
+    timeout.current = setTimeout(() => {
+      void stop();
+    }, deps.silenceTimeoutMs ?? 15000);
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
-  const runDataCommand = useCallback(async (command: Command) => {
-    const res = await dispatchCommand(command, deps.getDispatchContext());
-    if (res.ok) { lastUndo.current = res.undo ?? null; setUi({ phase: 'applied', label: res.message }); }
-  }, [deps]);
-
-  const handleCommand = useCallback(async (command: Command, confidence: 'high' | 'low') => {
-    switch (command.kind) {
-      case 'stop': return stop();
-      case 'undo': { if (lastUndo.current) { await lastUndo.current(); lastUndo.current = null; } setUi({ phase: 'listening', partial: '' }); return; }
-      case 'finishWorkout': return deps.onFinishWorkout();
-      case 'startRest': return deps.onStartRest(command.seconds);
-      case 'nextExercise': return deps.onNextExercise();
-      case 'prevExercise': return deps.onPrevExercise();
-      default: {
-        if (confidence === 'low') { setUi({ phase: 'pending', command, label: describe(command) }); return; }
-        await runDataCommand(command);
+  const runDataCommand = useCallback(
+    async (command: Command) => {
+      const res = await dispatchCommand(command, deps.getDispatchContext());
+      if (res.ok) {
+        lastUndo.current = res.undo ?? null;
+        setUi({ phase: 'applied', label: res.message });
       }
-    }
-  }, [deps, runDataCommand]);
+    },
+    [deps],
+  );
 
-  const onFinal = useCallback((transcript: string) => {
-    resetSilence();
-    const parsed = GrammarParser.parse(transcript, deps.parserContext());
-    if (!parsed) return; // chatter guard
-    void handleCommand(parsed.command, parsed.confidence);
-  }, [deps, handleCommand, resetSilence]);
+  const handleCommand = useCallback(
+    async (command: Command, confidence: 'high' | 'low') => {
+      switch (command.kind) {
+        case 'stop':
+          return stop();
+        case 'undo': {
+          if (lastUndo.current) {
+            await lastUndo.current();
+            lastUndo.current = null;
+          }
+          setUi({ phase: 'listening', partial: '' });
+          return;
+        }
+        case 'finishWorkout':
+          return deps.onFinishWorkout();
+        case 'startRest':
+          return deps.onStartRest(command.seconds);
+        case 'nextExercise':
+          return deps.onNextExercise();
+        case 'prevExercise':
+          return deps.onPrevExercise();
+        default: {
+          if (confidence === 'low') {
+            setUi({ phase: 'pending', command, label: describe(command) });
+            return;
+          }
+          await runDataCommand(command);
+        }
+      }
+    },
+    [deps, runDataCommand],
+  );
+
+  const onFinal = useCallback(
+    (transcript: string) => {
+      resetSilence();
+      const parsed = GrammarParser.parse(transcript, deps.parserContext());
+      if (!parsed) return; // chatter guard
+      void handleCommand(parsed.command, parsed.confidence);
+    },
+    [deps, handleCommand, resetSilence],
+  );
 
   const start = useCallback(async () => {
     if (!(await engine.requestPermissions())) return;
     setUi({ phase: 'listening', partial: '' });
     resetSilence();
     await engine.start(
-      (e) => { if (e.isFinal) onFinal(e.transcript); else setUi({ phase: 'listening', partial: e.transcript }); },
-      () => { void stop(); },
+      (e) => {
+        if (e.isFinal) onFinal(e.transcript);
+        else setUi({ phase: 'listening', partial: e.transcript });
+      },
+      () => {
+        void stop();
+      },
     );
   }, [engine, onFinal, resetSilence]);
 
@@ -948,6 +1136,7 @@ Co-Authored-By: Claude Opus 4.8 (1M context) <noreply@anthropic.com>"
 ## Task 8: Inline-morph UI — device QA
 
 **Files:**
+
 - Create: `src/components/VoiceMicButton.tsx`
 - Modify: `src/components/ActiveSetCard.tsx`
 - Modify: `src/screens/WorkoutActive.tsx`
@@ -979,7 +1168,11 @@ export function VoiceMicButton({ phase, onTap, onHoldStart, onHoldEnd }: Props) 
       onPress={onTap}
       onLongPress={onHoldStart}
       onPressOut={onHoldEnd}
-      style={[styles.btn, phase === 'listening' && styles.live, phase === 'disabled' && styles.disabled]}
+      style={[
+        styles.btn,
+        phase === 'listening' && styles.live,
+        phase === 'disabled' && styles.disabled,
+      ]}
     >
       <Text style={[styles.label, phase === 'listening' && styles.liveLabel]}>
         {phase === 'listening' ? '◉ Listening · tap to stop' : '🎙 Voice'}
@@ -989,7 +1182,15 @@ export function VoiceMicButton({ phase, onTap, onHoldStart, onHoldEnd }: Props) 
 }
 
 const styles = StyleSheet.create({
-  btn: { height: 44, borderRadius: 22, alignItems: 'center', justifyContent: 'center', backgroundColor: theme.color.surface, borderWidth: 1, borderColor: theme.color.border },
+  btn: {
+    height: 44,
+    borderRadius: 22,
+    alignItems: 'center',
+    justifyContent: 'center',
+    backgroundColor: theme.color.surface,
+    borderWidth: 1,
+    borderColor: theme.color.border,
+  },
   live: { backgroundColor: theme.color.accent, borderColor: theme.color.accent },
   disabled: { opacity: 0.4 },
   label: { color: theme.color.inkSecondary, fontWeight: '600' },
@@ -1051,6 +1252,7 @@ Expected: app launches on a device/simulator with the new permission strings.
 ## Self-Review
 
 **Spec coverage:**
+
 - Scope (set logging + flow control) → Tasks 3–5, 7, 8. ✅
 - Hybrid, grammar-first → `VoiceParser` interface (Task 2), `GrammarParser` (Tasks 3–4); LLM is an explicit Phase-2 swap behind the same interface. ✅
 - Tap-session trigger + hold-to-talk fallback → `VoiceMicButton` tap + long-press (Task 8), session lifecycle (Task 7). ✅

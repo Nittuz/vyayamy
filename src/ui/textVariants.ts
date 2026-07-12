@@ -15,18 +15,21 @@ export type TextVariant =
   | 'hero' // 82pt mono numerals — the active-set headline
   | 'numeral' // mono data figures inline
   | 'numeralLg' // 28pt mono — rest countdown, volume tally, recap stats
+  | 'displayXXL' // 96pt condensed uppercase — the one poster moment per screen
   | 'displayXL' // 44pt condensed uppercase — wordmark, recap headline, brand moments
   | 'display' // 34pt condensed uppercase — screen titles
   | 'title' // 20pt sans — in-content headings (user text safe)
   | 'card' // 16pt sans — card headings
   | 'body' // 14pt sans — body copy
   | 'label' // 12pt sans, tracked + uppercase — eyebrows/labels
-  | 'meta'; // 12pt sans — secondary meta text
+  | 'meta' // 12pt sans — secondary meta text
+  | 'strip'; // 12pt mono, tracked + uppercase — THE metadata-strip treatment
 
 export const TEXT_VARIANTS: TextVariant[] = [
   'hero',
   'numeral',
   'numeralLg',
+  'displayXXL',
   'displayXL',
   'display',
   'title',
@@ -34,6 +37,7 @@ export const TEXT_VARIANTS: TextVariant[] = [
   'body',
   'label',
   'meta',
+  'strip',
 ];
 
 /**
@@ -44,6 +48,7 @@ export const TEXT_VARIANTS: TextVariant[] = [
 export function resolveMaxFontSizeMultiplier(variant: TextVariant): number | undefined {
   switch (variant) {
     case 'hero':
+    case 'displayXXL':
     case 'displayXL':
     case 'display':
       return 1.2;
@@ -76,6 +81,14 @@ export function resolveTextStyle(variant: TextVariant): TextStyle {
         fontSize: t.size.numeralLg,
         letterSpacing: t.tracking.numeralLg,
         lineHeight: lh(t.size.numeralLg, t.lineHeightMul.title),
+      };
+    case 'displayXXL':
+      return {
+        fontFamily: t.family.condensed,
+        fontSize: t.size.displayXXL,
+        letterSpacing: t.tracking.displayXXL,
+        lineHeight: lh(t.size.displayXXL, t.lineHeightMul.displayXXL),
+        textTransform: 'uppercase',
       };
     case 'displayXL':
       return {
@@ -128,6 +141,17 @@ export function resolveTextStyle(variant: TextVariant): TextStyle {
         fontSize: t.size.meta,
         letterSpacing: 0,
         lineHeight: lh(t.size.meta, t.lineHeightMul.meta),
+      };
+    case 'strip':
+      // The ONE mono-strip treatment for metadata runs (`3/3 SETS · 2600 VOL`).
+      // Standard ink is inkTertiary at the call site; strips sitting on an
+      // INVERTED panel keep the panel ink at 0.65 opacity instead.
+      return {
+        fontFamily: t.family.mono,
+        fontSize: t.size.meta,
+        letterSpacing: t.tracking.strip,
+        lineHeight: lh(t.size.meta, t.lineHeightMul.meta),
+        textTransform: 'uppercase',
       };
   }
 }

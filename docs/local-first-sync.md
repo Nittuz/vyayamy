@@ -80,12 +80,12 @@ Rules:
 
 [src/sync/push.ts](../src/sync/push.ts) drains the outbox against Supabase PostgREST:
 
-| Op       | Supabase call                                                                       |
-| -------- | ----------------------------------------------------------------------------------- |
+| Op       | Supabase call                                                                                                            |
+| -------- | ------------------------------------------------------------------------------------------------------------------------ |
 | `insert` | `from(tbl).upsert(payload)` (insert sent as upsert-by-PK: a retry after a kill-mid-ack never produces a 23505 collision) |
-| `upsert` | `from(tbl).upsert(payload)`                                                         |
-| `update` | `from(tbl).update(payload).eq('id', row_id).select('id')` with a matched-row assertion |
-| `delete` | `from(tbl).update({ deleted_at: now }).eq('id', row_id).select('id')` with the same assertion |
+| `upsert` | `from(tbl).upsert(payload)`                                                                                              |
+| `update` | `from(tbl).update(payload).eq('id', row_id).select('id')` with a matched-row assertion                                   |
+| `delete` | `from(tbl).update({ deleted_at: now }).eq('id', row_id).select('id')` with the same assertion                            |
 
 A zero-row match on `update` or `delete` throws non-transitively (the row is absent server-side when it should not be), so the write marches toward quarantine rather than being silently dropped (`assertServerRowMatched`, `push.ts:254-259`). `updated_at` is never sent: the `00009` `BEFORE INSERT OR UPDATE` trigger is authoritative (`SERVER_OWNED_COLUMNS`, `push.ts:53`).
 
@@ -171,13 +171,13 @@ interface SyncState {
 
 `deriveSyncState({ online, pushing, pulling, pendingOutbox, lastError, showSaved })` in [src/core/syncHelpers.ts](../src/core/syncHelpers.ts) reduces this to a single enum for the UI:
 
-| State     | Meaning                                                          |
-| --------- | ---------------------------------------------------------------- |
-| `idle`    | Nothing pending, nothing in flight                               |
-| `saving`  | A push or pull is in flight, or the outbox has pending rows      |
-| `saved`   | Last push succeeded (flashes briefly)                            |
-| `error`   | `lastError` is set (last push or pull failed)                    |
-| `offline` | Device is offline                                                |
+| State     | Meaning                                                     |
+| --------- | ----------------------------------------------------------- |
+| `idle`    | Nothing pending, nothing in flight                          |
+| `saving`  | A push or pull is in flight, or the outbox has pending rows |
+| `saved`   | Last push succeeded (flashes briefly)                       |
+| `error`   | `lastError` is set (last push or pull failed)               |
+| `offline` | Device is offline                                           |
 
 Quarantined rows are surfaced separately via `useQuarantined` / `QuarantineBanner` / `QuarantineSheet`, not through this enum.
 
@@ -212,7 +212,7 @@ The push and pull engines are driven entirely by `SYNCED_TABLES`. No engine code
 
 ## Testing
 
-[src/__tests__/offline-workout.test.ts](../src/__tests__/offline-workout.test.ts) exercises the full path:
+[src/**tests**/offline-workout.test.ts](../src/__tests__/offline-workout.test.ts) exercises the full path:
 
 1. Simulate offline (`setSyncState({ online: false })`)
 2. Run a sequence of local writes (create workout → add exercise → add sets → finish)
@@ -220,13 +220,13 @@ The push and pull engines are driven entirely by `SYNCED_TABLES`. No engine code
 4. Simulate online + call `pushOutbox()` with a mocked Supabase client
 5. Verify outbox drains and error paths increment `attempts` / set `last_error`
 
-The test backend is [better-sqlite3](https://github.com/WiseLibs/better-sqlite3) wired as a Jest mock for `expo-sqlite` in [src/db/__mocks__/expo-sqlite.ts](../src/db/__mocks__/expo-sqlite.ts). Jest itself runs under `ts-jest` in a Node environment; see [package.json](../package.json).
+The test backend is [better-sqlite3](https://github.com/WiseLibs/better-sqlite3) wired as a Jest mock for `expo-sqlite` in [src/db/**mocks**/expo-sqlite.ts](../src/db/__mocks__/expo-sqlite.ts). Jest itself runs under `ts-jest` in a Node environment; see [package.json](../package.json).
 
 ## Intentionally Deferred
 
-| Item                                             | Why                                                                                       |
-| ------------------------------------------------ | ----------------------------------------------------------------------------------------- |
-| Operation batching across rows (single PostgREST round trip) | Per-row drain at BATCH_LIMIT=50 is fast enough today. Revisit if we measure latency pain.    |
-| Automatic poisoned-row dropping                  | We'd rather leak a poisoned row than silently discard user data. Manual recovery shipped (quarantine banner/sheet: retry or op-aware discard); fully *automatic* dropping stays deferred. |
-| Multi-device conflict detection beyond LWW       | Single-user semantics make this noise. Add only when real conflicts appear in production. |
-| Compaction of long-tombstoned rows               | Soft-deleted rows live forever today. Defer GC until storage volume justifies it; see [ADR-0003](adr/0003-soft-delete-tombstones.md). |
+| Item                                                         | Why                                                                                                                                                                                       |
+| ------------------------------------------------------------ | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| Operation batching across rows (single PostgREST round trip) | Per-row drain at BATCH_LIMIT=50 is fast enough today. Revisit if we measure latency pain.                                                                                                 |
+| Automatic poisoned-row dropping                              | We'd rather leak a poisoned row than silently discard user data. Manual recovery shipped (quarantine banner/sheet: retry or op-aware discard); fully _automatic_ dropping stays deferred. |
+| Multi-device conflict detection beyond LWW                   | Single-user semantics make this noise. Add only when real conflicts appear in production.                                                                                                 |
+| Compaction of long-tombstoned rows                           | Soft-deleted rows live forever today. Defer GC until storage volume justifies it; see [ADR-0003](adr/0003-soft-delete-tombstones.md).                                                     |
