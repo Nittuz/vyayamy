@@ -20,11 +20,11 @@ import { exchangeCodeForSession } from '@/auth/authActions';
 import { useAuth } from '@/auth/useAuth';
 import { initDb } from '@/db/client';
 import { initErrorReporting } from '@/lib/errorReporting';
+import { removeKv } from '@/lib/kvStore';
 import { hydrateSnapshot } from '@/ui/todaySnapshot';
 import { startSyncEngine, stopSyncEngine } from '@/sync/engine';
 import { darkPalette, lightPalette, type PaletteTokens } from '@/ui/colors';
 import { ErrorBoundary } from '@/ui/ErrorBoundary';
-import { SkinProvider, useSkin } from '@/ui/SkinContext';
 import { ToastProvider } from '@/ui/ToastContext';
 import { typography } from '@/ui/typography';
 import { space, useTheme } from '@/ui/useTheme';
@@ -76,6 +76,9 @@ export default function RootLayout() {
         // Hydrate the Today snapshot in parallel with SQLite init so the first paint
         // has render-ready state. Don't await — initDb is the gate, hydrate races it.
         void hydrateSnapshot();
+        // One-time cleanup: drop the legacy skin preference left behind by the
+        // retired multi-skin system. Best-effort, errors swallowed by removeKv.
+        void removeKv('flexyug.skin');
         await Promise.race([
           initDb(),
           new Promise<never>((_, reject) =>
@@ -146,16 +149,14 @@ export default function RootLayout() {
     <ErrorBoundary>
       <GestureHandlerRootView style={rootStyles.gestureRoot}>
         <SafeAreaProvider>
-          <SkinProvider>
-            <QueryClientProvider client={queryClient}>
-              <AuthProvider>
-                <ToastProvider>
-                  <AppNavigator />
-                  <BootOverlay ready={ready} fontsLoaded={fontsLoaded} bootError={bootError} />
-                </ToastProvider>
-              </AuthProvider>
-            </QueryClientProvider>
-          </SkinProvider>
+          <QueryClientProvider client={queryClient}>
+            <AuthProvider>
+              <ToastProvider>
+                <AppNavigator />
+                <BootOverlay ready={ready} fontsLoaded={fontsLoaded} bootError={bootError} />
+              </ToastProvider>
+            </AuthProvider>
+          </QueryClientProvider>
         </SafeAreaProvider>
       </GestureHandlerRootView>
     </ErrorBoundary>
@@ -163,9 +164,9 @@ export default function RootLayout() {
 }
 
 /**
- * Root stack + status bar, rendered inside SkinProvider so the header chrome
- * follows the active skin (header bg/title/tint, content bg) and light/dark
- * scheme. `headerBackButtonDisplayMode: 'minimal'` shows just the chevron — the
+ * Root stack + status bar. Header chrome follows the theme (header
+ * bg/title/tint, content bg) and light/dark scheme.
+ * `headerBackButtonDisplayMode: 'minimal'` shows just the chevron — the
  * tab group has no title, so the default label would read "(tabs)".
  */
 function AppNavigator() {
@@ -209,10 +210,9 @@ function AppNavigator() {
 }
 
 /**
- * Boot overlay rendered inside SkinProvider so it can gate first paint on skin
- * hydration — this prevents a flash of the default skin before the stored one
- * loads from AsyncStorage. Resolves the Forged Iron palette from the system
- * color scheme so light-mode users don't get a dark flash (#7.7).
+ * Boot overlay shown until the database and fonts are ready. Resolves the
+ * Forged Iron palette from the system color scheme so light-mode users don't
+ * get a dark flash (#7.7).
  */
 function BootOverlay({
   ready,
@@ -223,7 +223,6 @@ function BootOverlay({
   fontsLoaded: boolean;
   bootError: string | null;
 }) {
-  const { hydrated } = useSkin();
   const scheme = useColorScheme();
   const palette = scheme === 'light' ? lightPalette : darkPalette;
   const styles = bootStyles(palette);
@@ -235,7 +234,7 @@ function BootOverlay({
       </SafeAreaView>
     );
   }
-  if (!ready || !fontsLoaded || !hydrated) {
+  if (!ready || !fontsLoaded) {
     return (
       <View style={styles.overlay}>
         <ActivityIndicator color={palette.accent} />

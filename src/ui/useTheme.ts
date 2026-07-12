@@ -2,8 +2,7 @@ import { useColorScheme } from 'react-native';
 
 import { type PaletteTokens } from './colors';
 import { motion } from './motion';
-import { skins, type SkinId } from './skins';
-import { useSkin } from './SkinContext';
+import { DEFAULT_SKIN, skins, type SkinId } from './skins';
 import { typography } from './typography';
 
 export const space = {
@@ -86,6 +85,5 @@ export function buildTheme(skin: SkinId, scheme: 'light' | 'dark'): Theme {
 export function useTheme(): Theme {
   const raw = useColorScheme();
   const scheme: 'light' | 'dark' = raw === 'light' ? 'light' : 'dark';
-  const { skin } = useSkin();
-  return buildTheme(skin, scheme);
+  return buildTheme(DEFAULT_SKIN, scheme);
 }
