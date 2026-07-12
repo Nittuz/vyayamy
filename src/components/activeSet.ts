@@ -30,31 +30,101 @@ export interface ActiveCursor {
   setId: string;
 }
 
-export function advanceCursor(
+/**
+ * Outcome of one pass of the cursor-maintenance effect.
+ *
+ * `cursor` is a three-state field: absent (undefined) means "leave the cursor
+ * state untouched"; `null` means "explicitly clear it" (empty workout, or the
+ * whole workout is complete → recap); an object repositions it.
+ */
+export interface CursorResolution {
+  cursor?: ActiveCursor | null;
+  didInit: boolean;
+  pendingTargetWeId: string | null;
+}
+
+/**
+ * The screen's cursor-maintenance decision, ran on every exercises/cursor
+ * change. Exact transplant of the inline effect from WorkoutActive (#21/#77);
+ * current runtime behavior is the spec — see the characterization tests.
+ *
+ * - `didInit` distinguishes "cursor is null because we haven't loaded yet"
+ *   (→ initialize) from "cursor is null because the user finished" (→ leave
+ *   it null so the recap shows and we don't bounce back into a set).
+ * - `pendingTargetWeId` is the add-exercise-from-recap target (#13): once that
+ *   exercise's staged set arrives, the cursor lands on IT — not the first
+ *   incomplete set anywhere.
+ */
+export function resolveCursor(
   exercises: ExerciseShape[],
-  cursor: ActiveCursor,
-): ActiveCursor | null {
-  const exIdx = exercises.findIndex((e) => e.id === cursor.weId);
-  if (exIdx === -1) return null;
-  const ex = exercises[exIdx]!;
-  const setIdx = ex.sets.findIndex((s) => s.id === cursor.setId);
-  if (setIdx === -1) return null;
-
-  // Try next set in same exercise
-  if (setIdx + 1 < ex.sets.length) {
-    return { weId: ex.id, setId: ex.sets[setIdx + 1]!.id };
+  cursor: ActiveCursor | null,
+  didInit: boolean,
+  pendingTargetWeId: string | null,
+): CursorResolution {
+  if (exercises.length === 0) {
+    return { cursor: null, didInit: false, pendingTargetWeId };
   }
-
-  // Try first set of any subsequent exercise that has sets
-  for (let i = exIdx + 1; i < exercises.length; i++) {
-    const nextEx = exercises[i]!;
-    if (nextEx.sets.length > 0) {
-      return { weId: nextEx.id, setId: nextEx.sets[0]!.id };
+  // Add-from-recap: target the just-added exercise's staged set once it loads.
+  if (pendingTargetWeId) {
+    const target = findExercise(exercises, pendingTargetWeId);
+    if (target) {
+      const set = firstIncompleteSet(target);
+      if (set) {
+        return {
+          cursor: { weId: target.id, setId: set.id },
+          didInit: true,
+          pendingTargetWeId: null,
+        };
+      }
     }
+    // exercise not in the cached data yet → wait for the next render
+    return { didInit, pendingTargetWeId };
   }
+  if (cursor) {
+    // we have a real cursor → initialized
+    const ex = findExercise(exercises, cursor.weId);
+    if (ex) {
+      const set = findSet(ex, cursor.setId);
+      // Set not in the cached data yet — it was just created (advancing to a
+      // new exercise stages a set before the query refetch lands). Keep the
+      // cursor; the data will catch up.
+      if (!set) return { didInit: true, pendingTargetWeId };
+      if (!set.completed) return { didInit: true, pendingTargetWeId }; // valid working set
+      // set exists and is completed → fall through and reposition
+    }
+    // cursor points at a missing exercise or a completed set → reposition
+    return { cursor: findInitialCursor(exercises), didInit: true, pendingTargetWeId };
+  }
+  // cursor is null: initialize on first load. Once the user has finished
+  // (deliberate null via "finish →"), leave it null so the recap shows and we
+  // don't bounce them back into the first incomplete set.
+  if (!didInit) {
+    return { cursor: findInitialCursor(exercises), didInit: true, pendingTargetWeId };
+  }
+  return { didInit, pendingTargetWeId };
+}
 
-  // No more sets — finish workout
-  return null;
+/** Values to pre-fill on the set auto-staged when a set is completed. */
+export interface StagedSetPlan {
+  weight: number | null;
+  reps: number | null;
+  units: 'kg' | 'lb' | null;
+}
+
+/**
+ * Completing a set auto-stages the next one in the SAME exercise, pre-filled
+ * with the completed set's weight × reps (Phase 3). The unit is stamped only
+ * when a weight is carried over — null units mark an empty staged set (#131).
+ * Exact transplant of the inline staging decision in onComplete (#21/#77).
+ */
+export function planStagedSet(
+  currentSet: SetShape | null,
+  units: 'kg' | 'lb',
+): StagedSetPlan {
+  const weight = currentSet?.weight ?? null;
+  const reps = currentSet?.reps ?? null;
+  // Same session → same logging unit as the set just completed.
+  return { weight, reps, units: weight != null ? units : null };
 }
 
 export function findInitialCursor(exercises: ExerciseShape[]): ActiveCursor | null {

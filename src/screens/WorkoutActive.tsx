@@ -12,11 +12,12 @@ import {
   completedSetsBeforeCursor,
   type ExerciseShape,
   findExercise,
-  findInitialCursor,
   findNextExercise,
   findPrevExercise,
   findSet,
   firstIncompleteSet,
+  planStagedSet,
+  resolveCursor,
   shouldConfirmLeavingSet,
 } from '@/components/activeSet';
 import { EditableTitle } from '@/components/EditableTitle';
@@ -152,51 +153,16 @@ export default function WorkoutActiveScreen() {
   const autoStaged = useRef<AutoStagedSet | null>(null);
 
   // Initialize cursor when exercises first load, or reposition when the cursor
-  // points at a set that no longer exists / is already completed. cursor is read
-  // here only to check validity — the setter is always called conditionally.
+  // points at a set that no longer exists / is already completed. The decision
+  // lives in resolveCursor (pure, characterization-tested, #21/#77); this
+  // effect only applies its outcome. cursor is read only to check validity —
+  // the setter is called only when the resolution carries a cursor.
   // eslint-disable-next-line react-hooks/exhaustive-deps
   useEffect(() => {
-    if (exercises.length === 0) {
-      setCursor(null);
-      didInitCursor.current = false;
-      return;
-    }
-    // Add-from-recap: target the just-added exercise's staged set once it loads.
-    if (pendingTargetWeId.current) {
-      const target = findExercise(exercises, pendingTargetWeId.current);
-      if (target) {
-        const set = firstIncompleteSet(target);
-        if (set) {
-          pendingTargetWeId.current = null;
-          didInitCursor.current = true;
-          setCursor({ weId: target.id, setId: set.id });
-        }
-      }
-      return; // exercise not in the cached data yet → wait for the next render
-    }
-    if (cursor) {
-      didInitCursor.current = true; // we have a real cursor → initialized
-      const ex = findExercise(exercises, cursor.weId);
-      if (ex) {
-        const set = findSet(ex, cursor.setId);
-        // Set not in the cached data yet — it was just created (advancing to a
-        // new exercise stages a set before the query refetch lands). Keep the
-        // cursor; the data will catch up.
-        if (!set) return;
-        if (!set.completed) return; // valid working set
-        // set exists and is completed → fall through and reposition
-      }
-      // cursor points at a missing exercise or a completed set → reposition
-      setCursor(findInitialCursor(exercises));
-      return;
-    }
-    // cursor is null: initialize on first load. Once the user has finished
-    // (deliberate null via "finish →"), leave it null so the recap shows and we
-    // don't bounce them back into the first incomplete set.
-    if (!didInitCursor.current) {
-      didInitCursor.current = true;
-      setCursor(findInitialCursor(exercises));
-    }
+    const res = resolveCursor(exercises, cursor, didInitCursor.current, pendingTargetWeId.current);
+    didInitCursor.current = res.didInit;
+    pendingTargetWeId.current = res.pendingTargetWeId;
+    if (res.cursor !== undefined) setCursor(res.cursor);
   }, [exercises, cursor]);
 
   const onChangeWeight = useCallback(
@@ -228,8 +194,7 @@ export default function WorkoutActiveScreen() {
       timer.start();
       // Auto-stage the next set with the same weight × reps (Phase 3)
       const currentSetData = currentExForRest && findSet(currentExForRest, cursor.setId);
-      const stagedWeight = currentSetData?.weight ?? null;
-      const stagedReps = currentSetData?.reps ?? null;
+      const staged = planStagedSet(currentSetData ?? null, units);
 
       // Did the set just banked beat the all-time heaviest for this exercise?
       if (prTracker.current == null) {
@@ -248,14 +213,9 @@ export default function WorkoutActiveScreen() {
         setSessionPRs((prev) => (prev.includes(name) ? prev : [...prev, name]));
       }
 
-      const newSetId = await addSet(cursor.weId, {
-        weight: stagedWeight,
-        reps: stagedReps,
-        // Same session → same logging unit as the set just completed.
-        units: stagedWeight != null ? units : null,
-      });
+      const newSetId = await addSet(cursor.weId, staged);
       // Record what we pre-filled so an untouched staged set advances silently.
-      autoStaged.current = { id: newSetId, weight: stagedWeight, reps: stagedReps };
+      autoStaged.current = { id: newSetId, weight: staged.weight, reps: staged.reps };
       refreshDetail();
       setCursor({ weId: cursor.weId, setId: newSetId });
     } finally {
@@ -305,7 +265,7 @@ export default function WorkoutActiveScreen() {
         // the cursor on a completed set makes the cursor-reset effect bounce it
         // back to the first incomplete set (an earlier exercise). Stage a fresh
         // set only if every set in the next exercise is already done.
-        let nextSetId = nextEx.sets.find((s) => !s.completed)?.id;
+        let nextSetId = firstIncompleteSet(nextEx)?.id;
         if (!nextSetId) {
           nextSetId = await addSet(nextEx.id);
           refreshDetail();
