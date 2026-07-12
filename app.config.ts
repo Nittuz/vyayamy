@@ -3,6 +3,13 @@ import path from 'node:path';
 import { config as loadDotenv } from 'dotenv';
 import type { ExpoConfig } from 'expo/config';
 
+// Single source of truth for brand colors — a pure-constants module (no RN
+// imports), so it is safe to evaluate in the Node config context. The explicit
+// .ts extension is required: Expo transpiles only this entry file, and the
+// child require is resolved by Node itself (whose type stripping needs the
+// real extension).
+import { darkPalette, lightPalette } from './src/ui/colors.ts';
+
 // Load all common .env filenames from the project root so app.config `extra` sees
 // EXPO_PUBLIC_*, VITE_*, etc. (Expo does not always inject non-EXPO vars into this process.)
 const _envRoot = process.cwd();
@@ -19,7 +26,7 @@ const config: ExpoConfig = {
   icon: './assets/icon.png',
   userInterfaceStyle: 'automatic',
   // Kills the white cold-start flash before the splash/boot overlay paints.
-  backgroundColor: '#0B0B0D',
+  backgroundColor: darkPalette.bg,
   assetBundlePatterns: ['**/*'],
   ios: {
     supportsTablet: false,
@@ -42,11 +49,11 @@ const config: ExpoConfig = {
   },
   android: {
     package: 'com.mokshlabs.flexyug',
-    backgroundColor: '#0B0B0D',
+    backgroundColor: darkPalette.bg,
     adaptiveIcon: {
       foregroundImage: './assets/adaptive-icon.png',
       monochromeImage: './assets/adaptive-icon-mono.png',
-      backgroundColor: '#0B0B0D',
+      backgroundColor: darkPalette.bg,
     },
   },
   web: {
@@ -61,10 +68,10 @@ const config: ExpoConfig = {
       {
         image: './assets/splash-light.png',
         resizeMode: 'contain',
-        backgroundColor: '#ECEAE4',
+        backgroundColor: lightPalette.bg,
         dark: {
           image: './assets/splash-dark.png',
-          backgroundColor: '#0B0B0D',
+          backgroundColor: darkPalette.bg,
         },
       },
     ],
@@ -74,7 +81,7 @@ const config: ExpoConfig = {
       'expo-notifications',
       {
         icon: './assets/notification-icon.png',
-        color: '#E8602F',
+        color: darkPalette.accent,
       },
     ],
     [
