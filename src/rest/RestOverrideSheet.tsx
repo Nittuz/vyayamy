@@ -4,11 +4,12 @@ import { ScrollView, StyleSheet, TextInput, View } from 'react-native';
 import { Button } from '@/ui/Button';
 import { haptics } from '@/ui/haptics';
 import { Plate } from '@/ui/Plate';
-import { restForMuscleGroup } from '@/ui/restDefaults';
-import { clearOverride, setOverride } from '@/ui/restOverrides';
 import { Sheet } from '@/ui/Sheet';
 import { Text } from '@/ui/Text';
 import { useTheme, type Theme } from '@/ui/useTheme';
+
+import { restForMuscleGroup } from './defaults';
+import { clearOverride, setOverride } from './overrides';
 
 interface Props {
   visible: boolean;

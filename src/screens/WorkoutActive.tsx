@@ -21,8 +21,6 @@ import {
 } from '@/components/activeSet';
 import { EditableTitle } from '@/components/EditableTitle';
 import { ExercisePicker } from '@/components/ExercisePicker';
-import { RestOverrideSheet } from '@/components/RestOverrideSheet';
-import { RestProgressBar } from '@/components/RestProgressBar';
 import { SessionVolumeBar, type BankSignal } from '@/components/SessionVolumeBar';
 import { SyncErrorStripe } from '@/components/SyncErrorStripe';
 import { VoiceMicButton } from '@/components/VoiceMicButton';
@@ -46,12 +44,14 @@ import {
 import { useWorkoutDetail } from '@/queries/workoutDetail';
 import { DEFAULT_UNITS, sumVolume } from '@/core/units';
 import { dayOfWeek } from '@/lib/dayOfWeek';
+import { effectiveRest, getOverrides } from '@/rest/overrides';
+import { RestOverrideSheet } from '@/rest/RestOverrideSheet';
+import { RestProgressBar } from '@/rest/RestProgressBar';
+import { useRestTimer } from '@/rest/useRestTimer';
 import { Button } from '@/ui/Button';
 import { ConfirmSheet } from '@/ui/ConfirmSheet';
 import { haptics } from '@/ui/haptics';
-import { useRestTimer } from '@/ui/hooks/useRestTimer';
 import { Icon } from '@/ui/icons';
-import { effectiveRest, getOverrides } from '@/ui/restOverrides';
 import { SessionRecap } from '@/ui/SessionRecap';
 import { SyncIndicator } from '@/ui/SyncIndicator';
 import { Text } from '@/ui/Text';

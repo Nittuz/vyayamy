@@ -3,11 +3,11 @@
  *
  * Phase 4: long-press on the RestProgressBar lets the user set a custom
  * rest target for the current exercise. Overrides take precedence over
- * the muscle-group defaults from restDefaults.ts.
+ * the muscle-group defaults from defaults.ts.
  */
 import { getKv, registerUserScopedKv, setKv } from '@/lib/kvStore';
 
-import { restForMuscleGroup } from './restDefaults';
+import { restForMuscleGroup } from './defaults';
 
 export const REST_OVERRIDES_KEY = '@flexyug/rest-overrides/v1';
 const SCHEMA_VERSION = 1 as const;

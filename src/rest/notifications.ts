@@ -1,6 +1,6 @@
 import * as Notifications from 'expo-notifications';
 
-import { deriveRestAlertStatus, type RestAlertStatus } from './notificationStatus';
+import { deriveRestAlertStatus, type RestAlertStatus } from '@/lib/notificationStatus';
 
 const REST_CATEGORY = 'rest-timer';
 

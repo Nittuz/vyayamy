@@ -8,15 +8,15 @@
 import * as Haptics from 'expo-haptics';
 import { useCallback, useEffect, useRef, useState } from 'react';
 
-import { cancelRest, primeRestAlerts, scheduleRestDone } from '@/lib/restNotifications';
 import { getKv, registerUserScopedKv, removeKv, setKv } from '@/lib/kvStore';
 
+import { cancelRest, primeRestAlerts, scheduleRestDone } from './notifications';
 import {
   PersistedTimer,
   REST_TIMER_KEY,
   REST_TIMER_SCHEMA_VERSION,
   shouldRestoreTimer,
-} from './restTimerPolicy';
+} from './timerPolicy';
 
 // The live rest timer is per-user — wiped on sign-out via the registry (#36).
 registerUserScopedKv(REST_TIMER_KEY);
