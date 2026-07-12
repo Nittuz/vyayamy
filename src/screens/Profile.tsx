@@ -9,6 +9,7 @@ import { useProfile, useUpdateProfile } from '@/queries/profile';
 import { Button } from '@/ui/Button';
 import { Icon } from '@/ui/icons';
 import { Plate } from '@/ui/Plate';
+import { Segment } from '@/ui/Segment';
 import { SyncIndicator } from '@/ui/SyncIndicator';
 import { Text } from '@/ui/Text';
 import { useToast } from '@/ui/ToastContext';
@@ -96,34 +97,14 @@ export default function ProfileScreen() {
           <Text variant="label" color={theme.color.inkTertiary}>
             Units
           </Text>
-          <View style={styles.segment}>
-            {(['kg', 'lb'] as const).map((u) => {
-              const active = currentUnits === u;
-              return (
-                <Plate
-                  key={u}
-                  offset="none"
-                  tone={active ? 'accent' : 'surface2'}
-                  border="strong"
-                  radius="sm"
-                  onPress={() => updateProfile.mutate({ units: u })}
-                  accessibilityRole="button"
-                  accessibilityLabel={`Use ${u === 'kg' ? 'kilograms' : 'pounds'}`}
-                  accessibilityState={{ selected: active }}
-                  style={styles.segmentItem}
-                  faceStyle={styles.segmentFace}
-                >
-                  <Text
-                    variant="card"
-                    color={active ? theme.color.onAccent : theme.color.inkSecondary}
-                    style={styles.segmentText}
-                  >
-                    {u.toUpperCase()}
-                  </Text>
-                </Plate>
-              );
-            })}
-          </View>
+          <Segment
+            options={[
+              { value: 'kg', label: 'KG', accessibilityLabel: 'Use kilograms' },
+              { value: 'lb', label: 'LB', accessibilityLabel: 'Use pounds' },
+            ]}
+            value={currentUnits}
+            onChange={(u) => updateProfile.mutate({ units: u })}
+          />
         </Plate>
 
         <Plate
@@ -188,14 +169,6 @@ const makeStyles = (theme: Theme) =>
       fontFamily: theme.font.family.sans,
       color: theme.color.ink,
     },
-    segment: { flexDirection: 'row', gap: theme.space.s2 },
-    segmentItem: { flex: 1 },
-    segmentFace: {
-      minHeight: theme.touch.min,
-      alignItems: 'center',
-      justifyContent: 'center',
-    },
-    segmentText: { letterSpacing: 1 },
     navFace: {
       flexDirection: 'row',
       alignItems: 'center',

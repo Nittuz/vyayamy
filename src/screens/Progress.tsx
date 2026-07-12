@@ -26,6 +26,7 @@ import { FadeInView } from '@/ui/FadeInView';
 import { Icon } from '@/ui/icons';
 import { LineChart, type ChartPoint } from '@/ui/LineChart';
 import { Plate } from '@/ui/Plate';
+import { Segment } from '@/ui/Segment';
 import { SyncIndicator } from '@/ui/SyncIndicator';
 import { Text } from '@/ui/Text';
 import { useTheme, type Theme } from '@/ui/useTheme';
@@ -232,35 +233,23 @@ export default function ProgressScreen() {
               />
 
               {/* range window control */}
-              <View style={styles.segmentRow} accessibilityRole="tablist">
-                {RANGES.map((r) => (
-                  <SegmentButton
-                    key={r.key}
-                    label={r.label}
-                    selected={range === r.key}
-                    onPress={() => setRange(r.key)}
-                    styles={styles}
-                    theme={theme}
-                  />
-                ))}
-              </View>
+              <Segment
+                size="sm"
+                options={RANGES.map((r) => ({ value: r.key, label: r.label }))}
+                value={range}
+                onChange={setRange}
+              />
 
               {/* metric control */}
-              <View style={styles.segmentRow} accessibilityRole="tablist">
-                {METRICS.map((m) => (
-                  <SegmentButton
-                    key={m.key}
-                    label={m.label}
-                    selected={metric === m.key}
-                    onPress={() => {
-                      setMetric(m.key);
-                      setScrubbed(null);
-                    }}
-                    styles={styles}
-                    theme={theme}
-                  />
-                ))}
-              </View>
+              <Segment
+                size="sm"
+                options={METRICS.map((m) => ({ value: m.key, label: m.label }))}
+                value={metric}
+                onChange={(m) => {
+                  setMetric(m);
+                  setScrubbed(null);
+                }}
+              />
             </Plate>
 
             <View style={styles.section}>
@@ -332,38 +321,6 @@ export default function ProgressScreen() {
   );
 }
 
-function SegmentButton({
-  label,
-  selected,
-  onPress,
-  styles,
-  theme,
-}: {
-  label: string;
-  selected: boolean;
-  onPress: () => void;
-  styles: ReturnType<typeof makeStyles>;
-  theme: Theme;
-}) {
-  return (
-    <Pressable
-      onPress={onPress}
-      accessibilityRole="tab"
-      accessibilityState={{ selected }}
-      accessibilityLabel={label}
-      style={({ pressed }) => [
-        styles.segment,
-        selected && styles.segmentSelected,
-        pressed && styles.pressed,
-      ]}
-    >
-      <Text variant="meta" color={selected ? theme.color.onAccent : theme.color.inkSecondary}>
-        {label}
-      </Text>
-    </Pressable>
-  );
-}
-
 /** Trim a trailing ".0" so 100.0 reads as 100 but 102.5 keeps its decimal. */
 function trim(n: number): string {
   return String(Math.round(n * 10) / 10);
@@ -390,22 +347,6 @@ const makeStyles = (theme: Theme) =>
     },
     exerciseSelectRow: { flexDirection: 'row', alignItems: 'center', gap: theme.space.s2 },
     headlineRow: { flexDirection: 'row', alignItems: 'baseline', gap: theme.space.s3 },
-
-    segmentRow: { flexDirection: 'row', gap: theme.space.s2 },
-    segment: {
-      flex: 1,
-      minHeight: theme.touch.min,
-      alignItems: 'center',
-      justifyContent: 'center',
-      borderRadius: theme.radius.sm,
-      borderWidth: theme.depth.rule,
-      borderColor: theme.color.border,
-      backgroundColor: theme.color.bg,
-    },
-    segmentSelected: {
-      backgroundColor: theme.color.accent,
-      borderColor: theme.color.borderStrong,
-    },
 
     section: { gap: theme.space.s2 },
     sectionTitle: { marginTop: theme.space.s2, marginBottom: theme.space.s1 },
