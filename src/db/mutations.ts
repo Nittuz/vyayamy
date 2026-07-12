@@ -43,6 +43,51 @@ export const SOFT_DELETE_CASCADE: Partial<Record<SyncedTable, { table: SyncedTab
   training_plans: [{ table: 'training_plan_slots', fk: 'plan_id' }],
 };
 
+type Db = Awaited<ReturnType<typeof getDb>>;
+
+/**
+ * Upsert a full row into a local table: INSERT ... ON CONFLICT(id) DO UPDATE
+ * over exactly the payload's keys (payload MUST include id). Shared by
+ * enqueueMutation, the direct-write query modules, and pull's column merge —
+ * one implementation of the insert-or-update SQL instead of four (#43).
+ *
+ * Runs on the caller's connection with NO transaction of its own, so callers
+ * can batch several writes atomically.
+ */
+export async function upsertRowLocal(
+  db: Db,
+  table: string,
+  payload: Record<string, unknown>,
+): Promise<void> {
+  const cols = Object.keys(payload);
+  const placeholders = cols.map(() => '?').join(', ');
+  const updateAssign = cols
+    .filter((c) => c !== 'id')
+    .map((c) => `${c} = excluded.${c}`)
+    .join(', ');
+  const values = cols.map((c) => toSqlite(payload[c]));
+  await db.runAsync(
+    `INSERT INTO ${table} (${cols.join(', ')}) VALUES (${placeholders})
+       ON CONFLICT(id) DO ${updateAssign.length > 0 ? `UPDATE SET ${updateAssign}` : 'NOTHING'}`,
+    values,
+  );
+}
+
+/** Append one outbox entry describing a row's server-side effect. Same
+ *  no-own-transaction contract as upsertRowLocal. */
+export async function appendOutbox(
+  db: Db,
+  table: string,
+  op: MutationOp,
+  rowId: string,
+  payload: Record<string, unknown>,
+): Promise<void> {
+  await db.runAsync(
+    `INSERT INTO outbox (table_name, op, row_id, payload_json) VALUES (?, ?, ?, ?)`,
+    [table, op, rowId, JSON.stringify(payload)],
+  );
+}
+
 export async function enqueueMutation(args: EnqueueArgs): Promise<void> {
   const db = await getDb();
   const now = nowIso();
@@ -58,23 +103,11 @@ export async function enqueueMutation(args: EnqueueArgs): Promise<void> {
         [now, now, args.rowId],
       );
     } else if (args.op === 'insert' || args.op === 'upsert') {
-      const payload: Record<string, unknown> = {
+      await upsertRowLocal(db, args.table, {
         id: args.rowId,
         updated_at: now,
         ...(args.payload ?? {}),
-      };
-      const cols = Object.keys(payload);
-      const placeholders = cols.map(() => '?').join(', ');
-      const updateAssign = cols
-        .filter((c) => c !== 'id')
-        .map((c) => `${c} = excluded.${c}`)
-        .join(', ');
-      const values = cols.map((c) => toSqlite(payload[c]));
-      await db.runAsync(
-        `INSERT INTO ${args.table} (${cols.join(', ')}) VALUES (${placeholders})
-           ON CONFLICT(id) DO UPDATE SET ${updateAssign}`,
-        values,
-      );
+      });
     } else {
       const patch: Record<string, unknown> = { ...(args.payload ?? {}), updated_at: now };
       const cols = Object.keys(patch);
@@ -88,10 +121,7 @@ export async function enqueueMutation(args: EnqueueArgs): Promise<void> {
       args.op === 'delete'
         ? { id: args.rowId, deleted_at: now }
         : { id: args.rowId, ...(args.payload ?? {}) };
-    await db.runAsync(
-      `INSERT INTO outbox (table_name, op, row_id, payload_json) VALUES (?, ?, ?, ?)`,
-      [args.table, args.op, args.rowId, JSON.stringify(payloadForServer)],
-    );
+    await appendOutbox(db, args.table, args.op, args.rowId, payloadForServer);
   });
 
   // The write committed — let the sync engine schedule a push (#34). Queries no
@@ -112,10 +142,7 @@ export async function enqueueMutation(args: EnqueueArgs): Promise<void> {
           `UPDATE ${table} SET deleted_at = ?, updated_at = ? WHERE id = ?`,
           [ts, ts, child.id],
         );
-        await db.runAsync(
-          `INSERT INTO outbox (table_name, op, row_id, payload_json) VALUES (?, ?, ?, ?)`,
-          [table, 'delete', child.id, JSON.stringify({ id: child.id, deleted_at: ts })],
-        );
+        await appendOutbox(db, table, 'delete', child.id, { id: child.id, deleted_at: ts });
       }
     }
   }

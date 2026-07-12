@@ -7,6 +7,7 @@
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 
 import { getDb } from '@/db/client';
+import { appendOutbox, upsertRowLocal } from '@/db/mutations';
 import { withTransaction } from '@/db/transaction';
 import { nowIso, uuidv4 } from '@/db/uuid';
 import { emitMutationCommitted } from '@/db/mutationEvents';
@@ -97,17 +98,9 @@ export function useLastFinishedWorkoutWithSeeds(userId: string | undefined) {
   });
 }
 
-function toSqlite(v: unknown): string | number | null {
-  if (v === null || v === undefined) return null;
-  if (typeof v === 'boolean') return v ? 1 : 0;
-  if (typeof v === 'number') return v;
-  if (typeof v === 'string') return v;
-  return JSON.stringify(v);
-}
-
 /** Insert a row + its outbox entry directly, WITHOUT opening a transaction, so
  *  the caller can batch the whole clone into one (mirrors enqueueMutation's
- *  insert branch). */
+ *  insert branch). Thin wrapper over the shared db/mutations helpers. */
 async function insertRowInTx(
   db: Awaited<ReturnType<typeof getDb>>,
   table: string,
@@ -115,19 +108,8 @@ async function insertRowInTx(
   payload: Record<string, unknown>,
   now: string,
 ): Promise<void> {
-  const full: Record<string, unknown> = { id: rowId, updated_at: now, ...payload };
-  const cols = Object.keys(full);
-  const placeholders = cols.map(() => '?').join(', ');
-  const updateAssign = cols.filter((c) => c !== 'id').map((c) => `${c} = excluded.${c}`).join(', ');
-  await db.runAsync(
-    `INSERT INTO ${table} (${cols.join(', ')}) VALUES (${placeholders})
-       ON CONFLICT(id) DO UPDATE SET ${updateAssign}`,
-    cols.map((c) => toSqlite(full[c])),
-  );
-  await db.runAsync(
-    `INSERT INTO outbox (table_name, op, row_id, payload_json) VALUES (?, 'insert', ?, ?)`,
-    [table, rowId, JSON.stringify({ id: rowId, ...payload })],
-  );
+  await upsertRowLocal(db, table, { id: rowId, updated_at: now, ...payload });
+  await appendOutbox(db, table, 'insert', rowId, { id: rowId, ...payload });
 }
 
 export async function repeatLastWorkout(userId: string): Promise<string | null> {

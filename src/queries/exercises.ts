@@ -7,7 +7,7 @@
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 
 import { getDb } from '@/db/client';
-import { enqueueMutation } from '@/db/mutations';
+import { appendOutbox, enqueueMutation, upsertRowLocal } from '@/db/mutations';
 import { withTransaction } from '@/db/transaction';
 import type { Exercise } from '@/db/types';
 import { uuidv4 } from '@/db/uuid';
@@ -76,32 +76,19 @@ export async function addExerciseToWorkout(args: {
       [args.workoutId],
     );
     const nextOrder = result?.next_order ?? 0;
-    const cols = ['id', 'workout_id', 'exercise_id', 'order_index', 'updated_at'];
-    const values = [id, args.workoutId, args.exerciseId, nextOrder, now];
-    const placeholders = cols.map(() => '?').join(', ');
-    const updateAssign = cols
-      .filter((c) => c !== 'id')
-      .map((c) => `${c} = excluded.${c}`)
-      .join(', ');
-    await db.runAsync(
-      `INSERT INTO workout_exercises (${cols.join(', ')}) VALUES (${placeholders})
-         ON CONFLICT(id) DO UPDATE SET ${updateAssign}`,
-      values,
-    );
-    await db.runAsync(
-      `INSERT INTO outbox (table_name, op, row_id, payload_json) VALUES (?, ?, ?, ?)`,
-      [
-        'workout_exercises',
-        'insert',
-        id,
-        JSON.stringify({
-          id,
-          workout_id: args.workoutId,
-          exercise_id: args.exerciseId,
-          order_index: nextOrder,
-        }),
-      ],
-    );
+    await upsertRowLocal(db, 'workout_exercises', {
+      id,
+      workout_id: args.workoutId,
+      exercise_id: args.exerciseId,
+      order_index: nextOrder,
+      updated_at: now,
+    });
+    await appendOutbox(db, 'workout_exercises', 'insert', id, {
+      id,
+      workout_id: args.workoutId,
+      exercise_id: args.exerciseId,
+      order_index: nextOrder,
+    });
   });
   emitMutationCommitted();
   // Phase 3: every exercise starts with one empty set staged so the user

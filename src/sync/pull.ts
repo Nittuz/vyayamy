@@ -26,6 +26,7 @@ import * as Sentry from '@sentry/react-native';
 
 import { supabase } from '@/auth/supabase';
 import { getDb } from '@/db/client';
+import { upsertRowLocal } from '@/db/mutations';
 import { SYNCED_TABLES, type SyncedTable } from '@/db/schema';
 import { withTransaction } from '@/db/transaction';
 
@@ -171,25 +172,15 @@ export async function pullOnce(): Promise<void> {
             // than failing the whole row's INSERT.
             const cols = Object.keys(r).filter((c) => knownCols.has(c) && !protectedCols.has(c));
             if (cols.length === 0) continue;
-            // Always include id so ON CONFLICT(id) has its match column.
-            if (!cols.includes('id')) cols.unshift('id');
-
-            const placeholders = cols.map(() => '?').join(', ');
-            const updateAssign = cols
-              .filter((c) => c !== 'id')
-              .map((c) => `${c} = excluded.${c}`)
-              .join(', ');
-            const values = cols.map((c) => normalize(r[c]));
-
-            if (updateAssign.length === 0) {
+            if (cols.every((c) => c === 'id')) {
               // Only id survived after column-protection — nothing to do.
               continue;
             }
-            await db.runAsync(
-              `INSERT INTO ${table} (${cols.join(', ')}) VALUES (${placeholders})
-                 ON CONFLICT(id) DO UPDATE SET ${updateAssign}`,
-              values,
-            );
+            const payload: Record<string, unknown> = {};
+            // Always include id so ON CONFLICT(id) has its match column.
+            payload.id = r.id;
+            for (const c of cols) payload[c] = r[c];
+            await upsertRowLocal(db, table, payload);
           } catch (rowErr) {
             // Per-row isolation: a single un-mergeable row (schema drift, an
             // unexpected constraint) must not roll back the page or wedge the
@@ -254,11 +245,4 @@ export async function pullOnce(): Promise<void> {
     }
   }
 
-  function normalize(v: unknown): string | number | null {
-    if (v === null || v === undefined) return null;
-    if (typeof v === 'boolean') return v ? 1 : 0;
-    if (typeof v === 'number') return v;
-    if (typeof v === 'string') return v;
-    return JSON.stringify(v);
-  }
 }
