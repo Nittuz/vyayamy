@@ -21,6 +21,7 @@
  *     window is left behind; the FIFO never blocks on the head row.
  */
 import { supabase } from '@/auth/supabase';
+import { isTransientSyncMessage } from '@/core/syncHelpers';
 import { getDb } from '@/db/client';
 import type { SyncedTable } from '@/db/schema';
 import { withTransaction } from '@/db/transaction';
@@ -76,21 +77,9 @@ export function isTransientError(err: unknown): boolean {
   if (typeof e.status === 'number' && e.status >= 500) return true;
   if (e.status === 429) return true;
   if (e.code === 'PGRST301' || e.code === 'PGRST302') return true; // JWT expired/missing
-  const msg = (e.message ?? '').toLowerCase();
-  if (
-    msg.includes('network') ||
-    msg.includes('fetch') ||
-    msg.includes('timeout') ||
-    msg.includes('econn') ||
-    msg.includes('jwt') ||
-    msg.includes('rate limit') ||
-    msg.includes('too many requests') ||
-    msg.includes('temporarily unavailable') ||
-    msg.includes('service unavailable')
-  ) {
-    return true;
-  }
-  return false;
+  // Message-level matching delegates to the shared classifier (#42) so push
+  // retry classification and UI toast suppression can never drift apart again.
+  return isTransientSyncMessage(e.message ?? '');
 }
 
 function stripServerOwned(payload: Record<string, unknown>): Record<string, unknown> {
