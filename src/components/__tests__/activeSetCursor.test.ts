@@ -10,8 +10,11 @@
  * incomplete anywhere — when the cursor goes stale).
  */
 import {
+  exerciseSetStrip,
+  ghostSetStrip,
   planStagedSet,
   resolveCursor,
+  workoutHeaderTitle,
   type ExerciseShape,
   type SetShape,
 } from '@/components/activeSet';
@@ -212,5 +215,60 @@ describe('planStagedSet — auto-stage on completion (Phase 3, #131)', () => {
 
   test('completed set missing from the cache: stages a fully empty set', () => {
     expect(planStagedSet(null, 'lb')).toEqual({ weight: null, reps: null, units: null });
+  });
+});
+
+describe('workoutHeaderTitle — fallback uses the STARTED day, not today (1.7/#156)', () => {
+  // 2026-07-11 was a Saturday; freeze "now" to the following Sunday so a wrong
+  // implementation (falling back to the current day) is caught red-handed.
+  const startedSaturday = '2026-07-11T22:45:00.000Z';
+
+  test('a real title wins over any date', () => {
+    expect(workoutHeaderTitle('Push day', startedSaturday)).toBe('Push day');
+  });
+
+  test('whitespace-only title falls back like an empty one', () => {
+    expect(workoutHeaderTitle('   ', new Date(2026, 6, 11))).toBe('Saturday');
+  });
+
+  test('empty/null title falls back to the workout’s started day', () => {
+    // Local-time constructor avoids timezone flakiness around midnight UTC.
+    expect(workoutHeaderTitle('', new Date(2026, 6, 11))).toBe('Saturday');
+    expect(workoutHeaderTitle(null, new Date(2026, 6, 10))).toBe('Friday');
+    expect(workoutHeaderTitle(undefined, new Date(2026, 6, 12))).toBe('Sunday');
+  });
+
+  test('started day is used even when it differs from the current day', () => {
+    jest.useFakeTimers().setSystemTime(new Date(2026, 6, 12, 1, 0)); // Sunday 01:00
+    try {
+      expect(workoutHeaderTitle('', new Date(2026, 6, 11, 22, 45))).toBe('Saturday');
+    } finally {
+      jest.useRealTimers();
+    }
+  });
+
+  test('missing or unparseable started_at falls back to today', () => {
+    jest.useFakeTimers().setSystemTime(new Date(2026, 6, 12, 1, 0)); // Sunday
+    try {
+      expect(workoutHeaderTitle('', null)).toBe('Sunday');
+      expect(workoutHeaderTitle('', 'not-a-date')).toBe('Sunday');
+    } finally {
+      jest.useRealTimers();
+    }
+  });
+});
+
+describe('mono strips (Blacktop metadata treatment)', () => {
+  test('exerciseSetStrip: position line with a single middot run', () => {
+    expect(exerciseSetStrip(2, 3, 4)).toBe('EXERCISE 2/3 · SET 4');
+  });
+
+  test('ghostSetStrip: banked set line', () => {
+    expect(ghostSetStrip(1, { weight: 60, reps: 8 })).toBe('SET 1 · 60 × 8');
+  });
+
+  test('ghostSetStrip: null weight/reps render as en-dash placeholders', () => {
+    expect(ghostSetStrip(2, { weight: null, reps: 8 })).toBe('SET 2 · - × 8');
+    expect(ghostSetStrip(3, { weight: 100, reps: null })).toBe('SET 3 · 100 × -');
   });
 });

@@ -1,4 +1,4 @@
-import { chartTicks } from '@/ui/chartTicks';
+import { chartTicks, formatCompactTick } from '@/ui/chartTicks';
 
 const NICE_FRACTIONS = [1, 2, 2.5, 5];
 
@@ -111,5 +111,52 @@ describe('chartTicks', () => {
     expect(isNiceStep(step)).toBe(true);
     expect(isAscending(ticks)).toBe(true);
     expect(ticks.length).toBeGreaterThanOrEqual(2);
+  });
+});
+
+describe('formatCompactTick', () => {
+  test('device-observed truncation: a 10000 top tick reads "10k", never "000"', () => {
+    // Seen live on device: a best-set-volume series produced a 10000 top tick,
+    // whose "10000 kg" label overflowed the fixed left gutter and clipped to
+    // "000 kg". The volume range below reproduces that exact axis.
+    const { max, ticks } = chartTicks(6000, 9500, 4);
+    expect(max).toBe(10000);
+    expect(formatCompactTick(max)).toBe('10k');
+    // No tick on this axis may render wider than the gutter budget (~6 chars).
+    for (const t of ticks) {
+      expect(formatCompactTick(t).length).toBeLessThanOrEqual(6);
+    }
+  });
+
+  test('thousands compact with up to two decimals', () => {
+    expect(formatCompactTick(1000)).toBe('1k');
+    expect(formatCompactTick(2500)).toBe('2.5k');
+    expect(formatCompactTick(12500)).toBe('12.5k');
+    // Two decimals keep close-together thousand-scale ticks distinct.
+    expect(formatCompactTick(9950)).toBe('9.95k');
+  });
+
+  test('sub-1000 values pass through with ".0" trimmed', () => {
+    expect(formatCompactTick(950)).toBe('950');
+    expect(formatCompactTick(102.5)).toBe('102.5');
+    expect(formatCompactTick(100.0)).toBe('100');
+    expect(formatCompactTick(0)).toBe('0');
+  });
+
+  test('negative values keep their sign', () => {
+    expect(formatCompactTick(-1500)).toBe('-1.5k');
+    expect(formatCompactTick(-30)).toBe('-30');
+  });
+
+  test('millions compact to M', () => {
+    expect(formatCompactTick(1_000_000)).toBe('1M');
+    expect(formatCompactTick(2_500_000)).toBe('2.5M');
+  });
+
+  test('every tick of a large-range axis stays within the gutter budget', () => {
+    const { ticks } = chartTicks(0, 95000, 4);
+    for (const t of ticks) {
+      expect(formatCompactTick(t).length).toBeLessThanOrEqual(6);
+    }
   });
 });

@@ -10,6 +10,7 @@ import { useQuery } from '@tanstack/react-query';
 import { getDb } from '@/db/client';
 import type { Workout } from '@/db/types';
 
+import { finishWorkout } from './workouts';
 import { queryKeys } from './keys';
 
 export interface ActiveWorkoutDetail {
@@ -51,6 +52,28 @@ export async function getActiveWorkoutCollisions(userId: string): Promise<Active
     });
   }
   return { workouts, details };
+}
+
+/**
+ * Collision resolution (#111): resuming one workout marks every OTHER active
+ * workout finished (ended_at = now) instead of discarding it. Sets logged on
+ * another device are work done, not garbage; they belong in history. Discard
+ * remains a separate, explicit per-workout action in the CollisionSheet.
+ */
+export async function finishOtherActiveWorkouts(
+  userId: string,
+  keepWorkoutId: string,
+): Promise<void> {
+  const db = await getDb();
+  const others = await db.getAllAsync<{ id: string }>(
+    `SELECT id FROM workouts
+       WHERE user_id = ? AND id <> ? AND ended_at IS NULL AND deleted_at IS NULL`,
+    [userId, keepWorkoutId],
+  );
+  for (const row of others) {
+    // eslint-disable-next-line no-await-in-loop
+    await finishWorkout(row.id, userId);
+  }
 }
 
 export function useActiveWorkoutCollisions(userId: string | undefined) {

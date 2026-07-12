@@ -1,19 +1,24 @@
 /**
  * Live workout-volume tally — the calm home for the signature complete-set
  * moment. Each banked set counts the cumulative volume up over 600ms and blooms
- * a single ember glow behind it; a PR blooms hotter and flashes a "PR" pill
- * (backlog 10.1 / #25 — the live PR signal now actually fires).
+ * a single volt glow behind it; a PR blooms hotter, flashes a volt "PR" pill,
+ * and blinks the bar chalk↔blacktop for one inversion beat (Blacktop spec,
+ * backlog 10.1 / #25 — the live PR signal now actually fires).
  *
  * The parent signals each banked set via `bankSignal` (a nonce + isPR), so the
  * pulse fires on banking only — not when an already-logged set is edited.
+ * Reduced motion: glow and blink are suppressed (mount-read pattern); the pill
+ * still shows because it is state, not motion.
  */
 import { useEffect, useMemo, useRef, useState } from 'react';
-import { StyleSheet, Text as RNText, View } from 'react-native';
+import { AccessibilityInfo, StyleSheet, Text as RNText, View } from 'react-native';
 import Animated, {
   Easing,
+  interpolateColor,
   useAnimatedProps,
   useAnimatedStyle,
   useSharedValue,
+  withSequence,
   withTiming,
 } from 'react-native-reanimated';
 
@@ -44,9 +49,23 @@ export function SessionVolumeBar({
   const styles = useMemo(() => makeStyles(theme), [theme]);
   const { glowOpacity, pulse } = useCompleteSetAnimation();
   const v = useSharedValue(volume);
+  const blink = useSharedValue(0);
   const prevVolume = useRef(volume);
   const prevNonce = useRef(bankSignal?.nonce ?? 0);
   const [showPRPill, setShowPRPill] = useState(false);
+
+  // Mount-read reduced-motion gate (Sheet/FadeInView precedent) for the blink;
+  // the glow is gated inside useCompleteSetAnimation already.
+  const reduceMotionRef = useRef(false);
+  useEffect(() => {
+    AccessibilityInfo.isReduceMotionEnabled()
+      .then((r) => {
+        reduceMotionRef.current = r;
+      })
+      .catch(() => {
+        /* default: motion allowed */
+      });
+  }, []);
 
   // Count the headline up whenever the cumulative volume changes.
   useEffect(() => {
@@ -59,15 +78,24 @@ export function SessionVolumeBar({
     }
   }, [volume, v]);
 
-  // Bloom + (for a PR) flash the pill, once per banked set.
+  // Bloom + (for a PR) flash the pill and blink the inversion, once per banked set.
   useEffect(() => {
     const nonce = bankSignal?.nonce ?? 0;
     if (nonce === prevNonce.current) return;
     prevNonce.current = nonce;
     const isPR = bankSignal?.isPR ?? false;
     void pulse(isPR);
-    if (isPR) setShowPRPill(true);
-  }, [bankSignal, pulse]);
+    if (isPR) {
+      setShowPRPill(true);
+      if (!reduceMotionRef.current) {
+        // One chalk↔blacktop inversion beat (120ms in, 120ms out).
+        blink.value = withSequence(
+          withTiming(1, { duration: motion.duration.inversionBlink }),
+          withTiming(0, { duration: motion.duration.inversionBlink }),
+        );
+      }
+    }
+  }, [bankSignal, pulse, blink]);
 
   // Auto-retire the pill a beat after it shows.
   useEffect(() => {
@@ -79,6 +107,18 @@ export function SessionVolumeBar({
   const counterProps = useAnimatedProps(() => ({ text: `${Math.round(v.value)}` }) as never);
   const glowStyle = useAnimatedStyle(() => ({ opacity: glowOpacity.value }));
 
+  // Inversion blink: bar flips to an ink face, type flips to bg — both schemes
+  // resolve correctly because the interpolation runs on theme tokens.
+  const blinkFace = useAnimatedStyle(() => ({
+    backgroundColor: interpolateColor(blink.value, [0, 1], [theme.color.bg, theme.color.ink]),
+  }));
+  const blinkValueInk = useAnimatedStyle(() => ({
+    color: interpolateColor(blink.value, [0, 1], [theme.color.inkHero, theme.color.bg]),
+  }));
+  const blinkMetaInk = useAnimatedStyle(() => ({
+    color: interpolateColor(blink.value, [0, 1], [theme.color.inkTertiary, theme.color.bg]),
+  }));
+
   // Reanimated only applies the animated `text` prop after the first frame, so
   // a cold-opened in-progress workout would flash a blank tally. Freeze the
   // mount value as static children for the first paint; the worklet's native
@@ -86,31 +126,29 @@ export function SessionVolumeBar({
   const mountText = useRef(`${Math.round(volume)}`).current;
 
   return (
-    <View style={styles.wrap}>
+    <Animated.View style={[styles.wrap, blinkFace]}>
       <Animated.View
         pointerEvents="none"
-        // Full ember fill — the choreography's glowPeak IS the on-screen alpha.
+        // Full volt fill — the choreography's glowPeak IS the on-screen alpha.
         style={[styles.glow, { backgroundColor: theme.color.accent }, glowStyle]}
       />
       <View style={styles.labelRow}>
-        <Text variant="label" color={theme.color.inkTertiary}>
-          Workout volume
-        </Text>
+        <AnimatedText style={[styles.label, blinkMetaInk]}>VOLUME</AnimatedText>
         {showPRPill ? (
           <View style={styles.prPill}>
-            <Text variant="label" color={theme.color.onAccent}>
+            <Text variant="meta" color={theme.color.onAccent} style={styles.prText}>
               PR
             </Text>
           </View>
         ) : null}
       </View>
       <View style={styles.valueRow}>
-        <AnimatedText animatedProps={counterProps} style={styles.value}>
+        <AnimatedText animatedProps={counterProps} style={[styles.value, blinkValueInk]}>
           {mountText}
         </AnimatedText>
-        <RNText style={styles.unit}> {units}</RNText>
+        <AnimatedText style={[styles.unit, blinkMetaInk]}> {units}</AnimatedText>
       </View>
-    </View>
+    </Animated.View>
   );
 }
 
@@ -126,21 +164,25 @@ const makeStyles = (theme: Theme) =>
     },
     glow: { position: 'absolute', top: 0, left: 0, right: 0, bottom: 0 },
     labelRow: { flexDirection: 'row', alignItems: 'center', gap: theme.space.s2 },
+    label: {
+      fontFamily: theme.font.family.mono,
+      fontSize: theme.font.size.meta,
+      letterSpacing: 0.5,
+    },
     prPill: {
       backgroundColor: theme.color.accent,
       paddingHorizontal: theme.space.s2,
       paddingVertical: 1,
       borderRadius: theme.radius.sm,
     },
+    prText: { fontFamily: theme.font.family.monoMedium, letterSpacing: 0.5 },
     valueRow: { flexDirection: 'row', alignItems: 'baseline', marginTop: theme.space.half },
     value: {
-      color: theme.color.inkHero,
       fontFamily: theme.font.family.monoMedium,
       fontSize: theme.font.size.numeralLg,
       letterSpacing: theme.font.tracking.numeralLg,
     },
     unit: {
-      color: theme.color.inkSecondary,
       fontFamily: theme.font.family.mono,
       fontSize: theme.font.size.card,
     },

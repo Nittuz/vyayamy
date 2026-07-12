@@ -14,6 +14,16 @@ import { emitMutationCommitted } from '@/db/mutationEvents';
 
 import { queryKeys } from './keys';
 
+/**
+ * Lazy import (db/client.ts precedent): errorReporting pulls in
+ * expo-constants, which must not sit on the jest/node import path.
+ */
+function reportError(err: unknown, context: Record<string, unknown>): void {
+  void import('@/lib/errorReporting').then(({ captureException }) =>
+    captureException(err, context),
+  );
+}
+
 export interface ExerciseSeed {
   exerciseId: string;
   exerciseName: string;
@@ -182,6 +192,11 @@ export function useRepeatLastWorkout(userId: string | undefined, onError?: (msg:
       return repeatLastWorkout(userId);
     },
     onSuccess: () => qc.invalidateQueries({ queryKey: queryKeys.workouts.all }),
-    onError: (err) => onError?.(err instanceof Error ? err.message : 'Failed to repeat workout'),
+    // Never surface raw err.message in the toast (backlog 8.5) — friendly copy
+    // for the user, the real error to error reporting.
+    onError: (err) => {
+      reportError(err, { mutation: 'repeatLastWorkout' });
+      onError?.('Could not repeat the workout. Please try again.');
+    },
   });
 }

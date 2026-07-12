@@ -53,6 +53,9 @@ export const tracking = {
   body: 0,
   numeralLg: -1,
   micro: 2,
+  // Mono metadata strips: a touch of tracking keeps uppercased GeistMono
+  // runs legible at 12pt without drifting into eyebrow territory.
+  strip: 0.5,
 } as const;
 
 export const lineHeightMul = {

@@ -101,12 +101,24 @@ export async function addExerciseToWorkout(args: {
   return id;
 }
 
+// Raw driver text stays out of the UI (backlog 8.5): callers get friendly
+// copy, Sentry gets the real error. Dynamic import keeps pure-TS jest suites
+// from loading expo-constants (db/client.ts precedent).
+function reportMutationError(err: unknown, mutation: string): void {
+  void import('@/lib/errorReporting').then(({ captureException }) =>
+    captureException(err, { mutation }),
+  );
+}
+
 export function useCreateCustomExercise(onError?: (msg: string) => void) {
   const qc = useQueryClient();
   return useMutation({
     mutationFn: createCustomExercise,
     onSuccess: () => qc.invalidateQueries({ queryKey: queryKeys.exercises.all }),
-    onError: (err) => onError?.(err instanceof Error ? err.message : 'Failed to create exercise'),
+    onError: (err) => {
+      reportMutationError(err, 'createCustomExercise');
+      onError?.("Couldn't create the exercise. Try again.");
+    },
   });
 }
 
@@ -121,6 +133,9 @@ export function useAddExerciseToWorkout(onError?: (msg: string) => void) {
       await maybeUpdateAutoTitle(vars.workoutId);
       qc.invalidateQueries({ queryKey: queryKeys.workouts.all });
     },
-    onError: (err) => onError?.(err instanceof Error ? err.message : 'Failed to add exercise'),
+    onError: (err) => {
+      reportMutationError(err, 'addExerciseToWorkout');
+      onError?.("Couldn't add the exercise. Try again.");
+    },
   });
 }

@@ -8,11 +8,11 @@ import { useAuth } from '@/auth/useAuth';
 import { greetingFor, localDaysBetween } from '@/core/format';
 import { CollisionSheet } from '@/components/CollisionSheet';
 import { QuarantineBanner } from '@/components/QuarantineBanner';
-import { SyncErrorStripe } from '@/components/SyncErrorStripe';
 import { QuarantineSheet } from '@/components/QuarantineSheet';
 import { RepeatCard } from '@/components/RepeatCard';
+import { SyncDiagnosticsSheet } from '@/components/SyncDiagnosticsSheet';
 import { useLastFinishedWorkoutWithSeeds, useRepeatLastWorkout } from '@/queries/repeatLastWorkout';
-import { useActiveWorkoutCollisions } from '@/queries/activeWorkouts';
+import { finishOtherActiveWorkouts, useActiveWorkoutCollisions } from '@/queries/activeWorkouts';
 import { queryKeys } from '@/queries/keys';
 import {
   useActiveWorkout,
@@ -22,11 +22,16 @@ import {
 } from '@/queries/workouts';
 import { getCachedSnapshot, persistSnapshot, type TodaySnapshot } from '@/ui/todaySnapshot';
 import { getStaleQuarantined, useQuarantined } from '@/sync/quarantine';
+import { useSyncStateLive } from '@/sync/useSyncStateLive';
 import { Button } from '@/ui/Button';
 import { FadeInView } from '@/ui/FadeInView';
 import { Icon } from '@/ui/icons';
 import { FBarMark } from '@/ui/Logo';
+import { staggerDelay } from '@/ui/motion';
+import { OutlineDisplay } from '@/ui/OutlineDisplay';
 import { Plate } from '@/ui/Plate';
+import { resolvePlateStyles } from '@/ui/plateStyles';
+import { SettleSlam } from '@/ui/SettleSlam';
 import { Text } from '@/ui/Text';
 import { useToast } from '@/ui/ToastContext';
 import { useTheme, type Theme } from '@/ui/useTheme';
@@ -47,6 +52,15 @@ export default function TodayScreen() {
   const createWorkout = useCreateWorkout(toastError);
   const collisionsQuery = useActiveWorkoutCollisions(userId);
   const hasCollision = (collisionsQuery.data?.workouts.length ?? 0) >= 2;
+  // #111: the sheet is dismissable, but only for THIS set of colliding
+  // workouts — a different collision set shows the sheet again. Derived, so no
+  // reset effect is needed.
+  const collisionKey = (collisionsQuery.data?.workouts ?? [])
+    .map((w) => w.id)
+    .sort()
+    .join(',');
+  const [dismissedCollisionKey, setDismissedCollisionKey] = useState<string | null>(null);
+  const collisionVisible = hasCollision && dismissedCollisionKey !== collisionKey;
 
   const quarantinedQuery = useQuarantined();
   const staleQuarantined = useMemo(
@@ -55,20 +69,28 @@ export default function TodayScreen() {
   );
   const [quarantineSheetOpen, setQuarantineSheetOpen] = useState(false);
 
+  // Sync-failure surface (backlog 8.3): palette-native, actionable — tapping it
+  // opens the sync diagnostics sheet instead of a mute 1px stripe.
+  const sync = useSyncStateLive();
+  const [syncSheetOpen, setSyncSheetOpen] = useState(false);
+  const syncTrouble = sync.lastErrorAt !== null && sync.pendingOutbox > 0;
+  const syncLabel =
+    sync.pendingOutbox === 1
+      ? '1 change waiting to sync'
+      : `${sync.pendingOutbox} changes waiting to sync`;
+
   const onCollisionResume = useCallback(
     async (workoutId: string) => {
-      if (!collisionsQuery.data) return;
-      const toDiscard = collisionsQuery.data.workouts
-        .map((w) => w.id)
-        .filter((id) => id !== workoutId);
-      for (const id of toDiscard) {
-        // eslint-disable-next-line no-await-in-loop
-        await deleteWorkoutLocal(id);
-      }
+      if (!userId) return;
+      // #111: the other unfinished workouts are real training — mark them
+      // finished (ended_at = now), never silently discard them.
+      await finishOtherActiveWorkouts(userId, workoutId);
       qc.invalidateQueries({ queryKey: queryKeys.workouts.all });
+      qc.invalidateQueries({ queryKey: queryKeys.history(userId) });
+      qc.invalidateQueries({ queryKey: queryKeys.personalRecords(userId) });
       router.push('/workout/active');
     },
-    [collisionsQuery.data, qc],
+    [userId, qc],
   );
 
   const onCollisionDiscard = useCallback(
@@ -133,7 +155,8 @@ export default function TodayScreen() {
 
   const onBlankStart = useCallback(async () => {
     if (!userId) return;
-    await createWorkout.mutateAsync({ userId, title: 'Workout' });
+    // No explicit title — createWorkout defaults it to the day of week (1.6).
+    await createWorkout.mutateAsync({ userId });
     router.push('/workout/active');
   }, [createWorkout, userId]);
 
@@ -141,7 +164,6 @@ export default function TodayScreen() {
 
   return (
     <SafeAreaView style={styles.container}>
-      <SyncErrorStripe />
       <ScrollView contentContainerStyle={styles.scroll}>
         <View style={styles.topRow}>
           <FBarMark size={60} />
@@ -152,18 +174,69 @@ export default function TodayScreen() {
             accessibilityLabel="Open workout history"
             style={({ pressed }) => [styles.historyLink, pressed && styles.historyLinkPressed]}
           >
-            <Text variant="label" color={theme.color.inkTertiary}>
+            <Text variant="meta" color={theme.color.inkTertiary}>
               History
             </Text>
             <Icon name="arrow-right" size={14} color={theme.color.inkTertiary} />
           </Pressable>
         </View>
+
+        {/* Quiet-danger sync surface — the ONE treatment shared with
+            QuarantineBanner: panel plate, danger hairline, danger text, no
+            danger fill. Functionally separate from quarantine (different tap). */}
+        {syncTrouble ? (
+          <Plate
+            tone="panel"
+            border="soft"
+            onPress={() => setSyncSheetOpen(true)}
+            accessibilityRole="button"
+            accessibilityLabel={`${syncLabel}, tap for sync details`}
+            style={styles.syncRow}
+            faceStyle={styles.syncFace}
+          >
+            <Text variant="meta" color={theme.color.danger}>
+              {syncLabel} · Details
+            </Text>
+          </Plate>
+        ) : null}
+
         <Text variant="label" color={theme.color.inkTertiary} style={styles.greet}>
           {greeting}
         </Text>
-        <Text variant="display" color={theme.color.ink} style={styles.titleLine}>
-          {activeQuery.data ? 'Workout in progress.' : 'Ready to lift.'}
-        </Text>
+        <SettleSlam style={styles.headline}>
+          {activeQuery.data ? (
+            <>
+              <Text
+                variant="displayXXL"
+                color={theme.color.inkHero}
+                numberOfLines={1}
+                adjustsFontSizeToFit
+              >
+                In
+              </Text>
+              <Text
+                variant="displayXXL"
+                color={theme.color.inkHero}
+                numberOfLines={1}
+                adjustsFontSizeToFit
+              >
+                Progress.
+              </Text>
+            </>
+          ) : (
+            <>
+              <Text
+                variant="displayXXL"
+                color={theme.color.inkHero}
+                numberOfLines={1}
+                adjustsFontSizeToFit
+              >
+                Ready to
+              </Text>
+              <OutlineDisplay size="displayXXL">Lift.</OutlineDisplay>
+            </>
+          )}
+        </SettleSlam>
 
         <QuarantineBanner
           staleCount={staleQuarantined.length}
@@ -202,48 +275,47 @@ export default function TodayScreen() {
           )}
         </FadeInView>
 
-        <View style={styles.altRow}>
+        <View style={styles.ghostRow}>
           <Button
-            label="Blank"
-            kind="secondary"
+            label="Blank workout"
+            kind="ghost"
             size="row"
             icon="plus"
             onPress={onBlankStart}
             disabled={createWorkout.isPending || !!activeQuery.data}
             accessibilityLabel="Start a blank workout"
             accessibilityHint="Begin a new workout with no exercises"
-            style={styles.altBtn}
           />
           <Button
-            label="Templates"
-            kind="secondary"
+            label="Training plan"
+            kind="ghost"
             size="row"
             onPress={() => router.push('/profile/plan')}
-            accessibilityLabel="Open training plan templates"
-            style={styles.altBtn}
+            accessibilityLabel="Open training plan"
           />
         </View>
 
         <View style={styles.recentSection}>
           <View style={styles.recentHeader}>
-            <Text variant="label" color={theme.color.inkTertiary}>
+            <Text variant="strip" color={theme.color.inkTertiary}>
               Recent
             </Text>
           </View>
           {recentQuery.data?.length ? (
-            recentQuery.data.map((w) => (
-              <View
-                key={w.id}
-                style={styles.recentRow}
-                accessibilityLabel={`${w.title || 'Workout'}, ${recentMeta(w)}`}
-              >
-                <Text variant="card" color={theme.color.ink}>
-                  {w.title || 'Workout'}
-                </Text>
-                <Text variant="numeral" color={theme.color.inkSecondary}>
-                  {recentMeta(w)}
-                </Text>
-              </View>
+            recentQuery.data.map((w, i) => (
+              <FadeInView key={w.id} delay={staggerDelay(i)}>
+                <View
+                  style={styles.recentRow}
+                  accessibilityLabel={`${w.title || 'Workout'}, ${recentMeta(w).toLowerCase()}`}
+                >
+                  <Text variant="card" color={theme.color.ink}>
+                    {w.title || 'Workout'}
+                  </Text>
+                  <Text variant="strip" color={theme.color.inkTertiary}>
+                    {recentMeta(w)}
+                  </Text>
+                </View>
+              </FadeInView>
             ))
           ) : (
             <Text variant="meta" color={theme.color.inkTertiary} style={styles.recentEmpty}>
@@ -253,17 +325,26 @@ export default function TodayScreen() {
         </View>
       </ScrollView>
       <CollisionSheet
-        visible={hasCollision}
+        visible={collisionVisible}
         workouts={collisionsQuery.data?.workouts ?? []}
         details={collisionsQuery.data?.details ?? new Map()}
         onResume={onCollisionResume}
         onDiscard={onCollisionDiscard}
+        onClose={() => setDismissedCollisionKey(collisionKey)}
       />
       <QuarantineSheet
         visible={quarantineSheetOpen}
         rows={quarantinedQuery.data ?? []}
         onClose={() => setQuarantineSheetOpen(false)}
         onChanged={() => qc.invalidateQueries({ queryKey: ['outbox', 'quarantined'] })}
+      />
+      <SyncDiagnosticsSheet
+        visible={syncSheetOpen}
+        onClose={() => setSyncSheetOpen(false)}
+        onOpenQuarantine={() => {
+          setSyncSheetOpen(false);
+          setQuarantineSheetOpen(true);
+        }}
       />
     </SafeAreaView>
   );
@@ -272,26 +353,28 @@ export default function TodayScreen() {
 function ResumeCard({ onPress }: { onPress: () => void }) {
   const theme = useTheme();
   const styles = useMemo(() => makeStyles(theme), [theme]);
+  const ink = useMemo(() => resolvePlateStyles(theme, { tone: 'inverted' }).ink, [theme]);
   return (
     <Plate
-      tone="accent"
+      tone="inverted"
       onPress={onPress}
       accessibilityRole="button"
       accessibilityLabel="Resume workout in progress"
       style={styles.card}
       faceStyle={styles.resumeFace}
     >
-      <Text variant="label" color={theme.color.onAccent}>
+      {/* Inverted panel: strip keeps the panel ink at 0.65 opacity. */}
+      <Text variant="strip" color={ink} style={styles.monoStrip}>
         In progress
       </Text>
-      <Text variant="title" color={theme.color.onAccent}>
+      <Text variant="title" color={ink}>
         Resume workout
       </Text>
       <View style={styles.resumeCta}>
-        <Text variant="label" color={theme.color.onAccent}>
+        <Text variant="card" color={ink} style={styles.resumeCtaLabel}>
           Resume
         </Text>
-        <Icon name="arrow-right" size={16} color={theme.color.onAccent} />
+        <Icon name="arrow-right" size={16} color={ink} />
       </View>
     </Plate>
   );
@@ -332,9 +415,9 @@ function daysSince(iso: string): number {
 }
 
 function recentMeta(w: { started_at: string; ended_at: string | null }): string {
+  // Sentence case — the strip variant handles the uppercasing.
   const d = daysSince(w.started_at);
-  const ago = d === 0 ? 'today' : d === 1 ? '1 day' : `${d} days`;
-  return ago;
+  return d === 0 ? 'Today' : d === 1 ? '1 day ago' : `${d} days ago`;
 }
 
 const makeStyles = (theme: Theme) =>
@@ -355,12 +438,24 @@ const makeStyles = (theme: Theme) =>
       minHeight: theme.touch.min,
     },
     historyLinkPressed: { opacity: 0.6 },
+    syncRow: {
+      marginHorizontal: theme.space.s4,
+      marginTop: theme.space.s2,
+    },
+    syncFace: {
+      paddingVertical: theme.space.s3,
+      paddingHorizontal: theme.space.s4,
+      minHeight: theme.touch.min,
+      justifyContent: 'center',
+      // border="soft" supplies the hairline weight; danger recolors it.
+      borderColor: theme.color.danger,
+    },
     greet: {
       paddingHorizontal: theme.space.page,
       paddingTop: theme.space.s4,
       paddingBottom: theme.space.s1,
     },
-    titleLine: {
+    headline: {
       paddingHorizontal: theme.space.page,
       paddingBottom: theme.space.s6,
     },
@@ -371,31 +466,36 @@ const makeStyles = (theme: Theme) =>
     },
     card: { marginHorizontal: theme.space.s4 },
     resumeFace: { padding: theme.space.s5, gap: theme.space.s2 },
+    monoStrip: { opacity: 0.65 },
     resumeCta: {
       flexDirection: 'row',
       alignItems: 'center',
       gap: theme.space.s1,
       marginTop: theme.space.s2,
     },
+    resumeCtaLabel: {
+      fontFamily: theme.font.family.sansSemibold,
+    },
     emptyWrap: {
       marginHorizontal: theme.space.s4,
       gap: theme.space.s3,
     },
     emptyHint: { textAlign: 'center' },
-    altRow: {
+    ghostRow: {
       flexDirection: 'row',
-      gap: theme.space.s2,
+      alignItems: 'center',
+      justifyContent: 'flex-start',
+      gap: theme.space.s4,
       paddingHorizontal: theme.space.s4,
-      marginTop: theme.space.s4,
+      marginTop: theme.space.s2,
     },
-    altBtn: { flex: 1 },
     recentSection: {
       marginTop: theme.space.section,
       paddingHorizontal: theme.space.page,
     },
     recentHeader: {
       paddingBottom: theme.space.s3,
-      borderBottomWidth: theme.depth.rule,
+      borderBottomWidth: theme.depth.hairline,
       borderBottomColor: theme.color.border,
     },
     recentRow: {
@@ -403,8 +503,6 @@ const makeStyles = (theme: Theme) =>
       justifyContent: 'space-between',
       alignItems: 'baseline',
       paddingVertical: theme.space.s4,
-      borderBottomWidth: theme.depth.rule,
-      borderBottomColor: theme.color.border,
     },
     recentEmpty: {
       paddingVertical: theme.space.s4,

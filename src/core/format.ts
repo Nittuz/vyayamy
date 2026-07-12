@@ -30,7 +30,7 @@ export function formatRelativeDate(dateStr: string): string {
 }
 
 export function formatDuration(startedAt: string, endedAt: string | null): string {
-  if (!endedAt) return '—';
+  if (!endedAt) return '-';
   const start = new Date(startedAt).getTime();
   const end = new Date(endedAt).getTime();
   const mins = Math.round((end - start) / 60000);
@@ -111,7 +111,7 @@ export function getInitials(
 }
 
 export function formatWeight(weight: number | null, units: 'kg' | 'lb'): string {
-  if (weight == null) return '—';
+  if (weight == null) return '-';
   return `${weight} ${units}`;
 }
 

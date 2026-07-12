@@ -127,7 +127,7 @@ export function NumericStepper({
             accessibilityRole="button"
             accessibilityLabel={`Increase ${unit.toLowerCase()} by ${step}`}
           >
-            <Text style={[styles.chev, { color: theme.color.accent }]}>▲</Text>
+            <Text style={[styles.chev, { color: theme.color.ink }]}>▲</Text>
           </Pressable>
           <Pressable
             onPress={() => handleStep(-1)}
@@ -137,7 +137,7 @@ export function NumericStepper({
             accessibilityRole="button"
             accessibilityLabel={`Decrease ${unit.toLowerCase()} by ${step}`}
           >
-            <Text style={[styles.chev, { color: theme.color.accent }]}>▼</Text>
+            <Text style={[styles.chev, { color: theme.color.ink }]}>▼</Text>
           </Pressable>
         </View>
       ) : null}
@@ -186,13 +186,15 @@ export function NumericStepper({
           </Text>
         </Pressable>
       )}
-      {focused && size === 'hero' ? (
+      {size === 'hero' ? (
+        // Always visible at hero size — the unit must never depend on focus
+        // (backlog 1.10 / #136). Mono metadata treatment, not an eyebrow.
         <Text
           style={[
             styles.unit,
             {
               color: theme.color.inkTertiary,
-              fontFamily: theme.font.family.sansMedium,
+              fontFamily: theme.font.family.mono,
             },
           ]}
         >
@@ -222,8 +224,8 @@ const styles = StyleSheet.create({
     fontVariant: ['tabular-nums'],
   },
   unit: {
-    fontSize: 10,
-    letterSpacing: 1.5,
+    fontSize: 11,
+    letterSpacing: 0.5,
     textTransform: 'uppercase',
     marginLeft: 8,
     marginBottom: 12,

@@ -2,7 +2,8 @@
  * Finish recap — a "progress earned" moment, not a celebratory takeover. The
  * workout volume is the headline (big mono, counts up over 600ms); sets and
  * duration settle in beneath with the list-mount motion. A PR is stamped onto
- * an ember Plate. Framed as a journey, never a guilt-streak.
+ * a volt Plate (achievement is the one volt semantic). Framed as a journey,
+ * never a guilt-streak.
  *
  * PRs are passed in by the active flow now that live detection exists (#25):
  * the finish handler recomputes records and hands the labels here.
@@ -64,8 +65,8 @@ export function SessionRecap({
   return (
     <View style={styles.wrap}>
       <FadeInView style={styles.headlineWrap}>
-        <Text variant="label" color={theme.color.accent}>
-          Workout volume
+        <Text variant="strip" color={theme.color.inkTertiary}>
+          Volume
         </Text>
         <View style={styles.headlineRow}>
           <AnimatedText animatedProps={volumeProps} style={styles.headlineValue}>
@@ -80,7 +81,7 @@ export function SessionRecap({
           <Text variant="numeralLg" color={theme.color.inkHero}>
             {setCount}
           </Text>
-          <Text variant="label" color={theme.color.inkTertiary}>
+          <Text variant="strip" color={theme.color.inkTertiary}>
             Sets
           </Text>
         </FadeInView>
@@ -88,7 +89,7 @@ export function SessionRecap({
           <Text variant="numeralLg" color={theme.color.inkHero}>
             {formatDuration(durationMs)}
           </Text>
-          <Text variant="label" color={theme.color.inkTertiary}>
+          <Text variant="strip" color={theme.color.inkTertiary}>
             Duration
           </Text>
         </FadeInView>
@@ -96,7 +97,7 @@ export function SessionRecap({
 
       {prs.length > 0 ? (
         <FadeInView delay={200} style={styles.prWrap}>
-          <Plate tone="accent" offset="md" faceStyle={styles.prFace}>
+          <Plate tone="volt" faceStyle={styles.prFace}>
             <Text variant="label" color={theme.color.onAccent}>
               {prs.length === 1 ? 'New personal record' : `${prs.length} new personal records`}
             </Text>

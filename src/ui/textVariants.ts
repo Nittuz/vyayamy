@@ -22,7 +22,8 @@ export type TextVariant =
   | 'card' // 16pt sans — card headings
   | 'body' // 14pt sans — body copy
   | 'label' // 12pt sans, tracked + uppercase — eyebrows/labels
-  | 'meta'; // 12pt sans — secondary meta text
+  | 'meta' // 12pt sans — secondary meta text
+  | 'strip'; // 12pt mono, tracked + uppercase — THE metadata-strip treatment
 
 export const TEXT_VARIANTS: TextVariant[] = [
   'hero',
@@ -36,6 +37,7 @@ export const TEXT_VARIANTS: TextVariant[] = [
   'body',
   'label',
   'meta',
+  'strip',
 ];
 
 /**
@@ -139,6 +141,17 @@ export function resolveTextStyle(variant: TextVariant): TextStyle {
         fontSize: t.size.meta,
         letterSpacing: 0,
         lineHeight: lh(t.size.meta, t.lineHeightMul.meta),
+      };
+    case 'strip':
+      // The ONE mono-strip treatment for metadata runs (`3/3 SETS · 2600 VOL`).
+      // Standard ink is inkTertiary at the call site; strips sitting on an
+      // INVERTED panel keep the panel ink at 0.65 opacity instead.
+      return {
+        fontFamily: t.family.mono,
+        fontSize: t.size.meta,
+        letterSpacing: t.tracking.strip,
+        lineHeight: lh(t.size.meta, t.lineHeightMul.meta),
+        textTransform: 'uppercase',
       };
   }
 }

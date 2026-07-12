@@ -155,12 +155,25 @@ export async function saveActivePlan(args: SavePlanArgs): Promise<string> {
   return planId;
 }
 
-export function useSaveActivePlan() {
+// Raw driver text stays out of the UI (backlog 8.5): callers get friendly
+// copy, Sentry gets the real error. Dynamic import keeps pure-TS jest suites
+// from loading expo-constants (db/client.ts precedent).
+function reportMutationError(err: unknown, mutation: string): void {
+  void import('@/lib/errorReporting').then(({ captureException }) =>
+    captureException(err, { mutation }),
+  );
+}
+
+export function useSaveActivePlan(onError?: (msg: string) => void) {
   const qc = useQueryClient();
   return useMutation({
     mutationFn: saveActivePlan,
     onSuccess: (_id, vars) =>
       qc.invalidateQueries({ queryKey: queryKeys.plans.active(vars.userId) }),
+    onError: (err) => {
+      reportMutationError(err, 'saveActivePlan');
+      onError?.("Couldn't save the plan. Try again.");
+    },
   });
 }
 
@@ -213,7 +226,7 @@ export async function applyPresetAndSavePlan(args: ApplyPresetArgs): Promise<str
   }
 
   // 2. Create one new templates row per preset template. Always clones
-  // fresh — no reuse-by-name with existing user templates (per spec).
+  // fresh: no reuse-by-name with existing user templates (per spec).
   const newTemplateIdByPresetTemplateId = new Map<string, string>();
   for (const t of args.preset.templates) {
     const newTemplateId = uuidv4();
@@ -297,10 +310,14 @@ async function resolveOrCreateExercise(
   return newId;
 }
 
-export function useApplyPresetAndSavePlan() {
+export function useApplyPresetAndSavePlan(onError?: (msg: string) => void) {
   const qc = useQueryClient();
   return useMutation({
     mutationFn: applyPresetAndSavePlan,
+    onError: (err) => {
+      reportMutationError(err, 'applyPresetAndSavePlan');
+      onError?.("Couldn't save the plan. Try again.");
+    },
     onSuccess: (_id, vars) => {
       qc.invalidateQueries({ queryKey: queryKeys.plans.active(vars.userId) });
       qc.invalidateQueries({ queryKey: queryKeys.templates(vars.userId) });

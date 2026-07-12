@@ -1,5 +1,5 @@
 import { getDb, initDb, resetDbForTests } from '@/db/client';
-import { getHistory } from '@/queries/history';
+import { getHistory, workoutDayAnchor } from '@/queries/history';
 import { setSyncState } from '@/sync/state';
 
 jest.mock('@/auth/supabase', () => ({
@@ -124,6 +124,26 @@ test('reports zero volume for a workout with no completed sets', async () => {
   const [row] = await getHistory(USER);
   expect(row!.volume).toBe(0);
   expect(row!.completed_set_count).toBe(0);
+});
+
+test('day attribution (#155): a midnight-spanning workout anchors on started_at', async () => {
+  const db = await getDb();
+  await db.runAsync(
+    'INSERT INTO workouts (id, user_id, started_at, ended_at, title, created_at, updated_at, deleted_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?)',
+    [
+      'late-night',
+      USER,
+      '2026-02-01T23:30:00.000Z',
+      '2026-02-02T00:40:00.000Z', // ends the next day
+      'Push',
+      T,
+      T,
+      null,
+    ],
+  );
+
+  const [row] = await getHistory(USER);
+  expect(workoutDayAnchor(row!)).toBe('2026-02-01T23:30:00.000Z');
 });
 
 test('honors limit and offset for pagination', async () => {

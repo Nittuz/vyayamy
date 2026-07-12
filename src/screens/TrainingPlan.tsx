@@ -5,7 +5,11 @@ import { ActivityIndicator, SafeAreaView, ScrollView, StyleSheet, View } from 'r
 import { useAuth } from '@/auth/useAuth';
 import { useActivePlan } from '@/queries/plans';
 import { Button } from '@/ui/Button';
+import { EmptyState } from '@/ui/EmptyState';
+import { FadeInView } from '@/ui/FadeInView';
+import { staggerDelay } from '@/ui/motion';
 import { Plate } from '@/ui/Plate';
+import { resolvePlateStyles } from '@/ui/plateStyles';
 import { Text } from '@/ui/Text';
 import { useTheme, type Theme } from '@/ui/useTheme';
 
@@ -17,6 +21,8 @@ export default function TrainingPlanScreen() {
   const planQuery = useActivePlan(userId);
   const theme = useTheme();
   const styles = useMemo(() => makeStyles(theme), [theme]);
+  // Recommended foreground for the inverted (training-day) plates.
+  const invertedInk = resolvePlateStyles(theme, { tone: 'inverted' }).ink;
 
   if (planQuery.isLoading) {
     return (
@@ -31,27 +37,14 @@ export default function TrainingPlanScreen() {
   return (
     <SafeAreaView style={styles.container}>
       <ScrollView contentContainerStyle={styles.scroll}>
-        <Text variant="display" color={theme.color.ink}>
-          Training Plan
-        </Text>
-
         {!plan ? (
-          <Plate faceStyle={styles.emptyFace}>
-            <Text variant="title" color={theme.color.ink} style={styles.emptyTitle}>
-              No training plan yet
-            </Text>
-            <Text variant="body" color={theme.color.inkSecondary} style={styles.emptyBody}>
-              A plan schedules which template to run on which day, so Today can point you at the
-              right workout without thinking.
-            </Text>
-            <Button
-              label="Create plan"
-              kind="primary"
-              size="cta"
-              onPress={() => router.push('/profile/plan/setup')}
-              style={styles.emptyCta}
+          <View style={styles.emptyWrap}>
+            <EmptyState
+              title="No training plan yet."
+              hint="A plan schedules which template to run on which day, so Today can point you at the right workout without thinking."
+              cta={{ label: 'Create plan', onPress: () => router.push('/profile/plan/setup') }}
             />
-          </Plate>
+          </View>
         ) : (
           <>
             <View style={styles.headerRow}>
@@ -72,30 +65,52 @@ export default function TrainingPlanScreen() {
             </View>
 
             <View style={styles.slotList}>
-              {plan.slots.map((slot) => {
+              {plan.slots.map((slot, i) => {
                 const label =
                   slot.label ??
                   (plan.plan.plan_type === 'weekly' && slot.day_of_week != null
                     ? (DAY_LABELS[slot.day_of_week] ?? '')
                     : `Day ${(slot.cycle_position ?? 0) + 1}`);
                 const templateName = slot.template_id
-                  ? (plan.templates.get(slot.template_id)?.name ?? '—')
-                  : null;
+                  ? (plan.templates.get(slot.template_id)?.name ?? 'No template')
+                  : 'No template';
                 return (
-                  <Plate key={slot.id} border="soft" offset="none" faceStyle={styles.slotFace}>
-                    <Text variant="label" color={theme.color.inkTertiary} style={styles.slotDay}>
-                      {label}
-                    </Text>
+                  <FadeInView key={slot.id} delay={staggerDelay(i)}>
                     {slot.is_rest_day ? (
-                      <Text variant="body" color={theme.color.inkSecondary} style={styles.slotRest}>
-                        Rest
-                      </Text>
+                      // Rest is the quiet state: ghost text, no fill, no border.
+                      <View style={styles.restRow}>
+                        <Text
+                          variant="strip"
+                          color={theme.color.inkTertiary}
+                          style={styles.slotDay}
+                        >
+                          {label}
+                        </Text>
+                        <Text
+                          variant="body"
+                          color={theme.color.inkTertiary}
+                          style={styles.slotBody}
+                        >
+                          Rest
+                        </Text>
+                      </View>
                     ) : (
-                      <Text variant="card" color={theme.color.ink} style={styles.slotTemplate}>
-                        {templateName}
-                      </Text>
+                      // Training days carry the emphasis: inverted plates. The
+                      // strip keeps the panel ink at 0.65 (inverted exception).
+                      <Plate tone="inverted" faceStyle={styles.slotFace}>
+                        <Text
+                          variant="strip"
+                          color={invertedInk}
+                          style={[styles.slotDay, styles.slotDaySoft]}
+                        >
+                          {label}
+                        </Text>
+                        <Text variant="card" color={invertedInk} style={styles.slotBody}>
+                          {templateName}
+                        </Text>
+                      </Plate>
                     )}
-                  </Plate>
+                  </FadeInView>
                 );
               })}
             </View>
@@ -122,15 +137,17 @@ const makeStyles = (theme: Theme) =>
       gap: theme.space.s3,
       minHeight: theme.touch.min,
     },
-    slotDay: { width: 60 },
-    slotTemplate: { flex: 1 },
-    slotRest: { flex: 1, fontStyle: 'italic' },
-    emptyFace: {
-      padding: theme.space.s8,
+    restRow: {
+      flexDirection: 'row',
       alignItems: 'center',
+      paddingHorizontal: theme.space.s4,
+      paddingVertical: theme.space.s2,
       gap: theme.space.s3,
+      minHeight: theme.touch.min,
     },
-    emptyTitle: { textAlign: 'center' },
-    emptyBody: { textAlign: 'center' },
-    emptyCta: { marginTop: theme.space.s3, alignSelf: 'stretch' },
+    // Day labels are metadata: the strip variant carries the treatment.
+    slotDay: { width: 64 },
+    slotDaySoft: { opacity: 0.65 },
+    slotBody: { flex: 1 },
+    emptyWrap: { marginTop: theme.space.s8 },
   });

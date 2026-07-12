@@ -16,6 +16,16 @@ import { dayOfWeek } from '@/lib/dayOfWeek';
 
 import { queryKeys } from './keys';
 
+/**
+ * Lazy import (db/client.ts precedent): errorReporting pulls in
+ * expo-constants, which must not sit on the jest/node import path.
+ */
+function reportError(err: unknown, context: Record<string, unknown>): void {
+  void import('@/lib/errorReporting').then(({ captureException }) =>
+    captureException(err, context),
+  );
+}
+
 export async function getActiveWorkout(userId: string): Promise<Workout | null> {
   const db = await getDb();
   return db.getFirstAsync<Workout>(
@@ -102,8 +112,10 @@ export async function finishWorkout(workoutId: string, userId?: string): Promise
   if (userId) {
     try {
       await recordWorkoutPRs(userId, workoutId);
-    } catch {
-      // swallow — finishing the workout is the critical path
+    } catch (err) {
+      // Finishing the workout is the critical path; a PR-detection failure
+      // must not block it, but it must not vanish either (backlog 4.3).
+      reportError(err, { workoutId, stage: 'recordWorkoutPRs' });
     }
   }
   emitMutationCommitted();
@@ -158,12 +170,18 @@ export async function deleteWorkoutLocal(workoutId: string): Promise<void> {
   emitMutationCommitted();
 }
 
+// Toasts never carry raw err.message (backlog 8.5): internals like "fetch
+// failed: hostname could not be found" are meaningless to the user. Friendly
+// copy goes to the toast; the real error goes to error reporting.
 export function useCreateWorkout(onError?: (msg: string) => void) {
   const qc = useQueryClient();
   return useMutation({
     mutationFn: createWorkout,
     onSuccess: () => qc.invalidateQueries({ queryKey: queryKeys.workouts.all }),
-    onError: (err) => onError?.(err instanceof Error ? err.message : 'Failed to create workout'),
+    onError: (err) => {
+      reportError(err, { mutation: 'createWorkout' });
+      onError?.('Could not start the workout. Please try again.');
+    },
   });
 }
 
@@ -178,7 +196,10 @@ export function useFinishWorkout(userId: string | undefined, onError?: (msg: str
         qc.invalidateQueries({ queryKey: queryKeys.personalRecords(userId) });
       }
     },
-    onError: (err) => onError?.(err instanceof Error ? err.message : 'Failed to finish workout'),
+    onError: (err) => {
+      reportError(err, { mutation: 'finishWorkout' });
+      onError?.('Could not finish the workout. Please try again.');
+    },
   });
 }
 
@@ -188,6 +209,9 @@ export function useUpdateWorkoutTitle(onError?: (msg: string) => void) {
     mutationFn: (args: { workoutId: string; title: string }) =>
       updateWorkoutTitle(args.workoutId, args.title),
     onSuccess: () => qc.invalidateQueries({ queryKey: queryKeys.workouts.all }),
-    onError: (err) => onError?.(err instanceof Error ? err.message : 'Failed to rename workout'),
+    onError: (err) => {
+      reportError(err, { mutation: 'updateWorkoutTitle' });
+      onError?.('Could not rename the workout. Please try again.');
+    },
   });
 }

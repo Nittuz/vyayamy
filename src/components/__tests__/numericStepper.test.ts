@@ -41,7 +41,7 @@ describe('clampValue', () => {
 
 describe('formatValue', () => {
   test('returns en-dash for null', () => {
-    expect(formatValue(null)).toBe('–');
+    expect(formatValue(null)).toBe('-');
   });
   test('returns integer without decimal', () => {
     expect(formatValue(185)).toBe('185');

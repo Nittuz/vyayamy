@@ -91,7 +91,7 @@ export function SyncDiagnosticsSheet({ visible, onClose, onOpenQuarantine }: Pro
           <Row k="Quarantined" v={String(quarantinedCount)} theme={theme} mono />
           {preview.length > 0 ? (
             <View style={styles.previewBlock}>
-              <Text variant="label" color={theme.color.inkTertiary}>
+              <Text variant="strip" color={theme.color.inkTertiary}>
                 MOST RECENT
               </Text>
               {preview.map((row) => (
@@ -139,7 +139,8 @@ function Section({
   const styles = useMemo(() => makeStyles(theme), [theme]);
   return (
     <View style={styles.section}>
-      <Text variant="label" color={theme.color.inkTertiary} style={styles.sectionLabel}>
+      {/* Mono diagnostics headers, not tracked eyebrows (eyebrow budget: 0 here). */}
+      <Text variant="strip" color={theme.color.inkTertiary} style={styles.sectionLabel}>
         {label}
       </Text>
       {children}
@@ -167,7 +168,7 @@ const makeStyles = (theme: Theme) =>
     content: { maxHeight: 380 },
     section: {
       paddingVertical: theme.space.s3,
-      borderTopWidth: theme.depth.rule,
+      borderTopWidth: theme.depth.hairline,
       borderTopColor: theme.color.border,
     },
     sectionLabel: { marginBottom: theme.space.s2 },

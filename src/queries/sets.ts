@@ -94,13 +94,24 @@ export async function deleteSet(setId: string): Promise<void> {
   emitMutationCommitted();
 }
 
+// Lazy import keeps expo-constants (ESM) off the jest module graph — same
+// idiom as plans.ts / exercises.ts / db/client.ts.
+function reportMutationError(err: unknown, mutation: string): void {
+  void import('@/lib/errorReporting').then(({ captureException }) =>
+    captureException(err, { mutation }),
+  );
+}
+
 export function useAddSet(onError?: (msg: string) => void) {
   const qc = useQueryClient();
   return useMutation({
     mutationFn: (args: { weId: string; weight?: number | null; reps?: number | null }) =>
       addSet(args.weId, args),
     onSuccess: (_id, vars) => invalidateSetWrite(qc, vars.weId),
-    onError: (err) => onError?.(err instanceof Error ? err.message : 'Failed to add set'),
+    onError: (err) => {
+      reportMutationError(err, 'addSet');
+      onError?.("Couldn't add the set. Try again.");
+    },
   });
 }
 
@@ -134,7 +145,8 @@ export function useUpdateSet(onError?: (msg: string) => void) {
     },
     onError: (err, vars, ctx) => {
       if (ctx?.prev) qc.setQueryData(queryKeys.sets.byWorkoutExercise(vars.weId), ctx.prev);
-      onError?.(err instanceof Error ? err.message : 'Failed to update set');
+      reportMutationError(err, 'updateSet');
+      onError?.("Couldn't save the set. Try again.");
     },
     onSettled: (_r, _err, vars) => invalidateSetWrite(qc, vars.weId),
   });
@@ -145,6 +157,9 @@ export function useDeleteSet(onError?: (msg: string) => void) {
   return useMutation({
     mutationFn: (args: { setId: string; weId: string }) => deleteSet(args.setId),
     onSuccess: (_r, vars) => invalidateSetWrite(qc, vars.weId),
-    onError: (err) => onError?.(err instanceof Error ? err.message : 'Failed to delete set'),
+    onError: (err) => {
+      reportMutationError(err, 'deleteSet');
+      onError?.("Couldn't delete the set. Try again.");
+    },
   });
 }

@@ -4,6 +4,7 @@
  * being lifted), compute the next cursor on completion. Returns null
  * when the workout is finished (last set of last exercise).
  */
+import { dayOfWeek } from '@/lib/dayOfWeek';
 
 export interface SetShape {
   id: string;
@@ -174,6 +175,42 @@ export function findPrevExercise(
 /** First not-yet-completed set of an exercise, or null if all are done. */
 export function firstIncompleteSet(ex: ExerciseShape): SetShape | null {
   return ex.sets.find((s) => !s.completed) ?? null;
+}
+
+/**
+ * Header-title fallback for the active workout. Uses the day the workout
+ * STARTED, never the current day — a session that crosses midnight must keep
+ * reading "Saturday", not silently become "Sunday" (backlog 1.7 / #156).
+ * An unparseable started_at falls back to today rather than rendering nothing.
+ */
+export function workoutHeaderTitle(
+  title: string | null | undefined,
+  startedAt: string | number | Date | null | undefined,
+): string {
+  const trimmed = typeof title === 'string' ? title.trim() : '';
+  if (trimmed !== '') return trimmed;
+  if (startedAt != null) {
+    const d = new Date(startedAt);
+    if (!Number.isNaN(d.getTime())) return dayOfWeek(d);
+  }
+  return dayOfWeek(new Date());
+}
+
+/** Mono strip for the active card's position line: `EXERCISE 2/3 · SET 4`. */
+export function exerciseSetStrip(
+  exerciseIndex: number,
+  totalExercises: number,
+  setIndex: number,
+): string {
+  return `EXERCISE ${exerciseIndex}/${totalExercises} · SET ${setIndex}`;
+}
+
+/** Mono strip for a banked (ghost) set row: `SET 1 · 60 × 8`. */
+export function ghostSetStrip(
+  displayIndex: number,
+  set: Pick<SetShape, 'weight' | 'reps'>,
+): string {
+  return `SET ${displayIndex} · ${set.weight ?? '-'} × ${set.reps ?? '-'}`;
 }
 
 /** Identity + pre-filled values of the speculative set staged on completion. */

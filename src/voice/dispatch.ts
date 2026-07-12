@@ -45,7 +45,7 @@ export async function dispatchCommand(
       const setId = ctx.activeSetId;
       return {
         ok: true,
-        message: `${command.weight ?? prior?.weight ?? '—'} × ${command.reps ?? prior?.reps ?? '—'}`,
+        message: `${command.weight ?? prior?.weight ?? '-'} × ${command.reps ?? prior?.reps ?? '-'}`,
         undo: async () => {
           await updateSet(setId, {
             weight: prior?.weight ?? null,

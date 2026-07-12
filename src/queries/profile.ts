@@ -35,6 +35,15 @@ export async function updateProfile(
   emitMutationCommitted();
 }
 
+// Raw driver text stays out of the UI (backlog 8.5): callers get friendly
+// copy, Sentry gets the real error. Dynamic import keeps pure-TS jest suites
+// from loading expo-constants (db/client.ts precedent).
+function reportMutationError(err: unknown, mutation: string): void {
+  void import('@/lib/errorReporting').then(({ captureException }) =>
+    captureException(err, { mutation }),
+  );
+}
+
 export function useUpdateProfile(userId: string | undefined, onError?: (msg: string) => void) {
   const qc = useQueryClient();
   return useMutation({
@@ -45,6 +54,9 @@ export function useUpdateProfile(userId: string | undefined, onError?: (msg: str
     onSuccess: () => {
       if (userId) qc.invalidateQueries({ queryKey: queryKeys.profile(userId) });
     },
-    onError: (err) => onError?.(err instanceof Error ? err.message : 'Failed to update profile'),
+    onError: (err) => {
+      reportMutationError(err, 'updateProfile');
+      onError?.("Couldn't update your profile. Try again.");
+    },
   });
 }

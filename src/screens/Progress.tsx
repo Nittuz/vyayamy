@@ -14,6 +14,7 @@ import { ExercisePicker } from '@/components/ExercisePicker';
 import { useAuth } from '@/auth/useAuth';
 import { formatRelativeDate, formatShortDate } from '@/core/format';
 import { DEFAULT_UNITS } from '@/core/units';
+import { getKv, registerUserScopedKv, setKv } from '@/lib/kvStore';
 import { queryKeys } from '@/queries/keys';
 import { useProfile } from '@/queries/profile';
 import {
@@ -22,11 +23,15 @@ import {
   getBestSetVolumeHistory,
   recomputeAllPRs,
 } from '@/queries/personalRecords';
+import { EmptyState } from '@/ui/EmptyState';
 import { FadeInView } from '@/ui/FadeInView';
 import { Icon } from '@/ui/icons';
 import { LineChart, type ChartPoint } from '@/ui/LineChart';
+import { staggerDelay } from '@/ui/motion';
 import { Plate } from '@/ui/Plate';
+import { resolvePlateStyles } from '@/ui/plateStyles';
 import { Segment } from '@/ui/Segment';
+import { SettleSlam } from '@/ui/SettleSlam';
 import { SyncIndicator } from '@/ui/SyncIndicator';
 import { Text } from '@/ui/Text';
 import { useTheme, type Theme } from '@/ui/useTheme';
@@ -52,10 +57,26 @@ const METRICS: { key: MetricKey; label: string }[] = [
 
 const WEEK_MS = 7 * 24 * 60 * 60 * 1000;
 
-// Session guard: backfill PRs from existing history at most once per signed-in
-// user, the first time Progress is opened. PR detection was added after these
-// workouts were logged, so without this their records would never appear.
+// --- PR backfill guard (backlog 4.2 / #52) ---------------------------------
+// recomputeAllPRs backfills records for workouts logged before PR detection
+// shipped. That full-history scan is expensive, so it runs once per user on
+// this device EVER, not once per app session: a kvStore marker persists
+// completion, and the module variable is only the in-memory fast path. The key
+// is in the user-scoped registry so sign-out wipes it (the marker stores the
+// userId as a second guard). Bump PR_BACKFILL_SCHEMA when PR-detection logic
+// changes so existing histories re-backfill once.
+const PR_BACKFILL_KEY = '@flexyug/pr-backfill-done/v1';
+const PR_BACKFILL_SCHEMA = 1 as const;
+
+interface PrBackfillMarker {
+  schemaVersion: typeof PR_BACKFILL_SCHEMA;
+  userId: string;
+}
+
 let prBackfilledFor: string | null = null;
+registerUserScopedKv(PR_BACKFILL_KEY, () => {
+  prBackfilledFor = null;
+});
 
 export default function ProgressScreen() {
   const { user } = useAuth();
@@ -75,12 +96,20 @@ export default function ProgressScreen() {
 
   useEffect(() => {
     if (!userId || prBackfilledFor === userId) return;
+    // Claim before the async run so a remount mid-backfill can't double-fire.
     prBackfilledFor = userId;
-    void recomputeAllPRs(userId)
-      .then(() => qc.invalidateQueries({ queryKey: queryKeys.personalRecords(userId) }))
-      .catch(() => {
-        prBackfilledFor = null; // allow a retry on next mount if it failed
+    void (async () => {
+      const marker = await getKv<PrBackfillMarker>(PR_BACKFILL_KEY, PR_BACKFILL_SCHEMA);
+      if (marker?.userId === userId) return; // already backfilled on this device
+      await recomputeAllPRs(userId);
+      await setKv<PrBackfillMarker>(PR_BACKFILL_KEY, {
+        schemaVersion: PR_BACKFILL_SCHEMA,
+        userId,
       });
+      await qc.invalidateQueries({ queryKey: queryKeys.personalRecords(userId) });
+    })().catch(() => {
+      prBackfilledFor = null; // allow a retry on next mount if it failed
+    });
   }, [userId, qc]);
 
   const active = selectedExercise ?? prs?.[0]?.exerciseId ?? null;
@@ -90,7 +119,6 @@ export default function ProgressScreen() {
     '';
 
   const { width: windowWidth } = useWindowDimensions();
-  const screenW = windowWidth - theme.space.page * 2 - theme.space.s4 * 2;
 
   // Full series for the active exercise + selected metric. Range filtering and
   // PR-marker detection happen below, off this one fetch.
@@ -136,118 +164,123 @@ export default function ProgressScreen() {
     return out;
   }, [series]);
 
-  // Header numeral = current best in window; delta = latest vs first in window.
-  // Both metrics carry the same weight unit (volume is weight×reps in `units`).
-  const headline = useMemo(() => {
-    if (series.length === 0) return null;
-    const latest = series[series.length - 1]!.y;
-    const first = series[0]!.y;
-    const delta = Math.round((latest - first) * 10) / 10;
-    return { value: latest, delta, unit: units };
-  }, [series, units]);
-
-  const unitSuffix = ` ${units}`;
   const metricNoun = metric === 'volume' ? 'volume' : 'heaviest weight';
+
+  // Stat tiles read the all-time records straight off the PR cache.
+  const activeGroup = prs?.find((p) => p.exerciseId === active) ?? null;
+  const bestVolume = activeGroup?.records.find((r) => r.type === 'best_volume') ?? null;
+  const heaviest = activeGroup?.records.find((r) => r.type === 'heaviest_weight') ?? null;
+  const invertedInk = resolvePlateStyles(theme, { tone: 'inverted' }).ink;
 
   if (!userId) return null;
 
   return (
     <SafeAreaView style={styles.container}>
       <ScrollView contentContainerStyle={styles.scroll}>
-        <View style={styles.headerRow}>
-          <Text variant="display" color={theme.color.ink} style={styles.title}>
-            Progress
-          </Text>
+        {/* the screen's one display moment — tab headers are gone */}
+        <View style={[styles.pad, styles.headerRow]}>
+          <SettleSlam>
+            <Text variant="displayXL" color={theme.color.inkHero}>
+              Progress
+            </Text>
+          </SettleSlam>
           <SyncIndicator />
         </View>
 
         {isLoading ? (
           <ActivityIndicator style={{ marginTop: theme.space.s10 }} />
         ) : (prs?.length ?? 0) === 0 ? (
-          <Plate faceStyle={styles.emptyFace}>
-            <Text variant="card" color={theme.color.ink}>
-              No PRs yet
-            </Text>
-            <Text variant="meta" color={theme.color.inkSecondary} style={styles.emptyBody}>
-              Complete a few sets and your personal records will show up here.
-            </Text>
-          </Plate>
+          <View style={[styles.pad, styles.emptyWrap]}>
+            <EmptyState
+              title="No personal records yet."
+              hint="Complete a few sets and your personal records will show up here."
+            />
+          </View>
         ) : (
           <>
-            <Plate faceStyle={styles.chartFace}>
-              {/* exercise selector — ungated; any exercise with history charts */}
-              <Pressable
-                onPress={() => setPickerOpen(true)}
-                accessibilityRole="button"
-                accessibilityLabel={`Charted exercise: ${activeName || 'none'}. Tap to change.`}
-                style={({ pressed }) => [styles.exerciseSelect, pressed && styles.pressed]}
-              >
-                <Text variant="label" color={theme.color.inkTertiary}>
-                  Exercise
+            {/* exercise selector — carries the screen's one eyebrow */}
+            <Pressable
+              onPress={() => setPickerOpen(true)}
+              accessibilityRole="button"
+              accessibilityLabel={`Charted exercise: ${activeName || 'none'}. Tap to change.`}
+              style={({ pressed }) => [
+                styles.pad,
+                styles.exerciseSelect,
+                pressed && styles.pressed,
+              ]}
+            >
+              <Text variant="label" color={theme.color.inkTertiary}>
+                Exercise
+              </Text>
+              <View style={styles.exerciseSelectRow}>
+                <Text variant="title" color={theme.color.ink} numberOfLines={1} style={styles.flex}>
+                  {activeName || 'Select exercise'}
                 </Text>
-                <View style={styles.exerciseSelectRow}>
-                  <Text
-                    variant="title"
-                    color={theme.color.ink}
-                    numberOfLines={1}
-                    style={styles.flex}
-                  >
-                    {activeName || 'Select exercise'}
-                  </Text>
-                  <Icon name="chevron-down" size={18} color={theme.color.inkSecondary} />
-                </View>
-              </Pressable>
+                <Icon name="chevron-down" size={18} color={theme.color.inkSecondary} />
+              </View>
+            </Pressable>
 
-              {/* current best + delta over the visible window */}
-              <View style={styles.headlineRow}>
-                <Text variant="numeralLg" color={theme.color.inkHero}>
-                  {headline
-                    ? `${trim(headline.value)}${headline.unit ? ` ${headline.unit}` : ''}`
-                    : '—'}
-                </Text>
-                {headline ? (
-                  <Text
-                    variant="numeral"
-                    color={headline.delta > 0 ? theme.color.accent : theme.color.inkTertiary}
-                  >
-                    {headline.delta > 0
-                      ? `+${trim(headline.delta)} ${headline.unit}`
-                      : headline.delta < 0
-                        ? `${trim(headline.delta)} ${headline.unit}`
-                        : '—'}
-                  </Text>
+            {/* 2-col stat tiles: inverted panels, mono numerals, mono-caps
+                strip captions (panel ink at 0.65 — the inverted exception) */}
+            {bestVolume || heaviest ? (
+              <View style={[styles.pad, styles.tileRow]}>
+                {bestVolume ? (
+                  <Plate tone="inverted" style={styles.tile} faceStyle={styles.tileFace}>
+                    <Text variant="strip" color={invertedInk} style={styles.tileCaption}>
+                      Best volume
+                    </Text>
+                    <Text variant="numeralLg" color={invertedInk}>
+                      {bestVolume.displayValue} {units}
+                    </Text>
+                    <Text variant="strip" color={invertedInk} style={styles.tileCaption}>
+                      {formatRelativeDate(bestVolume.achievedAt)}
+                    </Text>
+                  </Plate>
+                ) : null}
+                {heaviest ? (
+                  <Plate tone="inverted" style={styles.tile} faceStyle={styles.tileFace}>
+                    <Text variant="strip" color={invertedInk} style={styles.tileCaption}>
+                      Heaviest
+                    </Text>
+                    <Text variant="numeralLg" color={invertedInk}>
+                      {heaviest.displayValue} {units}
+                    </Text>
+                    <Text variant="strip" color={invertedInk} style={styles.tileCaption}>
+                      {formatRelativeDate(heaviest.achievedAt)}
+                    </Text>
+                  </Plate>
                 ) : null}
               </View>
+            ) : null}
 
-              {/* scrub read-out replaces the metric caption while scrubbing */}
-              <Text variant="meta" color={theme.color.inkSecondary}>
-                {scrubbed
-                  ? `${formatShortDate(new Date(scrubbed.x).toISOString())} · ${trim(scrubbed.y)}${unitSuffix}`
-                  : `Best ${metricNoun} per session`}
-              </Text>
+            {/* scrub read-out replaces the metric caption while scrubbing */}
+            <Text variant="strip" color={theme.color.inkTertiary} style={styles.pad}>
+              {scrubbed
+                ? `${formatShortDate(new Date(scrubbed.x).toISOString())} · ${trim(scrubbed.y)} ${units}`
+                : `Best ${metricNoun} per session`}
+            </Text>
 
-              <LineChart
-                data={series}
-                width={screenW}
-                height={188}
-                unitSuffix={unitSuffix}
-                markers={markers}
-                onScrub={setScrubbed}
-                scrubX={scrubbed?.x ?? null}
-                xTickFormatter={(v) =>
-                  new Date(v).toLocaleDateString(undefined, { month: 'short', day: 'numeric' })
-                }
-              />
+            {/* full-bleed chart: volt line, ink PR rings, accentSoft fill */}
+            <LineChart
+              data={series}
+              width={windowWidth}
+              height={208}
+              markers={markers}
+              onScrub={setScrubbed}
+              scrubX={scrubbed?.x ?? null}
+              xTickFormatter={(v) =>
+                new Date(v).toLocaleDateString(undefined, { month: 'short', day: 'numeric' })
+              }
+            />
 
-              {/* range window control */}
+            {/* range + metric controls (Segment: inversion = selected) */}
+            <View style={[styles.pad, styles.controls]}>
               <Segment
                 size="sm"
                 options={RANGES.map((r) => ({ value: r.key, label: r.label }))}
                 value={range}
                 onChange={setRange}
               />
-
-              {/* metric control */}
               <Segment
                 size="sm"
                 options={METRICS.map((m) => ({ value: m.key, label: m.label }))}
@@ -257,45 +290,54 @@ export default function ProgressScreen() {
                   setScrubbed(null);
                 }}
               />
-            </Plate>
+            </View>
 
-            <View style={styles.section}>
-              <Text variant="label" color={theme.color.inkTertiary} style={styles.sectionTitle}>
-                Personal records
-              </Text>
+            <View style={[styles.pad, styles.section]}>
+              {/* The ONE section-header treatment: strip caps + hairline rule below. */}
+              <View style={styles.sectionHeader}>
+                <Text variant="strip" color={theme.color.inkTertiary}>
+                  Personal records
+                </Text>
+              </View>
               {(prs ?? []).map((g, i) => {
                 const isActive = g.exerciseId === active;
+                const rowInk = isActive ? invertedInk : theme.color.ink;
+                const rowMeta = isActive ? invertedInk : theme.color.inkTertiary;
                 return (
-                  <FadeInView key={g.exerciseId} delay={i * 40}>
+                  <FadeInView key={g.exerciseId} delay={staggerDelay(i)}>
                     <Plate
                       onPress={() => {
                         setSelectedExercise(g.exerciseId);
                         setSelectedExerciseName(g.exerciseName);
                         setScrubbed(null);
                       }}
-                      border={isActive ? 'strong' : 'soft'}
-                      tone={isActive ? 'surface2' : 'surface'}
+                      tone={isActive ? 'inverted' : 'panel'}
                       accessibilityRole="button"
                       accessibilityLabel={`${g.exerciseName} records. Tap to chart.`}
                       accessibilityState={{ selected: isActive }}
                       faceStyle={styles.prFace}
                     >
                       <View style={styles.flex}>
-                        <Text variant="card" color={theme.color.ink}>
+                        <Text variant="card" color={rowInk}>
                           {g.exerciseName}
                         </Text>
-                        <View style={styles.prMetaRow}>
-                          {g.records.map((r) => (
-                            <View key={r.id} style={styles.prBadge}>
-                              <Text variant="meta" color={theme.color.inkSecondary}>
-                                {PR_LABEL[r.type] ?? r.type}: {r.displayValue}
-                              </Text>
-                            </View>
-                          ))}
-                        </View>
+                        <Text
+                          variant="strip"
+                          color={rowMeta}
+                          numberOfLines={1}
+                          style={[styles.prStrip, isActive && styles.softInk]}
+                        >
+                          {g.records
+                            .map((r) => `${PR_LABEL[r.type] ?? r.type} ${r.displayValue}`)
+                            .join(' · ')}
+                        </Text>
                       </View>
-                      {g.hasRecent ? <View style={styles.recentDot} /> : null}
-                      <Text variant="meta" color={theme.color.inkTertiary}>
+                      {g.hasRecent ? (
+                        <View
+                          style={[styles.recentDot, isActive && { backgroundColor: invertedInk }]}
+                        />
+                      ) : null}
+                      <Text variant="strip" color={rowMeta} style={isActive && styles.softInk}>
                         {g.records[0] ? formatRelativeDate(g.records[0].achievedAt) : ''}
                       </Text>
                     </Plate>
@@ -336,27 +378,44 @@ function trim(n: number): string {
 const makeStyles = (theme: Theme) =>
   StyleSheet.create({
     container: { flex: 1, backgroundColor: theme.color.bg },
+    // Horizontal padding lives on each block (styles.pad) instead of the
+    // scroll container so the chart can run full-bleed between them.
     scroll: {
-      padding: theme.space.page,
+      paddingVertical: theme.space.page,
       gap: theme.space.s4,
       paddingBottom: theme.space.s12,
     },
-    headerRow: { flexDirection: 'row', alignItems: 'flex-end', gap: theme.space.s3 },
-    title: { flex: 1 },
+    pad: { paddingHorizontal: theme.space.page },
+    headerRow: {
+      flexDirection: 'row',
+      alignItems: 'flex-end',
+      justifyContent: 'space-between',
+      gap: theme.space.s3,
+    },
     flex: { flex: 1 },
     pressed: { opacity: 0.7 },
 
-    chartFace: { padding: theme.space.s4, gap: theme.space.s3 },
     exerciseSelect: {
       minHeight: theme.touch.min,
       justifyContent: 'center',
       gap: theme.space.half,
     },
     exerciseSelectRow: { flexDirection: 'row', alignItems: 'center', gap: theme.space.s2 },
-    headlineRow: { flexDirection: 'row', alignItems: 'baseline', gap: theme.space.s3 },
 
-    section: { gap: theme.space.s2 },
-    sectionTitle: { marginTop: theme.space.s2, marginBottom: theme.space.s1 },
+    tileRow: { flexDirection: 'row', gap: theme.space.s3 },
+    tile: { flex: 1 },
+    tileFace: { padding: theme.space.s4, gap: theme.space.s1 },
+    tileCaption: { opacity: 0.65 },
+
+    controls: { gap: theme.space.s2 },
+
+    section: { gap: theme.space.s2, marginTop: theme.space.s2 },
+    // The ONE section-header treatment: strip caps + a single hairline below.
+    sectionHeader: {
+      paddingBottom: theme.space.s3,
+      borderBottomWidth: theme.depth.hairline,
+      borderBottomColor: theme.color.border,
+    },
 
     prFace: {
       flexDirection: 'row',
@@ -364,27 +423,14 @@ const makeStyles = (theme: Theme) =>
       gap: theme.space.s3,
       padding: theme.space.s4,
     },
-    prMetaRow: {
-      flexDirection: 'row',
-      flexWrap: 'wrap',
-      gap: theme.space.s2,
-      marginTop: theme.space.s1,
-    },
-    prBadge: {
-      paddingVertical: theme.space.half,
-      paddingHorizontal: theme.space.s2,
-      borderRadius: theme.radius.sm,
-      backgroundColor: theme.color.bg,
-      borderWidth: theme.depth.rule,
-      borderColor: theme.color.border,
-    },
+    prStrip: { marginTop: theme.space.s1 },
     recentDot: {
       width: 7,
       height: 7,
       borderRadius: theme.radius.full,
       backgroundColor: theme.color.accent,
     },
+    softInk: { opacity: 0.65 },
 
-    emptyFace: { padding: theme.space.s8, gap: theme.space.s2, alignItems: 'center' },
-    emptyBody: { textAlign: 'center' },
+    emptyWrap: { marginTop: theme.space.s8 },
   });

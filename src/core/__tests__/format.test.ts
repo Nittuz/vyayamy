@@ -76,7 +76,7 @@ describe('formatRelativeDate', () => {
 
 describe('formatDuration', () => {
   test('returns em-dash when not ended', () => {
-    expect(formatDuration('2026-01-01T10:00:00.000Z', null)).toBe('—');
+    expect(formatDuration('2026-01-01T10:00:00.000Z', null)).toBe('-');
   });
 
   test('formats sub-hour durations as minutes', () => {
@@ -200,7 +200,7 @@ describe('getInitials', () => {
 
 describe('formatWeight', () => {
   test('returns em-dash for null weight', () => {
-    expect(formatWeight(null, 'kg')).toBe('—');
+    expect(formatWeight(null, 'kg')).toBe('-');
   });
 
   test('appends the unit', () => {

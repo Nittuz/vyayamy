@@ -18,9 +18,12 @@ import {
   firstIncompleteSet,
   planStagedSet,
   resolveCursor,
+  type SetShape,
   shouldConfirmLeavingSet,
+  workoutHeaderTitle,
 } from '@/components/activeSet';
 import { EditableTitle } from '@/components/EditableTitle';
+import { EditSetSheet } from '@/components/EditSetSheet';
 import { ExercisePicker } from '@/components/ExercisePicker';
 import { SessionVolumeBar, type BankSignal } from '@/components/SessionVolumeBar';
 import { SyncErrorStripe } from '@/components/SyncErrorStripe';
@@ -44,16 +47,16 @@ import {
 } from '@/queries/workouts';
 import { useWorkoutDetail } from '@/queries/workoutDetail';
 import { DEFAULT_UNITS, sumVolume } from '@/core/units';
-import { dayOfWeek } from '@/lib/dayOfWeek';
 import { effectiveRest, getOverrides } from '@/rest/overrides';
 import { RestOverrideSheet } from '@/rest/RestOverrideSheet';
 import { RestProgressBar } from '@/rest/RestProgressBar';
 import { useRestTimer } from '@/rest/useRestTimer';
 import { Button } from '@/ui/Button';
 import { ConfirmSheet } from '@/ui/ConfirmSheet';
+import { EmptyState } from '@/ui/EmptyState';
 import { haptics } from '@/ui/haptics';
-import { Icon } from '@/ui/icons';
 import { SessionRecap } from '@/ui/SessionRecap';
+import { SettleSlam } from '@/ui/SettleSlam';
 import { SyncIndicator } from '@/ui/SyncIndicator';
 import { Text } from '@/ui/Text';
 import { useSyncAwareErrorToast } from '@/ui/ToastContext';
@@ -102,6 +105,15 @@ export default function WorkoutActiveScreen() {
   // Confirm decisions go through the themed ConfirmSheet, never OS Alert.
   const [leaveConfirm, setLeaveConfirm] = useState<null | (() => void)>(null);
   const [discardConfirm, setDiscardConfirm] = useState(false);
+
+  // Banked-set editing (backlog 1.1): the target survives close so the sheet
+  // keeps its content through the exit animation.
+  const [editTarget, setEditTarget] = useState<{ set: SetShape; number: number } | null>(null);
+  const [editOpen, setEditOpen] = useState(false);
+  const onEditSet = useCallback((s: SetShape, displayIndex: number) => {
+    setEditTarget({ set: s, number: displayIndex });
+    setEditOpen(true);
+  }, []);
 
   useEffect(() => {
     void getOverrides().then(setOverridesState);
@@ -290,12 +302,16 @@ export default function WorkoutActiveScreen() {
   }, [cursor, currentExForRest, exercises, refreshDetail]);
 
   const onPrevExercise = useCallback(() => {
-    if (!cursor) return;
+    if (!cursor || !currentExForRest) return;
     const prevEx = findPrevExercise(exercises, cursor.weId);
     if (!prevEx) return;
+    // Same guard as next-exercise (#12 asymmetry): leaving a set the user
+    // actually entered warns in BOTH directions, not just forward.
+    const currentSet = findSet(currentExForRest, cursor.setId);
+    const needsConfirm = shouldConfirmLeavingSet(currentSet, autoStaged.current);
     // Mirror next-exercise: target prev's first INCOMPLETE set (not sets[0], which
     // may be completed and would make the cursor-reset effect bounce away, #13).
-    void (async () => {
+    const goBack = async () => {
       let setId = firstIncompleteSet(prevEx)?.id;
       if (!setId) {
         setId = await addSet(prevEx.id);
@@ -303,8 +319,13 @@ export default function WorkoutActiveScreen() {
       }
       setCursor({ weId: prevEx.id, setId });
       haptics.medium();
-    })();
-  }, [cursor, exercises, refreshDetail]);
+    };
+    if (!needsConfirm) {
+      void goBack();
+    } else {
+      setLeaveConfirm(() => () => void goBack());
+    }
+  }, [cursor, currentExForRest, exercises, refreshDetail]);
 
   // Hands-free voice session. Data commands route through the tested dispatch
   // layer; "done" reuses the screen's canonical completion (timer + auto-stage);
@@ -334,7 +355,8 @@ export default function WorkoutActiveScreen() {
     () => ({
       headerTitle: () => (
         <EditableTitle
-          value={(activeQuery.data?.title || dayOfWeek(new Date())).toString()}
+          // Fallback is the day the workout STARTED, never "today" (1.7/#156).
+          value={workoutHeaderTitle(activeQuery.data?.title, activeQuery.data?.started_at)}
           onCommit={(next) => {
             if (activeQuery.data) {
               updateTitle.mutate({ workoutId: activeQuery.data.id, title: next });
@@ -360,17 +382,23 @@ export default function WorkoutActiveScreen() {
   }
 
   if (!activeQuery.data || !detail.data) {
+    // Composed empty state (Blacktop spec): mark + one display line + one CTA —
+    // never copy floating in a void.
     return (
-      <SafeAreaView style={[styles.container, styles.center, { backgroundColor: theme.color.bg }]}>
-        <Text variant="body" color={theme.color.inkSecondary}>
-          No active workout.
-        </Text>
-        <Button
-          label="Back to Today"
-          kind="ghost"
-          size="row"
-          onPress={() => router.replace('/today')}
-          accessibilityLabel="Back to today"
+      <SafeAreaView
+        style={[
+          styles.container,
+          styles.center,
+          { backgroundColor: theme.color.bg, paddingHorizontal: theme.space.page },
+        ]}
+      >
+        <EmptyState
+          title="No active workout."
+          cta={{
+            label: 'Back to Today',
+            kind: 'secondary',
+            onPress: () => router.replace('/today'),
+          }}
         />
       </SafeAreaView>
     );
@@ -387,19 +415,19 @@ export default function WorkoutActiveScreen() {
             { flex: 1, gap: theme.space.s4, paddingHorizontal: theme.space.page },
           ]}
         >
-          <Text variant="body" color={theme.color.inkSecondary} style={styles.centerText}>
-            Add your first exercise to begin.
-          </Text>
-          <Button
-            label="Add exercise"
-            icon="plus"
-            size="cta"
-            onPress={() => setPickerOpen(true)}
-            accessibilityLabel="Add your first exercise"
-            style={styles.fullBtn}
+          <EmptyState
+            title="No exercises yet."
+            hint="Add your first exercise to begin."
+            cta={{
+              label: 'Add exercise',
+              kind: 'secondary',
+              icon: 'plus',
+              onPress: () => setPickerOpen(true),
+              accessibilityLabel: 'Add your first exercise',
+            }}
           />
-          {/* Escape hatch: an exercise-less workout could otherwise be neither
-              finished nor discarded, stranding the user (#18). */}
+          {/* Escape hatch (ghost secondary): an exercise-less workout could
+              otherwise be neither finished nor discarded, stranding the user (#18). */}
           <Button
             label="Discard workout"
             kind="ghost"
@@ -438,9 +466,11 @@ export default function WorkoutActiveScreen() {
             { flex: 1, gap: theme.space.s6, paddingHorizontal: theme.space.page },
           ]}
         >
-          <Text variant="display" color={theme.color.inkHero} style={styles.centerText}>
-            Workout complete
-          </Text>
+          <SettleSlam>
+            <Text variant="display" color={theme.color.inkHero} style={styles.centerText}>
+              Workout complete
+            </Text>
+          </SettleSlam>
           <SessionRecap
             volume={totalVolume(exercises, units)}
             setCount={totalSetsCompleted(exercises)}
@@ -529,6 +559,7 @@ export default function WorkoutActiveScreen() {
           onChangeWeight={onChangeWeight}
           onChangeReps={onChangeReps}
           onComplete={onComplete}
+          onEditSet={onEditSet}
           voice={{
             phase: voice.ui.phase,
             partial: voice.ui.phase === 'listening' ? voice.ui.partial : undefined,
@@ -566,10 +597,12 @@ export default function WorkoutActiveScreen() {
           accessibilityLabel="Add exercise to workout"
         />
       </ScrollView>
-      {/* Primary progression control in the thumb zone, not the top header (#1.5). */}
+      {/* Primary progression control in the thumb zone, not the top header (#1.5).
+          Volt is reserved for the finish CTA; mid-workout progression is a panel. */}
       <View style={styles.bottomBar}>
         <Button
           label={hasNextExercise ? 'Next exercise' : 'Finish workout'}
+          kind={hasNextExercise ? 'secondary' : 'primary'}
           size="cta"
           icon="arrow-right"
           onPress={onNextExercise}
@@ -592,6 +625,21 @@ export default function WorkoutActiveScreen() {
           currentOverride={overrides[currentEx.exerciseId] ?? null}
           onClose={() => setOverrideSheetOpen(false)}
           onChanged={() => void reloadOverrides()}
+        />
+      ) : null}
+      {editTarget ? (
+        <EditSetSheet
+          visible={editOpen}
+          set={editTarget.set}
+          setNumber={editTarget.number}
+          exerciseName={currentEx.exerciseName}
+          exerciseId={currentEx.exerciseId}
+          userId={userId}
+          units={units}
+          weightStep={weightStep}
+          weightUnit={weightUnit}
+          onClose={() => setEditOpen(false)}
+          onError={toastError}
         />
       ) : null}
       <ConfirmSheet

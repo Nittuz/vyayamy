@@ -88,11 +88,12 @@ export function RestOverrideSheet({
         {PRESETS.map((preset) => {
           const isSelected = selected === preset && customText.trim() === '';
           return (
+            // Selection is inversion, never volt: chalk-on-black chip when
+            // current, ghost + hairline when available (Blacktop semantics).
             <Plate
               key={preset}
-              offset="none"
-              tone={isSelected ? 'accent' : 'surface'}
-              border="strong"
+              tone={isSelected ? 'inverted' : 'ghost'}
+              border={isSelected ? 'none' : 'soft'}
               radius="sm"
               onPress={() => {
                 haptics.light();
@@ -102,7 +103,8 @@ export function RestOverrideSheet({
               accessibilityState={{ selected: isSelected }}
               faceStyle={styles.chipFace}
             >
-              <Text variant="numeral" color={isSelected ? theme.color.onAccent : theme.color.ink}>
+              {/* One chip idiom: card label (matches TemplatePill). */}
+              <Text variant="card" color={isSelected ? theme.color.bg : theme.color.ink}>
                 {preset}s
               </Text>
             </Plate>
@@ -110,8 +112,8 @@ export function RestOverrideSheet({
         })}
       </ScrollView>
       <View style={styles.customRow}>
-        <Text variant="label" color={theme.color.inkTertiary}>
-          CUSTOM
+        <Text variant="strip" color={theme.color.inkTertiary}>
+          Custom
         </Text>
         <TextInput
           value={customText}
@@ -148,7 +150,7 @@ const makeStyles = (theme: Theme) =>
       flex: 1,
       height: theme.touch.min,
       backgroundColor: theme.color.bg,
-      borderWidth: theme.depth.rule,
+      borderWidth: theme.depth.hairline,
       borderColor: theme.color.border,
       borderRadius: theme.radius.sm,
       paddingHorizontal: theme.space.s3,

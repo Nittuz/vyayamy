@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import {
   type AccessibilityActionEvent,
+  AccessibilityInfo,
   Dimensions,
   Pressable,
   StyleSheet,
@@ -21,7 +22,7 @@ import { motion } from '@/ui/motion';
 import { Text } from '@/ui/Text';
 import { useTheme, type Theme } from '@/ui/useTheme';
 
-import type { ExerciseShape, SetShape } from './activeSet';
+import { exerciseSetStrip, ghostSetStrip, type ExerciseShape, type SetShape } from './activeSet';
 
 /** Live voice state for the inline-morph display. `idle` renders nothing extra. */
 export interface VoiceCardState {
@@ -42,6 +43,8 @@ interface Props {
   onChangeWeight: (next: number | null) => void;
   onChangeReps: (next: number | null) => void;
   onComplete: () => void;
+  /** Tapping a banked ghost set opens the set editor (backlog 1.1). */
+  onEditSet?: (set: SetShape, displayIndex: number) => void;
   voice?: VoiceCardState;
 }
 
@@ -61,6 +64,7 @@ export function ActiveSetCard({
   onChangeWeight,
   onChangeReps,
   onComplete,
+  onEditSet,
   voice,
 }: Props) {
   const theme = useTheme();
@@ -76,12 +80,31 @@ export function ActiveSetCard({
   const screenHeight = Dimensions.get('window').height;
   const entryY = useSharedValue(screenHeight);
 
+  // Mount-read reduced-motion gate (FadeInView precedent): hold the entry
+  // until the async read RESOLVES, then either spring in or land settled
+  // instantly. (A ref read synchronously in the same-mount effect always saw
+  // the pre-read `false`, so the gate never suppressed the spring.)
+  const [reduceMotion, setReduceMotion] = useState<boolean | null>(null);
   useEffect(() => {
-    entryY.value = withSpring(0, motion.spring.settle);
+    let active = true;
+    AccessibilityInfo.isReduceMotionEnabled()
+      .then((r) => {
+        if (active) setReduceMotion(r);
+      })
+      .catch(() => {
+        if (active) setReduceMotion(false);
+      });
+    return () => {
+      active = false;
+    };
+  }, []);
+
+  useEffect(() => {
+    if (reduceMotion === null) return; // wait for the mount read
+    entryY.value = reduceMotion ? 0 : withSpring(0, motion.spring.settle);
     // Reset translateY whenever a new set mounts
     translateY.value = 0;
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [set.id]);
+  }, [reduceMotion, set.id, entryY, translateY]);
 
   const fireThresholdHaptic = useCallback(() => {
     haptics.rigid();
@@ -143,15 +166,12 @@ export function ActiveSetCard({
         accessibilityActions={canComplete ? COMPLETE_ACTION : undefined}
         onAccessibilityAction={onAccessibilityAction}
       >
-        <Text variant="label" color={theme.color.inkTertiary}>
-          Exercise {exerciseIndex} of {totalExercises}
+        {/* Position line as a mono strip — the metadata treatment, not an eyebrow. */}
+        <Text variant="strip" color={theme.color.inkTertiary}>
+          {exerciseSetStrip(exerciseIndex, totalExercises, setIndex)}
         </Text>
         <Text variant="title" color={theme.color.inkHero} style={styles.exerciseName}>
           {exercise.exerciseName}
-        </Text>
-
-        <Text variant="label" color={theme.color.inkTertiary}>
-          Set {setIndex}
         </Text>
 
         <Pressable
@@ -198,21 +218,22 @@ export function ActiveSetCard({
         {ghostSets.length > 0 ? (
           <View style={styles.ghostList}>
             {ghostSets.map((g, i) => (
-              <View
+              // Banked sets are mono strips; tapping one opens the set editor
+              // (backlog 1.1). Row height ≥44pt keeps the target honest.
+              <Pressable
                 key={g.id}
                 style={styles.ghostRow}
+                disabled={!onEditSet}
+                onPress={onEditSet ? () => onEditSet(g, i + 1) : undefined}
+                accessibilityRole="button"
                 accessibilityLabel={`Set ${i + 1}, ${g.weight ?? 'no weight'} by ${g.reps ?? 'no reps'} reps, completed`}
+                accessibilityHint={onEditSet ? 'Opens the set editor' : undefined}
               >
-                <View style={styles.ghostLeft}>
-                  <Text variant="label" color={theme.color.inkTertiary}>
-                    Set {i + 1}
-                  </Text>
-                  <Text variant="numeral" color={theme.color.inkSecondary}>
-                    {g.weight ?? '–'} × {g.reps ?? '–'}
-                  </Text>
-                </View>
-                <Icon name="check" size={16} color={theme.color.accent} />
-              </View>
+                <Text variant="strip" color={theme.color.inkTertiary}>
+                  {ghostSetStrip(i + 1, g)}
+                </Text>
+                <Icon name="check" size={14} color={theme.color.inkTertiary} />
+              </Pressable>
             ))}
           </View>
         ) : null}
@@ -225,7 +246,7 @@ export function ActiveSetCard({
                 voice.phase === 'error'
                   ? theme.color.danger
                   : voice.phase === 'applied'
-                    ? theme.color.accent
+                    ? theme.color.ink
                     : theme.color.inkSecondary
               }
               style={styles.voiceText}
@@ -263,9 +284,10 @@ const makeStyles = (theme: Theme) =>
       marginHorizontal: theme.space.s4,
       marginTop: theme.space.s3,
       borderRadius: theme.radius.card,
-      borderWidth: theme.depth.rule,
-      backgroundColor: theme.color.surface2,
-      borderColor: theme.color.borderStrong,
+      // Panel materiality: flat surface + 1.5px hairline (slab depth retired).
+      borderWidth: theme.depth.hairline,
+      backgroundColor: theme.color.surface,
+      borderColor: theme.color.border,
     },
     exerciseName: { marginBottom: theme.space.s4 },
     heroRow: {
@@ -278,18 +300,17 @@ const makeStyles = (theme: Theme) =>
       opacity: 0.4,
     },
     ghostList: {
-      gap: theme.space.s2,
       marginTop: theme.space.s4,
-      paddingTop: theme.space.s4,
-      borderTopWidth: theme.depth.rule,
+      paddingTop: theme.space.s2,
+      borderTopWidth: theme.depth.hairline,
       borderTopColor: theme.color.border,
     },
     ghostRow: {
       flexDirection: 'row',
       justifyContent: 'space-between',
       alignItems: 'center',
+      minHeight: theme.touch.min,
     },
-    ghostLeft: { flexDirection: 'row', alignItems: 'baseline', gap: theme.space.s3 },
     swipeHintRow: { marginTop: theme.space.s6, alignItems: 'center' },
     voiceRow: { marginTop: theme.space.s4, alignItems: 'center' },
     voiceText: { fontStyle: 'italic' },

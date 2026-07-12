@@ -14,6 +14,17 @@ export interface HistoryRow extends Workout {
 
 const PAGE_SIZE = 30;
 
+/**
+ * #155 (backlog 1.8): `started_at` is the canonical day a workout belongs to.
+ * An 11pm session belongs to the day you walked in, even if it ended after
+ * midnight. Every surface that groups, ages, or buckets workouts by day must
+ * anchor on this helper (History grouping does; the query below orders by the
+ * same instant). Do not date-attribute from `ended_at`.
+ */
+export function workoutDayAnchor(workout: Pick<Workout, 'started_at'>): string {
+  return workout.started_at;
+}
+
 export async function getHistory(userId: string, limit = 50, offset = 0): Promise<HistoryRow[]> {
   const db = await getDb();
   return db.getAllAsync<HistoryRow>(

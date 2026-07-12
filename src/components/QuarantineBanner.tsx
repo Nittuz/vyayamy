@@ -11,16 +11,22 @@ interface Props {
   onPress: () => void;
 }
 
+/**
+ * Stuck-sync attention strip. Danger is spoken quietly in Blacktop: a panel
+ * with a danger hairline and danger text, never a filled slab. The same
+ * quiet-danger treatment and copy register as Today's sync-trouble row
+ * ("N changes waiting to sync · Details").
+ */
 export function QuarantineBanner({ staleCount, onPress }: Props) {
   const theme = useTheme();
   const styles = useMemo(() => makeStyles(theme), [theme]);
   if (staleCount === 0) return null;
-  const label = staleCount === 1 ? "1 item didn't sync" : `${staleCount} items didn't sync`;
+  const label = staleCount === 1 ? '1 item in quarantine' : `${staleCount} items in quarantine`;
 
   return (
     <Plate
-      tone="danger"
-      offset="sm"
+      tone="panel"
+      border="soft"
       onPress={() => {
         haptics.light();
         onPress();
@@ -30,8 +36,8 @@ export function QuarantineBanner({ staleCount, onPress }: Props) {
       style={styles.banner}
       faceStyle={styles.face}
     >
-      <Text variant="meta" color={theme.color.onAccent}>
-        {label} · Tap to review
+      <Text variant="meta" color={theme.color.danger}>
+        {label} · Review
       </Text>
     </Plate>
   );
@@ -40,5 +46,12 @@ export function QuarantineBanner({ staleCount, onPress }: Props) {
 const makeStyles = (theme: Theme) =>
   StyleSheet.create({
     banner: { marginHorizontal: theme.space.s4, marginTop: theme.space.s3 },
-    face: { paddingVertical: theme.space.s3, paddingHorizontal: theme.space.s4 },
+    face: {
+      paddingVertical: theme.space.s3,
+      paddingHorizontal: theme.space.s4,
+      minHeight: theme.touch.min,
+      justifyContent: 'center',
+      // border="soft" supplies the hairline weight; danger recolors it.
+      borderColor: theme.color.danger,
+    },
   });
