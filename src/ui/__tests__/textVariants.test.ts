@@ -64,6 +64,20 @@ test('line boxes never dip below the font size (iOS clips tall glyphs sub-1)', (
   }
 });
 
+test('display line boxes clear Anton cap tops (iOS baselines at lineHeight − descent)', () => {
+  // On iOS, TextKit under a forced lineHeight puts the baseline at
+  // lineHeight − descent, so everything above (lineHeight − descent) is
+  // clipped off the first line. Anton (unitsPerEm 2048) reaches yMax 1776
+  // on round caps (O G S Q 0) and descends 674, so the line box must be at
+  // least (1776 + 674) / 2048 ≈ 1.1963 em — measured from the TTF, and
+  // verified against an 11px top slice on device at 1.1.
+  const ANTON_MIN_LINE_BOX = (1776 + 674) / 2048;
+  for (const variant of ['display', 'displayXL', 'displayXXL'] as const) {
+    const style = resolveTextStyle(variant);
+    expect(style.lineHeight!).toBeGreaterThanOrEqual(style.fontSize! * ANTON_MIN_LINE_BOX);
+  }
+});
+
 test('display-class variants cap Dynamic Type scaling; body-class scales freely', () => {
   expect(resolveMaxFontSizeMultiplier('hero')).toBe(1.2);
   expect(resolveMaxFontSizeMultiplier('display')).toBe(1.2);

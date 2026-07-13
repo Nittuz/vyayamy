@@ -64,11 +64,15 @@ export const lineHeightMul = {
   // and equally the condensed Anton display caps. Horizontal tightness comes
   // from tracking, never from the line box.
   hero: 1.2,
-  // 1.05 clipped Anton's ascender overshoot at displayXL on device (verified
-  // on simulator: PROGRESS glyph tops sliced flat). 1.1 clears both sizes.
-  displayXXL: 1.1,
-  displayXL: 1.1,
-  display: 1.1,
+  // iOS baselines a forced line box at (lineHeight − descent), clipping the
+  // first line above that. Anton's round caps (O G S Q 0) reach 1776/2048 em
+  // and its descent is 674/2048, so the box must be ≥ (1776+674)/2048 ≈
+  // 1.1963 em. 1.05 and 1.1 both sliced cap tops flat on device (11px at
+  // displayXL); 1.2 is the smallest clean value that clears the TTF metrics
+  // at all three sizes after Math.round (guarded by textVariants.test.ts).
+  displayXXL: 1.2,
+  displayXL: 1.2,
+  display: 1.2,
   title: 1.2,
   body: 1.4,
   meta: 1.6,
