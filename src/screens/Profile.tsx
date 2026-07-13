@@ -30,12 +30,12 @@ const REST_ALERT_COPY: Record<RestAlertStatus, { value: string; hint: string; a1
   {
     granted: {
       value: 'ON',
-      hint: 'Alerts fire when rest ends. Manage in Settings.',
+      hint: 'You’ll get an alert when rest ends. Manage in Settings.',
       a11yHint: 'Opens system notification settings',
     },
     provisional: {
       value: 'MUTED',
-      hint: 'Delivered silently. Tap for full alerts.',
+      hint: 'Alerts arrive quietly, without sound. Tap for full alerts.',
       a11yHint: 'Asks for notification permission',
     },
     undetermined: {

@@ -413,8 +413,10 @@ function PresetPicker({
         Pick a template plan to start from, or scroll down to build your own.
       </Text>
 
-      {generic.length > 0 ? <PresetGroup title="Generic" items={generic} onPick={onPick} /> : null}
-      {programs.length > 0 ? <PresetGroup title="Plans" items={programs} onPick={onPick} /> : null}
+      {generic.length > 0 ? <PresetGroup title="Splits" items={generic} onPick={onPick} /> : null}
+      {programs.length > 0 ? (
+        <PresetGroup title="Programs" items={programs} onPick={onPick} />
+      ) : null}
     </View>
   );
 }

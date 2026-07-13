@@ -646,7 +646,7 @@ export default function WorkoutActiveScreen() {
         visible={!!leaveConfirm}
         onClose={() => setLeaveConfirm(null)}
         title="Leave this set?"
-        message="It has values but isn’t completed. Swipe up to log it, or leave it."
+        message="You’ve entered weight or reps but haven’t logged this set. Swipe up to log it, or leave it."
         confirmLabel="Leave"
         destructive
         onConfirm={() => leaveConfirm?.()}

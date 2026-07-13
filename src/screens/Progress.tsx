@@ -164,7 +164,8 @@ export default function ProgressScreen() {
     return out;
   }, [series]);
 
-  const metricNoun = metric === 'volume' ? 'volume' : 'heaviest weight';
+  const chartCaption =
+    metric === 'volume' ? 'Best volume per session' : 'Heaviest weight per session';
 
   // Stat tiles read the all-time records straight off the PR cache.
   const activeGroup = prs?.find((p) => p.exerciseId === active) ?? null;
@@ -257,7 +258,7 @@ export default function ProgressScreen() {
             <Text variant="strip" color={theme.color.inkTertiary} style={styles.pad}>
               {scrubbed
                 ? `${formatShortDate(new Date(scrubbed.x).toISOString())} · ${trim(scrubbed.y)} ${units}`
-                : `Best ${metricNoun} per session`}
+                : chartCaption}
             </Text>
 
             {/* full-bleed chart: volt line, ink PR rings, accentSoft fill */}

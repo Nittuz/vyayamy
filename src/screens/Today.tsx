@@ -212,7 +212,7 @@ export default function TodayScreen() {
                 numberOfLines={1}
                 adjustsFontSizeToFit
               >
-                In
+                Back to
               </Text>
               <Text
                 variant="displayXXL"
@@ -220,7 +220,7 @@ export default function TodayScreen() {
                 numberOfLines={1}
                 adjustsFontSizeToFit
               >
-                Progress.
+                Work.
               </Text>
             </>
           ) : (

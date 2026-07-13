@@ -95,7 +95,7 @@ export async function dispatchCommand(
       };
     }
     default:
-      return { ok: false, message: 'Not a data command' };
+      return { ok: false, message: 'Didn’t catch that' };
   }
 }
 

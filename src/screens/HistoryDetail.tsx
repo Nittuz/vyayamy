@@ -56,7 +56,7 @@ export default function HistoryDetailScreen() {
           <FadeInView key={we.id} delay={staggerDelay(exIndex + 1)}>
             <Plate tone="ghost" style={styles.exBlock} faceStyle={styles.exFace}>
               <Text variant="card" color={theme.color.ink}>
-                {we.exercise?.name ?? 'Unknown'}
+                {we.exercise?.name ?? 'Unknown exercise'}
               </Text>
               <View>
                 {we.sets.map((s, idx) => (
