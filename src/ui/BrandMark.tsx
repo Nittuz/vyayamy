@@ -5,8 +5,8 @@
  * dark, pressed-volt on light).
  *
  * `variant` carries the July 2026 uplevel candidates (geometry mirrored from
- * assets/branding/uplevel.js). 'loaded-end' stays the shipped default until a
- * winner is chosen.
+ * assets/branding/uplevel.js). 'loaded-bar' won the uplevel round (2026-07-13)
+ * and is the shipped default; the others are kept for reference.
  */
 import { useMemo } from 'react';
 import Svg, { Circle, Line, Rect } from 'react-native-svg';
@@ -34,7 +34,7 @@ const MILLED_TICKS = ring(12, 52, 72, -Math.PI / 2);
 
 interface Props {
   size?: number;
-  /** Which mark to draw; defaults to the shipped loaded-end. */
+  /** Which mark to draw; defaults to the shipped loaded-bar. */
   variant?: BrandMarkVariant;
   /** Override the rim/tick/plate color (defaults to the bone/iron ink). */
   ink?: string;
@@ -42,7 +42,7 @@ interface Props {
   accent?: string;
 }
 
-export function BrandMark({ size = 40, variant = 'loaded-end', ink, accent }: Props) {
+export function BrandMark({ size = 40, variant = 'loaded-bar', ink, accent }: Props) {
   const theme = useTheme();
   const rim = ink ?? theme.color.inkHero;
   const bore = accent ?? theme.color.accent;
