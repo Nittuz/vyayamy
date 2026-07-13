@@ -1,4 +1,4 @@
-import { router } from 'expo-router';
+import { router, useFocusEffect } from 'expo-router';
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { ActivityIndicator, Pressable, ScrollView, StyleSheet, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
@@ -101,7 +101,14 @@ export default function TodayScreen() {
     [qc],
   );
 
-  const greeting = useMemo(() => greetingFor(new Date()), []);
+  // Recomputed on every focus: tabs keep this screen mounted for days, so a
+  // mount-time memo would greet "Sunday evening" on Monday morning.
+  const [greeting, setGreeting] = useState(() => greetingFor(new Date()));
+  useFocusEffect(
+    useCallback(() => {
+      setGreeting(greetingFor(new Date()));
+    }, []),
+  );
 
   // Read the snapshot synchronously at first paint. After live queries land
   // they override the snapshot view via the normal rendering paths.
