@@ -1,0 +1,9 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 240 240"><rect width="240" height="240" fill="#EFEEE9"/>
+    <!-- bar -->
+    <rect x="16" y="104" width="208" height="32" fill="#55650B"/>
+    <!-- inner plates (tall) -->
+    <rect x="60" y="36" width="40" height="168" fill="#0C0C0C"/>
+    <rect x="140" y="36" width="40" height="168" fill="#0C0C0C"/>
+    <!-- outer plates (shorter) -->
+    <rect x="28" y="66" width="24" height="108" fill="#0C0C0C"/>
+    <rect x="188" y="66" width="24" height="108" fill="#0C0C0C"/></svg>
