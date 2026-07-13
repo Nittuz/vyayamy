@@ -48,6 +48,34 @@ describe('searchExercises', () => {
     expect(ids).not.toContain('theirs');
     expect(ids).not.toContain('gone');
   });
+
+  test('empty query ranks the user’s most-used exercises first', async () => {
+    const db = await getDb();
+    const addUse = async (n: number, exerciseId: string, userId = USER) => {
+      for (let i = 0; i < n; i++) {
+        const wId = `w-${exerciseId}-${userId}-${i}`;
+        await db.runAsync(
+          'INSERT INTO workouts (id, user_id, started_at, title) VALUES (?, ?, ?, ?)',
+          [wId, userId, T, 'Workout'],
+        );
+        await db.runAsync(
+          'INSERT INTO workout_exercises (id, workout_id, exercise_id, order_index) VALUES (?, ?, ?, ?)',
+          [`we-${wId}`, wId, exerciseId, 0],
+        );
+      }
+    };
+    await addUse(3, 'mine'); // My Custom Curl: used most
+    await addUse(1, 'g1'); // Bench Press: used once
+    await addUse(5, 'g2', 'other-user'); // someone else's habits must not leak in
+
+    const results = await searchExercises(USER, '');
+    expect(results.map((e) => e.id)).toEqual(['mine', 'g1', 'g2']);
+  });
+
+  test('substring search stays name-sorted (usage does not reorder matches)', async () => {
+    const results = await searchExercises(USER, 'b');
+    expect(results.map((e) => e.name)).toEqual(['Back Squat', 'Bench Press']);
+  });
 });
 
 describe('createCustomExercise', () => {

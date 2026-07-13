@@ -23,14 +23,35 @@ export async function searchExercises(
   limit = 50,
 ): Promise<Exercise[]> {
   const db = await getDb();
-  const like = `%${query.trim()}%`;
+  const trimmed = query.trim();
+  if (trimmed !== '') {
+    // Active search: the user is typing a specific name — alphabetical is the
+    // predictable order.
+    return db.getAllAsync<Exercise>(
+      `SELECT * FROM exercises
+         WHERE deleted_at IS NULL
+           AND (user_id IS NULL OR user_id = ?)
+           AND LOWER(name) LIKE LOWER(?)
+         ORDER BY name ASC LIMIT ?`,
+      [userId, `%${trimmed}%`, limit],
+    );
+  }
+  // Browse (empty query): a lifter mid-session wants their staples, not the
+  // alphabet — rank by how often THIS user has logged each exercise.
   return db.getAllAsync<Exercise>(
-    `SELECT * FROM exercises
-       WHERE deleted_at IS NULL
-         AND (user_id IS NULL OR user_id = ?)
-         AND (? = '' OR LOWER(name) LIKE LOWER(?))
-       ORDER BY name ASC LIMIT ?`,
-    [userId, query.trim(), like, limit],
+    `SELECT e.* FROM exercises e
+       LEFT JOIN (
+         SELECT we.exercise_id, COUNT(*) AS uses
+           FROM workout_exercises we
+           JOIN workouts w ON w.id = we.workout_id
+             AND w.user_id = ? AND w.deleted_at IS NULL
+          WHERE we.deleted_at IS NULL
+          GROUP BY we.exercise_id
+       ) u ON u.exercise_id = e.id
+       WHERE e.deleted_at IS NULL
+         AND (e.user_id IS NULL OR e.user_id = ?)
+       ORDER BY COALESCE(u.uses, 0) DESC, e.name ASC LIMIT ?`,
+    [userId, userId, limit],
   );
 }
 

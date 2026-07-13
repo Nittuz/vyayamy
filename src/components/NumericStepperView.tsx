@@ -99,9 +99,12 @@ export function NumericStepper({
   useEffect(() => () => stopRamp(), [stopRamp]);
 
   const onPressNumber = useCallback(() => {
-    if (focused) {
-      // Enter edit (keypad) mode
-      setEditingText(formatValue(value));
+    if (focused || value == null) {
+      // Enter edit (keypad) mode. An empty field goes straight to the keypad
+      // on the FIRST tap — there is nothing to nudge with the steppers yet,
+      // and hiding typing behind a second tap was the number-entry trap.
+      if (!focused) onFocus();
+      setEditingText(value == null ? '' : formatValue(value));
     } else {
       onFocus();
     }

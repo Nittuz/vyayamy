@@ -85,7 +85,7 @@ export function ExercisePicker({ userId, visible, onClose, onPick }: Props) {
       <TextInput
         value={query}
         onChangeText={setQuery}
-        placeholder="Search"
+        placeholder="Search, or type to create"
         placeholderTextColor={theme.color.inkTertiary}
         autoFocus
         style={styles.search}
