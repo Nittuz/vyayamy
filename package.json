@@ -18,6 +18,7 @@
     "ios": "expo run:ios",
     "android": "expo run:android",
     "prebuild": "expo prebuild",
+    "build:ipa": "bash scripts/build-ipa.sh",
     "lint": "eslint .",
     "format": "prettier --write .",
     "format:check": "prettier --check .",
