@@ -52,7 +52,11 @@ into a sideloaded build is fragile, and the login screen already has a
 - Max **3 sideloaded apps** per free Apple ID.
 - Every new app version = a new IPA sent + reinstalled.
 - Crash reporting is off (Sentry DSN intentionally empty) — feedback is
-  screenshots + descriptions.
+  screenshots + descriptions. (`build-ipa.sh` sets
+  `SENTRY_DISABLE_AUTO_UPLOAD=true` when no Sentry token is configured;
+  without it, Sentry's Xcode phase fails any Release build. Set the same
+  variable if you build Release manually, e.g.
+  `SENTRY_DISABLE_AUTO_UPLOAD=true npx expo run:ios --configuration Release`.)
 
 ### What to test / where to send feedback
 

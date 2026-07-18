@@ -28,6 +28,16 @@ done
 [[ -n "${EXPO_PUBLIC_SUPABASE_URL:-}${VITE_SUPABASE_URL:-}${SUPABASE_URL:-}" ]] && url_ok=true
 $url_ok || { echo "error: no Supabase URL configured (.env) — see .env.example" >&2; exit 1; }
 
+# Sentry's Xcode build phase hard-fails a Release build when it can't upload
+# dSYMs/source maps. With no auth token configured (crash reporting is
+# intentionally off for tester builds) the upload must be disabled explicitly.
+token_ok=false
+for f in .env .env.local; do
+  [[ -f $f ]] && grep -qE '^SENTRY_AUTH_TOKEN=..*' "$f" && token_ok=true
+done
+[[ -n "${SENTRY_AUTH_TOKEN:-}" ]] && token_ok=true
+$token_ok || { echo "==> No SENTRY_AUTH_TOKEN — disabling Sentry auto-upload"; export SENTRY_DISABLE_AUTO_UPLOAD=true; }
+
 echo "==> Regenerating ios/ from app.config.ts (CNG)"
 npx expo prebuild --clean -p ios
 npx pod-install
