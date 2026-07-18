@@ -102,19 +102,6 @@ function reportMutationError(err: unknown, mutation: string): void {
   );
 }
 
-export function useAddSet(onError?: (msg: string) => void) {
-  const qc = useQueryClient();
-  return useMutation({
-    mutationFn: (args: { weId: string; weight?: number | null; reps?: number | null }) =>
-      addSet(args.weId, args),
-    onSuccess: (_id, vars) => invalidateSetWrite(qc, vars.weId),
-    onError: (err) => {
-      reportMutationError(err, 'addSet');
-      onError?.("Couldn't add the set. Try again.");
-    },
-  });
-}
-
 export function useUpdateSet(onError?: (msg: string) => void) {
   const qc = useQueryClient();
   return useMutation({

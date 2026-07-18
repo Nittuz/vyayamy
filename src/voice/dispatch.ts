@@ -98,8 +98,3 @@ export async function dispatchCommand(
       return { ok: false, message: 'Didn’t catch that' };
   }
 }
-
-/** Convenience for the session hook: a list of set IDs is occasionally needed for cursor math. */
-export async function setsFor(weId: string) {
-  return listSetsForWorkoutExercise(weId);
-}

@@ -21,7 +21,7 @@ export const space = {
 
 // Blacktop shape lock: all-sharp — no corner radii anywhere. `full` survives
 // for the one circular case (avatar / round indicators).
-export const radius = {
+const radius = {
   full: 9999,
 } as const;
 
@@ -29,13 +29,13 @@ export const radius = {
  * Rule weights. Elevation is inversion (no shadows, no slab z-axis);
  * `hairline` is the Plate border weight: 1.5px structural rule.
  */
-export const depth = {
+const depth = {
   hairline: 1.5,
   rule: 2,
   ruleHeavy: 3,
 } as const;
 
-export const touch = {
+const touch = {
   min: 44,
   navHeight: 64,
   cta: 52,

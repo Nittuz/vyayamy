@@ -21,8 +21,6 @@ import { motion } from './motion';
 import { useTheme, type Theme } from './useTheme';
 import { isSyncError } from './syncErrors';
 
-export { isSyncError };
-
 /** How long the toast holds fully visible between fade-in and fade-out. */
 const TOAST_HOLD_MS = 2200;
 

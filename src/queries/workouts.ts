@@ -121,7 +121,7 @@ export async function finishWorkout(workoutId: string, userId?: string): Promise
   emitMutationCommitted();
 }
 
-export async function updateWorkoutTitle(workoutId: string, title: string): Promise<void> {
+async function updateWorkoutTitle(workoutId: string, title: string): Promise<void> {
   await enqueueMutation({
     table: 'workouts',
     op: 'update',
