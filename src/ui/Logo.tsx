@@ -6,7 +6,7 @@ import { Text } from './Text';
 import { useTheme } from './useTheme';
 
 /**
- * The FlexYug mark — the Forged Iron "loaded-end" barbell (see BrandMark.tsx).
+ * The FlexYug mark — the "loaded-bar" barbell (see BrandMark.tsx).
  * Kept under the historical name `FBarMark` so existing call sites (Today,
  * Login) don't need to change. `accent`/`ink` pass through to the mark.
  */
