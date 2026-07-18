@@ -32,9 +32,10 @@ npm run android     # + boot Android emulator
 ```bash
 npx expo run:ios     # local native build (simulator or device)
 npx expo run:android
-# or, once EAS is wired:
-npx eas build --profile development --platform ios
 ```
+
+(The eas.json `development` dev-client profile was removed — `expo-dev-client`
+is not installed; `expo run:ios` covers local native builds.)
 
 Install the resulting app on your device and use `npx expo start --dev-client` to attach Metro.
 
@@ -132,13 +133,12 @@ Uses `supabase/config.toml` (API on 54321, DB on 54322, Studio on 54323). Auth e
 
 ## EAS Build
 
-[eas.json](../eas.json) defines three profiles:
+[eas.json](../eas.json) defines two profiles:
 
-| Profile       | Distribution | Purpose                                               |
-| ------------- | ------------ | ----------------------------------------------------- |
-| `development` | Internal     | Dev client with `developmentClient: true`             |
-| `preview`     | Internal     | QR-installable preview; iOS simulator build enabled   |
-| `production`  | Store        | TestFlight; auto-increment build number; Sentry wired |
+| Profile      | Distribution | Purpose                                               |
+| ------------ | ------------ | ----------------------------------------------------- |
+| `preview`    | Internal     | QR-installable preview; iOS simulator build enabled   |
+| `production` | Store        | TestFlight; auto-increment build number; Sentry wired |
 
 > **Platform: iOS-only for v0.x.** There is no `android/` native project and the
 > Android build/submit path has never been exercised, so the commands below
@@ -148,9 +148,6 @@ Uses `supabase/config.toml` (API on 54321, DB on 54322, Studio on 54323). Auth e
 ```bash
 # One-time setup
 npx eas init
-
-# Dev client
-npx eas build --profile development --platform ios
 
 # Preview build (QR installable / simulator)
 npx eas build --profile preview --platform ios

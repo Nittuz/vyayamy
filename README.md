@@ -16,7 +16,7 @@ A mobile-only, local-first strength-training journal built around one job: captu
 - **Progress charts**: per-exercise trend lines drawn with `react-native-svg` ([src/ui/LineChart.tsx](src/ui/LineChart.tsx)).
 - **Workout history**: past sessions with per-workout detail ([src/screens/History.tsx](src/screens/History.tsx), [src/screens/HistoryDetail.tsx](src/screens/HistoryDetail.tsx)).
 - **Custom exercises**: add your own movements alongside the seeded library ([src/components/ExercisePicker.tsx](src/components/ExercisePicker.tsx)).
-- **Four skins**: Forge, Iron, Ember, Chalk ([src/ui/skins.ts](src/ui/skins.ts)), switchable under Profile, Appearance.
+- **One Blacktop identity**: true-mono dark + chalk light palettes following the system scheme ([src/ui/colors.ts](src/ui/colors.ts), [src/ui/useTheme.ts](src/ui/useTheme.ts)); no theme picker.
 - **Complete-set choreography**: banking a set fires a haptic, a live session-volume tally, and an accent glow ([src/ui/completeSetChoreography.ts](src/ui/completeSetChoreography.ts), [src/components/SessionVolumeBar.tsx](src/components/SessionVolumeBar.tsx)); a calm recap on finish ([src/ui/SessionRecap.tsx](src/ui/SessionRecap.tsx)).
 - **Auth**: magic-link or password sign-in via Supabase Auth ([src/screens/Login.tsx](src/screens/Login.tsx), [src/auth/authActions.ts](src/auth/authActions.ts)), behind a single root-level auth gate in [app/\_layout.tsx](app/_layout.tsx).
 - **Background rest timer**: a local notification fires even when the app is backgrounded; tapping it returns to the active workout ([src/lib/restNotifications.ts](src/lib/restNotifications.ts)).
@@ -187,7 +187,7 @@ vyayamy/
 │   ├── queries/          # React Query hooks reading SQLite, one file per domain
 │   ├── screens/          # Screen components consumed by app/ routes
 │   ├── sync/             # engine, push, pull, state, quarantine, outboxPreview
-│   ├── ui/               # skins, useTheme, Text primitive, LineChart, choreography
+│   ├── ui/               # theme tokens, useTheme, Text primitive, LineChart, choreography
 │   ├── voice/            # numberWords, grammar, dispatch (pure); speechEngine, useVoiceSession (native)
 │   └── __tests__/        # Cross-layer integration tests
 ├── supabase/             # migrations/ (00001..00011), config.toml, seed.sql, templates/
@@ -210,18 +210,18 @@ What still needs a device or simulator: the voice native engine ([src/voice/spee
 
 ## Build and distribution
 
-[eas.json](eas.json) sets `appVersionSource: "remote"` (EAS owns the build number) and defines three build profiles:
+[eas.json](eas.json) sets `appVersionSource: "remote"` (EAS owns the build number) and defines two build profiles (the `development` dev-client profile was removed — `expo-dev-client` isn't installed; use `npx expo run:ios` for local native builds):
 
-| Profile       | Purpose                                             |
-| ------------- | --------------------------------------------------- |
-| `development` | Dev client, internal distribution                   |
-| `preview`     | Internal distribution, iOS simulator builds enabled |
-| `production`  | Store builds, `autoIncrement`                       |
+| Profile      | Purpose                                             |
+| ------------ | --------------------------------------------------- |
+| `preview`    | Internal distribution, iOS simulator builds enabled |
+| `production` | Store builds, `autoIncrement`                       |
+
+Shipping to a tester's iPhone without the paid Apple program (sideload path) and the TestFlight runbook both live in [docs/TESTING.md](docs/TESTING.md).
 
 Build profiles carry no inline `env` blocks: runtime configuration lives in EAS environment variables created with `npx eas env:create` (the exact commands are in [docs/operations.md](docs/operations.md)). The submit profile is iOS-only and reads `APPLE_ID`, `ASC_APP_ID`, and `APPLE_TEAM_ID` from the environment; there is no Android submit profile.
 
 ```bash
-npx eas build --profile development --platform ios
 npx eas build --profile preview --platform ios
 npx eas build --profile production --platform ios
 npx eas submit --profile production --platform ios

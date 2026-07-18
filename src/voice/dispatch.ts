@@ -1,7 +1,7 @@
 import { getDb } from '@/db/client';
 import { enqueueMutation } from '@/db/mutations';
 import { addExerciseToWorkout, createCustomExercise, searchExercises } from '@/queries/exercises';
-import { addSet, deleteSet, listSetsForWorkoutExercise, updateSet } from '@/queries/sets';
+import { addSet, deleteSet, updateSet } from '@/queries/sets';
 
 import type { Command } from './commands';
 

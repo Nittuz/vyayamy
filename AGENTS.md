@@ -23,7 +23,7 @@ Do **not** introduce, remove, or migrate away from any of these without explicit
 - **`expo-sqlite`** as the local source of truth; schema mirrored in [src/db/schema.ts](src/db/schema.ts)
 - **Supabase** (Postgres + GoTrue + PostgREST) as the sync target only. The client ([src/auth/supabase.ts](src/auth/supabase.ts)) may be imported ONLY from [src/sync/](src/sync/) and [src/auth/](src/auth/); everything else uses the auth facade [src/auth/authActions.ts](src/auth/authActions.ts) or the queries layer. This is enforced by `no-restricted-imports`.
 - **TanStack React Query 5** for all server state (reads SQLite, not HTTP)
-- **`useTheme()` + `makeStyles(theme)`** for styling, with tokens in [src/ui/colors.ts](src/ui/colors.ts) / [src/ui/typography.ts](src/ui/typography.ts), exposed via [src/ui/useTheme.ts](src/ui/useTheme.ts). Text uses the [src/ui/Text.tsx](src/ui/Text.tsx) primitive. (`src/ui/theme.ts` is a deprecated static shim kept for the pre-hydration boot overlay and the `brand` name/tagline constant used by Login; do NOT use it in new code.)
+- **`useTheme()` + `makeStyles(theme)`** for styling, with tokens in [src/ui/colors.ts](src/ui/colors.ts) / [src/ui/typography.ts](src/ui/typography.ts), exposed via [src/ui/useTheme.ts](src/ui/useTheme.ts). Text uses the [src/ui/Text.tsx](src/ui/Text.tsx) primitive. (The `brand` name/tagline constants live in [src/ui/brand.ts](src/ui/brand.ts).)
 - **`react-native-svg`** for charts ([src/ui/LineChart.tsx](src/ui/LineChart.tsx))
 - **`expo-haptics`** and **`expo-notifications`** for haptic + timer feedback
 - **`@sentry/react-native`** for error reporting (gated by `EXPO_PUBLIC_SENTRY_DSN`)

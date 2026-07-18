@@ -25,9 +25,13 @@ into a sideloaded build is fragile, and the login screen already has a
 
 ### Owner steps (this Mac)
 
-1. One-time: open `ios/FlexYug.xcworkspace` in Xcode and select your free
-   **Personal Team** under Signing & Capabilities for the FlexYug target.
-   (No `ios/` folder yet? It's generated: `npm run prebuild -- -p ios`.)
+1. One-time: put your Apple team ID in `.env` as `APPLE_TEAM_ID=…`. Find it in
+   Xcode → Settings → Accounts → your Apple ID (a free **Personal Team** has
+   one too; sign in there once if you never have). The build regenerates the
+   Xcode project every run, so a team picked inside Xcode won't stick — the
+   `.env` value is what counts. The script also strips the push-notification
+   entitlement free teams can't sign (the rest timer only uses local
+   notifications, so nothing is lost).
 2. `npm run build:ipa` → produces `build/FlexYug.ipa`.
 3. Smoke-test the Release build before sending anything (checklist below).
 4. Send the IPA to the tester (AirDrop / Drive / etc.) with a link to this doc.

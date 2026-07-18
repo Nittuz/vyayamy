@@ -102,11 +102,10 @@ Defined in [app/\_layout.tsx](app/_layout.tsx). Order matters:
 ErrorBoundary
   └─ GestureHandlerRootView
        └─ SafeAreaProvider
-            └─ SkinProvider (skin tokens + hydration gate)
-                 └─ QueryClientProvider       ← TanStack Query cache
-                      └─ AuthProvider          ← Supabase session + user
-                           └─ ToastProvider    ← transient notifications
-                                └─ AppNavigator (Stack) + BootOverlay
+            └─ QueryClientProvider       ← TanStack Query cache
+                 └─ AuthProvider          ← Supabase session + user
+                      └─ ToastProvider    ← transient notifications
+                           └─ AppNavigator (Stack) + BootOverlay
 ```
 
 `RootLayout` also initializes the local database (`initDb()`) and starts the sync engine (`startSyncEngine(queryClient)`) once. Sentry init runs at module load via `initErrorReporting()` and is a no-op if no DSN is configured.
