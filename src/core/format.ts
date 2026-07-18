@@ -4,6 +4,18 @@
  * an evening lift doesn't slide into the next/previous day. Keep all day
  * bucketing and "N days ago" math routed through these two functions.
  */
+
+/** Canonical day-of-week names, Sunday-first to match Date.getDay(). */
+export const DAY_NAMES = [
+  'Sunday',
+  'Monday',
+  'Tuesday',
+  'Wednesday',
+  'Thursday',
+  'Friday',
+  'Saturday',
+] as const;
+
 export function localDayKey(dateStr: string): string {
   const d = new Date(dateStr);
   const y = d.getFullYear();
@@ -60,9 +72,7 @@ export function getDateGroup(dateStr: string): string {
 /** "Sunday morning" / "Friday night" — the Today screen's greeting line. */
 export function greetingFor(now: Date): string {
   const h = now.getHours();
-  const day = ['Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday'][
-    now.getDay()
-  ];
+  const day = DAY_NAMES[now.getDay()];
   const part = h < 5 ? 'night' : h < 12 ? 'morning' : h < 18 ? 'afternoon' : 'evening';
   return `${day} ${part}`;
 }
@@ -70,8 +80,7 @@ export function greetingFor(now: Date): string {
 /** "MON 9:05" — compact local start time for the collision (resume-which) sheet. */
 export function formatStartLabel(iso: string): string {
   const d = new Date(iso);
-  const days = ['SUN', 'MON', 'TUE', 'WED', 'THU', 'FRI', 'SAT'];
-  const day = days[d.getDay()];
+  const day = DAY_NAMES[d.getDay()]!.slice(0, 3).toUpperCase();
   const h = d.getHours();
   const m = d.getMinutes().toString().padStart(2, '0');
   return `${day} ${h}:${m}`;
