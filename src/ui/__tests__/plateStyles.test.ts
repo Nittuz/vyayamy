@@ -13,7 +13,7 @@ import {
 } from '@/ui/plateStyles';
 import { buildTheme } from '@/ui/useTheme';
 
-const theme = buildTheme('forge', 'dark');
+const theme = buildTheme('dark');
 
 test('the slab is retired: no offset space, no slab layer, ever', () => {
   for (const offset of ['md', 'sm', 'none'] as const) {

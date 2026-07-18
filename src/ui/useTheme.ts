@@ -1,8 +1,7 @@
 import { useColorScheme } from 'react-native';
 
-import { type PaletteTokens } from './colors';
+import { darkPalette, lightPalette, type PaletteTokens } from './colors';
 import { motion } from './motion';
-import { DEFAULT_SKIN, skins, type SkinId } from './skins';
 import { typography } from './typography';
 
 export const space = {
@@ -55,20 +54,19 @@ export interface Theme {
   scheme: 'light' | 'dark';
 }
 
-// Cache one Theme per (skin, scheme). Because the palette + token objects are
-// all module-level constants, the cached Theme is referentially stable for the
+// Cache one Theme per scheme. Because the palette + token objects are all
+// module-level constants, the cached Theme is referentially stable for the
 // life of the process — so useTheme returns the SAME object every render unless
-// the skin or scheme actually changes, and the nine useMemo(makeStyles,[theme])
-// sites finally cache instead of rebuilding StyleSheets every render (#48).
+// the scheme actually changes, and the nine useMemo(makeStyles,[theme]) sites
+// finally cache instead of rebuilding StyleSheets every render (#48).
 const themeCache = new Map<string, Theme>();
 
-export function buildTheme(skin: SkinId, scheme: 'light' | 'dark'): Theme {
-  const key = `${skin}:${scheme}`;
-  let theme = themeCache.get(key);
+export function buildTheme(scheme: 'light' | 'dark'): Theme {
+  let theme = themeCache.get(scheme);
   if (!theme) {
-    const color: PaletteTokens = skins[skin][scheme];
+    const color: PaletteTokens = scheme === 'light' ? lightPalette : darkPalette;
     theme = { color, space, radius, depth, touch, font: typography, motion, scheme };
-    themeCache.set(key, theme);
+    themeCache.set(scheme, theme);
   }
   return theme;
 }
@@ -76,5 +74,5 @@ export function buildTheme(skin: SkinId, scheme: 'light' | 'dark'): Theme {
 export function useTheme(): Theme {
   const raw = useColorScheme();
   const scheme: 'light' | 'dark' = raw === 'light' ? 'light' : 'dark';
-  return buildTheme(DEFAULT_SKIN, scheme);
+  return buildTheme(scheme);
 }

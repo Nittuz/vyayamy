@@ -137,7 +137,7 @@ const makeStyles = (theme: Theme) =>
       paddingHorizontal: theme.space.s4,
       paddingVertical: theme.space.s3,
       // Inverted pill: ink-on-bg stays high-contrast in both schemes (was pinned
-      // to the dark palette, so it clashed in light mode and other skins, #23).
+      // to the dark palette, so it clashed in light mode, #23).
       backgroundColor: theme.color.ink,
     },
     error: {

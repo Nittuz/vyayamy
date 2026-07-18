@@ -7,7 +7,6 @@ import { ActivityIndicator, StyleSheet, Text, useColorScheme, View } from 'react
 import { SafeAreaView } from 'react-native-safe-area-context';
 
 import { type PaletteTokens } from './colors';
-import { DEFAULT_SKIN } from './skins';
 import { typography } from './typography';
 import { buildTheme, space } from './useTheme';
 
@@ -21,7 +20,7 @@ export function BootOverlay({
   bootError: string | null;
 }) {
   const raw = useColorScheme();
-  const palette = buildTheme(DEFAULT_SKIN, raw === 'light' ? 'light' : 'dark').color;
+  const palette = buildTheme(raw === 'light' ? 'light' : 'dark').color;
   const styles = bootStyles(palette);
   if (bootError) {
     return (
