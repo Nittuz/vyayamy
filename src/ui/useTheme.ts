@@ -20,33 +20,20 @@ export const space = {
   page: 20,
 } as const;
 
-// Blacktop shape lock: all-sharp. Token names survive so consumers don't
-// change, but every corner collapses to 0; `full` remains for the avatar only.
+// Blacktop shape lock: all-sharp — no corner radii anywhere. `full` survives
+// for the one circular case (avatar / round indicators).
 export const radius = {
-  sm: 0,
-  md: 0,
-  lg: 0,
   full: 9999,
-  card: 0,
-  button: 0,
 } as const;
 
 /**
- * Rule weights. Blacktop retires the slab z-axis (shadows are gone; elevation
- * is inversion) — slab/slabSm survive only so legacy consumers keep compiling.
+ * Rule weights. Elevation is inversion (no shadows, no slab z-axis);
  * `hairline` is the Plate border weight: 1.5px structural rule.
  */
 export const depth = {
-  slab: 4,
-  slabSm: 2,
   hairline: 1.5,
   rule: 2,
   ruleHeavy: 3,
-} as const;
-
-/** Legacy press-sink distance — retired (press is now a 60ms opacity/scale dip). */
-export const press = {
-  translate: 3,
 } as const;
 
 export const touch = {
@@ -62,7 +49,6 @@ export interface Theme {
   space: typeof space;
   radius: typeof radius;
   depth: typeof depth;
-  press: typeof press;
   touch: typeof touch;
   font: typeof typography;
   motion: typeof motion;
@@ -81,7 +67,7 @@ export function buildTheme(skin: SkinId, scheme: 'light' | 'dark'): Theme {
   let theme = themeCache.get(key);
   if (!theme) {
     const color: PaletteTokens = skins[skin][scheme];
-    theme = { color, space, radius, depth, press, touch, font: typography, motion, scheme };
+    theme = { color, space, radius, depth, touch, font: typography, motion, scheme };
     themeCache.set(key, theme);
   }
   return theme;

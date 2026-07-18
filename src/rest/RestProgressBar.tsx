@@ -114,7 +114,6 @@ const makeStyles = (theme: Theme) =>
       backgroundColor: theme.color.surface,
       borderWidth: theme.depth.hairline,
       borderColor: theme.color.border,
-      borderRadius: theme.radius.card,
       gap: theme.space.s2,
     },
     topRow: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' },
@@ -132,7 +131,6 @@ const makeStyles = (theme: Theme) =>
     track: {
       height: theme.depth.ruleHeavy,
       backgroundColor: theme.color.border,
-      borderRadius: theme.radius.sm,
       overflow: 'hidden',
     },
     fill: { height: theme.depth.ruleHeavy },

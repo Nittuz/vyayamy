@@ -152,7 +152,6 @@ const makeStyles = (theme: Theme) =>
   StyleSheet.create({
     search: {
       height: theme.touch.min,
-      borderRadius: theme.radius.sm,
       borderWidth: theme.depth.hairline,
       borderColor: theme.color.border,
       backgroundColor: theme.color.bg,

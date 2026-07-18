@@ -22,10 +22,9 @@ test('carries the right palette, scheme, and depth tokens', () => {
   const t = buildTheme('forge', 'light');
   expect(t.scheme).toBe('light');
   expect(t.color).toBe(skins.forge.light);
-  // Blacktop rule weights ride on the theme; the retired slab/press tokens
-  // survive for legacy consumers until the per-screen phase removes them.
+  // Blacktop rule weights ride on the theme (elevation is inversion — no
+  // slab/press tokens; those retired with the design-pivot cleanup).
   expect(t.depth.hairline).toBe(1.5);
   expect(t.depth.rule).toBeGreaterThanOrEqual(2);
-  expect(t.depth.slab).toBeGreaterThan(0);
-  expect(t.press.translate).toBeGreaterThan(0);
+  expect(t.depth.ruleHeavy).toBeGreaterThan(t.depth.rule);
 });

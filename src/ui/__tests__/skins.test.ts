@@ -19,7 +19,6 @@ const TOKEN_KEYS: (keyof PaletteTokens)[] = [
   'dangerSoft',
   'onAccent',
   'overlay',
-  'slab',
 ];
 
 describe('skin registry (collapsed to the single Forged Iron identity)', () => {

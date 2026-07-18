@@ -49,7 +49,6 @@ export function Segment<T extends string>({
             key={opt.value}
             tone={a.tone}
             border={a.border}
-            radius="sm"
             onPress={() => onChange(opt.value)}
             accessibilityRole="tab"
             accessibilityLabel={opt.accessibilityLabel ?? opt.label}

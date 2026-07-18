@@ -32,8 +32,6 @@ export interface PaletteTokens {
   dangerSoft: string;
   onAccent: string;
   overlay: string;
-  /** The hard offset slab behind Plate faces — the palette's deepest value. */
-  slab: string;
 }
 
 export const darkPalette: PaletteTokens = {
@@ -55,8 +53,6 @@ export const darkPalette: PaletteTokens = {
   dangerSoft: 'rgba(255, 106, 85, 0.12)',
   onAccent: '#121212',
   overlay: 'rgba(0, 0, 0, 0.65)',
-  // Legacy token: slab shadows retired in plateStyles; kept for the token shape.
-  slab: '#000000',
 };
 
 export const lightPalette: PaletteTokens = {
@@ -77,5 +73,4 @@ export const lightPalette: PaletteTokens = {
   dangerSoft: 'rgba(172, 61, 45, 0.10)',
   onAccent: '#F2F1ED',
   overlay: 'rgba(20, 20, 20, 0.45)',
-  slab: '#141414',
 };

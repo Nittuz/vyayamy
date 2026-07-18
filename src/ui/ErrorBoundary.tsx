@@ -57,7 +57,6 @@ const makeStyles = (theme: Theme) =>
     card: {
       backgroundColor: theme.color.surface,
       padding: theme.space.s6,
-      borderRadius: theme.radius.md,
       gap: theme.space.s3,
       borderWidth: 1,
       borderColor: theme.color.border,
@@ -77,7 +76,6 @@ const makeStyles = (theme: Theme) =>
       marginTop: theme.space.s2,
       backgroundColor: theme.color.accent,
       paddingVertical: theme.space.s3,
-      borderRadius: theme.radius.sm,
       alignItems: 'center',
     },
     btnText: {

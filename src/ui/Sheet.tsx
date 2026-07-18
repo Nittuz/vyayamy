@@ -113,7 +113,7 @@ export function Sheet({
   }));
 
   const centerPlate = useMemo(
-    () => resolvePlateStyles(theme, { tone: 'panel', border: 'strong', radius: 'lg' }),
+    () => resolvePlateStyles(theme, { tone: 'panel', border: 'strong' }),
     [theme],
   );
 
@@ -204,8 +204,6 @@ const makeStyles = (theme: Theme) =>
     bottomHost: { flex: 1, justifyContent: 'flex-end' },
     bottomPanel: {
       backgroundColor: theme.color.surface,
-      borderTopLeftRadius: theme.radius.lg,
-      borderTopRightRadius: theme.radius.lg,
       borderTopWidth: theme.depth.ruleHeavy,
       borderTopColor: theme.color.borderStrong,
       paddingHorizontal: theme.space.page,

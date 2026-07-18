@@ -29,8 +29,9 @@ test('panel (default): surface fill, hairline border rule, ink foreground', () =
     backgroundColor: theme.color.surface,
     borderWidth: theme.depth.hairline,
     borderColor: theme.color.border,
-    borderRadius: theme.radius.card,
   });
+  // Blacktop shape lock: faces carry no borderRadius at all.
+  expect(s.face).not.toHaveProperty('borderRadius');
   expect(s.ink).toBe(theme.color.ink);
 });
 
@@ -82,10 +83,10 @@ test('an explicit border overrides the tone default', () => {
   expect(none.face.borderWidth).toBe(0);
 });
 
-test('corners are sharp: every radius token but full resolves to 0', () => {
-  expect(resolvePlateStyles(theme, { radius: 'card' }).face.borderRadius).toBe(0);
-  expect(resolvePlateStyles(theme, { radius: 'button' }).face.borderRadius).toBe(0);
-  expect(resolvePlateStyles(theme, { radius: 'full' }).face.borderRadius).toBe(9999);
+test('corners are sharp: no tone ever produces a borderRadius', () => {
+  for (const tone of ['panel', 'inverted', 'ghost', 'volt', 'danger'] as const) {
+    expect(resolvePlateStyles(theme, { tone }).face).not.toHaveProperty('borderRadius');
+  }
 });
 
 test('press = opacity dip + 0.985 scale; reduced motion drops the scale', () => {

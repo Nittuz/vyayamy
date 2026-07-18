@@ -259,7 +259,6 @@ const makeStyles = (theme: Theme) =>
     input: {
       height: 44,
       paddingHorizontal: theme.space.s3,
-      borderRadius: theme.radius.sm,
       backgroundColor: theme.color.bg,
       borderWidth: theme.depth.hairline,
       borderColor: theme.color.border,
