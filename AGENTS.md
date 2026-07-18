@@ -92,9 +92,9 @@ Explicitly forbidden:
 
 ### Add styling
 
-1. Call `const theme = useTheme()` ([src/ui/useTheme.ts](src/ui/useTheme.ts)) and build styles with a `makeStyles(theme)` factory memoized on `[theme]` (`useTheme` returns a stable reference per skin × scheme, so the memo actually caches)
+1. Call `const theme = useTheme()` ([src/ui/useTheme.ts](src/ui/useTheme.ts)) and build styles with a `makeStyles(theme)` factory memoized on `[theme]` (`useTheme` returns a stable reference per scheme, so the memo actually caches)
 2. Render text through the [`<Text variant>`](src/ui/Text.tsx) primitive so the Geist family is always applied; don't hand-set `fontFamily` per `<Text>`
-3. Never hard-code colors, spacing, radii, or font sizes. Use tokens (`theme.color.ink`, `theme.color.inkSecondary`, `theme.space.s4`, `theme.radius.md`, `theme.font.size.body`, ...). Note the palette uses `ink`/`inkSecondary`, not the old `text`/`textSecondary`.
+3. Never hard-code colors, spacing, or font sizes. Use tokens (`theme.color.ink`, `theme.color.inkSecondary`, `theme.space.s4`, `theme.depth.rule`, `theme.font.size.body`, ...). Corners are sharp by design — no `borderRadius` except `theme.radius.full` for circles. The palette uses `ink`/`inkSecondary`, not the old `text`/`textSecondary`.
 4. Ensure interactive elements meet `theme.touch.min` (44pt)
 
 ## Testing and typecheck

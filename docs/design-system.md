@@ -1,5 +1,14 @@
 # Design System — Forged Iron
 
+> **SUPERSEDED (2026-07):** the Blacktop overhaul
+> ([specs/2026-07-11-blacktop-overhaul-spec.md](specs/2026-07-11-blacktop-overhaul-spec.md))
+> replaced this system: true-mono palette with a single volt accent, all-sharp
+> corners (no radius scale), elevation by inversion (no slabs, no press-sink),
+> and a single skin. Token names below (ember, `slab`, `press`, `radius.md`,
+> skins) no longer exist in code. Kept for the primitives inventory and
+> historical rationale until a Blacktop-native rewrite lands; the source of
+> truth is the spec plus the token modules in [src/ui/](../src/ui/).
+
 FlexYug is a strength-training journal with an industrial-brutalist identity: iron black, bone ink, one hot ember accent, condensed poster type, and hard offset slabs instead of soft shadows. The design system exists to make the right choices trivial and the wrong ones impossible.
 
 ## Philosophy

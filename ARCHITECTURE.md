@@ -387,15 +387,17 @@ EAS production builds upload source maps via the `@sentry/react-native/expo` con
 
 ## Design System
 
-Visual tokens live in [src/ui/colors.ts](src/ui/colors.ts) (four skins × light/dark
-palettes) and [src/ui/typography.ts](src/ui/typography.ts), exposed through the
-[`useTheme()`](src/ui/useTheme.ts) hook. Components build styles with a
-`makeStyles(theme)` factory memoized on `[theme]` (the hook returns a stable
-reference per skin × scheme). Text renders through the
-[`<Text variant>`](src/ui/Text.tsx) primitive so the Geist family is always
-applied. `src/ui/theme.ts` is a deprecated static shim, kept only for the
-pre-skin-hydration boot overlay. No CSS files ship in the mobile app. See
-[docs/design-system.md](docs/design-system.md) for the canonical token reference.
+Visual tokens live in [src/ui/colors.ts](src/ui/colors.ts) (the Blacktop dark and
+chalk light palettes) and [src/ui/typography.ts](src/ui/typography.ts), exposed
+through the [`useTheme()`](src/ui/useTheme.ts) hook. Components build styles with
+a `makeStyles(theme)` factory memoized on `[theme]` (the hook returns a stable
+reference per scheme). Text renders through the
+[`<Text variant>`](src/ui/Text.tsx) primitive so the right family is always
+applied. No CSS files ship in the mobile app. The token reference in
+[docs/design-system.md](docs/design-system.md) describes the superseded Forged
+Iron system; the current source of truth is the Blacktop overhaul spec
+([docs/specs/2026-07-11-blacktop-overhaul-spec.md](docs/specs/2026-07-11-blacktop-overhaul-spec.md))
+plus the token modules themselves.
 
 ```tsx
 function Card() {
@@ -408,9 +410,8 @@ const makeStyles = (theme: Theme) =>
   StyleSheet.create({
     card: {
       backgroundColor: theme.color.surface,
-      borderRadius: theme.radius.md,
       padding: theme.space.s4,
-      borderWidth: 1,
+      borderWidth: theme.depth.hairline,
       borderColor: theme.color.border,
     },
   });
@@ -420,7 +421,7 @@ Rules:
 
 - Single column, phone-first; no tablet-specific layouts yet
 - 44pt minimum touch target (`theme.touch.min`) on everything interactive
-- Four skins (Forge/Iron/Ember/Chalk) × light/dark, picked in Profile; tokens use `ink`/`inkSecondary`, not the legacy `text`/`textSecondary`
+- One Blacktop identity; dark/light follows the system color scheme (no picker); tokens use `ink`/`inkSecondary`, not the legacy `text`/`textSecondary`
 - Geist Sans for chrome/labels, Geist Mono for numerals and data, loaded via `@expo-google-fonts` and applied through the `<Text variant>` primitive ([src/ui/typography.ts](src/ui/typography.ts))
 - Motion is subtle: 150–350 ms tokens in `theme.duration`
 
