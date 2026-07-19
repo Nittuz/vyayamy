@@ -85,17 +85,8 @@ export async function dispatchCommand(
       const exerciseId = match
         ? match.id
         : await createCustomExercise({ userId: ctx.userId, name: command.name });
-      // Never-empty first set for voice adds too (spec §2) — prefilled from
-      // the last session of this exercise.
-      const { weId } = await addExerciseToWorkout({
-        workoutId: ctx.workoutId,
-        exerciseId,
-        prefill: {
-          userId: ctx.userId,
-          units: ctx.units,
-          weightStep: ctx.units === 'kg' ? 2.5 : 5,
-        },
-      });
+      // No prefill: the staged-marker (autoStaged) can't be registered from here, and an unmarked seeded set would trip the #12 leave-confirm. Follow-up: plumb FirstSetStage through useVoiceSession.
+      const { weId } = await addExerciseToWorkout({ workoutId: ctx.workoutId, exerciseId });
       return {
         ok: true,
         message: `Added ${match ? match.name : command.name}`,
