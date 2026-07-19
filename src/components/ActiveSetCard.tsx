@@ -1,4 +1,12 @@
-import { useCallback, useEffect, useMemo, useState } from 'react';
+import {
+  forwardRef,
+  useCallback,
+  useEffect,
+  useImperativeHandle,
+  useMemo,
+  useRef,
+  useState,
+} from 'react';
 import {
   type AccessibilityActionEvent,
   AccessibilityInfo,
@@ -15,20 +23,32 @@ import Animated, {
   withSpring,
 } from 'react-native-reanimated';
 
-import { NumericStepper } from '@/components/NumericStepperView';
+import { NumericStepper, type NumericStepperHandle } from '@/components/NumericStepperView';
 import { haptics } from '@/ui/haptics';
 import { Icon } from '@/ui/icons';
 import { motion } from '@/ui/motion';
 import { Text } from '@/ui/Text';
 import { useTheme, type Theme } from '@/ui/useTheme';
 
-import { exerciseSetStrip, ghostSetStrip, type ExerciseShape, type SetShape } from './activeSet';
+import {
+  canCompleteSet,
+  exerciseSetStrip,
+  ghostSetStrip,
+  setValuesLabel,
+  type ExerciseShape,
+  type SetShape,
+} from './activeSet';
 
 /** Live voice state for the inline-morph display. `idle` renders nothing extra. */
 export interface VoiceCardState {
   phase: 'idle' | 'listening' | 'pending' | 'applied' | 'error';
   partial?: string;
   feedback?: string;
+}
+
+export interface ActiveSetCardHandle {
+  /** Commit any open keypad edits and return the effective weight × reps. */
+  flushEdits: () => { weight: number | null; reps: number | null };
 }
 
 interface Props {
@@ -42,36 +62,55 @@ interface Props {
   ghostSets: SetShape[]; // completed sets before this one in the same exercise
   onChangeWeight: (next: number | null) => void;
   onChangeReps: (next: number | null) => void;
-  onComplete: () => void;
+  onComplete: (values: { weight: number | null; reps: number | null }) => void;
   /** Tapping a banked ghost set opens the set editor (backlog 1.1). */
   onEditSet?: (set: SetShape, displayIndex: number) => void;
+  /** LAST TIME provenance strip for a history-prefilled staged set (spec §2). */
+  lastTime?: { weight: number | null; reps: number | null } | null;
   voice?: VoiceCardState;
 }
 
-type FocusedField = 'weight' | 'reps' | null;
-
 const COMPLETE_ACTION = [{ name: 'activate', label: 'Complete set' }];
 
-export function ActiveSetCard({
-  exercise,
-  set,
-  exerciseIndex,
-  totalExercises,
-  setIndex,
-  weightStep,
-  weightUnit,
-  ghostSets,
-  onChangeWeight,
-  onChangeReps,
-  onComplete,
-  onEditSet,
-  voice,
-}: Props) {
+export const ActiveSetCard = forwardRef<ActiveSetCardHandle, Props>(function ActiveSetCard(
+  {
+    exercise,
+    set,
+    exerciseIndex,
+    totalExercises,
+    setIndex,
+    weightStep,
+    weightUnit,
+    ghostSets,
+    onChangeWeight,
+    onChangeReps,
+    onComplete,
+    onEditSet,
+    lastTime,
+    voice,
+  },
+  ref,
+) {
   const theme = useTheme();
   const styles = useMemo(() => makeStyles(theme), [theme]);
-  const [focused, setFocused] = useState<FocusedField>(null);
 
-  const canComplete = set.weight != null && set.reps != null;
+  const weightRef = useRef<NumericStepperHandle>(null);
+  const repsRef = useRef<NumericStepperHandle>(null);
+
+  const flushEdits = useCallback((): { weight: number | null; reps: number | null } => {
+    const w = weightRef.current;
+    const r = repsRef.current;
+    // flushEdit() already returns the effective value (a committed null is a
+    // real clear) — fall back to props only when a ref isn't mounted.
+    return {
+      weight: w ? w.flushEdit() : set.weight,
+      reps: r ? r.flushEdit() : set.reps,
+    };
+  }, [set.weight, set.reps]);
+
+  useImperativeHandle(ref, () => ({ flushEdits }), [flushEdits]);
+
+  const canComplete = canCompleteSet(set);
 
   const translateY = useSharedValue(0);
   const thresholdCrossed = useSharedValue(false);
@@ -85,19 +124,26 @@ export function ActiveSetCard({
   // instantly. (A ref read synchronously in the same-mount effect always saw
   // the pre-read `false`, so the gate never suppressed the spring.)
   const [reduceMotion, setReduceMotion] = useState<boolean | null>(null);
+  const reduceMotionSV = useSharedValue(false);
   useEffect(() => {
     let active = true;
     AccessibilityInfo.isReduceMotionEnabled()
       .then((r) => {
-        if (active) setReduceMotion(r);
+        if (active) {
+          setReduceMotion(r);
+          reduceMotionSV.value = r;
+        }
       })
       .catch(() => {
-        if (active) setReduceMotion(false);
+        if (active) {
+          setReduceMotion(false);
+          reduceMotionSV.value = false;
+        }
       });
     return () => {
       active = false;
     };
-  }, []);
+  }, [reduceMotionSV]);
 
   useEffect(() => {
     if (reduceMotion === null) return; // wait for the mount read
@@ -111,11 +157,16 @@ export function ActiveSetCard({
   }, []);
 
   const handleComplete = useCallback(() => {
-    if (!canComplete) return;
+    const values = flushEdits();
+    if (!canCompleteSet({ reps: values.reps })) {
+      // A flushed clear can disarm the gate after the fling — bring the card back.
+      translateY.value = withSpring(0, motion.spring.rebound);
+      return;
+    }
     // Medium = "set banked" — the signature complete-set moment's haptic half.
     haptics.medium();
-    onComplete();
-  }, [canComplete, onComplete]);
+    onComplete(values);
+  }, [flushEdits, onComplete, translateY]);
 
   // VoiceOver/TalkBack can't perform the swipe — expose completion as an
   // accessibility action so the screen is operable without the gesture (#9.1).
@@ -129,8 +180,13 @@ export function ActiveSetCard({
   const pan = Gesture.Pan()
     .activeOffsetY([-10, 10])
     .onUpdate((event) => {
-      if (!canComplete) return;
       const ty = event.translationY;
+      if (!canComplete) {
+        // Gated: a damped tug that says "the gesture exists but is locked",
+        // instead of a dead card. Reduce Motion: stay still.
+        translateY.value = reduceMotionSV.value ? 0 : Math.max(-24, Math.min(0, ty * 0.2));
+        return;
+      }
       if (ty < -COMPLETION_THRESHOLD) {
         const excess = -ty - COMPLETION_THRESHOLD;
         translateY.value = -COMPLETION_THRESHOLD - Math.log(1 + excess) * 8;
@@ -144,6 +200,10 @@ export function ActiveSetCard({
       }
     })
     .onEnd(() => {
+      if (!canComplete) {
+        translateY.value = withSpring(0, motion.spring.rebound);
+        return;
+      }
       if (thresholdCrossed.value) {
         translateY.value = withSpring(-600, motion.spring.snappy);
         thresholdCrossed.value = false;
@@ -161,7 +221,7 @@ export function ActiveSetCard({
     <GestureDetector gesture={pan}>
       <Animated.View
         style={[styles.container, animatedStyle]}
-        accessibilityLabel={`Set ${setIndex}, ${set.weight ?? 'no weight'} by ${set.reps ?? 'no reps'} reps. Swipe up to complete.`}
+        accessibilityLabel={`Set ${setIndex}, ${set.weight ?? 'bodyweight'} by ${set.reps ?? 'no reps'} reps. Swipe up to complete.`}
         accessibilityHint="Swipe up to mark this set complete"
         accessibilityActions={canComplete ? COMPLETE_ACTION : undefined}
         onAccessibilityAction={onAccessibilityAction}
@@ -174,18 +234,15 @@ export function ActiveSetCard({
           {exercise.exerciseName}
         </Text>
 
-        <Pressable
-          onPress={() => setFocused(null)} // tap empty area clears focus
-          style={styles.heroRow}
-        >
+        <View style={styles.heroRow}>
           <NumericStepper
+            ref={weightRef}
             value={set.weight}
             step={weightStep}
             unit={weightUnit}
-            focused={focused === 'weight'}
-            onFocus={() => setFocused('weight')}
-            onBlur={() => setFocused(null)}
             onChange={onChangeWeight}
+            accessoryLabel="NEXT → REPS"
+            onAccessoryPress={() => repsRef.current?.openKeypad()}
             size="hero"
             testID="weight-stepper"
           />
@@ -203,17 +260,22 @@ export function ActiveSetCard({
             ×
           </Text>
           <NumericStepper
+            ref={repsRef}
             value={set.reps}
             step={1}
             unit="REPS"
-            focused={focused === 'reps'}
-            onFocus={() => setFocused('reps')}
-            onBlur={() => setFocused(null)}
             onChange={onChangeReps}
+            accessoryLabel="DONE"
             size="hero"
             testID="reps-stepper"
           />
-        </Pressable>
+        </View>
+
+        {lastTime ? (
+          <Text variant="strip" color={theme.color.inkTertiary}>
+            {`LAST TIME · ${setValuesLabel(lastTime.weight, lastTime.reps)}`}
+          </Text>
+        ) : null}
 
         {ghostSets.length > 0 ? (
           <View style={styles.ghostList}>
@@ -266,13 +328,13 @@ export function ActiveSetCard({
 
         <View style={styles.swipeHintRow}>
           <Text variant="meta" color={theme.color.inkTertiary}>
-            {canComplete ? '↑ Swipe up to complete' : 'Set weight and reps to continue'}
+            {canComplete ? '↑ Swipe up to log' : 'Enter reps to log this set'}
           </Text>
         </View>
       </Animated.View>
     </GestureDetector>
   );
-}
+});
 
 const makeStyles = (theme: Theme) =>
   StyleSheet.create({

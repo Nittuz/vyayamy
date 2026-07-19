@@ -106,7 +106,7 @@ test('STALE_THRESHOLD_MS is 24 hours', () => {
 
 test('discardQuarantinedRow with op=insert DELETEs the local row', async () => {
   const wId = await createWorkout({ userId: 'u', title: 'T' });
-  const weId = await addExerciseToWorkout({ workoutId: wId, exerciseId: 'ex' });
+  const { weId } = await addExerciseToWorkout({ workoutId: wId, exerciseId: 'ex' });
   // Auto-stage already added one set; add another we'll quarantine
   const setId = await addSet(weId, { weight: 100, reps: 5 });
 
@@ -133,7 +133,7 @@ test('discardQuarantinedRow with op=insert DELETEs the local row', async () => {
 
 test('discardQuarantinedRow with op=delete UN-TOMBSTONES the local row', async () => {
   const wId = await createWorkout({ userId: 'u', title: 'T' });
-  const weId = await addExerciseToWorkout({ workoutId: wId, exerciseId: 'ex' });
+  const { weId } = await addExerciseToWorkout({ workoutId: wId, exerciseId: 'ex' });
   // Get auto-staged set
   const sets = await listSetsForWorkoutExercise(weId);
   const setId = sets[0]!.id;
@@ -165,7 +165,7 @@ test('discardQuarantinedRow with op=update leaves the local row alone', async ()
   // Update is the "user's edit stays local, just not synced" case.
   // We don't revert local edits — that would be surprising.
   const wId = await createWorkout({ userId: 'u', title: 'T' });
-  const weId = await addExerciseToWorkout({ workoutId: wId, exerciseId: 'ex' });
+  const { weId } = await addExerciseToWorkout({ workoutId: wId, exerciseId: 'ex' });
   const sets = await listSetsForWorkoutExercise(weId);
   const setId = sets[0]!.id;
 

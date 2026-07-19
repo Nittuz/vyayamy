@@ -3,7 +3,6 @@
  * it can be unit-tested in Jest (which cannot render React Native
  * components in this project's setup).
  */
-import { useEffect, useRef } from 'react';
 
 export function applyStep(
   current: number | null,
@@ -44,7 +43,10 @@ export function formatValue(value: number | null): string {
 }
 
 export function parseUserInput(input: string): number | null {
-  const trimmed = input.trim();
+  // ',' as a decimal separator only in true decimal shape (1-2 fraction
+  // digits) — '1,234' thousands-style must fail safe to null, not 1.234.
+  const raw = input.trim();
+  const trimmed = /^\d*,\d{1,2}$/.test(raw) ? raw.replace(',', '.') : raw;
   if (trimmed === '') return null;
   const n = Number(trimmed);
   if (!Number.isFinite(n)) return null;
@@ -57,82 +59,38 @@ function roundToStep(value: number): number {
 }
 
 /**
- * Debounced commit helper for NumericStepperView's keypad mode.
- *
- * Each call to bufferKeystroke restarts a timer. When the timer fires, the
- * buffered text is parsed via parseUserInput; valid numbers (and empty=null)
- * call onChange exactly once. flushNow cancels the pending timer and commits
- * the buffer immediately (called on blur). cancelPending clears the timer
- * without committing (called on unmount).
- *
- * Pure logic in TypeScript — the React hook is a thin wrapper that ensures
- * the closure dies with the component.
+ * One keypad edit = one session = at most ONE write (spec §1).
+ * Replaces the debounce buffer whose empty/stale state caused the
+ * wipe-on-blur and partial-value-banking defects.
  */
-export interface DebouncedCommit {
-  bufferKeystroke: (rawText: string) => void;
-  flushNow: () => void;
-  cancelPending: () => void;
+export interface EditSession {
+  /** Text the keypad opened with — '' for an empty field. */
+  seedText: string;
+  /** Current text in the input. */
+  text: string;
 }
 
-export function useDebouncedCommit(
-  onChange: (next: number | null) => void,
-  debounceMs: number,
-  sanitize: (n: number) => number = (n) => n,
-): DebouncedCommit {
-  const bufferRef = useRef<string>('');
-  const timerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
-  const onChangeRef = useRef(onChange);
-  const sanitizeRef = useRef(sanitize);
+export function beginEditSession(value: number | null): EditSession {
+  const seedText = value == null ? '' : formatValue(value);
+  return { seedText, text: seedText };
+}
 
-  // Keep onChange/sanitize fresh without re-creating the hook contract every render
-  useEffect(() => {
-    onChangeRef.current = onChange;
-    sanitizeRef.current = sanitize;
-  }, [onChange, sanitize]);
+export type EditCommit = { kind: 'noop' } | { kind: 'commit'; value: number | null };
 
-  const commit = () => {
-    const text = bufferRef.current;
-    if (text.trim() === '') {
-      onChangeRef.current(null);
-      return;
-    }
-    const n = Number(text.trim());
-    if (Number.isFinite(n)) {
-      // Clamp/round before it reaches SQLite + sync (#19).
-      onChangeRef.current(sanitizeRef.current(n));
-    }
-    // invalid → no-op
-  };
-
-  const bufferKeystroke = (rawText: string) => {
-    bufferRef.current = rawText;
-    if (timerRef.current) clearTimeout(timerRef.current);
-    timerRef.current = setTimeout(() => {
-      timerRef.current = null;
-      commit();
-    }, debounceMs);
-  };
-
-  const flushNow = () => {
-    if (timerRef.current) {
-      clearTimeout(timerRef.current);
-      timerRef.current = null;
-    }
-    commit();
-  };
-
-  const cancelPending = () => {
-    if (timerRef.current) {
-      clearTimeout(timerRef.current);
-      timerRef.current = null;
-    }
-  };
-
-  useEffect(() => {
-    return () => {
-      if (timerRef.current) clearTimeout(timerRef.current);
-    };
-  }, []);
-
-  return { bufferKeystroke, flushNow, cancelPending };
+/**
+ * Resolve a finished edit session:
+ * - untouched (text === seedText) → noop: dismissing an inspected field never changes it
+ * - cleared → commit null (deliberate clear)
+ * - parseable ('.' or ',' decimals) → commit sanitized
+ * - garbage → noop
+ */
+export function resolveEditCommit(
+  session: EditSession,
+  sanitize: (n: number) => number,
+): EditCommit {
+  if (session.text === session.seedText) return { kind: 'noop' };
+  if (session.text.trim() === '') return { kind: 'commit', value: null };
+  const parsed = parseUserInput(session.text);
+  if (parsed == null) return { kind: 'noop' };
+  return { kind: 'commit', value: sanitize(parsed) };
 }

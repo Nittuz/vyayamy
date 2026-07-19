@@ -82,7 +82,7 @@ async function seedWe(): Promise<string> {
     [exerciseId, 'Bench', new Date().toISOString(), new Date().toISOString()],
   );
   const workoutId = await createWorkout({ userId: USER, title: 'Push' });
-  return addExerciseToWorkout({ workoutId, exerciseId });
+  return (await addExerciseToWorkout({ workoutId, exerciseId })).weId;
 }
 
 test("an update never ships while the same row's insert is still failing (#0 ordering)", async () => {

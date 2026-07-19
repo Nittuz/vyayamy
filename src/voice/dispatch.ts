@@ -1,3 +1,4 @@
+import { sanitizeNumber } from '@/components/numericStepper';
 import { getDb } from '@/db/client';
 import { enqueueMutation } from '@/db/mutations';
 import { addExerciseToWorkout, createCustomExercise, searchExercises } from '@/queries/exercises';
@@ -35,12 +36,16 @@ export async function dispatchCommand(
       }>('SELECT weight, reps, units FROM sets WHERE id = ?', [ctx.activeSetId]);
       const patch: { weight?: number; reps?: number; units?: 'kg' | 'lb' } = {};
       if (command.weight != null) {
-        patch.weight = command.weight;
+        // Same clamp as the keypad/steppers (#19) — a misheard "bench 9999"
+        // must not write an unbounded value (backlog 2.2/#137).
+        patch.weight = sanitizeNumber(command.weight, { min: 0, max: 1500 });
         // A spoken unit ("100 kilos") overrides the profile preference; otherwise
         // the weight is logged in the profile's unit (#133).
         patch.units = command.unit ?? ctx.units;
       }
-      if (command.reps != null) patch.reps = command.reps;
+      if (command.reps != null) {
+        patch.reps = sanitizeNumber(command.reps, { min: 0, max: 200, integer: true });
+      }
       await updateSet(ctx.activeSetId, patch);
       const setId = ctx.activeSetId;
       return {
@@ -85,7 +90,10 @@ export async function dispatchCommand(
       const exerciseId = match
         ? match.id
         : await createCustomExercise({ userId: ctx.userId, name: command.name });
-      const weId = await addExerciseToWorkout({ workoutId: ctx.workoutId, exerciseId });
+      // No prefill: the staged-marker (autoStaged) can't be registered from
+      // here, and an unmarked seeded set would trip the #12 leave-confirm.
+      // Follow-up: plumb FirstSetStage through useVoiceSession.
+      const { weId } = await addExerciseToWorkout({ workoutId: ctx.workoutId, exerciseId });
       return {
         ok: true,
         message: `Added ${match ? match.name : command.name}`,

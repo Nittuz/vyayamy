@@ -17,6 +17,7 @@ export type IconName =
   | 'chevron-down'
   | 'arrow-right'
   | 'plus'
+  | 'minus'
   | 'x'
   | 'skip'
   | 'flag';
@@ -81,6 +82,9 @@ export function Icon({ name, size = 22, color, stroke = 2 }: IconProps) {
           <Line x1={12} y1={5} x2={12} y2={19} {...common} />
           <Line x1={5} y1={12} x2={19} y2={12} {...common} />
         </>
+      )}
+      {name === 'minus' && (
+        <Line x1={5} y1={12} x2={19} y2={12} {...common} />
       )}
       {name === 'x' && (
         <>

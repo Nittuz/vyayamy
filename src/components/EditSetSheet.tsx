@@ -5,11 +5,11 @@
  * personal-records recompute path so an edited or removed set can never leave
  * a phantom PR behind (recompute is authoritative, #138).
  */
-import { useEffect, useMemo, useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import { StyleSheet, View } from 'react-native';
 
 import { type SetShape } from '@/components/activeSet';
-import { NumericStepper } from '@/components/NumericStepperView';
+import { NumericStepper, type NumericStepperHandle } from '@/components/NumericStepperView';
 import { recomputeExercisePRs } from '@/queries/personalRecords';
 import { useDeleteSet, useUpdateSet } from '@/queries/sets';
 import { Button } from '@/ui/Button';
@@ -34,8 +34,6 @@ interface Props {
   onError?: (msg: string) => void;
 }
 
-type FocusedField = 'weight' | 'reps';
-
 export function EditSetSheet({
   visible,
   set,
@@ -56,13 +54,14 @@ export function EditSetSheet({
 
   const [weight, setWeight] = useState<number | null>(set.weight);
   const [reps, setReps] = useState<number | null>(set.reps);
-  const [focused, setFocused] = useState<FocusedField>('weight');
+
+  const weightRef = useRef<NumericStepperHandle>(null);
+  const repsRef = useRef<NumericStepperHandle>(null);
 
   // Re-seed the drafts whenever a different set is opened.
   useEffect(() => {
     setWeight(set.weight);
     setReps(set.reps);
-    setFocused('weight');
   }, [set.id, set.weight, set.reps]);
 
   // Fire-and-forget: the recompute path is serialized internally and only
@@ -73,13 +72,27 @@ export function EditSetSheet({
 
   const handleSave = () => {
     haptics.light();
+    // Flush any open keypad edit FIRST so Save can never bank a stale draft
+    // (flush-before-consume, spec §1/§3). A committed null is a real clear —
+    // fall back to draft state only when a ref isn't mounted.
+    const nextWeight = weightRef.current ? weightRef.current.flushEdit() : weight;
+    const nextReps = repsRef.current ? repsRef.current.flushEdit() : reps;
+    // Defensive draft sync: keep local state matching what we're banking.
+    setWeight(nextWeight);
+    setReps(nextReps);
     updateSet.mutate(
       {
         setId: set.id,
         weId: set.weId,
-        // Stamp the logging unit whenever a weight is present (per-set
-        // provenance, #131); a cleared weight keeps the set's stored unit.
-        patch: { weight, reps, units: weight != null ? units : set.units },
+        // Unit stamped only when a weight is present (per-set provenance,
+        // #131). Clearing keeps set.units — editing a LOGGED set preserves its
+        // historical stamp, unlike the live card (WorkoutActive.onChangeWeight)
+        // which nulls it. Don't "unify" these.
+        patch: {
+          weight: nextWeight,
+          reps: nextReps,
+          units: nextWeight != null ? units : set.units,
+        },
       },
       {
         onSuccess: () => {
@@ -137,13 +150,13 @@ export function EditSetSheet({
           WEIGHT · {weightUnit}
         </Text>
         <NumericStepper
+          ref={weightRef}
           value={weight}
           step={weightStep}
           unit={weightUnit}
-          focused={focused === 'weight'}
-          onFocus={() => setFocused('weight')}
-          onBlur={noop}
           onChange={setWeight}
+          accessoryLabel="NEXT → REPS"
+          onAccessoryPress={() => repsRef.current?.openKeypad()}
           size="inline"
           testID="edit-weight-stepper"
         />
@@ -153,13 +166,12 @@ export function EditSetSheet({
           REPS
         </Text>
         <NumericStepper
+          ref={repsRef}
           value={reps}
           step={1}
           unit="REPS"
-          focused={focused === 'reps'}
-          onFocus={() => setFocused('reps')}
-          onBlur={noop}
           onChange={setReps}
+          accessoryLabel="DONE"
           size="inline"
           testID="edit-reps-stepper"
         />
@@ -167,8 +179,6 @@ export function EditSetSheet({
     </Sheet>
   );
 }
-
-function noop() {}
 
 const makeStyles = (theme: Theme) =>
   StyleSheet.create({

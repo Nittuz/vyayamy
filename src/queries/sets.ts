@@ -12,6 +12,7 @@ import { withTransaction } from '@/db/transaction';
 import type { Set as SetRow } from '@/db/types';
 import { nowIso, uuidv4 } from '@/db/uuid';
 import { emitMutationCommitted } from '@/db/mutationEvents';
+import { planFirstSet, type StagedSetPlan } from '@/components/activeSet';
 
 import { queryKeys, setWriteInvalidationKeys } from './keys';
 
@@ -149,4 +150,95 @@ export function useDeleteSet(onError?: (msg: string) => void) {
       onError?.("Couldn't delete the set. Try again.");
     },
   });
+}
+
+interface LastSessionSetRow {
+  order_index: number;
+  weight: number | null;
+  reps: number | null;
+  units: 'kg' | 'lb' | null;
+}
+
+/**
+ * Completed sets of the most recent FINISHED workout containing this exercise,
+ * in performed order — the never-empty prefill source (spec §2). Pattern
+ * follows getHeaviestWeightHistory in personalRecords.ts. planFirstSet's
+ * `lastSets[0]` contract depends on the ORDER BY order_index ASC here.
+ *
+ * Pinned to ONE workout_exercise id (the LAST block of the exercise in that
+ * workout): a workout can hold the same exercise in two blocks, each with its
+ * own order_index sequence, and filtering by workout+exercise would interleave
+ * them and break the "first performed set" contract.
+ */
+export async function getLastSessionSets(
+  userId: string,
+  exerciseId: string,
+): Promise<LastSessionSetRow[]> {
+  const db = await getDb();
+  const last = await db.getFirstAsync<{ we_id: string }>(
+    `SELECT we.id AS we_id
+       FROM workouts w
+       JOIN workout_exercises we ON we.workout_id = w.id
+       JOIN sets s ON s.workout_exercise_id = we.id
+      WHERE w.user_id = ? AND we.exercise_id = ?
+        AND w.ended_at IS NOT NULL AND s.completed = 1
+        AND s.deleted_at IS NULL AND we.deleted_at IS NULL AND w.deleted_at IS NULL
+      ORDER BY w.ended_at DESC, we.order_index DESC
+      LIMIT 1`,
+    [userId, exerciseId],
+  );
+  if (!last) return [];
+  return db.getAllAsync<LastSessionSetRow>(
+    `SELECT order_index, weight, reps, units
+       FROM sets
+      WHERE workout_exercise_id = ? AND completed = 1 AND deleted_at IS NULL
+      ORDER BY order_index ASC`,
+    [last.we_id],
+  );
+}
+
+export interface FirstSetStage {
+  setId: string;
+  plan: StagedSetPlan;
+  /** True when the plan carries last-session values (drives LAST TIME + autoStaged). */
+  fromHistory: boolean;
+}
+
+/** Everything the history-prefill path needs to stage a first set (spec §2). */
+export interface PrefillContext {
+  userId: string;
+  units: 'kg' | 'lb';
+  weightStep: number;
+}
+
+/**
+ * Stage the FIRST set of an exercise, prefilled from history (spec §2).
+ * History lookup failures degrade to an empty stage — staging must never
+ * block on a bad read.
+ */
+export async function stageFirstSet(
+  weId: string,
+  exerciseId: string,
+  ctx: PrefillContext,
+): Promise<FirstSetStage> {
+  let plan: StagedSetPlan = { weight: null, reps: null, units: null };
+  try {
+    const rows = await getLastSessionSets(ctx.userId, exerciseId);
+    plan = planFirstSet(
+      rows.map((r) => ({
+        orderIndex: r.order_index,
+        weight: r.weight,
+        reps: r.reps,
+        units: r.units,
+      })),
+      ctx.units,
+      ctx.weightStep,
+    );
+  } catch (err) {
+    // Prefill is best-effort — a bad read must not block staging (spec §2),
+    // but it must not vanish either.
+    reportMutationError(err, 'stageFirstSet');
+  }
+  const setId = await addSet(weId, plan);
+  return { setId, plan, fromHistory: plan.weight != null || plan.reps != null };
 }

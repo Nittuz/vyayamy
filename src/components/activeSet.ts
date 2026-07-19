@@ -5,6 +5,7 @@
  * when the workout is finished (last set of last exercise).
  */
 import { dayOfWeek } from '@/lib/dayOfWeek';
+import { convertWeight, DEFAULT_UNITS } from '@/core/units';
 
 export interface SetShape {
   id: string;
@@ -125,6 +126,68 @@ export function planStagedSet(currentSet: SetShape | null, units: 'kg' | 'lb'): 
   return { weight, reps, units: weight != null ? units : null };
 }
 
+/** Reps make a set loggable; weight is optional — bodyweight (spec §4). */
+export function canCompleteSet(set: Pick<SetShape, 'reps'> | null): boolean {
+  return set?.reps != null;
+}
+
+/** `60 × 8` / `BW × 12` — the LOG SET echo and every logged-set value text. */
+export function setValuesLabel(weight: number | null, reps: number | null): string {
+  return `${weight ?? 'BW'} × ${reps ?? '-'}`;
+}
+
+/** A completed set from the previous session of the same exercise. */
+export interface LastSessionSet {
+  orderIndex: number;
+  weight: number | null;
+  reps: number | null;
+  units: 'kg' | 'lb' | null;
+}
+
+/**
+ * Prefill for the FIRST set of an exercise (spec §2): last session's first
+ * set, falling back to its top set; weight converted to the current unit and
+ * rounded to the current step. Empty history → truly empty stage.
+ */
+export function planFirstSet(
+  lastSets: LastSessionSet[],
+  units: 'kg' | 'lb',
+  weightStep: number,
+): StagedSetPlan {
+  const first = lastSets[0] ?? null;
+  const pick =
+    first && (first.weight != null || first.reps != null) ? first : topLastSessionSet(lastSets);
+  if (!pick) return { weight: null, reps: null, units: null };
+  let weight: number | null = null;
+  if (pick.weight != null) {
+    const converted = convertWeight(pick.weight, pick.units ?? DEFAULT_UNITS, units);
+    weight = roundToNearest(converted, weightStep);
+  }
+  return { weight, reps: pick.reps ?? null, units: weight != null ? units : null };
+}
+
+function topLastSessionSet(lastSets: LastSessionSet[]): LastSessionSet | null {
+  let top: LastSessionSet | null = null;
+  let topKg = -Infinity;
+  for (const s of lastSets) {
+    if (s.weight == null) {
+      if (top == null && s.reps != null) top = s; // bodyweight history still seeds reps
+      continue;
+    }
+    const kg = convertWeight(s.weight, s.units ?? DEFAULT_UNITS, 'kg');
+    if (kg > topKg) {
+      topKg = kg;
+      top = s;
+    }
+  }
+  return top;
+}
+
+function roundToNearest(value: number, step: number): number {
+  // Kill FP dust the same way roundToStep does in numericStepper.ts.
+  return Math.round((Math.round(value / step) * step) * 1000) / 1000;
+}
+
 export function findInitialCursor(exercises: ExerciseShape[]): ActiveCursor | null {
   for (const ex of exercises) {
     const next = ex.sets.find((s) => !s.completed);
@@ -205,12 +268,12 @@ export function exerciseSetStrip(
   return `EXERCISE ${exerciseIndex}/${totalExercises} · SET ${setIndex}`;
 }
 
-/** Mono strip for a banked (ghost) set row: `SET 1 · 60 × 8`. */
+/** Mono strip for a banked (ghost) set row: `SET 1 · 60 × 8` / `SET 1 · BW × 12`. */
 export function ghostSetStrip(
   displayIndex: number,
   set: Pick<SetShape, 'weight' | 'reps'>,
 ): string {
-  return `SET ${displayIndex} · ${set.weight ?? '-'} × ${set.reps ?? '-'}`;
+  return `SET ${displayIndex} · ${setValuesLabel(set.weight, set.reps)}`;
 }
 
 /** Identity + pre-filled values of the speculative set staged on completion. */
@@ -218,6 +281,8 @@ export interface AutoStagedSet {
   id: string;
   weight: number | null;
   reps: number | null;
+  /** 'carry' = copied from the just-completed set; 'history' = last-session prefill (shows LAST TIME). */
+  source?: 'carry' | 'history';
 }
 
 /**

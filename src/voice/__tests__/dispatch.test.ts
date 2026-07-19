@@ -22,7 +22,7 @@ async function seedExercise(id: string, name: string) {
 
 async function setup(): Promise<DispatchContext> {
   const workoutId = await createWorkout({ userId: USER, title: 'Push' });
-  const weId = await addExerciseToWorkout({ workoutId, exerciseId: 'ex' });
+  const { weId } = await addExerciseToWorkout({ workoutId, exerciseId: 'ex' });
   const sets = await listSetsForWorkoutExercise(weId); // auto-staged set 0
   return { userId: USER, workoutId, activeWeId: weId, activeSetId: sets[0]!.id, units: 'lb' };
 }
@@ -108,6 +108,13 @@ test('addExercise creates a custom exercise when no match exists', async () => {
     "SELECT user_id FROM exercises WHERE name = 'Zercher Squat'",
   );
   expect(row!.user_id).toBe(USER);
+});
+
+test('setValues clamps an unbounded misheard weight to the keypad max (#19/#137)', async () => {
+  const ctx = await setup();
+  await dispatchCommand({ kind: 'setValues', weight: 9999, reps: 5 }, ctx);
+  const sets = await listSetsForWorkoutExercise(ctx.activeWeId!);
+  expect(sets[0]!.weight).toBe(1500);
 });
 
 test('setValues with no active set is a no-op failure', async () => {

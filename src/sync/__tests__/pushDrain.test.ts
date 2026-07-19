@@ -64,7 +64,7 @@ async function seedWe(): Promise<string> {
     [exerciseId, 'Bench', new Date().toISOString(), new Date().toISOString()],
   );
   const workoutId = await createWorkout({ userId: USER, title: 'Push' });
-  return addExerciseToWorkout({ workoutId, exerciseId });
+  return (await addExerciseToWorkout({ workoutId, exerciseId })).weId;
 }
 
 test('one push drains the whole outbox, including a row update held behind its insert (#5)', async () => {

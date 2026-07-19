@@ -17,7 +17,7 @@ import type { PlateTone } from './plateStyles';
 import { Text } from './Text';
 import { useTheme, type Theme } from './useTheme';
 
-export type ButtonKind = 'primary' | 'secondary' | 'ghost' | 'danger';
+export type ButtonKind = 'primary' | 'secondary' | 'ghost' | 'danger' | 'inverted';
 export type ButtonSize = 'cta' | 'row';
 
 export interface ButtonProps {
@@ -38,6 +38,7 @@ const TONE_FOR_KIND: Record<ButtonKind, PlateTone> = {
   secondary: 'panel',
   ghost: 'ghost',
   danger: 'ghost',
+  inverted: 'inverted',
 };
 
 export function Button({
@@ -58,11 +59,13 @@ export function Button({
   const textColor =
     kind === 'primary'
       ? theme.color.onAccent
-      : kind === 'danger'
-        ? theme.color.danger
-        : theme.color.ink;
+      : kind === 'inverted'
+        ? theme.color.bg
+        : kind === 'danger'
+          ? theme.color.danger
+          : theme.color.ink;
 
-  const stamped = kind === 'primary' || kind === 'secondary';
+  const stamped = kind === 'primary' || kind === 'secondary' || kind === 'inverted';
 
   const content = loading ? (
     <ActivityIndicator color={textColor} />

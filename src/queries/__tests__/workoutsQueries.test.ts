@@ -94,7 +94,7 @@ describe('deleteWorkoutLocal', () => {
       ['ex', 'Bench', 'Chest', null, T, T],
     );
     const wId = await createWorkout({ userId: USER, title: 'Push' });
-    const weId = await addExerciseToWorkout({ workoutId: wId, exerciseId: 'ex' });
+    const { weId } = await addExerciseToWorkout({ workoutId: wId, exerciseId: 'ex' });
 
     await deleteWorkoutLocal(wId);
 

@@ -39,12 +39,12 @@ test('returns empty when user has no active workouts', async () => {
 
 test('detects 2 unfinished workouts with details', async () => {
   const w1 = await createWorkout({ userId: USER_ID, title: 'Push' });
-  const we1 = await addExerciseToWorkout({ workoutId: w1, exerciseId: EX_ID });
+  const { weId: we1 } = await addExerciseToWorkout({ workoutId: w1, exerciseId: EX_ID });
   await addSet(we1);
   await addSet(we1);
 
   const w2 = await createWorkout({ userId: USER_ID, title: 'Pull' });
-  const we2 = await addExerciseToWorkout({ workoutId: w2, exerciseId: EX_ID });
+  const { weId: we2 } = await addExerciseToWorkout({ workoutId: w2, exerciseId: EX_ID });
   await addSet(we2);
 
   const result = await getActiveWorkoutCollisions(USER_ID);
