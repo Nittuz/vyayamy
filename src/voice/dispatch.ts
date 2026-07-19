@@ -85,7 +85,17 @@ export async function dispatchCommand(
       const exerciseId = match
         ? match.id
         : await createCustomExercise({ userId: ctx.userId, name: command.name });
-      const { weId } = await addExerciseToWorkout({ workoutId: ctx.workoutId, exerciseId });
+      // Never-empty first set for voice adds too (spec §2) — prefilled from
+      // the last session of this exercise.
+      const { weId } = await addExerciseToWorkout({
+        workoutId: ctx.workoutId,
+        exerciseId,
+        prefill: {
+          userId: ctx.userId,
+          units: ctx.units,
+          weightStep: ctx.units === 'kg' ? 2.5 : 5,
+        },
+      });
       return {
         ok: true,
         message: `Added ${match ? match.name : command.name}`,

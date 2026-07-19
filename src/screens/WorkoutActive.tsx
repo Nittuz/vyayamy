@@ -42,6 +42,7 @@ import { useRestTimer } from '@/rest/useRestTimer';
 import { Button } from '@/ui/Button';
 import { ConfirmSheet } from '@/ui/ConfirmSheet';
 import { EmptyState } from '@/ui/EmptyState';
+import { haptics } from '@/ui/haptics';
 import { SessionRecap } from '@/ui/SessionRecap';
 import { SettleSlam } from '@/ui/SettleSlam';
 import { SyncIndicator } from '@/ui/SyncIndicator';
@@ -210,6 +211,8 @@ export default function WorkoutActiveScreen() {
   const onLogSet = useCallback(() => {
     const values = cardRef.current?.flushEdits() ?? null;
     if (!values || !canCompleteSet({ reps: values.reps })) return;
+    // Medium = "set banked" — same signature haptic as the swipe path (spec §3).
+    haptics.medium();
     void onComplete(values);
   }, [onComplete]);
 
