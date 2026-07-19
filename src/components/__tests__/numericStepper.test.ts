@@ -218,10 +218,31 @@ describe('edit session (spec §1 — one edit session, one write)', () => {
     const s = { ...beginEditSession(60), text: '6.2.5' };
     expect(resolveEditCommit(s, sanitize)).toEqual({ kind: 'noop' });
   });
+
+  test('whitespace-only text is a deliberate clear → commit null', () => {
+    const s = { ...beginEditSession(60), text: '   ' };
+    expect(resolveEditCommit(s, sanitize)).toEqual({ kind: 'commit', value: null });
+  });
+
+  test('negative input commits through sanitize (clamped to 0)', () => {
+    const s = { ...beginEditSession(null), text: '-5' };
+    expect(resolveEditCommit(s, sanitize)).toEqual({ kind: 'commit', value: 0 });
+  });
+
+  test('retyping the same value with a trailing zero commits idempotently (22.50 → 22.5)', () => {
+    const s = { ...beginEditSession(22.5), text: '22.50' };
+    expect(resolveEditCommit(s, sanitize)).toEqual({ kind: 'commit', value: 22.5 });
+  });
 });
 
 describe('parseUserInput — comma decimals', () => {
   test('accepts comma as decimal separator', () => {
     expect(parseUserInput('62,5')).toBe(62.5);
+  });
+  test('thousands-style comma fails safe to null, never 1.234', () => {
+    expect(parseUserInput('1,234')).toBeNull();
+  });
+  test('bare leading comma decimal parses (,5 → 0.5)', () => {
+    expect(parseUserInput(',5')).toBe(0.5);
   });
 });

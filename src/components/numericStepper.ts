@@ -44,8 +44,10 @@ export function formatValue(value: number | null): string {
 }
 
 export function parseUserInput(input: string): number | null {
-  // Accept ',' as a decimal separator — several locales' decimal-pads emit it.
-  const trimmed = input.trim().replace(',', '.');
+  // ',' as a decimal separator only in true decimal shape (1-2 fraction
+  // digits) — '1,234' thousands-style must fail safe to null, not 1.234.
+  const raw = input.trim();
+  const trimmed = /^\d*,\d{1,2}$/.test(raw) ? raw.replace(',', '.') : raw;
   if (trimmed === '') return null;
   const n = Number(trimmed);
   if (!Number.isFinite(n)) return null;
