@@ -44,7 +44,8 @@ export function formatValue(value: number | null): string {
 }
 
 export function parseUserInput(input: string): number | null {
-  const trimmed = input.trim();
+  // Accept ',' as a decimal separator — several locales' decimal-pads emit it.
+  const trimmed = input.trim().replace(',', '.');
   if (trimmed === '') return null;
   const n = Number(trimmed);
   if (!Number.isFinite(n)) return null;
@@ -54,6 +55,43 @@ export function parseUserInput(input: string): number | null {
 function roundToStep(value: number): number {
   // Avoid floating-point dust from 0.5 increments (e.g. 22.5 + 2.5 → 25.0000001)
   return Math.round(value * 1000) / 1000;
+}
+
+/**
+ * One keypad edit = one session = at most ONE write (spec §1).
+ * Replaces the debounce buffer whose empty/stale state caused the
+ * wipe-on-blur and partial-value-banking defects.
+ */
+export interface EditSession {
+  /** Text the keypad opened with — '' for an empty field. */
+  seedText: string;
+  /** Current text in the input. */
+  text: string;
+}
+
+export function beginEditSession(value: number | null): EditSession {
+  const seedText = value == null ? '' : formatValue(value);
+  return { seedText, text: seedText };
+}
+
+export type EditCommit = { kind: 'noop' } | { kind: 'commit'; value: number | null };
+
+/**
+ * Resolve a finished edit session:
+ * - untouched (text === seedText) → noop: dismissing an inspected field never changes it
+ * - cleared → commit null (deliberate clear)
+ * - parseable ('.' or ',' decimals) → commit sanitized
+ * - garbage → noop
+ */
+export function resolveEditCommit(
+  session: EditSession,
+  sanitize: (n: number) => number,
+): EditCommit {
+  if (session.text === session.seedText) return { kind: 'noop' };
+  if (session.text.trim() === '') return { kind: 'commit', value: null };
+  const parsed = parseUserInput(session.text);
+  if (parsed == null) return { kind: 'noop' };
+  return { kind: 'commit', value: sanitize(parsed) };
 }
 
 /**
