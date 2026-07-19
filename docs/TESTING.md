@@ -99,3 +99,19 @@ doesn't use EAS at all.
 - Force-quit, airplane mode, relaunch: data intact, app usable offline.
 - Sync indicator settles after coming back online.
 - Visual pass: Today, Workout, Progress in light and dark.
+
+### Set-entry redesign QA (2026-07-19)
+
+- [ ] Tap a prefilled weight, dismiss the keyboard without typing → value unchanged (no wipe to "-")
+- [ ] Type reps "12", swipe up within a beat → banks ×12, never ×1
+- [ ] NEXT → REPS accessory hand-off; DONE dismisses (iOS)
+- [ ] lb profile: type 2.5 (decimal pad present); type "62,5" → 62.5; paste "1,234" → rejected, value unchanged
+- [ ] New exercise with history → seeded values + LAST TIME strip; swipe or LOG SET = repeat of last session
+- [ ] New exercise, no history → ghosted 0 + underline; first tap opens the keypad
+- [ ] Pull-ups: enter reps only → LOG SET · BW × n; ghost strip + history show BW
+- [ ] LOG SET tap after typing + Done/dismiss → logs the typed value (while the keypad is still open, the bar shows the last committed values — accepted edge; Android may show a briefly disabled bar)
+- [ ] Voice "done" with empty reps → does NOT complete the set
+- [ ] Gated swipe rubber-bands (Reduce Motion: stays still); hint reads "Enter reps to log this set"
+- [ ] Edit a banked set, change weight, tap Save immediately → saved value matches the screen
+- [ ] Clear a weight in the keypad, dismiss → field shows ghosted 0, set logs as BW
+- [ ] Airplane mode: log several sets → all present after relaunch; sync clean on reconnect
