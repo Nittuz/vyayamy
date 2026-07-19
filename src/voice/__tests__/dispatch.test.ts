@@ -110,6 +110,13 @@ test('addExercise creates a custom exercise when no match exists', async () => {
   expect(row!.user_id).toBe(USER);
 });
 
+test('setValues clamps an unbounded misheard weight to the keypad max (#19/#137)', async () => {
+  const ctx = await setup();
+  await dispatchCommand({ kind: 'setValues', weight: 9999, reps: 5 }, ctx);
+  const sets = await listSetsForWorkoutExercise(ctx.activeWeId!);
+  expect(sets[0]!.weight).toBe(1500);
+});
+
 test('setValues with no active set is a no-op failure', async () => {
   const ctx = await setup();
   const res = await dispatchCommand(
