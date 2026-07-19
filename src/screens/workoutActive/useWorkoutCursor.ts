@@ -46,31 +46,40 @@ export function useWorkoutCursor({
   // When adding an exercise from the recap, drop the cursor onto THAT exercise's
   // staged set once its data arrives — not the first incomplete set anywhere (#13).
   const pendingTargetWeId = useRef<string | null>(null);
-  // The next set auto-staged on completion is pre-filled with the prior set's
-  // weight × reps, so "has values" can't tell it apart from a set the user
-  // entered. Remember its identity + pre-filled values so leaving an untouched
-  // staged set doesn't trigger the "Skip this set?" prompt every time (#12).
-  const autoStaged = useRef<AutoStagedSet | null>(null);
-  const [stagedMarker, setStagedMarker] = useState<AutoStagedSet | null>(null);
+  // Seeded-set markers keyed by set id (#12 nag suppression + LAST TIME).
+  // A workout can hold several untouched seeds at once (one per prefilled
+  // exercise), so a scalar marker mis-attributes them. Bounded by the
+  // workout's set count; stale completed-set entries are inert (completed
+  // sets never reach the confirm path or the LAST TIME lookup).
+  const stagedSeeds = useRef<Map<string, AutoStagedSet>>(new Map());
+  const [stagedMarkers, setStagedMarkers] = useState<ReadonlyMap<string, AutoStagedSet>>(new Map());
 
-  // Single owner of the staged-set marker (#12 nag suppression + LAST TIME
+  const remember = useCallback((marker: AutoStagedSet) => {
+    stagedSeeds.current.set(marker.id, marker);
+    setStagedMarkers(new Map(stagedSeeds.current));
+  }, []);
+
+  // Single owner of the staged-set markers (#12 nag suppression + LAST TIME
   // provenance). The ref feeds synchronous callback logic; the state mirror
   // feeds render (never read the ref during render).
-  const markStaged = useCallback((staged: FirstSetStage) => {
-    const marker: AutoStagedSet = {
-      id: staged.setId,
-      weight: staged.plan.weight,
-      reps: staged.plan.reps,
-      source: staged.fromHistory ? 'history' : 'carry',
-    };
-    autoStaged.current = marker;
-    setStagedMarker(marker);
-  }, []);
+  const markStaged = useCallback(
+    (staged: FirstSetStage) => {
+      remember({
+        id: staged.setId,
+        weight: staged.plan.weight,
+        reps: staged.plan.reps,
+        source: staged.fromHistory ? 'history' : 'carry',
+      });
+    },
+    [remember],
+  );
 
-  const markCarried = useCallback((marker: AutoStagedSet) => {
-    autoStaged.current = { ...marker, source: 'carry' };
-    setStagedMarker({ ...marker, source: 'carry' });
-  }, []);
+  const markCarried = useCallback(
+    (marker: AutoStagedSet) => {
+      remember({ ...marker, source: 'carry' });
+    },
+    [remember],
+  );
 
   // Initialize cursor when exercises first load, or reposition when the cursor
   // points at a set that no longer exists / is already completed. The decision
@@ -104,7 +113,10 @@ export function useWorkoutCursor({
       const currentSet = rawSet && flushed ? { ...rawSet, ...flushed } : rawSet;
       // Only warn when leaving a set the user actually entered. The untouched
       // auto-staged set (and the empty first set) carry no intent (#12).
-      const needsConfirm = shouldConfirmLeavingSet(currentSet, autoStaged.current);
+      const needsConfirm = shouldConfirmLeavingSet(
+        currentSet,
+        currentSet ? (stagedSeeds.current.get(currentSet.id) ?? null) : null,
+      );
       const advance = async () => {
         if (nextEx) {
           // Target the next exercise's first INCOMPLETE set — not sets[0], which
@@ -153,7 +165,10 @@ export function useWorkoutCursor({
       // actually entered warns in BOTH directions, not just forward.
       const rawSet = findSet(currentExercise, cursor.setId);
       const currentSet = rawSet && flushed ? { ...rawSet, ...flushed } : rawSet;
-      const needsConfirm = shouldConfirmLeavingSet(currentSet, autoStaged.current);
+      const needsConfirm = shouldConfirmLeavingSet(
+        currentSet,
+        currentSet ? (stagedSeeds.current.get(currentSet.id) ?? null) : null,
+      );
       // Mirror next-exercise: target prev's first INCOMPLETE set (not sets[0], which
       // may be completed and would make the cursor-reset effect bounce away, #13).
       const goBack = async () => {
@@ -189,7 +204,7 @@ export function useWorkoutCursor({
     cursor,
     setCursor,
     currentExercise,
-    stagedMarker,
+    stagedMarkers,
     markStaged,
     markCarried,
     targetExercise,

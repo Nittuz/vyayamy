@@ -158,11 +158,15 @@ export const ActiveSetCard = forwardRef<ActiveSetCardHandle, Props>(function Act
 
   const handleComplete = useCallback(() => {
     const values = flushEdits();
-    if (!canCompleteSet({ reps: values.reps })) return;
+    if (!canCompleteSet({ reps: values.reps })) {
+      // A flushed clear can disarm the gate after the fling — bring the card back.
+      translateY.value = withSpring(0, motion.spring.rebound);
+      return;
+    }
     // Medium = "set banked" — the signature complete-set moment's haptic half.
     haptics.medium();
     onComplete(values);
-  }, [flushEdits, onComplete]);
+  }, [flushEdits, onComplete, translateY]);
 
   // VoiceOver/TalkBack can't perform the swipe — expose completion as an
   // accessibility action so the screen is operable without the gesture (#9.1).

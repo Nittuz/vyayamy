@@ -123,7 +123,7 @@ export default function WorkoutActiveScreen() {
     cursor,
     setCursor,
     currentExercise: currentExForRest,
-    stagedMarker,
+    stagedMarkers,
     markStaged,
     markCarried,
     targetExercise,
@@ -460,13 +460,13 @@ export default function WorkoutActiveScreen() {
 
   // LAST TIME provenance strip (spec §2): only while the cursor sits on the
   // history-prefilled staged set AND the values are still untouched.
+  const seedMarker = stagedMarkers.get(currentSet.id) ?? null;
   const lastTime =
-    stagedMarker &&
-    stagedMarker.source === 'history' &&
-    stagedMarker.id === currentSet.id &&
-    currentSet.weight === stagedMarker.weight &&
-    currentSet.reps === stagedMarker.reps
-      ? { weight: stagedMarker.weight, reps: stagedMarker.reps }
+    seedMarker &&
+    seedMarker.source === 'history' &&
+    currentSet.weight === seedMarker.weight &&
+    currentSet.reps === seedMarker.reps
+      ? { weight: seedMarker.weight, reps: seedMarker.reps }
       : null;
 
   return (
