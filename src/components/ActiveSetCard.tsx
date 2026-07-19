@@ -97,13 +97,16 @@ export const ActiveSetCard = forwardRef<ActiveSetCardHandle, Props>(function Act
   const weightRef = useRef<NumericStepperHandle>(null);
   const repsRef = useRef<NumericStepperHandle>(null);
 
-  const flushEdits = useCallback(
-    (): { weight: number | null; reps: number | null } => ({
-      weight: weightRef.current?.flushEdit() ?? set.weight,
-      reps: repsRef.current?.flushEdit() ?? set.reps,
-    }),
-    [set.weight, set.reps],
-  );
+  const flushEdits = useCallback((): { weight: number | null; reps: number | null } => {
+    const w = weightRef.current;
+    const r = repsRef.current;
+    // flushEdit() already returns the effective value (a committed null is a
+    // real clear) — fall back to props only when a ref isn't mounted.
+    return {
+      weight: w ? w.flushEdit() : set.weight,
+      reps: r ? r.flushEdit() : set.reps,
+    };
+  }, [set.weight, set.reps]);
 
   useImperativeHandle(ref, () => ({ flushEdits }), [flushEdits]);
 

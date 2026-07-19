@@ -73,9 +73,10 @@ export function EditSetSheet({
   const handleSave = () => {
     haptics.light();
     // Flush any open keypad edit FIRST so Save can never bank a stale draft
-    // (flush-before-consume, spec §1/§3).
-    const nextWeight = weightRef.current?.flushEdit() ?? weight;
-    const nextReps = repsRef.current?.flushEdit() ?? reps;
+    // (flush-before-consume, spec §1/§3). A committed null is a real clear —
+    // fall back to draft state only when a ref isn't mounted.
+    const nextWeight = weightRef.current ? weightRef.current.flushEdit() : weight;
+    const nextReps = repsRef.current ? repsRef.current.flushEdit() : reps;
     setWeight(nextWeight);
     setReps(nextReps);
     updateSet.mutate(
