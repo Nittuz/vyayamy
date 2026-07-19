@@ -90,7 +90,7 @@ test('offline workout end-to-end → outbox drain matches local state', async ()
   );
 
   const workoutId = await createWorkout({ userId: USER_ID, title: 'Push day' });
-  const weId = await addExerciseToWorkout({ workoutId, exerciseId });
+  const { weId } = await addExerciseToWorkout({ workoutId, exerciseId });
   const setA = await addSet(weId, { weight: 60, reps: 10 });
   const setB = await addSet(weId, { weight: 80, reps: 5 });
   await updateSet(setA, { completed: true });
@@ -251,7 +251,7 @@ test('cascade soft-delete tombstones children locally + in outbox', async () => 
   );
 
   const workoutId = await createWorkout({ userId: USER_ID, title: 'Leg day' });
-  const weId = await addExerciseToWorkout({ workoutId, exerciseId });
+  const { weId } = await addExerciseToWorkout({ workoutId, exerciseId });
   const setId = await addSet(weId, { weight: 100, reps: 5 });
 
   // Drop the workout — children must be tombstoned in the same transaction.

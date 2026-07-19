@@ -5,14 +5,16 @@ import { ActivityIndicator, ScrollView, StyleSheet, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
 import { useAuth } from '@/auth/useAuth';
-import { ActiveSetCard } from '@/components/ActiveSetCard';
+import { ActiveSetCard, type ActiveSetCardHandle } from '@/components/ActiveSetCard';
 import {
+  canCompleteSet,
   completedSetsBeforeCursor,
   type ExerciseShape,
   findNextExercise,
   findSet,
   planStagedSet,
   type SetShape,
+  setValuesLabel,
   workoutHeaderTitle,
 } from '@/components/activeSet';
 import { EditableTitle } from '@/components/EditableTitle';
@@ -126,7 +128,7 @@ export default function WorkoutActiveScreen() {
     onPrevExercise,
     leaveConfirm,
     setLeaveConfirm,
-  } = useWorkoutCursor({ exercises, refreshDetail });
+  } = useWorkoutCursor({ exercises, refreshDetail, userId, units, weightStep });
 
   const { overrides, reloadOverrides, restSeconds, overrideSheetOpen, setOverrideSheetOpen } =
     useRestOverrides(currentExForRest);
@@ -135,8 +137,13 @@ export default function WorkoutActiveScreen() {
   const onChangeWeight = useCallback(
     (next: number | null) => {
       if (!cursor) return;
-      // Stamp the unit the weight is being logged in (per-set provenance, #131).
-      updateSet.mutate({ setId: cursor.setId, weId: cursor.weId, patch: { weight: next, units } });
+      // Stamp the unit the weight is being logged in (per-set provenance,
+      // #131); clearing the weight clears the stamp with it.
+      updateSet.mutate({
+        setId: cursor.setId,
+        weId: cursor.weId,
+        patch: { weight: next, units: next != null ? units : null },
+      });
     },
     [cursor, updateSet, units],
   );
@@ -152,39 +159,66 @@ export default function WorkoutActiveScreen() {
   // Guards against a swipe + voice "done" double-fire racing two completions /
   // two staged sets onto the same cursor (#16).
   const completingRef = useRef(false);
-  const onComplete = useCallback(async () => {
-    if (!cursor || completingRef.current) return;
-    completingRef.current = true;
-    try {
-      // Mark the current set complete
-      updateSet.mutate({ setId: cursor.setId, weId: cursor.weId, patch: { completed: true } });
-      timer.start();
-      // Auto-stage the next set with the same weight × reps (Phase 3)
-      const currentSetData = currentExForRest && findSet(currentExForRest, cursor.setId);
-      const staged = planStagedSet(currentSetData ?? null, units);
+  const onComplete = useCallback(
+    async (values?: { weight: number | null; reps: number | null }) => {
+      if (!cursor || completingRef.current) return;
+      completingRef.current = true;
+      try {
+        // Mark the current set complete
+        updateSet.mutate({ setId: cursor.setId, weId: cursor.weId, patch: { completed: true } });
+        timer.start();
+        // Auto-stage the next set with the same weight × reps (Phase 3).
+        // Overlay the just-flushed keypad values — the cached set may lag an
+        // edit committed milliseconds ago (flush-before-consume, spec §3).
+        const rawSetData = currentExForRest && findSet(currentExForRest, cursor.setId);
+        const currentSetData = rawSetData ? { ...rawSetData, ...(values ?? {}) } : null;
+        const staged = planStagedSet(currentSetData ?? null, units);
 
-      // Did the set just banked beat the all-time heaviest for this exercise?
-      registerBank(currentExForRest, currentSetData ?? null, units);
+        // Did the set just banked beat the all-time heaviest for this exercise?
+        registerBank(currentExForRest, currentSetData ?? null, units);
 
-      const newSetId = await addSet(cursor.weId, staged);
-      // Record what we pre-filled so an untouched staged set advances silently.
-      autoStaged.current = { id: newSetId, weight: staged.weight, reps: staged.reps };
-      refreshDetail();
-      setCursor({ weId: cursor.weId, setId: newSetId });
-    } finally {
-      completingRef.current = false;
-    }
-  }, [
-    cursor,
-    currentExForRest,
-    updateSet,
-    timer,
-    refreshDetail,
-    units,
-    registerBank,
-    autoStaged,
-    setCursor,
-  ]);
+        const newSetId = await addSet(cursor.weId, staged);
+        // Record what we pre-filled so an untouched staged set advances silently.
+        autoStaged.current = {
+          id: newSetId,
+          weight: staged.weight,
+          reps: staged.reps,
+          source: 'carry',
+        };
+        refreshDetail();
+        setCursor({ weId: cursor.weId, setId: newSetId });
+      } finally {
+        completingRef.current = false;
+      }
+    },
+    [
+      cursor,
+      currentExForRest,
+      updateSet,
+      timer,
+      refreshDetail,
+      units,
+      registerBank,
+      autoStaged,
+      setCursor,
+    ],
+  );
+
+  // Flush-before-consume (spec §3): every path that acts on the current set
+  // commits any open keypad edit first, then reads the effective values.
+  const cardRef = useRef<ActiveSetCardHandle>(null);
+  const onLogSet = useCallback(() => {
+    const values = cardRef.current?.flushEdits() ?? null;
+    if (!values || !canCompleteSet({ reps: values.reps })) return;
+    void onComplete(values);
+  }, [onComplete]);
+
+  const onNextExercisePress = useCallback(() => {
+    onNextExercise(cardRef.current?.flushEdits() ?? null);
+  }, [onNextExercise]);
+  const onPrevExercisePress = useCallback(() => {
+    onPrevExercise(cardRef.current?.flushEdits() ?? null);
+  }, [onPrevExercise]);
 
   const onDiscardEmpty = useCallback(async () => {
     if (!activeQuery.data) return;
@@ -204,13 +238,27 @@ export default function WorkoutActiveScreen() {
     async (exerciseId: string) => {
       if (!activeQuery.data) return;
       setPickerOpen(false);
-      const weId = await addExercise.mutateAsync({ workoutId: activeQuery.data.id, exerciseId });
+      const { weId, staged } = await addExercise.mutateAsync({
+        workoutId: activeQuery.data.id,
+        exerciseId,
+        prefill: userId ? { userId, units, weightStep } : undefined,
+      });
+      // Register the history-prefilled staged set so it advances silently when
+      // untouched (#12) and shows the LAST TIME provenance strip (spec §2).
+      if (staged) {
+        autoStaged.current = {
+          id: staged.setId,
+          weight: staged.plan.weight,
+          reps: staged.plan.reps,
+          source: staged.fromHistory ? 'history' : 'carry',
+        };
+      }
       // Land the cursor on the new exercise (its auto-staged set), not the first
       // incomplete set in the workout (#13). The init effect picks this up once
       // the new exercise appears in the cached data.
       targetExercise(weId);
     },
-    [activeQuery.data, addExercise, targetExercise],
+    [activeQuery.data, addExercise, targetExercise, userId, units, weightStep, autoStaged],
   );
 
   // Hands-free voice session. Data commands route through the tested dispatch
@@ -227,10 +275,10 @@ export default function WorkoutActiveScreen() {
     getParserContext: () => ({ units, hasActiveExercise: exercises.length > 0 }),
     onStartRest: (seconds) => timer.start(seconds), // honor a spoken duration (#105)
     onStopRest: () => timer.stop(),
-    onNextExercise,
-    onPrevExercise,
+    onNextExercise: onNextExercisePress,
+    onPrevExercise: onPrevExercisePress,
     onFinishWorkout: () => setCursor(null),
-    onCompleteSet: () => void onComplete(),
+    onCompleteSet: () => onLogSet(),
   });
 
   const hasNextExercise = currentExForRest
@@ -415,6 +463,18 @@ export default function WorkoutActiveScreen() {
   const currentSetIdx = currentEx.sets.findIndex((s) => s.id === currentSet.id);
   const ghostSets = completedSetsBeforeCursor(currentEx, cursor);
 
+  // LAST TIME provenance strip (spec §2): only while the cursor sits on the
+  // history-prefilled staged set AND the values are still untouched.
+  const stagedMarker = autoStaged.current;
+  const lastTime =
+    stagedMarker &&
+    stagedMarker.source === 'history' &&
+    stagedMarker.id === currentSet.id &&
+    currentSet.weight === stagedMarker.weight &&
+    currentSet.reps === stagedMarker.reps
+      ? { weight: stagedMarker.weight, reps: stagedMarker.reps }
+      : null;
+
   return (
     <SafeAreaView style={[styles.container, { backgroundColor: theme.color.bg }]}>
       <SyncErrorStripe />
@@ -431,9 +491,14 @@ export default function WorkoutActiveScreen() {
         units={units}
         bankSignal={bankSignal}
       />
-      <ScrollView style={styles.scrollFlex} contentContainerStyle={styles.scroll}>
+      <ScrollView
+        style={styles.scrollFlex}
+        contentContainerStyle={styles.scroll}
+        keyboardShouldPersistTaps="handled"
+      >
         <ActiveSetCard
           key={currentSet.id}
+          ref={cardRef}
           exercise={currentEx}
           set={currentSet}
           exerciseIndex={currentExIdx + 1}
@@ -444,8 +509,9 @@ export default function WorkoutActiveScreen() {
           ghostSets={ghostSets}
           onChangeWeight={onChangeWeight}
           onChangeReps={onChangeReps}
-          onComplete={onComplete}
+          onComplete={(values) => void onComplete(values)}
           onEditSet={onEditSet}
+          lastTime={lastTime}
           voice={{
             phase: voice.ui.phase,
             partial: voice.ui.phase === 'listening' ? voice.ui.partial : undefined,
@@ -483,17 +549,32 @@ export default function WorkoutActiveScreen() {
           accessibilityLabel="Add exercise to workout"
         />
       </ScrollView>
-      {/* Primary progression control in the thumb zone, not the top header (#1.5).
-          Volt is reserved for the finish CTA; mid-workout progression is a panel. */}
+      {/* LOG SET is the thumb-zone primary (spec §3): inverted plate, value echo.
+          Volt stays reserved for the recap's finish CTA; Next/Finish is quiet. */}
       <View style={styles.bottomBar}>
         <Button
-          label={hasNextExercise ? 'Next exercise' : 'Finish workout'}
-          kind={hasNextExercise ? 'secondary' : 'primary'}
+          label={hasNextExercise ? 'Next ›' : 'Finish ›'}
+          kind="ghost"
           size="cta"
-          icon="arrow-right"
-          onPress={onNextExercise}
-          accessibilityLabel={hasNextExercise ? 'Next exercise' : 'Finish workout'}
-          accessibilityHint={hasNextExercise ? 'Move to the next exercise' : 'Complete the workout'}
+          onPress={onNextExercisePress}
+          accessibilityLabel={hasNextExercise ? 'Next exercise' : 'Go to workout summary'}
+          accessibilityHint={
+            hasNextExercise ? 'Move to the next exercise' : 'Shows the finish summary'
+          }
+        />
+        <Button
+          label={
+            canCompleteSet(currentSet)
+              ? `Log set · ${setValuesLabel(currentSet.weight, currentSet.reps)}`
+              : 'Enter reps'
+          }
+          kind="inverted"
+          size="cta"
+          disabled={!canCompleteSet(currentSet)}
+          onPress={onLogSet}
+          accessibilityLabel={`Log set ${currentSetIdx + 1}`}
+          accessibilityHint="Completes this set and stages the next one"
+          style={styles.logBtn}
         />
       </View>
       <ExercisePicker
@@ -564,8 +645,11 @@ const styles = StyleSheet.create({
   finishActions: { alignSelf: 'stretch', gap: 12 },
   fullBtn: { alignSelf: 'stretch' },
   bottomBar: {
+    flexDirection: 'row',
+    gap: 8,
     paddingHorizontal: 20,
     paddingTop: 8,
     paddingBottom: 8,
   },
+  logBtn: { flex: 1 },
 });

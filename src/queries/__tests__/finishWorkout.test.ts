@@ -64,7 +64,7 @@ test('finishWorkout soft-deletes dangling incomplete sets so history stays clean
     ['2026-01-01', '2026-01-01'],
   );
   const wId = await createWorkout({ userId: USER_ID, title: 'Push' });
-  const weId = await addExerciseToWorkout({ workoutId: wId, exerciseId: 'ex' }); // auto-stages 1 empty set
+  const { weId } = await addExerciseToWorkout({ workoutId: wId, exerciseId: 'ex' }); // auto-stages 1 empty set
   const completed = await addSet(weId, { weight: 100, reps: 5, units: 'kg' });
   await updateSet(completed, { completed: true });
   const dangling = await addSet(weId, { weight: 100, reps: 5, units: 'kg' }); // staged, never completed

@@ -55,8 +55,8 @@ test('getLastFinishedWorkoutWithSeeds returns seeded exercises in order', async 
   // addExerciseToWorkout / addSet auto-compute order_index inside their
   // own transactions — sequential awaits give us deterministic 0,1,2.
   const wId = await createWorkout({ userId: USER_ID, title: 'Push' });
-  const we1 = await addExerciseToWorkout({ workoutId: wId, exerciseId: EX_BENCH });
-  const we2 = await addExerciseToWorkout({ workoutId: wId, exerciseId: EX_OHP });
+  const { weId: we1 } = await addExerciseToWorkout({ workoutId: wId, exerciseId: EX_BENCH });
+  const { weId: we2 } = await addExerciseToWorkout({ workoutId: wId, exerciseId: EX_OHP });
 
   const s1a = await addSet(we1);
   await updateSet(s1a, { weight: 135, reps: 8, completed: true });
@@ -88,7 +88,7 @@ test('getLastFinishedWorkoutWithSeeds returns seeded exercises in order', async 
 test('repeatLastWorkout clones exercises in order with seeded sets', async () => {
   // Seed: previous workout with one exercise, two completed sets
   const wPrev = await createWorkout({ userId: USER_ID, title: 'Push' });
-  const we = await addExerciseToWorkout({ workoutId: wPrev, exerciseId: EX_BENCH });
+  const { weId: we } = await addExerciseToWorkout({ workoutId: wPrev, exerciseId: EX_BENCH });
   const s1 = await addSet(we);
   await updateSet(s1, { weight: 135, reps: 8, completed: true });
   const s2 = await addSet(we);
@@ -133,9 +133,9 @@ test('repeatLastWorkout clones exercises in order with seeded sets', async () =>
 test('repeatLastWorkout is atomic — a mid-clone failure leaves no partial workout (#20)', async () => {
   // Source: two exercises, each with a completed set (→ two cloned sets).
   const wPrev = await createWorkout({ userId: USER_ID, title: 'Push' });
-  const we1 = await addExerciseToWorkout({ workoutId: wPrev, exerciseId: EX_BENCH });
+  const { weId: we1 } = await addExerciseToWorkout({ workoutId: wPrev, exerciseId: EX_BENCH });
   await updateSet(await addSet(we1), { weight: 100, reps: 5, completed: true });
-  const we2 = await addExerciseToWorkout({ workoutId: wPrev, exerciseId: EX_OHP });
+  const { weId: we2 } = await addExerciseToWorkout({ workoutId: wPrev, exerciseId: EX_OHP });
   await updateSet(await addSet(we2), { weight: 60, reps: 5, completed: true });
   await finishWorkout(wPrev); // source becomes finished → no active workouts
 

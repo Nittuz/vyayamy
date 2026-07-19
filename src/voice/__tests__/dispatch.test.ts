@@ -22,7 +22,7 @@ async function seedExercise(id: string, name: string) {
 
 async function setup(): Promise<DispatchContext> {
   const workoutId = await createWorkout({ userId: USER, title: 'Push' });
-  const weId = await addExerciseToWorkout({ workoutId, exerciseId: 'ex' });
+  const { weId } = await addExerciseToWorkout({ workoutId, exerciseId: 'ex' });
   const sets = await listSetsForWorkoutExercise(weId); // auto-staged set 0
   return { userId: USER, workoutId, activeWeId: weId, activeSetId: sets[0]!.id, units: 'lb' };
 }

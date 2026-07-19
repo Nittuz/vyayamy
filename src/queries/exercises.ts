@@ -12,7 +12,7 @@ import { withTransaction } from '@/db/transaction';
 import type { Exercise } from '@/db/types';
 import { uuidv4 } from '@/db/uuid';
 import { emitMutationCommitted } from '@/db/mutationEvents';
-import { addSet } from '@/queries/sets';
+import { addSet, stageFirstSet, type FirstSetStage } from '@/queries/sets';
 
 import { maybeUpdateAutoTitle } from './workouts';
 import { queryKeys } from './keys';
@@ -88,7 +88,9 @@ export async function createCustomExercise(args: {
 export async function addExerciseToWorkout(args: {
   workoutId: string;
   exerciseId: string;
-}): Promise<string> {
+  /** When present, the auto-staged first set is prefilled from history (spec §2). */
+  prefill?: { userId: string; units: 'kg' | 'lb'; weightStep: number };
+}): Promise<{ weId: string; staged: FirstSetStage | null }> {
   const db = await getDb();
   const id = uuidv4();
   const now = new Date().toISOString();
@@ -116,10 +118,15 @@ export async function addExerciseToWorkout(args: {
     });
   });
   emitMutationCommitted();
-  // Phase 3: every exercise starts with one empty set staged so the user
-  // never sees an empty card. Auto-stage on completion handles subsequent.
-  await addSet(id);
-  return id;
+  // Phase 3: every exercise starts with one set staged so the user never
+  // sees an empty card — now prefilled from history (spec §2).
+  let staged: FirstSetStage | null = null;
+  if (args.prefill) {
+    staged = await stageFirstSet(id, args.exerciseId, args.prefill);
+  } else {
+    await addSet(id);
+  }
+  return { weId: id, staged };
 }
 
 // Raw driver text stays out of the UI (backlog 8.5): callers get friendly

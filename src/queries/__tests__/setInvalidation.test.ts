@@ -53,7 +53,7 @@ async function seedIncompleteSet(): Promise<{ workoutId: string; weId: string; s
     [exerciseId, 'Bench Press', 'Chest', new Date().toISOString(), new Date().toISOString()],
   );
   const workoutId = await createWorkout({ userId: USER_ID, title: 'Push day' });
-  const weId = await addExerciseToWorkout({ workoutId, exerciseId });
+  const { weId } = await addExerciseToWorkout({ workoutId, exerciseId });
   const setId = await addSet(weId, { weight: 60, reps: 10 });
   return { workoutId, weId, setId };
 }

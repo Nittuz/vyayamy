@@ -85,7 +85,7 @@ export async function dispatchCommand(
       const exerciseId = match
         ? match.id
         : await createCustomExercise({ userId: ctx.userId, name: command.name });
-      const weId = await addExerciseToWorkout({ workoutId: ctx.workoutId, exerciseId });
+      const { weId } = await addExerciseToWorkout({ workoutId: ctx.workoutId, exerciseId });
       return {
         ok: true,
         message: `Added ${match ? match.name : command.name}`,

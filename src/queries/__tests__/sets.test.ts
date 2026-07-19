@@ -24,7 +24,7 @@ beforeEach(async () => {
 
 test('addSet creates a set and queues an outbox insert', async () => {
   const wId = await createWorkout({ userId: USER_ID, title: 'Push' });
-  const weId = await addExerciseToWorkout({ workoutId: wId, exerciseId: EX });
+  const { weId } = await addExerciseToWorkout({ workoutId: wId, exerciseId: EX });
   // addExerciseToWorkout auto-stages one set per Phase 3 — that's set 0
   const setId = await addSet(weId, { weight: 185, reps: 5 });
 
@@ -48,7 +48,7 @@ test('addSet creates a set and queues an outbox insert', async () => {
 
 test('updateSet marks completed_at when completed:true, clears when false', async () => {
   const wId = await createWorkout({ userId: USER_ID, title: 'Push' });
-  const weId = await addExerciseToWorkout({ workoutId: wId, exerciseId: EX });
+  const { weId } = await addExerciseToWorkout({ workoutId: wId, exerciseId: EX });
   const sets = await listSetsForWorkoutExercise(weId);
   const setId = sets[0]!.id;
 
@@ -76,7 +76,7 @@ test('updateSet marks completed_at when completed:true, clears when false', asyn
 
 test('deleteSet soft-deletes the row and queues an outbox delete', async () => {
   const wId = await createWorkout({ userId: USER_ID, title: 'Push' });
-  const weId = await addExerciseToWorkout({ workoutId: wId, exerciseId: EX });
+  const { weId } = await addExerciseToWorkout({ workoutId: wId, exerciseId: EX });
   const sets = await listSetsForWorkoutExercise(weId);
   const setId = sets[0]!.id;
 

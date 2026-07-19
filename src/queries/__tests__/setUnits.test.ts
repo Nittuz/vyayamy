@@ -21,7 +21,7 @@ async function seedWorkoutExercise(): Promise<string> {
     [exerciseId, 'Bench', new Date().toISOString(), new Date().toISOString()],
   );
   const workoutId = await createWorkout({ userId: USER_ID, title: 'Push' });
-  return addExerciseToWorkout({ workoutId, exerciseId });
+  return (await addExerciseToWorkout({ workoutId, exerciseId })).weId;
 }
 
 beforeEach(async () => {
