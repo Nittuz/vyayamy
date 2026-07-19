@@ -65,9 +65,12 @@ export default function HistoryDetailScreen() {
                       {idx + 1}
                     </Text>
                     <Text variant="numeral" color={theme.color.ink} style={styles.setCell}>
-                      {/* Each set shows the unit it was logged in (#131/#135). */}
-                      {formatWeight(s.weight, s.units ?? DEFAULT_UNITS)} ×{' '}
-                      {s.reps != null ? s.reps : '-'}
+                      {/* Each set shows the unit it was logged in (#131/#135); a
+                          completed weightless set is bodyweight (spec §4). */}
+                      {s.completed && s.weight == null
+                        ? 'BW'
+                        : formatWeight(s.weight, s.units ?? DEFAULT_UNITS)}{' '}
+                      × {s.reps != null ? s.reps : '-'}
                     </Text>
                     <View style={styles.setDone}>
                       {s.completed ? (
