@@ -189,7 +189,6 @@ export function useWorkoutCursor({
     cursor,
     setCursor,
     currentExercise,
-    autoStaged,
     stagedMarker,
     markStaged,
     markCarried,

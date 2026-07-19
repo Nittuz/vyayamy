@@ -80,6 +80,8 @@ export const NumericStepper = forwardRef<NumericStepperHandle, Props>(function N
   const [session, setSession] = useState<EditSession | null>(null);
   const sessionRef = useRef<EditSession | null>(null);
   const valueRef = useRef(value);
+  // Render-time ref mirror — deliberate: flushEdit() must read the latest
+  // committed value synchronously in the same tick (an effect would lag).
   valueRef.current = value;
   const onChangeRef = useRef(onChange);
   onChangeRef.current = onChange;

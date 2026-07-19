@@ -3,7 +3,6 @@
  * it can be unit-tested in Jest (which cannot render React Native
  * components in this project's setup).
  */
-import { useEffect, useRef } from 'react';
 
 export function applyStep(
   current: number | null,
@@ -94,85 +93,4 @@ export function resolveEditCommit(
   const parsed = parseUserInput(session.text);
   if (parsed == null) return { kind: 'noop' };
   return { kind: 'commit', value: sanitize(parsed) };
-}
-
-/**
- * Debounced commit helper for NumericStepperView's keypad mode.
- *
- * Each call to bufferKeystroke restarts a timer. When the timer fires, the
- * buffered text is parsed via parseUserInput; valid numbers (and empty=null)
- * call onChange exactly once. flushNow cancels the pending timer and commits
- * the buffer immediately (called on blur). cancelPending clears the timer
- * without committing (called on unmount).
- *
- * Pure logic in TypeScript — the React hook is a thin wrapper that ensures
- * the closure dies with the component.
- */
-export interface DebouncedCommit {
-  bufferKeystroke: (rawText: string) => void;
-  flushNow: () => void;
-  cancelPending: () => void;
-}
-
-export function useDebouncedCommit(
-  onChange: (next: number | null) => void,
-  debounceMs: number,
-  sanitize: (n: number) => number = (n) => n,
-): DebouncedCommit {
-  const bufferRef = useRef<string>('');
-  const timerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
-  const onChangeRef = useRef(onChange);
-  const sanitizeRef = useRef(sanitize);
-
-  // Keep onChange/sanitize fresh without re-creating the hook contract every render
-  useEffect(() => {
-    onChangeRef.current = onChange;
-    sanitizeRef.current = sanitize;
-  }, [onChange, sanitize]);
-
-  const commit = () => {
-    const text = bufferRef.current;
-    if (text.trim() === '') {
-      onChangeRef.current(null);
-      return;
-    }
-    const n = Number(text.trim());
-    if (Number.isFinite(n)) {
-      // Clamp/round before it reaches SQLite + sync (#19).
-      onChangeRef.current(sanitizeRef.current(n));
-    }
-    // invalid → no-op
-  };
-
-  const bufferKeystroke = (rawText: string) => {
-    bufferRef.current = rawText;
-    if (timerRef.current) clearTimeout(timerRef.current);
-    timerRef.current = setTimeout(() => {
-      timerRef.current = null;
-      commit();
-    }, debounceMs);
-  };
-
-  const flushNow = () => {
-    if (timerRef.current) {
-      clearTimeout(timerRef.current);
-      timerRef.current = null;
-    }
-    commit();
-  };
-
-  const cancelPending = () => {
-    if (timerRef.current) {
-      clearTimeout(timerRef.current);
-      timerRef.current = null;
-    }
-  };
-
-  useEffect(() => {
-    return () => {
-      if (timerRef.current) clearTimeout(timerRef.current);
-    };
-  }, []);
-
-  return { bufferKeystroke, flushNow, cancelPending };
 }
