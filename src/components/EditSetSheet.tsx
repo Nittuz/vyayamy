@@ -77,13 +77,17 @@ export function EditSetSheet({
     // fall back to draft state only when a ref isn't mounted.
     const nextWeight = weightRef.current ? weightRef.current.flushEdit() : weight;
     const nextReps = repsRef.current ? repsRef.current.flushEdit() : reps;
+    // Defensive draft sync: keep local state matching what we're banking.
     setWeight(nextWeight);
     setReps(nextReps);
     updateSet.mutate(
       {
         setId: set.id,
         weId: set.weId,
-        // Unit stamped only when a weight is present (per-set provenance, #131).
+        // Unit stamped only when a weight is present (per-set provenance,
+        // #131). Clearing keeps set.units — editing a LOGGED set preserves its
+        // historical stamp, unlike the live card (WorkoutActive.onChangeWeight)
+        // which nulls it. Don't "unify" these.
         patch: {
           weight: nextWeight,
           reps: nextReps,

@@ -1,5 +1,5 @@
 import { getDb, initDb, resetDbForTests } from '@/db/client';
-import { createWorkout } from '@/queries/workouts';
+import { createWorkout, finishWorkout } from '@/queries/workouts';
 import { addExerciseToWorkout } from '@/queries/exercises';
 import { addSet, updateSet, deleteSet, listSetsForWorkoutExercise } from '@/queries/sets';
 import { setSyncState } from '@/sync/state';
@@ -44,6 +44,35 @@ test('addSet creates a set and queues an outbox insert', async () => {
   expect(outbox).toHaveLength(1);
   expect(outbox[0]!.table_name).toBe('sets');
   expect(outbox[0]!.op).toBe('insert');
+});
+
+test('addExerciseToWorkout with prefill stages the first set from the last session', async () => {
+  // Previous FINISHED session: one completed 60 kg × 8 set of the exercise.
+  const wPrev = await createWorkout({ userId: USER_ID, title: 'Push' });
+  const { weId: wePrev } = await addExerciseToWorkout({ workoutId: wPrev, exerciseId: EX });
+  const prevSets = await listSetsForWorkoutExercise(wePrev);
+  await updateSet(prevSets[0]!.id, { weight: 60, reps: 8, units: 'kg', completed: true });
+  await finishWorkout(wPrev);
+
+  // New workout: the prefill path seeds last session's first set (spec §2).
+  const wNext = await createWorkout({ userId: USER_ID, title: 'Push again' });
+  const { weId, staged } = await addExerciseToWorkout({
+    workoutId: wNext,
+    exerciseId: EX,
+    prefill: { userId: USER_ID, units: 'kg', weightStep: 2.5 },
+  });
+
+  expect(staged).not.toBeNull();
+  expect(staged!.fromHistory).toBe(true);
+  expect(staged!.plan).toEqual({ weight: 60, reps: 8, units: 'kg' });
+
+  const sets = await listSetsForWorkoutExercise(weId);
+  expect(sets).toHaveLength(1);
+  expect(sets[0]!.id).toBe(staged!.setId);
+  expect(sets[0]!.weight).toBe(60);
+  expect(sets[0]!.reps).toBe(8);
+  expect(sets[0]!.units).toBe('kg');
+  expect(sets[0]!.completed).toBe(0); // staged, not banked
 });
 
 test('updateSet marks completed_at when completed:true, clears when false', async () => {

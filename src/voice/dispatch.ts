@@ -85,7 +85,9 @@ export async function dispatchCommand(
       const exerciseId = match
         ? match.id
         : await createCustomExercise({ userId: ctx.userId, name: command.name });
-      // No prefill: the staged-marker (autoStaged) can't be registered from here, and an unmarked seeded set would trip the #12 leave-confirm. Follow-up: plumb FirstSetStage through useVoiceSession.
+      // No prefill: the staged-marker (autoStaged) can't be registered from
+      // here, and an unmarked seeded set would trip the #12 leave-confirm.
+      // Follow-up: plumb FirstSetStage through useVoiceSession.
       const { weId } = await addExerciseToWorkout({ workoutId: ctx.workoutId, exerciseId });
       return {
         ok: true,

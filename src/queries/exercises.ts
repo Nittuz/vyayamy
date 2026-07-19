@@ -12,7 +12,7 @@ import { withTransaction } from '@/db/transaction';
 import type { Exercise } from '@/db/types';
 import { uuidv4 } from '@/db/uuid';
 import { emitMutationCommitted } from '@/db/mutationEvents';
-import { addSet, stageFirstSet, type FirstSetStage } from '@/queries/sets';
+import { addSet, type FirstSetStage, type PrefillContext, stageFirstSet } from '@/queries/sets';
 
 import { maybeUpdateAutoTitle } from './workouts';
 import { queryKeys } from './keys';
@@ -89,7 +89,7 @@ export async function addExerciseToWorkout(args: {
   workoutId: string;
   exerciseId: string;
   /** When present, the auto-staged first set is prefilled from history (spec §2). */
-  prefill?: { userId: string; units: 'kg' | 'lb'; weightStep: number };
+  prefill?: PrefillContext;
 }): Promise<{ weId: string; staged: FirstSetStage | null }> {
   const db = await getDb();
   const id = uuidv4();

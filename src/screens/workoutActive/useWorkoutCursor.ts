@@ -12,7 +12,7 @@ import {
   resolveCursor,
   shouldConfirmLeavingSet,
 } from '@/components/activeSet';
-import { addSet, stageFirstSet } from '@/queries/sets';
+import { addSet, type FirstSetStage, stageFirstSet } from '@/queries/sets';
 import { haptics } from '@/ui/haptics';
 
 /**
@@ -51,6 +51,26 @@ export function useWorkoutCursor({
   // entered. Remember its identity + pre-filled values so leaving an untouched
   // staged set doesn't trigger the "Skip this set?" prompt every time (#12).
   const autoStaged = useRef<AutoStagedSet | null>(null);
+  const [stagedMarker, setStagedMarker] = useState<AutoStagedSet | null>(null);
+
+  // Single owner of the staged-set marker (#12 nag suppression + LAST TIME
+  // provenance). The ref feeds synchronous callback logic; the state mirror
+  // feeds render (never read the ref during render).
+  const markStaged = useCallback((staged: FirstSetStage) => {
+    const marker: AutoStagedSet = {
+      id: staged.setId,
+      weight: staged.plan.weight,
+      reps: staged.plan.reps,
+      source: staged.fromHistory ? 'history' : 'carry',
+    };
+    autoStaged.current = marker;
+    setStagedMarker(marker);
+  }, []);
+
+  const markCarried = useCallback((marker: AutoStagedSet) => {
+    autoStaged.current = { ...marker, source: 'carry' };
+    setStagedMarker({ ...marker, source: 'carry' });
+  }, []);
 
   // Initialize cursor when exercises first load, or reposition when the cursor
   // points at a set that no longer exists / is already completed. The decision
@@ -102,12 +122,7 @@ export function useWorkoutCursor({
                 weightStep,
               });
               nextSetId = staged.setId;
-              autoStaged.current = {
-                id: staged.setId,
-                weight: staged.plan.weight,
-                reps: staged.plan.reps,
-                source: staged.fromHistory ? 'history' : 'carry',
-              };
+              markStaged(staged);
             } else {
               nextSetId = await addSet(nextEx.id);
             }
@@ -126,7 +141,7 @@ export function useWorkoutCursor({
         setLeaveConfirm(() => () => void advance());
       }
     },
-    [cursor, currentExercise, exercises, refreshDetail, userId, units, weightStep],
+    [cursor, currentExercise, exercises, refreshDetail, userId, units, weightStep, markStaged],
   );
 
   const onPrevExercise = useCallback(
@@ -152,12 +167,7 @@ export function useWorkoutCursor({
               weightStep,
             });
             setId = staged.setId;
-            autoStaged.current = {
-              id: staged.setId,
-              weight: staged.plan.weight,
-              reps: staged.plan.reps,
-              source: staged.fromHistory ? 'history' : 'carry',
-            };
+            markStaged(staged);
           } else {
             setId = await addSet(prevEx.id);
           }
@@ -172,7 +182,7 @@ export function useWorkoutCursor({
         setLeaveConfirm(() => () => void goBack());
       }
     },
-    [cursor, currentExercise, exercises, refreshDetail, userId, units, weightStep],
+    [cursor, currentExercise, exercises, refreshDetail, userId, units, weightStep, markStaged],
   );
 
   return {
@@ -180,6 +190,9 @@ export function useWorkoutCursor({
     setCursor,
     currentExercise,
     autoStaged,
+    stagedMarker,
+    markStaged,
+    markCarried,
     targetExercise,
     onNextExercise,
     onPrevExercise,

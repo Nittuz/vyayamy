@@ -194,6 +194,7 @@ export const NumericStepper = forwardRef<NumericStepperHandle, Props>(function N
               style={[
                 numeralStyle,
                 styles.numeral,
+                // 0.62 ≈ one tabular digit's width/em in GeistMono; 82 = hero fallback.
                 { color: theme.color.inkHero, minWidth: (numeralStyle.fontSize ?? 82) * 0.62 },
               ]}
             />

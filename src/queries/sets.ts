@@ -204,6 +204,13 @@ export interface FirstSetStage {
   fromHistory: boolean;
 }
 
+/** Everything the history-prefill path needs to stage a first set (spec §2). */
+export interface PrefillContext {
+  userId: string;
+  units: 'kg' | 'lb';
+  weightStep: number;
+}
+
 /**
  * Stage the FIRST set of an exercise, prefilled from history (spec §2).
  * History lookup failures degrade to an empty stage — staging must never
@@ -212,7 +219,7 @@ export interface FirstSetStage {
 export async function stageFirstSet(
   weId: string,
   exerciseId: string,
-  ctx: { userId: string; units: 'kg' | 'lb'; weightStep: number },
+  ctx: PrefillContext,
 ): Promise<FirstSetStage> {
   let plan: StagedSetPlan = { weight: null, reps: null, units: null };
   try {

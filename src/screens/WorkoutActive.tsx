@@ -123,7 +123,9 @@ export default function WorkoutActiveScreen() {
     cursor,
     setCursor,
     currentExercise: currentExForRest,
-    autoStaged,
+    stagedMarker,
+    markStaged,
+    markCarried,
     targetExercise,
     onNextExercise,
     onPrevExercise,
@@ -139,7 +141,9 @@ export default function WorkoutActiveScreen() {
     (next: number | null) => {
       if (!cursor) return;
       // Stamp the unit the weight is being logged in (per-set provenance,
-      // #131); clearing the weight clears the stamp with it.
+      // #131); clearing the weight clears the stamp with it. (EditSetSheet
+      // deliberately differs: editing a LOGGED set keeps its historical stamp
+      // on clear — don't "unify" these.)
       updateSet.mutate({
         setId: cursor.setId,
         weId: cursor.weId,
@@ -180,12 +184,7 @@ export default function WorkoutActiveScreen() {
 
         const newSetId = await addSet(cursor.weId, staged);
         // Record what we pre-filled so an untouched staged set advances silently.
-        autoStaged.current = {
-          id: newSetId,
-          weight: staged.weight,
-          reps: staged.reps,
-          source: 'carry',
-        };
+        markCarried({ id: newSetId, weight: staged.weight, reps: staged.reps });
         refreshDetail();
         setCursor({ weId: cursor.weId, setId: newSetId });
       } finally {
@@ -200,7 +199,7 @@ export default function WorkoutActiveScreen() {
       refreshDetail,
       units,
       registerBank,
-      autoStaged,
+      markCarried,
       setCursor,
     ],
   );
@@ -248,20 +247,13 @@ export default function WorkoutActiveScreen() {
       });
       // Register the history-prefilled staged set so it advances silently when
       // untouched (#12) and shows the LAST TIME provenance strip (spec §2).
-      if (staged) {
-        autoStaged.current = {
-          id: staged.setId,
-          weight: staged.plan.weight,
-          reps: staged.plan.reps,
-          source: staged.fromHistory ? 'history' : 'carry',
-        };
-      }
+      if (staged) markStaged(staged);
       // Land the cursor on the new exercise (its auto-staged set), not the first
       // incomplete set in the workout (#13). The init effect picks this up once
       // the new exercise appears in the cached data.
       targetExercise(weId);
     },
-    [activeQuery.data, addExercise, targetExercise, userId, units, weightStep, autoStaged],
+    [activeQuery.data, addExercise, targetExercise, userId, units, weightStep, markStaged],
   );
 
   // Hands-free voice session. Data commands route through the tested dispatch
@@ -468,7 +460,6 @@ export default function WorkoutActiveScreen() {
 
   // LAST TIME provenance strip (spec §2): only while the cursor sits on the
   // history-prefilled staged set AND the values are still untouched.
-  const stagedMarker = autoStaged.current;
   const lastTime =
     stagedMarker &&
     stagedMarker.source === 'history' &&
