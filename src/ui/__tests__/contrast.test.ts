@@ -1,5 +1,4 @@
-import type { PaletteTokens } from '@/ui/colors';
-import { skins, type SkinId } from '@/ui/skins';
+import { darkPalette, lightPalette, type PaletteTokens } from '@/ui/colors';
 
 // WCAG relative luminance — sRGB
 function luminance(hex: string): number {
@@ -25,12 +24,10 @@ interface Pair {
   minRatio: number;
 }
 
-const palettes: { name: string; tokens: PaletteTokens }[] = (
-  Object.keys(skins) as SkinId[]
-).flatMap((id) => [
-  { name: `${id}-dark`, tokens: skins[id].dark },
-  { name: `${id}-light`, tokens: skins[id].light },
-]);
+const palettes: { name: string; tokens: PaletteTokens }[] = [
+  { name: 'dark', tokens: darkPalette },
+  { name: 'light', tokens: lightPalette },
+];
 
 // Body-sized text (normal) requires 4.5:1.
 // Large text (18pt+ regular, or 14pt+ bold) requires 3.0:1.

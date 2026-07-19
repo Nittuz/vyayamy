@@ -1,8 +1,7 @@
 import { useColorScheme } from 'react-native';
 
-import { type PaletteTokens } from './colors';
+import { darkPalette, lightPalette, type PaletteTokens } from './colors';
 import { motion } from './motion';
-import { DEFAULT_SKIN, skins, type SkinId } from './skins';
 import { typography } from './typography';
 
 export const space = {
@@ -20,36 +19,23 @@ export const space = {
   page: 20,
 } as const;
 
-// Blacktop shape lock: all-sharp. Token names survive so consumers don't
-// change, but every corner collapses to 0; `full` remains for the avatar only.
-export const radius = {
-  sm: 0,
-  md: 0,
-  lg: 0,
+// Blacktop shape lock: all-sharp — no corner radii anywhere. `full` survives
+// for the one circular case (avatar / round indicators).
+const radius = {
   full: 9999,
-  card: 0,
-  button: 0,
 } as const;
 
 /**
- * Rule weights. Blacktop retires the slab z-axis (shadows are gone; elevation
- * is inversion) — slab/slabSm survive only so legacy consumers keep compiling.
+ * Rule weights. Elevation is inversion (no shadows, no slab z-axis);
  * `hairline` is the Plate border weight: 1.5px structural rule.
  */
-export const depth = {
-  slab: 4,
-  slabSm: 2,
+const depth = {
   hairline: 1.5,
   rule: 2,
   ruleHeavy: 3,
 } as const;
 
-/** Legacy press-sink distance — retired (press is now a 60ms opacity/scale dip). */
-export const press = {
-  translate: 3,
-} as const;
-
-export const touch = {
+const touch = {
   min: 44,
   navHeight: 64,
   cta: 52,
@@ -62,27 +48,25 @@ export interface Theme {
   space: typeof space;
   radius: typeof radius;
   depth: typeof depth;
-  press: typeof press;
   touch: typeof touch;
   font: typeof typography;
   motion: typeof motion;
   scheme: 'light' | 'dark';
 }
 
-// Cache one Theme per (skin, scheme). Because the palette + token objects are
-// all module-level constants, the cached Theme is referentially stable for the
+// Cache one Theme per scheme. Because the palette + token objects are all
+// module-level constants, the cached Theme is referentially stable for the
 // life of the process — so useTheme returns the SAME object every render unless
-// the skin or scheme actually changes, and the nine useMemo(makeStyles,[theme])
-// sites finally cache instead of rebuilding StyleSheets every render (#48).
+// the scheme actually changes, and the nine useMemo(makeStyles,[theme]) sites
+// finally cache instead of rebuilding StyleSheets every render (#48).
 const themeCache = new Map<string, Theme>();
 
-export function buildTheme(skin: SkinId, scheme: 'light' | 'dark'): Theme {
-  const key = `${skin}:${scheme}`;
-  let theme = themeCache.get(key);
+export function buildTheme(scheme: 'light' | 'dark'): Theme {
+  let theme = themeCache.get(scheme);
   if (!theme) {
-    const color: PaletteTokens = skins[skin][scheme];
-    theme = { color, space, radius, depth, press, touch, font: typography, motion, scheme };
-    themeCache.set(key, theme);
+    const color: PaletteTokens = scheme === 'light' ? lightPalette : darkPalette;
+    theme = { color, space, radius, depth, touch, font: typography, motion, scheme };
+    themeCache.set(scheme, theme);
   }
   return theme;
 }
@@ -90,5 +74,5 @@ export function buildTheme(skin: SkinId, scheme: 'light' | 'dark'): Theme {
 export function useTheme(): Theme {
   const raw = useColorScheme();
   const scheme: 'light' | 'dark' = raw === 'light' ? 'light' : 'dark';
-  return buildTheme(DEFAULT_SKIN, scheme);
+  return buildTheme(scheme);
 }

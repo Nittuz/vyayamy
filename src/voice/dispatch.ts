@@ -1,7 +1,7 @@
 import { getDb } from '@/db/client';
 import { enqueueMutation } from '@/db/mutations';
 import { addExerciseToWorkout, createCustomExercise, searchExercises } from '@/queries/exercises';
-import { addSet, deleteSet, listSetsForWorkoutExercise, updateSet } from '@/queries/sets';
+import { addSet, deleteSet, updateSet } from '@/queries/sets';
 
 import type { Command } from './commands';
 
@@ -97,9 +97,4 @@ export async function dispatchCommand(
     default:
       return { ok: false, message: 'Didn’t catch that' };
   }
-}
-
-/** Convenience for the session hook: a list of set IDs is occasionally needed for cursor math. */
-export async function setsFor(weId: string) {
-  return listSetsForWorkoutExercise(weId);
 }

@@ -14,7 +14,7 @@
  *   - duration.press: the Plate press dip (opacity + scale).
  */
 
-export const spring = {
+const spring = {
   snappy: { damping: 22, stiffness: 240 },
   settle: { damping: 22, stiffness: 200 },
   rebound: { damping: 18, stiffness: 280 },
@@ -38,13 +38,13 @@ export const duration = {
 } as const;
 
 /** Display-type slam-in entrance (pairs with spring.settleSlam). */
-export const slam = {
+const slam = {
   /** Headlines enter from this translateY. */
   rise: 12,
 } as const;
 
 /** List cascade: rows fade in while rising `rise`px, `stepMs` apart. */
-export const stagger = {
+const stagger = {
   rise: 8,
   stepMs: 40,
 } as const;

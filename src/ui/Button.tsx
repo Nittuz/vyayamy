@@ -82,7 +82,6 @@ export function Button({
   return (
     <Plate
       tone={TONE_FOR_KIND[kind]}
-      radius="button"
       onPress={onPress}
       disabled={disabled || loading}
       accessibilityRole="button"

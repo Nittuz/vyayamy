@@ -37,7 +37,6 @@ export interface PlateProps {
   tone?: PlateTone;
   /** Omit to take the tone's default border. */
   border?: PlateBorder;
-  radius?: keyof Theme['radius'];
   onPress?: () => void;
   onLongPress?: () => void;
   disabled?: boolean;
@@ -55,7 +54,6 @@ export interface PlateProps {
 export function Plate({
   tone = 'panel',
   border,
-  radius = 'card',
   onPress,
   onLongPress,
   disabled = false,
@@ -68,7 +66,7 @@ export function Plate({
   children,
 }: PlateProps) {
   const theme = useTheme();
-  const s = resolvePlateStyles(theme, { tone, border, radius });
+  const s = resolvePlateStyles(theme, { tone, border });
   const dim = disabled ? { opacity: 0.5 } : null;
 
   // Read once on mount (Sheet/FadeInView precedent) — a ref, not state, so the

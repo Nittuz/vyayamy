@@ -25,7 +25,7 @@ export class ErrorBoundary extends Component<Props, State> {
     if (!this.state.error) return this.props.children;
     // The fallback is a function component so it can read the active skin/scheme
     // via useTheme — the class itself can't use hooks. (Was pinned to the dark
-    // palette, broken in light mode and the other skins, #23.)
+    // palette, broken in light mode, #23.)
     return <ErrorFallback message={this.state.error.message} onReset={this.reset} />;
   }
 }
@@ -57,7 +57,6 @@ const makeStyles = (theme: Theme) =>
     card: {
       backgroundColor: theme.color.surface,
       padding: theme.space.s6,
-      borderRadius: theme.radius.md,
       gap: theme.space.s3,
       borderWidth: 1,
       borderColor: theme.color.border,
@@ -77,7 +76,6 @@ const makeStyles = (theme: Theme) =>
       marginTop: theme.space.s2,
       backgroundColor: theme.color.accent,
       paddingVertical: theme.space.s3,
-      borderRadius: theme.radius.sm,
       alignItems: 'center',
     },
     btnText: {

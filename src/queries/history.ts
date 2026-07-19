@@ -49,15 +49,6 @@ export async function getHistory(userId: string, limit = 50, offset = 0): Promis
   );
 }
 
-/** Backwards-compatible single-page query for callers that only need the head. */
-export function useHistory(userId: string | undefined, limit = PAGE_SIZE) {
-  return useQuery({
-    queryKey: userId ? queryKeys.history(userId) : ['history', 'none'],
-    queryFn: () => (userId ? getHistory(userId, limit) : Promise.resolve([])),
-    enabled: !!userId,
-  });
-}
-
 /** Paginated history. The History screen scrolls through workout pages of
  *  PAGE_SIZE so users with hundreds of sessions don't silently lose them. */
 export function useHistoryInfinite(userId: string | undefined) {

@@ -21,8 +21,6 @@ import { motion } from './motion';
 import { useTheme, type Theme } from './useTheme';
 import { isSyncError } from './syncErrors';
 
-export { isSyncError };
-
 /** How long the toast holds fully visible between fade-in and fade-out. */
 const TOAST_HOLD_MS = 2200;
 
@@ -136,9 +134,8 @@ const makeStyles = (theme: Theme) =>
       maxWidth: 360,
       paddingHorizontal: theme.space.s4,
       paddingVertical: theme.space.s3,
-      borderRadius: theme.radius.md,
       // Inverted pill: ink-on-bg stays high-contrast in both schemes (was pinned
-      // to the dark palette, so it clashed in light mode and other skins, #23).
+      // to the dark palette, so it clashed in light mode, #23).
       backgroundColor: theme.color.ink,
     },
     error: {

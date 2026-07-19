@@ -12,7 +12,7 @@
  * force-uppercased into a poster face.
  */
 
-export const fontFamily = {
+const fontFamily = {
   sans: 'Geist_400Regular',
   sansMedium: 'Geist_500Medium',
   sansSemibold: 'Geist_600SemiBold',
@@ -21,7 +21,7 @@ export const fontFamily = {
   condensed: 'Anton_400Regular',
 } as const;
 
-export const fontSize = {
+const fontSize = {
   displayXXL: 96,
   hero: 82,
   displayXL: 44,
@@ -34,13 +34,13 @@ export const fontSize = {
   numeralLg: 28,
 } as const;
 
-export const fontWeight = {
+const fontWeight = {
   regular: '400',
   medium: '500',
   semibold: '600',
 } as const;
 
-export const tracking = {
+const tracking = {
   hero: -3.5,
   // At poster scale Anton tightens instead: the XXL headline is a single
   // welded slab on purpose.
@@ -58,7 +58,7 @@ export const tracking = {
   strip: 0.5,
 } as const;
 
-export const lineHeightMul = {
+const lineHeightMul = {
   // Must stay >= 1.0: a sub-1 line height shrinks the line box below the font
   // size and iOS clips the tops of tall glyphs — the 82pt mono hero numerals
   // and equally the condensed Anton display caps. Horizontal tightness comes

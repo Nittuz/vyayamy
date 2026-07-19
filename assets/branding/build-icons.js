@@ -10,8 +10,8 @@
  * notification icon (white-on-transparent).
  *
  * Mark chosen 2026-07-13 (uplevel round, option C): the barbell side-on as
- * slabs — volt bar through bone plates. Geometry mirrors BrandMark.tsx
- * ('loaded-bar' variant) and assets/branding/uplevel.js.
+ * slabs — volt bar through bone plates. Geometry mirrors src/ui/BrandMark.tsx;
+ * keep the two in sync.
  */
 const fs = require('fs');
 const path = require('path');

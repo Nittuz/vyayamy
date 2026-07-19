@@ -29,8 +29,6 @@ export type { Set } from '@/db/types';
 
 export type Units = Profile['units'];
 
-export const WEEK_START_DAY = 1;
-
 export type PRType = 'heaviest_weight' | 'best_volume' | 'most_reps_at_weight';
 
 export type PRValue =

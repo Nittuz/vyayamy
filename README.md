@@ -16,7 +16,7 @@ A mobile-only, local-first strength-training journal built around one job: captu
 - **Progress charts**: per-exercise trend lines drawn with `react-native-svg` ([src/ui/LineChart.tsx](src/ui/LineChart.tsx)).
 - **Workout history**: past sessions with per-workout detail ([src/screens/History.tsx](src/screens/History.tsx), [src/screens/HistoryDetail.tsx](src/screens/HistoryDetail.tsx)).
 - **Custom exercises**: add your own movements alongside the seeded library ([src/components/ExercisePicker.tsx](src/components/ExercisePicker.tsx)).
-- **Four skins**: Forge, Iron, Ember, Chalk ([src/ui/skins.ts](src/ui/skins.ts)), switchable under Profile, Appearance.
+- **One Blacktop identity**: true-mono dark + chalk light palettes following the system scheme ([src/ui/colors.ts](src/ui/colors.ts), [src/ui/useTheme.ts](src/ui/useTheme.ts)); no theme picker.
 - **Complete-set choreography**: banking a set fires a haptic, a live session-volume tally, and an accent glow ([src/ui/completeSetChoreography.ts](src/ui/completeSetChoreography.ts), [src/components/SessionVolumeBar.tsx](src/components/SessionVolumeBar.tsx)); a calm recap on finish ([src/ui/SessionRecap.tsx](src/ui/SessionRecap.tsx)).
 - **Auth**: magic-link or password sign-in via Supabase Auth ([src/screens/Login.tsx](src/screens/Login.tsx), [src/auth/authActions.ts](src/auth/authActions.ts)), behind a single root-level auth gate in [app/\_layout.tsx](app/_layout.tsx).
 - **Background rest timer**: a local notification fires even when the app is backgrounded; tapping it returns to the active workout ([src/lib/restNotifications.ts](src/lib/restNotifications.ts)).
@@ -73,7 +73,7 @@ npx expo run:ios
 
 ## Implementation status
 
-A 16-dimension deep review ran in June 2026 (115 confirmed findings), followed by roughly 33 test-first fix commits merged to main. The narrative synthesis, phase plan, and full findings appendix live in [docs/specs/2026-06-10-deep-review-improvement-plan.md](docs/specs/2026-06-10-deep-review-improvement-plan.md). The per-area assessment from that review is archived in [docs/archive/REPO_REVIEW.md](docs/archive/REPO_REVIEW.md); the visual and interaction backlog is in [docs/UX_POLISH_BACKLOG.md](docs/UX_POLISH_BACKLOG.md).
+A 16-dimension deep review ran in June 2026 (115 confirmed findings), followed by roughly 33 test-first fix commits merged to main. The narrative synthesis, phase plan, and full findings appendix live in [docs/specs/2026-06-10-deep-review-improvement-plan.md](docs/specs/2026-06-10-deep-review-improvement-plan.md). The per-area assessment from that review (pre-redesign snapshot) lives in git history as `docs/archive/REPO_REVIEW.md`; the visual and interaction backlog is in [docs/UX_POLISH_BACKLOG.md](docs/UX_POLISH_BACKLOG.md).
 
 **Partial**:
 
@@ -114,7 +114,7 @@ There is no custom API server. The client talks to Supabase directly through Pos
 
 ## Local-first architecture
 
-The full picture is in [docs/archive/ARCHITECTURE_REALITY.md](docs/archive/ARCHITECTURE_REALITY.md) (snapshot of `c8412ae`) and [docs/local-first-sync.md](docs/local-first-sync.md). The short version:
+The full picture is in [docs/local-first-sync.md](docs/local-first-sync.md) (a fuller pre-redesign snapshot, `docs/archive/ARCHITECTURE_REALITY.md`, lives in git history). The short version:
 
 - **Reads**: React Query hooks in [src/queries/](src/queries/) read SQLite. The UI never blocks on the network.
 - **Writes**: `enqueueMutation` ([src/db/mutations.ts](src/db/mutations.ts)) applies the write to SQLite, appends an outbox row, and cascades soft-deletes to FK children, all in a single transaction.
@@ -187,7 +187,7 @@ vyayamy/
 │   ├── queries/          # React Query hooks reading SQLite, one file per domain
 │   ├── screens/          # Screen components consumed by app/ routes
 │   ├── sync/             # engine, push, pull, state, quarantine, outboxPreview
-│   ├── ui/               # skins, useTheme, Text primitive, LineChart, choreography
+│   ├── ui/               # theme tokens, useTheme, Text primitive, LineChart, choreography
 │   ├── voice/            # numberWords, grammar, dispatch (pure); speechEngine, useVoiceSession (native)
 │   └── __tests__/        # Cross-layer integration tests
 ├── supabase/             # migrations/ (00001..00011), config.toml, seed.sql, templates/
@@ -202,26 +202,26 @@ vyayamy/
 npm test
 ```
 
-Current count on main: **58 suites, 439 tests**, all green; CI runs the same suite plus typecheck and lint on every PR.
+Current count on main: **70 suites, 673 tests**, all green; CI runs the same suite plus typecheck, lint, and Prettier on every PR.
 
 Tests run in Node under `ts-jest`. The `moduleNameMapper` in [package.json](package.json) swaps `expo-sqlite` for an in-memory `better-sqlite3` backend ([src/db/**mocks**/expo-sqlite.ts](src/db/__mocks__/expo-sqlite.ts)), so the mutation primitive and the whole sync engine run against a real SQL engine without an emulator. Coverage spans the sync engine (push ordering, pull merge, quarantine), `enqueueMutation` and cascades, the query layer, pure domain logic (PR detection, unit conversion), the voice parser and dispatch, and UI choreography helpers.
 
-What still needs a device or simulator: the voice native engine ([src/voice/speechEngine.ts](src/voice/speechEngine.ts), [src/voice/useVoiceSession.ts](src/voice/useVoiceSession.ts)), rest-notification timing, skin and motion visual checks, and the accessibility passes (VoiceOver, Dynamic Type). The voice on-device checklist is in [docs/specs/archive/2026-05-31-voice-workout-logging.md](docs/specs/archive/2026-05-31-voice-workout-logging.md).
+What still needs a device or simulator: the voice native engine ([src/voice/speechEngine.ts](src/voice/speechEngine.ts), [src/voice/useVoiceSession.ts](src/voice/useVoiceSession.ts)), rest-notification timing, theme and motion visual checks, and the accessibility passes (VoiceOver, Dynamic Type). The voice on-device checklist is in the archived voice spec (`docs/specs/archive/2026-05-31-voice-workout-logging.md` in git history).
 
 ## Build and distribution
 
-[eas.json](eas.json) sets `appVersionSource: "remote"` (EAS owns the build number) and defines three build profiles:
+[eas.json](eas.json) sets `appVersionSource: "remote"` (EAS owns the build number) and defines two build profiles (the `development` dev-client profile was removed — `expo-dev-client` isn't installed; use `npx expo run:ios` for local native builds):
 
-| Profile       | Purpose                                             |
-| ------------- | --------------------------------------------------- |
-| `development` | Dev client, internal distribution                   |
-| `preview`     | Internal distribution, iOS simulator builds enabled |
-| `production`  | Store builds, `autoIncrement`                       |
+| Profile      | Purpose                                             |
+| ------------ | --------------------------------------------------- |
+| `preview`    | Internal distribution, iOS simulator builds enabled |
+| `production` | Store builds, `autoIncrement`                       |
+
+Shipping to a tester's iPhone without the paid Apple program (sideload path) and the TestFlight runbook both live in [docs/TESTING.md](docs/TESTING.md).
 
 Build profiles carry no inline `env` blocks: runtime configuration lives in EAS environment variables created with `npx eas env:create` (the exact commands are in [docs/operations.md](docs/operations.md)). The submit profile is iOS-only and reads `APPLE_ID`, `ASC_APP_ID`, and `APPLE_TEAM_ID` from the environment; there is no Android submit profile.
 
 ```bash
-npx eas build --profile development --platform ios
 npx eas build --profile preview --platform ios
 npx eas build --profile production --platform ios
 npx eas submit --profile production --platform ios

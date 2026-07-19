@@ -62,3 +62,5 @@ Design audit per taste-skill v2 Redesign Protocol (§11.B: audit before touching
 Bugs 1-7 and the P1 UX traps from the June backlog (CollisionSheet escape, banked-set edit, create-from-picker, auth error surfacing) ride along regardless of levers.
 
 **Environmental blocker for the owner:** the Supabase project is gone (NXDOMAIN). Until a project is restored/reconfigured in `.env`, nobody can sign in and sync/auth flows can't be exercised on device. The simulator session was lost to this during the audit (local data intact; DB backed up at `Documents/SQLite/flexyug.db.audit-backup` in the sim container).
+
+> **Addendum 2026-07-18:** blocker resolved — the backend was restored 2026-07-12 on a new project ref (`oqwpjksgnwthqmgeqrnu`, `.env` updated) and re-verified live today (`/auth/v1/health` → 200). Sign-in and sync work again; the NXDOMAIN paragraphs above are historical record.

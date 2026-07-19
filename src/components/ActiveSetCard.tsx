@@ -283,7 +283,6 @@ const makeStyles = (theme: Theme) =>
       gap: theme.space.half,
       marginHorizontal: theme.space.s4,
       marginTop: theme.space.s3,
-      borderRadius: theme.radius.card,
       // Panel materiality: flat surface + 1.5px hairline (slab depth retired).
       borderWidth: theme.depth.hairline,
       backgroundColor: theme.color.surface,

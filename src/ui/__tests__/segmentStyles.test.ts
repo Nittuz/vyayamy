@@ -6,7 +6,7 @@
 import { resolveSegmentAppearance } from '@/ui/segmentStyles';
 import { buildTheme } from '@/ui/useTheme';
 
-const theme = buildTheme('forge', 'dark');
+const theme = buildTheme('dark');
 
 test('selected option inverts: ink face, bg-colored type, no border', () => {
   const a = resolveSegmentAppearance(theme, { size: 'md', selected: true });

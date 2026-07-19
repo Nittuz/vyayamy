@@ -1,5 +1,14 @@
 # Design System — Forged Iron
 
+> **SUPERSEDED (2026-07):** the Blacktop overhaul
+> ([specs/2026-07-11-blacktop-overhaul-spec.md](specs/2026-07-11-blacktop-overhaul-spec.md))
+> replaced this system: true-mono palette with a single volt accent, all-sharp
+> corners (no radius scale), elevation by inversion (no slabs, no press-sink),
+> and a single skin. Token names below (ember, `slab`, `press`, `radius.md`,
+> skins) no longer exist in code. Kept for the primitives inventory and
+> historical rationale until a Blacktop-native rewrite lands; the source of
+> truth is the spec plus the token modules in [src/ui/](../src/ui/).
+
 FlexYug is a strength-training journal with an industrial-brutalist identity: iron black, bone ink, one hot ember accent, condensed poster type, and hard offset slabs instead of soft shadows. The design system exists to make the right choices trivial and the wrong ones impossible.
 
 ## Philosophy
@@ -22,7 +31,7 @@ Priority order (never invert it):
 ## Non-negotiables
 
 - **Single column**, phone-first. No tablet-specific layouts.
-- **One signature look**: the Forged Iron palette — iron black (dark) or bone paper (light) selected by system color scheme, with a single ember accent tuned per scheme. The multi-skin picker is retired; the registry in [src/ui/skins.ts](../src/ui/skins.ts) is collapsed to one skin and legacy persisted ids coerce silently.
+- **One signature look**: the Forged Iron palette — iron black (dark) or bone paper (light) selected by system color scheme, with a single ember accent tuned per scheme. The multi-skin system is gone entirely — `buildTheme(scheme)` in [src/ui/useTheme.ts](../src/ui/useTheme.ts) selects the dark/light palette directly.
 - **Custom fonts**: Anton (condensed industrial display) for uppercase chrome headlines, Geist Sans for body/labels, Geist Mono for numerals and data. Loaded via `@expo-google-fonts/anton`, `geist`, and `geist-mono`.
 - **Display type is chrome-only**: `display`/`displayXL` variants force uppercase Anton. User content (workout titles, exercise names) always renders in `title`/`card` — never force-uppercased into a poster face.
 - **Depth is a slab, not a blur**: cards sit on hard offset slabs (the `Plate` primitive); structural edges use 2–3px rules (`theme.depth`), not 1px hairlines. No native shadows, no blur, no gradients.
@@ -60,7 +69,7 @@ One skin, two schemes, defined in [src/ui/colors.ts](../src/ui/colors.ts). The a
 | `overlay`      | `rgba(0,0,0,.6)`      | `rgba(12,12,14,.4)`   | Modal backdrops                     |
 | `slab`         | `#000000`             | `#17171A`             | Hard offset slab behind Plates      |
 
-[src/ui/SkinContext.tsx](../src/ui/SkinContext.tsx) still hydrates the persisted skin id from AsyncStorage (`flexyug.skin`) and gates first paint — `coerceSkin` maps any legacy id (`iron`/`ember`/`chalk`) to the single `forge` skin, so old installs migrate silently.
+(The `SkinContext` hydration layer described in earlier revisions is gone along with the skin registry — the scheme comes straight from `useColorScheme()`.)
 
 ### Space (4pt base)
 

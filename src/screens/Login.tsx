@@ -244,7 +244,6 @@ const makeStyles = (theme: Theme) =>
     input: {
       height: theme.touch.min + 4,
       paddingHorizontal: theme.space.s4,
-      borderRadius: theme.radius.sm,
       borderWidth: theme.depth.hairline,
       borderColor: theme.color.borderStrong,
       fontSize: theme.font.size.body,

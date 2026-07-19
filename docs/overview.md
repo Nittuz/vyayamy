@@ -102,5 +102,5 @@ There is no instrumentation in the app today; defining an event vocabulary and c
 - Multi-user training, coaching, or social features
 - Video or image attachments
 - A large curated exercise encyclopedia with media/instructions (a base global set is seeded; users add their own exercises)
-- Additional themes beyond the four built-in skins (Forge, Iron, Ember, Chalk), each with light and dark palettes; no per-screen theming
+- Additional themes beyond the single Blacktop identity (dark + chalk light, following the system scheme); no theme picker, no per-screen theming
 - A web or desktop client

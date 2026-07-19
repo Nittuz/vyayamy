@@ -1,43 +1,30 @@
 import { useQueryClient } from '@tanstack/react-query';
 import { router, Stack } from 'expo-router';
-import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import { useCallback, useMemo, useRef, useState } from 'react';
 import { ActivityIndicator, ScrollView, StyleSheet, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
 import { useAuth } from '@/auth/useAuth';
 import { ActiveSetCard } from '@/components/ActiveSetCard';
 import {
-  type ActiveCursor,
-  type AutoStagedSet,
   completedSetsBeforeCursor,
   type ExerciseShape,
-  findExercise,
   findNextExercise,
-  findPrevExercise,
   findSet,
-  firstIncompleteSet,
   planStagedSet,
-  resolveCursor,
   type SetShape,
-  shouldConfirmLeavingSet,
   workoutHeaderTitle,
 } from '@/components/activeSet';
 import { EditableTitle } from '@/components/EditableTitle';
 import { EditSetSheet } from '@/components/EditSetSheet';
 import { ExercisePicker } from '@/components/ExercisePicker';
-import { SessionVolumeBar, type BankSignal } from '@/components/SessionVolumeBar';
+import { SessionVolumeBar } from '@/components/SessionVolumeBar';
 import { SyncErrorStripe } from '@/components/SyncErrorStripe';
 import { VoiceMicButton } from '@/components/VoiceMicButton';
 import { useVoiceSession } from '@/voice/useVoiceSession';
 import { useAddExerciseToWorkout } from '@/queries/exercises';
 import { useProfile } from '@/queries/profile';
 import { queryKeys } from '@/queries/keys';
-import {
-  createSessionPRTracker,
-  registerBankedSet,
-  useAllTimeHeaviestKg,
-  type SessionPRTracker,
-} from '@/queries/sessionPRs';
 import { addSet, useUpdateSet } from '@/queries/sets';
 import {
   deleteWorkoutLocal,
@@ -47,20 +34,22 @@ import {
 } from '@/queries/workouts';
 import { useWorkoutDetail } from '@/queries/workoutDetail';
 import { DEFAULT_UNITS, sumVolume } from '@/core/units';
-import { effectiveRest, getOverrides } from '@/rest/overrides';
 import { RestOverrideSheet } from '@/rest/RestOverrideSheet';
 import { RestProgressBar } from '@/rest/RestProgressBar';
 import { useRestTimer } from '@/rest/useRestTimer';
 import { Button } from '@/ui/Button';
 import { ConfirmSheet } from '@/ui/ConfirmSheet';
 import { EmptyState } from '@/ui/EmptyState';
-import { haptics } from '@/ui/haptics';
 import { SessionRecap } from '@/ui/SessionRecap';
 import { SettleSlam } from '@/ui/SettleSlam';
 import { SyncIndicator } from '@/ui/SyncIndicator';
 import { Text } from '@/ui/Text';
 import { useSyncAwareErrorToast } from '@/ui/ToastContext';
 import { useTheme } from '@/ui/useTheme';
+
+import { useWorkoutCursor } from './workoutActive/useWorkoutCursor';
+import { useSessionPRs } from './workoutActive/useSessionPRs';
+import { useRestOverrides } from './workoutActive/useRestOverrides';
 
 export default function WorkoutActiveScreen() {
   const { user } = useAuth();
@@ -90,21 +79,10 @@ export default function WorkoutActiveScreen() {
   const updateTitle = useUpdateWorkoutTitle(toastError);
 
   const [pickerOpen, setPickerOpen] = useState(false);
-  const [cursor, setCursor] = useState<ActiveCursor | null>(null);
-  const [overrides, setOverridesState] = useState<Record<string, number>>({});
-  const [overrideSheetOpen, setOverrideSheetOpen] = useState(false);
-
-  // Live PR detection (#25): seed a running per-exercise heaviest tracker from
-  // the all-time records, then test each banked set against it. The result
-  // drives the volume bar's PR pulse + pill and the finish recap.
-  const heaviestQuery = useAllTimeHeaviestKg(userId);
-  const prTracker = useRef<SessionPRTracker | null>(null);
-  const [bankSignal, setBankSignal] = useState<BankSignal>({ nonce: 0, isPR: false });
-  const [sessionPRs, setSessionPRs] = useState<string[]>([]);
-
-  // Confirm decisions go through the themed ConfirmSheet, never OS Alert.
-  const [leaveConfirm, setLeaveConfirm] = useState<null | (() => void)>(null);
   const [discardConfirm, setDiscardConfirm] = useState(false);
+
+  // Live PR detection (#25) — see useSessionPRs.
+  const { bankSignal, sessionPRs, registerBank } = useSessionPRs(userId);
 
   // Banked-set editing (backlog 1.1): the target survives close so the sheet
   // keeps its content through the exit animation.
@@ -113,14 +91,6 @@ export default function WorkoutActiveScreen() {
   const onEditSet = useCallback((s: SetShape, displayIndex: number) => {
     setEditTarget({ set: s, number: displayIndex });
     setEditOpen(true);
-  }, []);
-
-  useEffect(() => {
-    void getOverrides().then(setOverridesState);
-  }, []);
-
-  const reloadOverrides = useCallback(async () => {
-    setOverridesState(await getOverrides());
   }, []);
 
   // Map query data into the ExerciseShape used by the state machine
@@ -144,43 +114,23 @@ export default function WorkoutActiveScreen() {
     }));
   }, [detail.data]);
 
-  const currentExForRest = cursor ? findExercise(exercises, cursor.weId) : null;
-  const restSeconds = useMemo(
-    () =>
-      effectiveRest(
-        overrides,
-        currentExForRest?.exerciseId ?? '',
-        currentExForRest?.muscleGroup ?? null,
-      ),
-    [overrides, currentExForRest?.exerciseId, currentExForRest?.muscleGroup],
-  );
+  // Cursor state machine (init/reposition #21/#77, leave-confirm #12, add-
+  // exercise targeting #13) — see useWorkoutCursor.
+  const {
+    cursor,
+    setCursor,
+    currentExercise: currentExForRest,
+    autoStaged,
+    targetExercise,
+    onNextExercise,
+    onPrevExercise,
+    leaveConfirm,
+    setLeaveConfirm,
+  } = useWorkoutCursor({ exercises, refreshDetail });
+
+  const { overrides, reloadOverrides, restSeconds, overrideSheetOpen, setOverrideSheetOpen } =
+    useRestOverrides(currentExForRest);
   const timer = useRestTimer({ targetSeconds: restSeconds });
-
-  // Tracks whether the cursor has been initialized for the current workout.
-  // Distinguishes "cursor is null because we haven't loaded yet" (→ initialize)
-  // from "cursor is null because the user finished" (→ leave it, show the recap).
-  const didInitCursor = useRef(false);
-  // When adding an exercise from the recap, drop the cursor onto THAT exercise's
-  // staged set once its data arrives — not the first incomplete set anywhere (#13).
-  const pendingTargetWeId = useRef<string | null>(null);
-  // The next set auto-staged on completion is pre-filled with the prior set's
-  // weight × reps, so "has values" can't tell it apart from a set the user
-  // entered. Remember its identity + pre-filled values so leaving an untouched
-  // staged set doesn't trigger the "Skip this set?" prompt every time (#12).
-  const autoStaged = useRef<AutoStagedSet | null>(null);
-
-  // Initialize cursor when exercises first load, or reposition when the cursor
-  // points at a set that no longer exists / is already completed. The decision
-  // lives in resolveCursor (pure, characterization-tested, #21/#77); this
-  // effect only applies its outcome. cursor is read only to check validity —
-  // the setter is called only when the resolution carries a cursor.
-  // eslint-disable-next-line react-hooks/exhaustive-deps
-  useEffect(() => {
-    const res = resolveCursor(exercises, cursor, didInitCursor.current, pendingTargetWeId.current);
-    didInitCursor.current = res.didInit;
-    pendingTargetWeId.current = res.pendingTargetWeId;
-    if (res.cursor !== undefined) setCursor(res.cursor);
-  }, [exercises, cursor]);
 
   const onChangeWeight = useCallback(
     (next: number | null) => {
@@ -214,21 +164,7 @@ export default function WorkoutActiveScreen() {
       const staged = planStagedSet(currentSetData ?? null, units);
 
       // Did the set just banked beat the all-time heaviest for this exercise?
-      if (prTracker.current == null) {
-        prTracker.current = createSessionPRTracker(heaviestQuery.data ?? {});
-      }
-      const isPR =
-        currentExForRest != null &&
-        registerBankedSet(prTracker.current, {
-          exerciseId: currentExForRest.exerciseId,
-          weight: currentSetData ? currentSetData.weight : null,
-          units: currentSetData?.units ?? units,
-        });
-      setBankSignal((s) => ({ nonce: s.nonce + 1, isPR }));
-      if (isPR && currentExForRest) {
-        const name = currentExForRest.exerciseName;
-        setSessionPRs((prev) => (prev.includes(name) ? prev : [...prev, name]));
-      }
+      registerBank(currentExForRest, currentSetData ?? null, units);
 
       const newSetId = await addSet(cursor.weId, staged);
       // Record what we pre-filled so an untouched staged set advances silently.
@@ -238,7 +174,17 @@ export default function WorkoutActiveScreen() {
     } finally {
       completingRef.current = false;
     }
-  }, [cursor, currentExForRest, updateSet, timer, refreshDetail, units, heaviestQuery.data]);
+  }, [
+    cursor,
+    currentExForRest,
+    updateSet,
+    timer,
+    refreshDetail,
+    units,
+    registerBank,
+    autoStaged,
+    setCursor,
+  ]);
 
   const onDiscardEmpty = useCallback(async () => {
     if (!activeQuery.data) return;
@@ -262,70 +208,10 @@ export default function WorkoutActiveScreen() {
       // Land the cursor on the new exercise (its auto-staged set), not the first
       // incomplete set in the workout (#13). The init effect picks this up once
       // the new exercise appears in the cached data.
-      pendingTargetWeId.current = weId;
-      didInitCursor.current = false;
+      targetExercise(weId);
     },
-    [activeQuery.data, addExercise],
+    [activeQuery.data, addExercise, targetExercise],
   );
-
-  const onNextExercise = useCallback(() => {
-    if (!cursor || !currentExForRest) return;
-    const nextEx = findNextExercise(exercises, cursor.weId);
-    const currentSet = findSet(currentExForRest, cursor.setId);
-    // Only warn when leaving a set the user actually entered. The untouched
-    // auto-staged set (and the empty first set) carry no intent (#12).
-    const needsConfirm = shouldConfirmLeavingSet(currentSet, autoStaged.current);
-    const advance = async () => {
-      if (nextEx) {
-        // Target the next exercise's first INCOMPLETE set — not sets[0], which
-        // may already be completed (prior session / earlier logging). Landing
-        // the cursor on a completed set makes the cursor-reset effect bounce it
-        // back to the first incomplete set (an earlier exercise). Stage a fresh
-        // set only if every set in the next exercise is already done.
-        let nextSetId = firstIncompleteSet(nextEx)?.id;
-        if (!nextSetId) {
-          nextSetId = await addSet(nextEx.id);
-          refreshDetail();
-        }
-        setCursor({ weId: nextEx.id, setId: nextSetId });
-        haptics.medium();
-      } else {
-        setCursor(null); // → finish summary
-        haptics.medium();
-      }
-    };
-    if (!needsConfirm) {
-      void advance();
-    } else {
-      setLeaveConfirm(() => () => void advance());
-    }
-  }, [cursor, currentExForRest, exercises, refreshDetail]);
-
-  const onPrevExercise = useCallback(() => {
-    if (!cursor || !currentExForRest) return;
-    const prevEx = findPrevExercise(exercises, cursor.weId);
-    if (!prevEx) return;
-    // Same guard as next-exercise (#12 asymmetry): leaving a set the user
-    // actually entered warns in BOTH directions, not just forward.
-    const currentSet = findSet(currentExForRest, cursor.setId);
-    const needsConfirm = shouldConfirmLeavingSet(currentSet, autoStaged.current);
-    // Mirror next-exercise: target prev's first INCOMPLETE set (not sets[0], which
-    // may be completed and would make the cursor-reset effect bounce away, #13).
-    const goBack = async () => {
-      let setId = firstIncompleteSet(prevEx)?.id;
-      if (!setId) {
-        setId = await addSet(prevEx.id);
-        refreshDetail();
-      }
-      setCursor({ weId: prevEx.id, setId });
-      haptics.medium();
-    };
-    if (!needsConfirm) {
-      void goBack();
-    } else {
-      setLeaveConfirm(() => () => void goBack());
-    }
-  }, [cursor, currentExForRest, exercises, refreshDetail]);
 
   // Hands-free voice session. Data commands route through the tested dispatch
   // layer; "done" reuses the screen's canonical completion (timer + auto-stage);
@@ -512,7 +398,7 @@ export default function WorkoutActiveScreen() {
     );
   }
 
-  const currentEx = findExercise(exercises, cursor.weId);
+  const currentEx = currentExForRest;
   const currentSet = currentEx ? findSet(currentEx, cursor.setId) : null;
   if (!currentEx || !currentSet) {
     // The cursor briefly points at a set that isn't in the latest data — e.g.

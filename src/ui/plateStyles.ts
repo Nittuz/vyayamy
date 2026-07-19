@@ -43,7 +43,6 @@ export interface PlateStyleOptions {
   tone?: PlateTone;
   /** Omit to take the tone's default (panel: soft hairline; others: none). */
   border?: PlateBorder;
-  radius?: keyof Theme['radius'];
 }
 
 export interface PlateStyles {
@@ -110,13 +109,13 @@ function borderStyle(
 }
 
 export function resolvePlateStyles(theme: Theme, options: PlateStyleOptions = {}): PlateStyles {
-  const { tone = 'panel', radius = 'card' } = options;
+  const { tone = 'panel' } = options;
   const appearance = toneAppearance(theme, canonicalTone(tone));
   const border = options.border ?? appearance.defaultBorder;
 
+  // Blacktop shape lock: faces are all-sharp — no borderRadius at all.
   const face: ViewStyle = {
     backgroundColor: appearance.fill,
-    borderRadius: theme.radius[radius],
     ...borderStyle(theme, border),
   };
 

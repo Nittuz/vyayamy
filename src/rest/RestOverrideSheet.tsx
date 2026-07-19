@@ -94,7 +94,6 @@ export function RestOverrideSheet({
               key={preset}
               tone={isSelected ? 'inverted' : 'ghost'}
               border={isSelected ? 'none' : 'soft'}
-              radius="sm"
               onPress={() => {
                 haptics.light();
                 setSelected(preset);
@@ -152,7 +151,6 @@ const makeStyles = (theme: Theme) =>
       backgroundColor: theme.color.bg,
       borderWidth: theme.depth.hairline,
       borderColor: theme.color.border,
-      borderRadius: theme.radius.sm,
       paddingHorizontal: theme.space.s3,
       color: theme.color.ink,
       fontFamily: theme.font.family.mono,
