@@ -10,10 +10,13 @@
  * incomplete anywhere — when the cursor goes stale).
  */
 import {
+  canCompleteSet,
   exerciseSetStrip,
   ghostSetStrip,
+  planFirstSet,
   planStagedSet,
   resolveCursor,
+  setValuesLabel,
   workoutHeaderTitle,
   type ExerciseShape,
   type SetShape,
@@ -267,8 +270,72 @@ describe('mono strips (Blacktop metadata treatment)', () => {
     expect(ghostSetStrip(1, { weight: 60, reps: 8 })).toBe('SET 1 · 60 × 8');
   });
 
-  test('ghostSetStrip: null weight/reps render as en-dash placeholders', () => {
-    expect(ghostSetStrip(2, { weight: null, reps: 8 })).toBe('SET 2 · - × 8');
+  test('ghostSetStrip: null weight renders BW, null reps keeps the read-only dash (spec §4)', () => {
+    expect(ghostSetStrip(2, { weight: null, reps: 8 })).toBe('SET 2 · BW × 8');
     expect(ghostSetStrip(3, { weight: 100, reps: null })).toBe('SET 3 · 100 × -');
+  });
+});
+
+describe('canCompleteSet — reps required, weight optional (spec §4)', () => {
+  test('reps present, weight null → loggable (bodyweight)', () => {
+    expect(canCompleteSet({ reps: 8 })).toBe(true);
+  });
+  test('reps null → not loggable', () => {
+    expect(canCompleteSet({ reps: null })).toBe(false);
+  });
+  test('null set → not loggable', () => {
+    expect(canCompleteSet(null)).toBe(false);
+  });
+});
+
+describe('setValuesLabel — BW display (spec §4)', () => {
+  test('weighted set', () => {
+    expect(setValuesLabel(60, 8)).toBe('60 × 8');
+  });
+  test('bodyweight set', () => {
+    expect(setValuesLabel(null, 12)).toBe('BW × 12');
+  });
+  test('legacy missing reps keeps the read-only dash', () => {
+    expect(setValuesLabel(60, null)).toBe('60 × -');
+  });
+});
+
+describe('planFirstSet — never-empty prefill (spec §2)', () => {
+  const lastKg = [
+    { orderIndex: 0, weight: 60, reps: 8, units: 'kg' as const },
+    { orderIndex: 1, weight: 80, reps: 5, units: 'kg' as const },
+  ];
+
+  test('seeds from last session set 1, same unit', () => {
+    expect(planFirstSet(lastKg, 'kg', 2.5)).toEqual({ weight: 60, reps: 8, units: 'kg' });
+  });
+
+  test('converts units and rounds to the current step (60 kg → lb, step 5)', () => {
+    const plan = planFirstSet(lastKg, 'lb', 5);
+    // 60 kg = 132.28 lb → nearest 5 = 130
+    expect(plan).toEqual({ weight: 130, reps: 8, units: 'lb' });
+  });
+
+  test('falls back to the top set when set 1 carries no values', () => {
+    const last = [
+      { orderIndex: 0, weight: null, reps: null, units: null },
+      { orderIndex: 1, weight: 80, reps: 5, units: 'kg' as const },
+    ];
+    expect(planFirstSet(last, 'kg', 2.5)).toEqual({ weight: 80, reps: 5, units: 'kg' });
+  });
+
+  test('bodyweight history seeds reps without a unit stamp (#131)', () => {
+    const last = [{ orderIndex: 0, weight: null, reps: 12, units: null }];
+    expect(planFirstSet(last, 'kg', 2.5)).toEqual({ weight: null, reps: 12, units: null });
+  });
+
+  test('no history → truly empty stage', () => {
+    expect(planFirstSet([], 'kg', 2.5)).toEqual({ weight: null, reps: null, units: null });
+  });
+});
+
+describe('ghostSetStrip — BW (spec §4)', () => {
+  test('bodyweight ghost row', () => {
+    expect(ghostSetStrip(1, { weight: null, reps: 12 })).toBe('SET 1 · BW × 12');
   });
 });
