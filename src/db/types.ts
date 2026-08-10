@@ -59,6 +59,7 @@ export interface Database {
           ended_at: string | null;
           title: string;
           template_id: string | null;
+          note: string | null;
           created_at: string;
         } & SyncCols;
         Insert: {
@@ -68,6 +69,7 @@ export interface Database {
           ended_at?: string | null;
           title: string;
           template_id?: string | null;
+          note?: string | null;
           created_at?: string;
         } & SyncColsInsert;
         Update: Partial<Database['public']['Tables']['workouts']['Insert']>;
@@ -79,6 +81,7 @@ export interface Database {
           workout_id: string;
           exercise_id: string;
           order_index: number;
+          note: string | null;
           created_at: string;
         } & SyncCols;
         Insert: {
@@ -86,6 +89,7 @@ export interface Database {
           workout_id: string;
           exercise_id: string;
           order_index: number;
+          note?: string | null;
           created_at?: string;
         } & SyncColsInsert;
         Update: Partial<Database['public']['Tables']['workout_exercises']['Insert']>;

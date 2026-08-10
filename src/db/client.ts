@@ -17,7 +17,7 @@ import { LOCAL_SCHEMA_SQL } from './schema';
 const DATABASE_NAME = 'flexyug.db';
 
 /** Bump when LOCAL_SCHEMA_SQL adds columns or tables that need a migration step. */
-export const SCHEMA_VERSION = 4;
+export const SCHEMA_VERSION = 5;
 
 let dbPromise: Promise<SQLite.SQLiteDatabase> | null = null;
 
@@ -69,6 +69,21 @@ export async function initDb(): Promise<void> {
     await db.runAsync('UPDATE sets SET units = ? WHERE units IS NULL AND weight IS NOT NULL', [
       prof?.units ?? 'kg',
     ]);
+
+    // v5 — session notes (2026-08-09 spec): free-form note on workouts and
+    // workout_exercises. Nullable, no backfill needed.
+    await tryAlter(db, 'ALTER TABLE workouts ADD COLUMN note TEXT');
+    await tryAlter(db, 'ALTER TABLE workout_exercises ADD COLUMN note TEXT');
+    // v5 also rewinds the pull cursor for the two altered tables. While this
+    // device lacked the note column, pull silently dropped it from incoming
+    // rows (columns are filtered against table_info, #56) and still advanced
+    // last_pulled_at — so a note written by another device in that window
+    // would otherwise never arrive. A one-time full re-pull of two tables is
+    // cheap; rows merge idempotently by id.
+    await db.runAsync(
+      `UPDATE sync_meta SET last_pulled_at = NULL, last_pulled_id = NULL
+        WHERE table_name IN ('workouts', 'workout_exercises')`,
+    );
 
     await db.execAsync(`PRAGMA user_version = ${SCHEMA_VERSION}`);
   }

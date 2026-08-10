@@ -39,6 +39,7 @@ CREATE TABLE IF NOT EXISTS workouts (
   ended_at TEXT,
   title TEXT NOT NULL,
   template_id TEXT,
+  note TEXT,
   created_at TEXT NOT NULL DEFAULT (strftime('%Y-%m-%dT%H:%M:%fZ','now')),
   updated_at TEXT NOT NULL DEFAULT (strftime('%Y-%m-%dT%H:%M:%fZ','now')),
   deleted_at TEXT
@@ -51,6 +52,7 @@ CREATE TABLE IF NOT EXISTS workout_exercises (
   workout_id TEXT NOT NULL,
   exercise_id TEXT NOT NULL,
   order_index INTEGER NOT NULL,
+  note TEXT,
   created_at TEXT NOT NULL DEFAULT (strftime('%Y-%m-%dT%H:%M:%fZ','now')),
   updated_at TEXT NOT NULL DEFAULT (strftime('%Y-%m-%dT%H:%M:%fZ','now')),
   deleted_at TEXT

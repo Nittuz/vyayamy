@@ -32,8 +32,11 @@ import {
   deleteWorkoutLocal,
   useActiveWorkout,
   useFinishWorkout,
+  useSetExerciseNote,
+  useSetWorkoutNote,
   useUpdateWorkoutTitle,
 } from '@/queries/workouts';
+import { NoteSheet } from '@/components/NoteSheet';
 import { useWorkoutDetail } from '@/queries/workoutDetail';
 import { DEFAULT_UNITS, sumVolume } from '@/core/units';
 import { RestOverrideSheet } from '@/rest/RestOverrideSheet';
@@ -83,6 +86,32 @@ export default function WorkoutActiveScreen() {
 
   const [pickerOpen, setPickerOpen] = useState(false);
   const [discardConfirm, setDiscardConfirm] = useState(false);
+
+  // Session-capture notes (spec 2026-08-09): one sheet, session + current
+  // exercise. The exercise target is SNAPSHOTTED when the sheet opens, so a
+  // cursor move (e.g. a voice "next exercise" behind the modal) can't retarget
+  // typed text onto another exercise (review finding). Saves go through the
+  // outbox like every other mutation.
+  const [noteSheetOpen, setNoteSheetOpen] = useState(false);
+  const [noteTarget, setNoteTarget] = useState<{
+    weId: string;
+    name: string;
+    note: string | null;
+  } | null>(null);
+  const setWorkoutNoteMut = useSetWorkoutNote(toastError);
+  const setExerciseNoteMut = useSetExerciseNote(toastError);
+  const onSaveNotes = useCallback(
+    (changes: { sessionNote?: string | null; exerciseNote?: string | null }, weId?: string) => {
+      if (changes.sessionNote !== undefined && activeQuery.data) {
+        setWorkoutNoteMut.mutate({ workoutId: activeQuery.data.id, note: changes.sessionNote });
+      }
+      if (changes.exerciseNote !== undefined && weId) {
+        setExerciseNoteMut.mutate({ weId, note: changes.exerciseNote });
+      }
+      setNoteSheetOpen(false);
+    },
+    [activeQuery.data, setWorkoutNoteMut, setExerciseNoteMut],
+  );
 
   // Live PR detection (#25) — see useSessionPRs.
   const { bankSignal, sessionPRs, registerBank } = useSessionPRs(userId);
@@ -429,6 +458,17 @@ export default function WorkoutActiveScreen() {
               accessibilityLabel="Add exercise to workout"
               style={styles.fullBtn}
             />
+            <Button
+              label={activeQuery.data.note ? 'Edit session note' : 'Session note'}
+              kind="ghost"
+              size="row"
+              onPress={() => {
+                setNoteTarget(null); // recap annotates the session only
+                setNoteSheetOpen(true);
+              }}
+              accessibilityLabel="Session note"
+              style={styles.fullBtn}
+            />
           </View>
         </View>
         <ExercisePicker
@@ -436,6 +476,13 @@ export default function WorkoutActiveScreen() {
           visible={pickerOpen}
           onClose={() => setPickerOpen(false)}
           onPick={onAddExercise}
+        />
+        <NoteSheet
+          visible={noteSheetOpen}
+          sessionNote={activeQuery.data.note}
+          exercise={noteTarget}
+          saving={setWorkoutNoteMut.isPending || setExerciseNoteMut.isPending}
+          onSave={(changes) => onSaveNotes(changes, noteTarget?.weId)}
         />
       </SafeAreaView>
     );
@@ -451,6 +498,15 @@ export default function WorkoutActiveScreen() {
     return (
       <SafeAreaView style={[styles.container, styles.center, { backgroundColor: theme.color.bg }]}>
         <ActivityIndicator color={theme.color.inkSecondary} />
+        {/* Keep the note sheet mounted through this one-tick placeholder so a
+            cursor transition can't unmount it and drop typed text. */}
+        <NoteSheet
+          visible={noteSheetOpen}
+          sessionNote={activeQuery.data.note}
+          exercise={noteTarget}
+          saving={setWorkoutNoteMut.isPending || setExerciseNoteMut.isPending}
+          onSave={(changes) => onSaveNotes(changes, noteTarget?.weId)}
+        />
       </SafeAreaView>
     );
   }
@@ -542,6 +598,21 @@ export default function WorkoutActiveScreen() {
           onPress={() => setPickerOpen(true)}
           accessibilityLabel="Add exercise to workout"
         />
+        <Button
+          label="Notes"
+          kind="ghost"
+          size="row"
+          onPress={() => {
+            setNoteTarget({
+              weId: currentEx.id,
+              name: currentEx.exerciseName,
+              note: detail.data?.exercises.find((we) => we.id === currentEx.id)?.note ?? null,
+            });
+            setNoteSheetOpen(true);
+          }}
+          accessibilityLabel="Session and exercise notes"
+          accessibilityHint="Add a note for this session or the current exercise"
+        />
       </ScrollView>
       {/* LOG SET is the thumb-zone primary (spec §3): inverted plate, value echo.
           Volt stays reserved for the recap's finish CTA; Next/Finish is quiet. */}
@@ -576,6 +647,13 @@ export default function WorkoutActiveScreen() {
         visible={pickerOpen}
         onClose={() => setPickerOpen(false)}
         onPick={onAddExercise}
+      />
+      <NoteSheet
+        visible={noteSheetOpen}
+        sessionNote={activeQuery.data.note}
+        exercise={noteTarget}
+        saving={setWorkoutNoteMut.isPending || setExerciseNoteMut.isPending}
+        onSave={(changes) => onSaveNotes(changes, noteTarget?.weId)}
       />
       {currentEx ? (
         <RestOverrideSheet

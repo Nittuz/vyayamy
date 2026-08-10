@@ -2,7 +2,7 @@ import { useMemo } from 'react';
 import { useLocalSearchParams } from 'expo-router';
 import { ActivityIndicator, SafeAreaView, ScrollView, StyleSheet, View } from 'react-native';
 
-import { formatDuration, formatShortDate, formatWeight } from '@/core/format';
+import { formatDuration, formatShortDate, formatTimeOfDay, formatWeight } from '@/core/format';
 import { DEFAULT_UNITS } from '@/core/units';
 import { useWorkoutDetail } from '@/queries/workoutDetail';
 import { EmptyState } from '@/ui/EmptyState';
@@ -46,18 +46,45 @@ export default function HistoryDetailScreen() {
               {workout.title}
             </Text>
             <Text variant="strip" color={theme.color.inkTertiary}>
-              {formatShortDate(workout.started_at)} ·{' '}
+              {/* Time of day answers "when did I train" (spec 2026-08-09) */}
+              {formatShortDate(workout.started_at)} · {formatTimeOfDay(workout.started_at)} ·{' '}
               {formatDuration(workout.started_at, workout.ended_at)}
             </Text>
+            {workout.note ? (
+              <Text variant="meta" color={theme.color.inkSecondary} style={styles.note}>
+                {workout.note}
+              </Text>
+            ) : null}
           </View>
         </FadeInView>
 
         {exercises.map((we, exIndex) => (
           <FadeInView key={we.id} delay={staggerDelay(exIndex + 1)}>
             <Plate tone="ghost" style={styles.exBlock} faceStyle={styles.exFace}>
-              <Text variant="card" color={theme.color.ink}>
-                {we.exercise?.name ?? 'Unknown exercise'}
-              </Text>
+              <View style={styles.exHeader}>
+                <Text
+                  variant="card"
+                  color={theme.color.ink}
+                  numberOfLines={1}
+                  style={styles.exName}
+                >
+                  {we.exercise?.name ?? 'Unknown exercise'}
+                </Text>
+                {/* When this exercise happened: its first completed set. */}
+                {(() => {
+                  const first = we.sets.find((s) => s.completed && s.completed_at);
+                  return first?.completed_at ? (
+                    <Text variant="strip" color={theme.color.inkTertiary}>
+                      {formatTimeOfDay(first.completed_at)}
+                    </Text>
+                  ) : null;
+                })()}
+              </View>
+              {we.note ? (
+                <Text variant="meta" color={theme.color.inkSecondary} style={styles.note}>
+                  {we.note}
+                </Text>
+              ) : null}
               <View>
                 {we.sets.map((s, idx) => (
                   <View key={s.id} style={[styles.setRow, idx > 0 && styles.setRowRuled]}>
@@ -108,6 +135,14 @@ const makeStyles = (theme: Theme) =>
       borderTopColor: theme.color.border,
     },
     exFace: { paddingVertical: theme.space.s4, gap: theme.space.s3 },
+    exHeader: {
+      flexDirection: 'row',
+      alignItems: 'baseline',
+      justifyContent: 'space-between',
+      gap: theme.space.s3,
+    },
+    exName: { flexShrink: 1 },
+    note: { fontStyle: 'italic' },
     setRow: {
       flexDirection: 'row',
       alignItems: 'center',

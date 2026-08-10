@@ -52,6 +52,14 @@ export function formatDuration(startedAt: string, endedAt: string | null): strin
   return m ? `${h}h ${m}m` : `${h}h`;
 }
 
+/** Device-local clock time ("7:42 PM" or "19:42" — the locale decides 12/24h). */
+export function formatTimeOfDay(dateStr: string): string {
+  return new Date(dateStr).toLocaleTimeString(undefined, {
+    hour: 'numeric',
+    minute: '2-digit',
+  });
+}
+
 export function formatShortDate(dateStr: string): string {
   return new Date(dateStr).toLocaleDateString(undefined, {
     weekday: 'short',

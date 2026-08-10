@@ -48,6 +48,7 @@ describe('deriveWorkoutStatus', () => {
     ended_at: null,
     title: 'Push',
     template_id: null,
+    note: null,
     created_at: '2026-01-01T10:00:00.000Z',
     updated_at: '2026-01-01T10:00:00.000Z',
     deleted_at: null,

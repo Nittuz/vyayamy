@@ -203,6 +203,58 @@ export function useFinishWorkout(userId: string | undefined, onError?: (msg: str
   });
 }
 
+/** Normalize note input: trimmed text, or null when effectively empty. */
+function normalizeNote(note: string | null): string | null {
+  const trimmed = (note ?? '').trim();
+  return trimmed === '' ? null : trimmed;
+}
+
+export async function setWorkoutNote(workoutId: string, note: string | null): Promise<void> {
+  await enqueueMutation({
+    table: 'workouts',
+    op: 'update',
+    rowId: workoutId,
+    payload: { note: normalizeNote(note) },
+  });
+  emitMutationCommitted();
+}
+
+export async function setExerciseNote(weId: string, note: string | null): Promise<void> {
+  await enqueueMutation({
+    table: 'workout_exercises',
+    op: 'update',
+    rowId: weId,
+    payload: { note: normalizeNote(note) },
+  });
+  emitMutationCommitted();
+}
+
+export function useSetWorkoutNote(onError?: (msg: string) => void) {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: (args: { workoutId: string; note: string | null }) =>
+      setWorkoutNote(args.workoutId, args.note),
+    onSuccess: () => qc.invalidateQueries({ queryKey: queryKeys.workouts.all }),
+    onError: (err) => {
+      reportError(err, { mutation: 'setWorkoutNote' });
+      onError?.('Could not save the note. Please try again.');
+    },
+  });
+}
+
+export function useSetExerciseNote(onError?: (msg: string) => void) {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: (args: { weId: string; note: string | null }) =>
+      setExerciseNote(args.weId, args.note),
+    onSuccess: () => qc.invalidateQueries({ queryKey: queryKeys.workouts.all }),
+    onError: (err) => {
+      reportError(err, { mutation: 'setExerciseNote' });
+      onError?.('Could not save the note. Please try again.');
+    },
+  });
+}
+
 export function useUpdateWorkoutTitle(onError?: (msg: string) => void) {
   const qc = useQueryClient();
   return useMutation({

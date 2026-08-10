@@ -28,6 +28,7 @@ interface JoinedRow {
   w_ended_at: string | null;
   w_title: string;
   w_template_id: string | null;
+  w_note: string | null;
   w_created_at: string;
   w_updated_at: string;
   w_deleted_at: string | null;
@@ -35,6 +36,7 @@ interface JoinedRow {
   we_workout_id: string | null;
   we_exercise_id: string | null;
   we_order_index: number | null;
+  we_note: string | null;
   we_created_at: string | null;
   we_updated_at: string | null;
   we_deleted_at: string | null;
@@ -62,9 +64,10 @@ const DETAIL_SQL = `
 SELECT
   w.id AS w_id, w.user_id AS w_user_id, w.started_at AS w_started_at,
   w.ended_at AS w_ended_at, w.title AS w_title, w.template_id AS w_template_id,
+  w.note AS w_note,
   w.created_at AS w_created_at, w.updated_at AS w_updated_at, w.deleted_at AS w_deleted_at,
   we.id AS we_id, we.workout_id AS we_workout_id, we.exercise_id AS we_exercise_id,
-  we.order_index AS we_order_index, we.created_at AS we_created_at,
+  we.order_index AS we_order_index, we.note AS we_note, we.created_at AS we_created_at,
   we.updated_at AS we_updated_at, we.deleted_at AS we_deleted_at,
   e.id AS e_id, e.name AS e_name, e.muscle_group AS e_muscle_group,
   e.user_id AS e_user_id, e.created_at AS e_created_at,
@@ -96,6 +99,7 @@ export async function getWorkoutDetail(workoutId: string): Promise<WorkoutDetail
     ended_at: first.w_ended_at,
     title: first.w_title,
     template_id: first.w_template_id,
+    note: first.w_note,
     created_at: first.w_created_at,
     updated_at: first.w_updated_at,
     deleted_at: first.w_deleted_at,
@@ -124,6 +128,7 @@ export async function getWorkoutDetail(workoutId: string): Promise<WorkoutDetail
         workout_id: row.we_workout_id!,
         exercise_id: row.we_exercise_id!,
         order_index: row.we_order_index!,
+        note: row.we_note,
         created_at: row.we_created_at!,
         updated_at: row.we_updated_at!,
         deleted_at: row.we_deleted_at,

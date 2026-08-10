@@ -4,6 +4,7 @@ import {
   formatDuration,
   formatShortDate,
   formatStartLabel,
+  formatTimeOfDay,
   getDateGroup,
   greetingFor,
   formatMemberSince,
@@ -206,5 +207,14 @@ describe('formatWeight', () => {
   test('appends the unit', () => {
     expect(formatWeight(100, 'kg')).toBe('100 kg');
     expect(formatWeight(45, 'lb')).toBe('45 lb');
+  });
+});
+
+describe('formatTimeOfDay', () => {
+  test('renders the device-local clock time with minutes (12h or 24h per locale)', () => {
+    // Build a local 19:42 instant so the assertion is timezone-independent.
+    const local = new Date(2026, 0, 15, 19, 42, 0);
+    const out = formatTimeOfDay(local.toISOString());
+    expect(out).toMatch(/^(7:42(\s?PM)?|19:42)$/i);
   });
 });

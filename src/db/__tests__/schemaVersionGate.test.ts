@@ -91,4 +91,46 @@ describe('user_version gating (#57b)', () => {
     expect(await setsHasUnitsColumn()).toBe(true); // migration re-applied
     expect(await userVersion()).toBe(SCHEMA_VERSION);
   });
+
+  test('v5 migration adds the note columns to a v4 database', async () => {
+    await initDb();
+    const db = await getDb();
+    // Model a v4 install: note columns absent, version below current.
+    await db.execAsync('ALTER TABLE workouts DROP COLUMN note');
+    await db.execAsync('ALTER TABLE workout_exercises DROP COLUMN note');
+    await db.execAsync('PRAGMA user_version = 4');
+
+    await initDb();
+
+    const wCols = await db.getAllAsync<{ name: string }>('PRAGMA table_info(workouts)');
+    const weCols = await db.getAllAsync<{ name: string }>('PRAGMA table_info(workout_exercises)');
+    expect(wCols.some((c) => c.name === 'note')).toBe(true);
+    expect(weCols.some((c) => c.name === 'note')).toBe(true);
+    expect(await userVersion()).toBe(SCHEMA_VERSION);
+  });
+
+  test('v5 migration rewinds the pull cursor for the altered tables only', async () => {
+    await initDb();
+    const db = await getDb();
+    // A v4 device pulled rows WITHOUT the note column and advanced its cursor;
+    // without a rewind, notes written in that window would never arrive.
+    for (const t of ['workouts', 'workout_exercises', 'sets']) {
+      await db.runAsync(
+        `INSERT OR REPLACE INTO sync_meta (table_name, last_pulled_at, last_pulled_id) VALUES (?, ?, ?)`,
+        [t, '2026-08-01T00:00:00.000Z', 'row-1'],
+      );
+    }
+    await db.execAsync('PRAGMA user_version = 4');
+
+    await initDb();
+
+    const rows = await db.getAllAsync<{
+      table_name: string;
+      last_pulled_at: string | null;
+    }>('SELECT table_name, last_pulled_at FROM sync_meta ORDER BY table_name');
+    const byTable = Object.fromEntries(rows.map((r) => [r.table_name, r.last_pulled_at]));
+    expect(byTable['workouts']).toBeNull(); // rewound → pull restarts from epoch
+    expect(byTable['workout_exercises']).toBeNull();
+    expect(byTable['sets']).toBe('2026-08-01T00:00:00.000Z'); // untouched
+  });
 });
