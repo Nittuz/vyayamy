@@ -326,13 +326,7 @@ The "Forged Iron" visual + experiential uplevel resolved or advanced the items b
 
 **7.6 Brand mark underdelivers: per-skin metal finishes are dead capability (#33; skin verification)**
 
-- Priority: P3
-- Screen or flow: Login, Today header lockup
-- Problem: `Medal` supports five finishes (`METALS` in `src/ui/Medal.tsx`) and its doc comment proposes a skin-adaptive lockup, but no call site passes `metal`, so every skin renders fixed rose; the 212-node medal will not read at the 40-60px sizes used on Today, and Login rebuilds the lockup by hand.
-- Recommended improvement: cut a simplified small-size medal variant (rim, cartouche, F; no ticks or guilloché) switched on below ~96px; either wire metal-per-skin (Iron titanium, Ember bronze, Forge gunmetal) or consciously decide fixed rose and delete the dead map; make Login use `<Logo>`; update the Logo section of `docs/design-system.md` to describe the medal.
-- Expected user impact: the brand reads at small sizes and the skin system extends to the mark.
-- Implementation notes: needs simulator QA at real sizes.
-- Files likely involved: `src/ui/Medal.tsx`, `src/ui/Logo.tsx`, `src/screens/Login.tsx`, `src/screens/Today.tsx`, `docs/design-system.md`
+- Status: CLOSED-OBSOLETE (2026-08-09). `src/ui/Medal.tsx` and the medallion brand were deleted in the Forged Iron rebrand (2026-06-12); the mark is now the loaded-bar `src/ui/BrandMark.tsx` and Login already uses it via `<FBarMark>`. Nothing here applies to the current identity.
 
 **7.7 Boot overlay pinned to Forge dark; theme shim still alive (new: skin verification)**
 

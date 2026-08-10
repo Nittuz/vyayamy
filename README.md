@@ -71,6 +71,14 @@ npx expo prebuild
 npx expo run:ios
 ```
 
+> **After any icon/splash/branding change, run `npm run prebuild:clean` once.**
+> `expo run:ios` reuses an existing `ios/` directory as-is, and a plain `expo
+> prebuild` does not overwrite its xcassets — so native branding (app icon,
+> launch splash) silently stays stale until a `--clean` prebuild regenerates
+> `ios/` from `app.config.ts`. (`scripts/build-ipa.sh` already does this.)
+> A clean prebuild wipes Xcode-side signing selection; `build-ipa.sh` re-applies
+> the team from `.env`, and simulator builds need no signing.
+
 ## Implementation status
 
 A 16-dimension deep review ran in June 2026 (115 confirmed findings), followed by roughly 33 test-first fix commits merged to main. The narrative synthesis, phase plan, and full findings appendix live in [docs/specs/2026-06-10-deep-review-improvement-plan.md](docs/specs/2026-06-10-deep-review-improvement-plan.md). The per-area assessment from that review (pre-redesign snapshot) lives in git history as `docs/archive/REPO_REVIEW.md`; the visual and interaction backlog is in [docs/UX_POLISH_BACKLOG.md](docs/UX_POLISH_BACKLOG.md).

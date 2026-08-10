@@ -837,10 +837,10 @@ Status: ✅ confirmed by adversarial verification · ⚪ low-severity, unverifie
 - Files: `src/screens/Today.tsx, src/components/ActiveSetCard.tsx, src/components/SessionVolumeBar.tsx`
 - Fix: Pick one gutter (space.page = 20) for both text and cards on Today/WorkoutActive, swap literals for theme.space tokens, and either add radius.xl(18) to the scale or drop the card to radius.lg. An hour of work that makes the flagship screens feel machined instead of assembled.
 
-**#33 ⚪ [ui-craft|M]** Brand mark underdelivers in-app: Login rebuilds the lockup by hand, the skin-adaptive metal finishes are dead, and the 212-node medal won't read at 40-60px
+**#33 ⚫ [ui-craft|M]** Brand mark underdelivers in-app — OBSOLETE (closed 2026-08-09)
 
 - Files: `src/ui/Logo.tsx, src/ui/Medal.tsx, src/screens/Login.tsx`
-- Fix: 1) Cut a simplified small-size medal variant (rim + cartouche + F, no ticks/guilloché) and switch on size < ~96. 2) Wire metal-per-skin (forge→gunmetal etc.) or consciously decide fixed-rose and delete the dead METALS map. 3) Make Login use <Logo> and give the wordmark Geist SemiBold. 4) Update design-system.md §Logo to describe the medal, not the F-bar.
+- Resolution: `src/ui/Medal.tsx` was deleted in the Forged Iron rebrand (2026-06-12); the mark is now the loaded-bar `src/ui/BrandMark.tsx`, which Login uses. Item no longer applies.
 
 **#136 ⚪ [units-of-measure-semantics|S]** NumericStepper hides the unit label except when focused in hero size — the primary logging surface shows a bare number
 
