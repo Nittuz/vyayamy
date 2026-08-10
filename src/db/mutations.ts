@@ -75,6 +75,21 @@ export async function upsertRowLocal(
   );
 }
 
+/** Insert a row + its outbox entry directly, WITHOUT opening a transaction, so
+ *  the caller can batch a whole multi-row seed into one (mirrors
+ *  enqueueMutation's insert branch). Used by the Today-launch flows
+ *  (repeat-last-workout, start-planned-workout). */
+export async function insertRowInTx(
+  db: Db,
+  table: string,
+  rowId: string,
+  payload: Record<string, unknown>,
+  now: string,
+): Promise<void> {
+  await upsertRowLocal(db, table, { id: rowId, updated_at: now, ...payload });
+  await appendOutbox(db, table, 'insert', rowId, { id: rowId, ...payload });
+}
+
 /** Append one outbox entry describing a row's server-side effect. Same
  *  no-own-transaction contract as upsertRowLocal. */
 export async function appendOutbox(

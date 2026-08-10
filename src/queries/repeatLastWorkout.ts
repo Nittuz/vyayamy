@@ -7,7 +7,7 @@
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 
 import { getDb } from '@/db/client';
-import { appendOutbox, upsertRowLocal } from '@/db/mutations';
+import { insertRowInTx } from '@/db/mutations';
 import { withTransaction } from '@/db/transaction';
 import { nowIso, uuidv4 } from '@/db/uuid';
 import { emitMutationCommitted } from '@/db/mutationEvents';
@@ -106,20 +106,6 @@ export function useLastFinishedWorkoutWithSeeds(userId: string | undefined) {
     queryFn: () => (userId ? getLastFinishedWorkoutWithSeeds(userId) : Promise.resolve(null)),
     enabled: !!userId,
   });
-}
-
-/** Insert a row + its outbox entry directly, WITHOUT opening a transaction, so
- *  the caller can batch the whole clone into one (mirrors enqueueMutation's
- *  insert branch). Thin wrapper over the shared db/mutations helpers. */
-async function insertRowInTx(
-  db: Awaited<ReturnType<typeof getDb>>,
-  table: string,
-  rowId: string,
-  payload: Record<string, unknown>,
-  now: string,
-): Promise<void> {
-  await upsertRowLocal(db, table, { id: rowId, updated_at: now, ...payload });
-  await appendOutbox(db, table, 'insert', rowId, { id: rowId, ...payload });
 }
 
 export async function repeatLastWorkout(userId: string): Promise<string | null> {

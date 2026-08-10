@@ -31,6 +31,10 @@ export const queryKeys = {
   history: (userId: string) => ['history', userId] as const,
   plans: {
     active: (userId: string) => ['plans', 'active', userId] as const,
+    // Today's resolved schedule; callers append the device-local weekday so a
+    // date rollover re-resolves. Lives under the plans root for sync/cursor
+    // invalidation.
+    today: (userId: string) => ['plans', 'today', userId] as const,
   },
   planPresets: {
     list: () => ['plan_presets', 'list'] as const,

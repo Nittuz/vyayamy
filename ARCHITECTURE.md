@@ -250,6 +250,18 @@ interface SyncState {
 
 ## Database Design
 
+### Day-boundary convention
+
+Storage is always UTC instants (ISO-8601 `TEXT`); **every "what day is it"
+decision uses the device-local calendar day** — never a UTC slice. This covers
+history grouping and chart bucketing (`localDayKey`), the default workout
+title and greeting (`src/lib/dayOfWeek.ts`, Sunday = 0 matching
+`Date.getDay()`), and weekly training-plan resolution
+(`src/core/planResolver.ts` matches `training_plan_slots.day_of_week` against
+the same device-local weekday). An evening lift must never slide into the next
+day, and the plan card must always agree with the greeting (#149/#150,
+spec 2026-08-10-plan-reaches-today).
+
 ### Entity-Relationship Model
 
 The schema is shared between Postgres (authoritative, in [supabase/migrations/](supabase/migrations/)) and SQLite (mirrored in [src/db/schema.ts](src/db/schema.ts)). Table names and columns match 1:1; UUIDs are `TEXT` locally, timestamps are ISO-8601 `TEXT`. Note: `personal_records` exists in both schemas but is excluded from sync (see table descriptions below).

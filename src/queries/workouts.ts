@@ -10,6 +10,7 @@ import { enqueueMutation } from '@/db/mutations';
 import type { Workout } from '@/db/types';
 import { nowIso, uuidv4 } from '@/db/uuid';
 import { recordWorkoutPRs } from '@/queries/personalRecords';
+import { advanceCycleCursor } from '@/queries/plans';
 import { emitMutationCommitted } from '@/db/mutationEvents';
 import { compositionTitle } from '@/lib/compositionTitle';
 import { dayOfWeek } from '@/lib/dayOfWeek';
@@ -117,6 +118,21 @@ export async function finishWorkout(workoutId: string, userId?: string): Promise
       // must not block it, but it must not vanish either (backlog 4.3).
       reportError(err, { workoutId, stage: 'recordWorkoutPRs' });
     }
+
+    // Cycle-plan advancement (spec 2026-08-10): finishing the workout the
+    // cursor points at moves the cycle forward. Same best-effort contract as
+    // PR detection — never blocks finishing, never vanishes silently.
+    try {
+      const finished = await db.getFirstAsync<{ template_id: string | null }>(
+        'SELECT template_id FROM workouts WHERE id = ?',
+        [workoutId],
+      );
+      if (finished?.template_id) {
+        await advanceCycleCursor(userId, { onlyIfCurrentTemplateId: finished.template_id });
+      }
+    } catch (err) {
+      reportError(err, { workoutId, stage: 'advanceCycleCursor' });
+    }
   }
   emitMutationCommitted();
 }
@@ -194,6 +210,8 @@ export function useFinishWorkout(userId: string | undefined, onError?: (msg: str
       if (userId) {
         qc.invalidateQueries({ queryKey: queryKeys.history(userId) });
         qc.invalidateQueries({ queryKey: queryKeys.personalRecords(userId) });
+        // Finishing a scheduled cycle workout may have advanced the cursor.
+        qc.invalidateQueries({ queryKey: ['plans'] });
       }
     },
     onError: (err) => {

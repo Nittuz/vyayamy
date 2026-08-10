@@ -62,7 +62,7 @@ export async function listTemplates(userId: string): Promise<Template[]> {
   return rows.map((r) => ({ ...r, exercise_order: parseExerciseOrder(r.exercise_order) }));
 }
 
-function parseExerciseOrder(raw: unknown): string[] {
+export function parseExerciseOrder(raw: unknown): string[] {
   if (Array.isArray(raw)) return raw as string[];
   if (typeof raw !== 'string') return [];
   try {
@@ -79,6 +79,41 @@ export function useTemplates(userId: string | undefined) {
     queryFn: () => (userId ? listTemplates(userId) : Promise.resolve([])),
     enabled: !!userId,
   });
+}
+
+/**
+ * Advance the active CYCLE plan's cursor by one slot, modulo the ordered slot
+ * count, through the outbox (spec 2026-08-10-plan-reaches-today). Two callers:
+ * "Skip rest" on Today (unconditional), and the finish seam (pass
+ * onlyIfCurrentTemplateId so the cursor moves only when the finished workout
+ * is the one the cursor points at — an out-of-order start must not advance).
+ * No-op for weekly plans, no active plan, or an empty cycle.
+ */
+export async function advanceCycleCursor(
+  userId: string,
+  opts: { onlyIfCurrentTemplateId?: string } = {},
+): Promise<void> {
+  const active = await getActivePlan(userId);
+  if (!active || active.plan.plan_type !== 'cycle') return;
+  const ordered = active.slots
+    .filter((s) => s.cycle_position != null)
+    .sort((a, b) => a.cycle_position! - b.cycle_position!);
+  if (ordered.length === 0) return;
+  const n = ordered.length;
+  const idx = ((active.plan.cycle_cursor % n) + n) % n;
+  if (
+    opts.onlyIfCurrentTemplateId !== undefined &&
+    ordered[idx]!.template_id !== opts.onlyIfCurrentTemplateId
+  ) {
+    return;
+  }
+  await enqueueMutation({
+    table: 'training_plans',
+    op: 'update',
+    rowId: active.plan.id,
+    payload: { cycle_cursor: (idx + 1) % n },
+  });
+  emitMutationCommitted();
 }
 
 export interface SavePlanArgs {
@@ -114,6 +149,18 @@ export async function saveActivePlan(args: SavePlanArgs): Promise<string> {
     }
   }
 
+  // Editing must not restart an in-progress cycle: the cursor drives what
+  // Today schedules (spec 2026-08-10), so the edit path preserves it — a
+  // rename or slot tweak at cursor 3 must not throw the user back to day 1.
+  // New plans start at 0; the resolver applies modulo, so a preserved cursor
+  // beyond a shrunken slot list stays safe.
+  const prior = args.planId
+    ? await db.getFirstAsync<{ cycle_cursor: number }>(
+        'SELECT cycle_cursor FROM training_plans WHERE id = ? AND deleted_at IS NULL',
+        [args.planId],
+      )
+    : null;
+
   await enqueueMutation({
     table: 'training_plans',
     op: 'upsert',
@@ -123,7 +170,7 @@ export async function saveActivePlan(args: SavePlanArgs): Promise<string> {
       name: args.name,
       plan_type: args.planType,
       is_active: true,
-      cycle_cursor: 0,
+      cycle_cursor: prior?.cycle_cursor ?? 0,
     },
   });
 
@@ -168,8 +215,9 @@ export function useSaveActivePlan(onError?: (msg: string) => void) {
   const qc = useQueryClient();
   return useMutation({
     mutationFn: saveActivePlan,
-    onSuccess: (_id, vars) =>
-      qc.invalidateQueries({ queryKey: queryKeys.plans.active(vars.userId) }),
+    // Root invalidation: the Today schedule query lives under ['plans','today']
+    // and must refresh with the active-plan query (review finding).
+    onSuccess: () => qc.invalidateQueries({ queryKey: ['plans'] }),
     onError: (err) => {
       reportMutationError(err, 'saveActivePlan');
       onError?.("Couldn't save the plan. Try again.");
@@ -319,7 +367,8 @@ export function useApplyPresetAndSavePlan(onError?: (msg: string) => void) {
       onError?.("Couldn't save the plan. Try again.");
     },
     onSuccess: (_id, vars) => {
-      qc.invalidateQueries({ queryKey: queryKeys.plans.active(vars.userId) });
+      // Root invalidation covers both the active-plan and Today-schedule keys.
+      qc.invalidateQueries({ queryKey: ['plans'] });
       qc.invalidateQueries({ queryKey: queryKeys.templates(vars.userId) });
       qc.invalidateQueries({ queryKey: queryKeys.exercises.all });
     },

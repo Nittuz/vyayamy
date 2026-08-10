@@ -1,6 +1,6 @@
 import { router, useFocusEffect } from 'expo-router';
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
-import { ActivityIndicator, Pressable, ScrollView, StyleSheet, View } from 'react-native';
+import { ActivityIndicator, AppState, Pressable, ScrollView, StyleSheet, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useQueryClient } from '@tanstack/react-query';
 
@@ -8,6 +8,7 @@ import { useAuth } from '@/auth/useAuth';
 import { greetingFor, localDaysBetween } from '@/core/format';
 import { CollisionSheet } from '@/components/CollisionSheet';
 import { ExercisePicker } from '@/components/ExercisePicker';
+import { PlanCard } from '@/components/PlanCard';
 import { QuarantineBanner } from '@/components/QuarantineBanner';
 import { QuarantineSheet } from '@/components/QuarantineSheet';
 import { RepeatCard } from '@/components/RepeatCard';
@@ -15,6 +16,8 @@ import { SyncDiagnosticsSheet } from '@/components/SyncDiagnosticsSheet';
 import { useLastFinishedWorkoutWithSeeds, useRepeatLastWorkout } from '@/queries/repeatLastWorkout';
 import { finishOtherActiveWorkouts, useActiveWorkoutCollisions } from '@/queries/activeWorkouts';
 import { queryKeys } from '@/queries/keys';
+import { useStartPlannedWorkout, useTodaySchedule } from '@/queries/plannedWorkout';
+import { advanceCycleCursor } from '@/queries/plans';
 import { useQuickLog } from '@/queries/quickLog';
 import {
   getActiveWorkout,
@@ -105,13 +108,73 @@ export default function TodayScreen() {
   );
 
   // Recomputed on every focus: tabs keep this screen mounted for days, so a
-  // mount-time memo would greet "Sunday evening" on Monday morning.
+  // mount-time memo would greet "Sunday evening" on Monday morning. The
+  // resolved weekday follows the same rule so the plan card re-resolves after
+  // a midnight rollover (spec 2026-08-10, day semantics: device-local).
   const [greeting, setGreeting] = useState(() => greetingFor(new Date()));
+  const [todayDow, setTodayDow] = useState(() => new Date().getDay());
   useFocusEffect(
     useCallback(() => {
       setGreeting(greetingFor(new Date()));
+      setTodayDow(new Date().getDay());
     }, []),
   );
+  // Focus effects don't fire on app foregrounding — without this, an
+  // overnight background would offer yesterday's scheduled workout (review
+  // finding). Greeting rides along for the same reason.
+  useEffect(() => {
+    const sub = AppState.addEventListener('change', (state) => {
+      if (state === 'active') {
+        setGreeting(greetingFor(new Date()));
+        setTodayDow(new Date().getDay());
+      }
+    });
+    return () => sub.remove();
+  }, []);
+
+  // What does the active plan schedule for today? (spec 2026-08-10)
+  const scheduleQuery = useTodaySchedule(userId, todayDow);
+  const schedule = scheduleQuery.data;
+  const startPlanned = useStartPlannedWorkout(toastError);
+  // Same double-fire latch + fresh invariant re-check as quick log.
+  const planStartingRef = useRef(false);
+  const onStartPlanned = useCallback(async () => {
+    if (!userId || schedule?.kind !== 'workout' || planStartingRef.current) return;
+    planStartingRef.current = true;
+    try {
+      const existing = await getActiveWorkout(userId);
+      if (!existing) {
+        await startPlanned.mutateAsync({
+          userId,
+          templateId: schedule.templateId,
+          title: schedule.title,
+        });
+      }
+      router.push('/workout/active');
+    } catch {
+      // useStartPlannedWorkout's onError already showed the toast.
+    } finally {
+      planStartingRef.current = false;
+    }
+  }, [userId, schedule, startPlanned]);
+
+  // Skip wears the same double-fire latch as the start handlers, plus a
+  // pending state — a second tap while the refetch is in flight must not skip
+  // a real training day (review finding).
+  const skipRef = useRef(false);
+  const [skipping, setSkipping] = useState(false);
+  const onSkipRest = useCallback(async () => {
+    if (!userId || skipRef.current) return;
+    skipRef.current = true;
+    setSkipping(true);
+    try {
+      await advanceCycleCursor(userId);
+      await qc.invalidateQueries({ queryKey: ['plans'] });
+    } finally {
+      skipRef.current = false;
+      setSkipping(false);
+    }
+  }, [userId, qc]);
 
   // Read the snapshot synchronously at first paint. After live queries land
   // they override the snapshot view via the normal rendering paths.
@@ -290,6 +353,16 @@ export default function TodayScreen() {
         <FadeInView>
           {activeQuery.data ? (
             <ResumeCard onPress={onResume} />
+          ) : schedule?.kind === 'workout' ? (
+            // The plan owns the primary slot on scheduled days (spec
+            // 2026-08-10) — one act-now moment per screen; Repeat yields.
+            <PlanCard
+              title={schedule.title}
+              planName={schedule.planName}
+              exerciseNames={schedule.exerciseNames}
+              loading={startPlanned.isPending}
+              onPress={() => void onStartPlanned()}
+            />
           ) : lastFinishedQuery.isLoading &&
             initialSnapshot?.state === 'repeat' &&
             initialSnapshot.repeatSeeds ? (
@@ -318,6 +391,30 @@ export default function TodayScreen() {
             <EmptyRepeatSlot onBlankStart={onBlankStart} loading={createWorkout.isPending} />
           )}
         </FadeInView>
+
+        {/* Rest day / cycle gap: a quiet strip, never a call to action. Cycle
+            plans get a ghost Skip so the cursor can't stall on a rest slot OR
+            an unconfigured/deleted-template slot (review finding). */}
+        {!activeQuery.data && (schedule?.kind === 'rest' || schedule?.kind === 'gap') ? (
+          <Plate tone="panel" style={styles.restStrip} faceStyle={styles.restFace}>
+            <Text variant="meta" color={theme.color.inkSecondary} style={styles.flexText}>
+              {schedule.kind === 'rest' ? 'Rest day' : 'Nothing scheduled'} · {schedule.planName}
+            </Text>
+            {schedule.planType === 'cycle' ? (
+              <Button
+                label={schedule.kind === 'rest' ? 'Skip rest' : 'Skip'}
+                kind="ghost"
+                size="row"
+                disabled={skipping}
+                onPress={() => void onSkipRest()}
+                accessibilityLabel={
+                  schedule.kind === 'rest' ? 'Skip this rest day' : 'Skip this cycle day'
+                }
+                accessibilityHint="Moves your cycle to the next workout"
+              />
+            ) : null}
+          </Plate>
+        ) : null}
 
         <View style={styles.ghostRow}>
           <Button
@@ -540,6 +637,16 @@ const makeStyles = (theme: Theme) =>
       gap: theme.space.s3,
     },
     emptyHint: { textAlign: 'center' },
+    restStrip: { marginHorizontal: theme.space.s4 },
+    restFace: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      justifyContent: 'space-between',
+      gap: theme.space.s3,
+      paddingHorizontal: theme.space.s4,
+      paddingVertical: theme.space.s2,
+    },
+    flexText: { flexShrink: 1 },
     ghostRow: {
       flexDirection: 'row',
       // Three ghost actions no longer fit one line on narrow devices; Yoga's
