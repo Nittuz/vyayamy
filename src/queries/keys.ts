@@ -18,8 +18,10 @@ export const queryKeys = {
   },
   sets: {
     byWorkoutExercise: (weId: string) => ['sets', weId] as const,
-    // Heaviest-weight history is derived from sets, so it lives under the sets
-    // root — that way `syncInvalidationRoots` (['sets']) catches it after pull.
+    // Chart history (heaviest-weight AND best-set-volume series — Progress
+    // appends the metric to this key) is derived from sets, so it lives under
+    // the sets root — that way `syncInvalidationRoots` (['sets']) catches it
+    // after pull.
     weightHistory: (userId: string, exerciseId: string) =>
       ['sets', 'weight-history', userId, exerciseId] as const,
   },

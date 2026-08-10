@@ -11,27 +11,30 @@ describe('computePRs', () => {
     ).toEqual([]);
   });
 
-  it('emits heaviest, volume and most-reps with the achieving timestamp', () => {
+  it('emits heaviest weight and most reps with the achieving timestamp', () => {
     const prs = computePRs([
       { weight: 140, reps: 5, units: 'kg', completed: true, completedAt: at('1-01') }, // heaviest 140
-      { weight: 100, reps: 10, units: 'kg', completed: true, completedAt: at('1-02') }, // volume 1000, reps 10@100
+      { weight: 100, reps: 10, units: 'kg', completed: true, completedAt: at('1-02') }, // reps 10 @ 100
     ]);
+    expect(prs).toHaveLength(2);
     const byType = Object.fromEntries(prs.map((p) => [p.type, p]));
     expect(byType.heaviest_weight).toEqual({
       type: 'heaviest_weight',
       value: 140,
       achievedAt: at('1-01'),
     });
-    expect(byType.best_volume).toEqual({
-      type: 'best_volume',
-      value: 1000,
+    expect(byType.most_reps).toEqual({
+      type: 'most_reps',
+      value: { reps: 10, weight: 100 },
       achievedAt: at('1-02'),
     });
-    expect(byType.most_reps_at_weight).toEqual({
-      type: 'most_reps_at_weight',
-      value: { weight: 100, reps: 10 },
-      achievedAt: at('1-02'),
-    });
+  });
+
+  it('never emits a volume record (retired 2026-08-09)', () => {
+    const prs = computePRs([
+      { weight: 100, reps: 30, units: 'kg', completed: true, completedAt: at('1-01') },
+    ]);
+    expect(prs.map((p) => p.type).sort()).toEqual(['heaviest_weight', 'most_reps']);
   });
 
   it('normalizes weights to kg so units are comparable (#132)', () => {
@@ -50,5 +53,41 @@ describe('computePRs', () => {
       { weight: 80, reps: 5, units: null, completed: true, completedAt: at('1-01') },
     ]);
     expect(prs.find((p) => p.type === 'heaviest_weight')!.value).toBe(80);
+  });
+
+  it('bodyweight sets (null weight) earn the most-reps record', () => {
+    const prs = computePRs([
+      { weight: null, reps: 12, units: null, completed: true, completedAt: at('1-01') },
+      { weight: null, reps: 15, units: null, completed: true, completedAt: at('1-02') },
+    ]);
+    expect(prs).toEqual([
+      { type: 'most_reps', value: { reps: 15, weight: null }, achievedAt: at('1-02') },
+    ]);
+  });
+
+  it('breaks a rep tie toward the heavier set; bodyweight loses to any weight', () => {
+    const prs = computePRs([
+      { weight: null, reps: 10, units: null, completed: true, completedAt: at('1-01') },
+      { weight: 20, reps: 10, units: 'kg', completed: true, completedAt: at('1-02') },
+    ]);
+    expect(prs.find((p) => p.type === 'most_reps')).toEqual({
+      type: 'most_reps',
+      value: { reps: 10, weight: 20 },
+      achievedAt: at('1-02'),
+    });
+  });
+
+  it('bodyweight reps can beat a weighted rep record outright', () => {
+    const prs = computePRs([
+      { weight: 80, reps: 5, units: 'kg', completed: true, completedAt: at('1-01') },
+      { weight: null, reps: 6, units: null, completed: true, completedAt: at('1-02') },
+    ]);
+    const byType = Object.fromEntries(prs.map((p) => [p.type, p]));
+    expect(byType.heaviest_weight!.value).toBe(80);
+    expect(byType.most_reps).toEqual({
+      type: 'most_reps',
+      value: { reps: 6, weight: null },
+      achievedAt: at('1-02'),
+    });
   });
 });

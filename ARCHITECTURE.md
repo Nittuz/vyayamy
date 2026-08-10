@@ -348,15 +348,14 @@ The `AuthProvider` ([src/auth/AuthContext.tsx](src/auth/AuthContext.tsx)) subscr
 
 PR logic runs client-side in [src/core/pr-detection.ts](src/core/pr-detection.ts) after a workout finishes. `personal_records` is a local derived cache, not a synced table: it is recomputed from completed sets (which do sync) on workout finish via `recordWorkoutPRs` ([src/queries/workouts.ts](src/queries/workouts.ts):104) and on Progress screen load via `recomputeAllPRs` ([src/screens/Progress.tsx](src/screens/Progress.tsx):50), so a fresh device rebuilds PRs after its first pull of sets. Weights are normalized to canonical kg before comparison so sets logged in different units compare correctly.
 
-Record types:
+Record types (2026-08-09 spec — see [docs/specs/2026-08-09-pr-semantics-spec.md](docs/specs/2026-08-09-pr-semantics-spec.md)):
 
-| Type                  | Value shape                                                                 |
-| --------------------- | --------------------------------------------------------------------------- |
-| `heaviest_weight`     | `number`: max weight in any completed set                                   |
-| `best_volume`         | `number`: max single-set volume (weight x reps)                             |
-| `most_reps_at_weight` | `{ weight, reps }`: highest reps at any weight (ties go to the heavier set) |
+| Type              | Value shape                                                                                                                       |
+| ----------------- | --------------------------------------------------------------------------------------------------------------------------------- |
+| `heaviest_weight` | `number`: max weight in any completed set                                                                                          |
+| `most_reps`       | `{ reps, weight }`: most reps in a single completed set; bodyweight sets count (`weight: null`) and a rep tie goes to the heavier set |
 
-Upserts use the unique index `(user_id, exercise_id, type)` on the `personal_records` table.
+`best_volume` and `most_reps_at_weight` are retired types; recompute hard-deletes their cached rows. Upserts use the unique index `(user_id, exercise_id, type)` on the `personal_records` table.
 
 ---
 

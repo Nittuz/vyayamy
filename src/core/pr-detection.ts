@@ -7,6 +7,13 @@
  * each PR carries the completed_at of the achieving set (#142). Callers persist
  * the result into the local personal_records cache (it is derived data — never
  * synced).
+ *
+ * Two record types (2026-08-09 spec — best_volume is retired):
+ * - heaviest_weight: max weight in any completed set.
+ * - most_reps: max reps in a single completed set. Bodyweight sets (weight
+ *   NULL — never 0, per the set-entry spec §4) count, so pull-ups/dips can
+ *   hold a record; a rep tie goes to the heavier set, and bodyweight loses
+ *   a tie to any loaded set.
  */
 import type { PRType, Units } from './domain';
 import { toKg } from './units';
@@ -21,8 +28,8 @@ export interface PRSet {
 
 export interface ComputedPR {
   type: PRType;
-  /** Value in canonical kg. */
-  value: number | { weight: number; reps: number };
+  /** Weights in canonical kg. */
+  value: number | { reps: number; weight: number | null };
   achievedAt: string | null;
 }
 
@@ -32,40 +39,38 @@ function round(n: number): number {
 
 export function computePRs(sets: PRSet[]): ComputedPR[] {
   let bestWeight: { kg: number; at: string | null } | null = null;
-  let bestVolume: { kg: number; at: string | null } | null = null;
-  let bestReps: { weightKg: number; reps: number; at: string | null } | null = null;
+  let bestReps: { weightKg: number | null; reps: number; at: string | null } | null = null;
 
   for (const s of sets) {
     if (!s.completed) continue;
     if (s.weight == null && s.reps == null) continue;
-    const w = s.weight != null ? toKg(s.weight, s.units ?? 'kg') : 0;
+    const w = s.weight != null ? toKg(s.weight, s.units ?? 'kg') : null;
     const r = s.reps ?? 0;
-    const vol = w * r;
 
-    if (w > 0 && (bestWeight == null || w > bestWeight.kg)) {
+    if (w != null && w > 0 && (bestWeight == null || w > bestWeight.kg)) {
       bestWeight = { kg: w, at: s.completedAt };
     }
-    if (vol > 0 && (bestVolume == null || vol > bestVolume.kg)) {
-      bestVolume = { kg: vol, at: s.completedAt };
-    }
-    if (
-      w > 0 &&
-      r > 0 &&
-      (bestReps == null || r > bestReps.reps || (r === bestReps.reps && w > bestReps.weightKg))
-    ) {
-      bestReps = { weightKg: w, reps: r, at: s.completedAt };
+    if (r > 0) {
+      // Bodyweight (null) ranks below any loaded weight in a rep tie.
+      const tieWeight = w != null && w > 0 ? w : null;
+      const beats =
+        bestReps == null ||
+        r > bestReps.reps ||
+        (r === bestReps.reps && (tieWeight ?? -1) > (bestReps.weightKg ?? -1));
+      if (beats) bestReps = { weightKg: tieWeight, reps: r, at: s.completedAt };
     }
   }
 
   const out: ComputedPR[] = [];
   if (bestWeight)
     out.push({ type: 'heaviest_weight', value: round(bestWeight.kg), achievedAt: bestWeight.at });
-  if (bestVolume)
-    out.push({ type: 'best_volume', value: round(bestVolume.kg), achievedAt: bestVolume.at });
   if (bestReps) {
     out.push({
-      type: 'most_reps_at_weight',
-      value: { weight: round(bestReps.weightKg), reps: bestReps.reps },
+      type: 'most_reps',
+      value: {
+        reps: bestReps.reps,
+        weight: bestReps.weightKg != null ? round(bestReps.weightKg) : null,
+      },
       achievedAt: bestReps.at,
     });
   }

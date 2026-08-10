@@ -21,6 +21,7 @@ import {
   useGroupedPRs,
   getHeaviestWeightHistory,
   getBestSetVolumeHistory,
+  getMostRepsHistory,
   recomputeAllPRs,
 } from '@/queries/personalRecords';
 import { EmptyState } from '@/ui/EmptyState';
@@ -38,8 +39,7 @@ import { useTheme, type Theme } from '@/ui/useTheme';
 
 const PR_LABEL: Record<string, string> = {
   heaviest_weight: 'Heaviest',
-  best_volume: 'Best volume',
-  most_reps_at_weight: 'Most reps',
+  most_reps: 'Most reps',
 };
 
 type RangeKey = '8w' | '12w' | 'all';
@@ -49,10 +49,11 @@ const RANGES: { key: RangeKey; label: string; weeks: number | null }[] = [
   { key: 'all', label: 'All', weeks: null },
 ];
 
-type MetricKey = 'heaviest' | 'volume';
+type MetricKey = 'heaviest' | 'volume' | 'reps';
 const METRICS: { key: MetricKey; label: string }[] = [
   { key: 'heaviest', label: 'Heaviest' },
   { key: 'volume', label: 'Volume' },
+  { key: 'reps', label: 'Reps' },
 ];
 
 const WEEK_MS = 7 * 24 * 60 * 60 * 1000;
@@ -66,7 +67,9 @@ const WEEK_MS = 7 * 24 * 60 * 60 * 1000;
 // userId as a second guard). Bump PR_BACKFILL_SCHEMA when PR-detection logic
 // changes so existing histories re-backfill once.
 const PR_BACKFILL_KEY = '@flexyug/pr-backfill-done/v1';
-const PR_BACKFILL_SCHEMA = 1 as const;
+// v2: 2026-08-09 PR semantics — most_reps replaces best_volume/most_reps_at_weight
+// and bodyweight sets now earn rep records, so every device recomputes once.
+const PR_BACKFILL_SCHEMA = 2 as const;
 
 interface PrBackfillMarker {
   schemaVersion: typeof PR_BACKFILL_SCHEMA;
@@ -133,6 +136,10 @@ export default function ProgressScreen() {
         const rows = await getBestSetVolumeHistory(userId, active, units);
         return rows.map((r) => ({ x: new Date(r.achievedAt).getTime(), y: r.volume }));
       }
+      if (metric === 'reps') {
+        const rows = await getMostRepsHistory(userId, active);
+        return rows.map((r) => ({ x: new Date(r.achievedAt).getTime(), y: r.reps }));
+      }
       const rows = await getHeaviestWeightHistory(userId, active, units);
       return rows.map((r) => ({ x: new Date(r.achievedAt).getTime(), y: r.weight }));
     },
@@ -165,13 +172,28 @@ export default function ProgressScreen() {
   }, [series]);
 
   const chartCaption =
-    metric === 'volume' ? 'Best volume per session' : 'Heaviest weight per session';
+    metric === 'volume'
+      ? 'Best volume per session'
+      : metric === 'reps'
+        ? 'Most reps per session'
+        : 'Heaviest weight per session';
+  // Reps have no unit; weight/volume read out in the profile unit.
+  const scrubUnit = metric === 'reps' ? 'reps' : units;
 
-  // Stat tiles read the all-time records straight off the PR cache.
+  // Stat tiles read the all-time records straight off the PR cache. Heaviest
+  // leads — it is THE record (2026-08-09 spec); reps cover bodyweight work.
   const activeGroup = prs?.find((p) => p.exerciseId === active) ?? null;
-  const bestVolume = activeGroup?.records.find((r) => r.type === 'best_volume') ?? null;
   const heaviest = activeGroup?.records.find((r) => r.type === 'heaviest_weight') ?? null;
+  const mostReps = activeGroup?.records.find((r) => r.type === 'most_reps') ?? null;
   const invertedInk = resolvePlateStyles(theme, { tone: 'inverted' }).ink;
+
+  // A bodyweight-only exercise has nothing to plot on the weight or volume
+  // series — land it on the Reps metric instead of an empty chart.
+  useEffect(() => {
+    if (activeGroup && !activeGroup.records.some((r) => r.type === 'heaviest_weight')) {
+      setMetric('reps');
+    }
+  }, [activeGroup]);
 
   if (!userId) return null;
 
@@ -223,21 +245,8 @@ export default function ProgressScreen() {
 
             {/* 2-col stat tiles: inverted panels, mono numerals, mono-caps
                 strip captions (panel ink at 0.65 — the inverted exception) */}
-            {bestVolume || heaviest ? (
+            {heaviest || mostReps ? (
               <View style={[styles.pad, styles.tileRow]}>
-                {bestVolume ? (
-                  <Plate tone="inverted" style={styles.tile} faceStyle={styles.tileFace}>
-                    <Text variant="strip" color={invertedInk} style={styles.tileCaption}>
-                      Best volume
-                    </Text>
-                    <Text variant="numeralLg" color={invertedInk}>
-                      {bestVolume.displayValue} {units}
-                    </Text>
-                    <Text variant="strip" color={invertedInk} style={styles.tileCaption}>
-                      {formatRelativeDate(bestVolume.achievedAt)}
-                    </Text>
-                  </Plate>
-                ) : null}
                 {heaviest ? (
                   <Plate tone="inverted" style={styles.tile} faceStyle={styles.tileFace}>
                     <Text variant="strip" color={invertedInk} style={styles.tileCaption}>
@@ -251,13 +260,27 @@ export default function ProgressScreen() {
                     </Text>
                   </Plate>
                 ) : null}
+                {mostReps ? (
+                  <Plate tone="inverted" style={styles.tile} faceStyle={styles.tileFace}>
+                    <Text variant="strip" color={invertedInk} style={styles.tileCaption}>
+                      Most reps
+                    </Text>
+                    {/* displayValue is self-contained ("15 BW" / "12 × 80 kg") — no extra suffix */}
+                    <Text variant="numeralLg" color={invertedInk}>
+                      {mostReps.displayValue}
+                    </Text>
+                    <Text variant="strip" color={invertedInk} style={styles.tileCaption}>
+                      {formatRelativeDate(mostReps.achievedAt)}
+                    </Text>
+                  </Plate>
+                ) : null}
               </View>
             ) : null}
 
             {/* scrub read-out replaces the metric caption while scrubbing */}
             <Text variant="strip" color={theme.color.inkTertiary} style={styles.pad}>
               {scrubbed
-                ? `${formatShortDate(new Date(scrubbed.x).toISOString())} · ${trim(scrubbed.y)} ${units}`
+                ? `${formatShortDate(new Date(scrubbed.x).toISOString())} · ${trim(scrubbed.y)} ${scrubUnit}`
                 : chartCaption}
             </Text>
 
@@ -339,7 +362,15 @@ export default function ProgressScreen() {
                         />
                       ) : null}
                       <Text variant="strip" color={rowMeta} style={isActive && styles.softInk}>
-                        {g.records[0] ? formatRelativeDate(g.records[0].achievedAt) : ''}
+                        {/* records are precedence-ordered, so take the latest date explicitly */}
+                        {g.records.length
+                          ? formatRelativeDate(
+                              g.records.reduce(
+                                (a, r) => (r.achievedAt > a ? r.achievedAt : a),
+                                g.records[0]!.achievedAt,
+                              ),
+                            )
+                          : ''}
                       </Text>
                     </Plate>
                   </FadeInView>

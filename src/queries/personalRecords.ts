@@ -29,7 +29,10 @@ interface Row extends PersonalRecord {
   muscle_group: string | null;
 }
 
-const PR_TYPES = ['heaviest_weight', 'best_volume', 'most_reps_at_weight'] as const;
+// Display precedence order: heaviest leads everywhere. Retired types
+// (best_volume, most_reps_at_weight — 2026-08-09 spec) are swept by recompute.
+const PR_TYPES = ['heaviest_weight', 'most_reps'] as const;
+const PR_TYPE_PLACEHOLDERS = PR_TYPES.map(() => '?').join(', ');
 
 // Recompute is serialized through one promise chain so concurrent triggers
 // (finish + Progress mount + post-pull) can't race into UNIQUE-constraint
@@ -111,6 +114,14 @@ async function recomputeExercisePRsInternal(
         await db.runAsync(`DELETE FROM personal_records WHERE id = ?`, [id]);
       }
     }
+
+    // Sweep rows of retired record types for this exercise — the loop above
+    // only visits current PR_TYPES, so old-schema rows would linger forever.
+    await db.runAsync(
+      `DELETE FROM personal_records
+        WHERE user_id = ? AND exercise_id = ? AND type NOT IN (${PR_TYPE_PLACEHOLDERS})`,
+      [userId, exerciseId, ...PR_TYPES],
+    );
   });
 }
 
@@ -142,6 +153,15 @@ export async function recordWorkoutPRs(userId: string, workoutId: string): Promi
  */
 export async function recomputeAllPRs(userId: string): Promise<void> {
   const db = await getDb();
+  // Global sweep of retired-type rows first: the per-exercise recompute below
+  // only reaches exercises that still have completed sets, so an orphaned
+  // best_volume row for a since-emptied exercise would otherwise survive.
+  await serialize(() =>
+    db.runAsync(
+      `DELETE FROM personal_records WHERE user_id = ? AND type NOT IN (${PR_TYPE_PLACEHOLDERS})`,
+      [userId, ...PR_TYPES],
+    ),
+  );
   const exerciseRows = await db.getAllAsync<{ exercise_id: string }>(
     `SELECT DISTINCT we.exercise_id
        FROM sets s
@@ -178,10 +198,15 @@ function formatDisplay(type: string, value: unknown, units: Units): string {
   switch (parsed.type) {
     case 'heaviest_weight':
       return show(convertWeight(parsed.value, 'kg', units));
-    case 'best_volume':
-      return show(convertWeight(parsed.value, 'kg', units));
-    case 'most_reps_at_weight':
-      return `${parsed.value.reps} × ${show(convertWeight(parsed.value.weight, 'kg', units))}`;
+    case 'most_reps':
+      // Reps lead — they ARE this record. "15 BW" for a bodyweight record
+      // (weight NULL, never 0); "12 × 80 kg" for a loaded one — the unit is
+      // spelled out because the weight is converted to the display unit and a
+      // bare converted number beside the unit-suffixed Heaviest tile would be
+      // ambiguous.
+      return parsed.value.weight == null
+        ? `${parsed.value.reps} BW`
+        : `${parsed.value.reps} × ${show(convertWeight(parsed.value.weight, 'kg', units))} ${units}`;
   }
 }
 
@@ -192,13 +217,16 @@ export async function getGroupedPRs(
   units: Units = DEFAULT_UNITS,
 ): Promise<GroupedPR[]> {
   const db = await getDb();
+  // Type filter: retired-type rows can exist until the next recompute sweeps
+  // them; they must never render (their labels are gone).
   const rows = await db.getAllAsync<Row>(
     `SELECT pr.*, ex.name AS exercise_name, ex.muscle_group AS muscle_group
        FROM personal_records pr
        LEFT JOIN exercises ex ON ex.id = pr.exercise_id
        WHERE pr.user_id = ? AND pr.deleted_at IS NULL
+         AND pr.type IN (${PR_TYPE_PLACEHOLDERS})
        ORDER BY pr.achieved_at DESC`,
-    [userId],
+    [userId, ...PR_TYPES],
   );
 
   const grouped = new Map<string, GroupedPR>();
@@ -226,6 +254,16 @@ export async function getGroupedPRs(
     };
     bucket.records.push(rec);
     if (isRecent) bucket.hasRecent = true;
+  }
+
+  // Fixed display precedence within an exercise (heaviest first) — SQL recency
+  // order would make the leading label effectively random.
+  const precedence = new Map<string, number>(PR_TYPES.map((t, i) => [t, i]));
+  for (const bucket of grouped.values()) {
+    bucket.records.sort(
+      (a, b) =>
+        (precedence.get(a.type) ?? PR_TYPES.length) - (precedence.get(b.type) ?? PR_TYPES.length),
+    );
   }
 
   return Array.from(grouped.values()).sort((a, b) => a.exerciseName.localeCompare(b.exerciseName));
@@ -259,6 +297,7 @@ export async function getHeaviestWeightHistory(
        WHERE w.user_id = ? AND we.exercise_id = ?
          AND s.completed = 1 AND s.deleted_at IS NULL
          AND we.deleted_at IS NULL AND w.deleted_at IS NULL
+         AND w.ended_at IS NOT NULL
          AND s.weight IS NOT NULL
        ORDER BY s.completed_at ASC`,
     [userId, exerciseId],
@@ -277,6 +316,43 @@ export async function getHeaviestWeightHistory(
   return Array.from(seen.entries())
     .sort(([a], [b]) => a.localeCompare(b))
     .map(([achievedAt, weight]) => ({ achievedAt, weight: Math.round(weight * 10) / 10 }));
+}
+
+export type RepsPoint = { achievedAt: string; reps: number };
+
+/**
+ * Best single-set reps per LOCAL calendar day for one exercise — the chart
+ * series behind the "Reps" metric, and the only one a bodyweight-only
+ * exercise can plot. Mirrors the other series' filters (completed sets from
+ * FINISHED workouts, soft-delete guards, local-day bucketing #149); loaded
+ * sets count too, matching most_reps record semantics. No unit conversion —
+ * reps are reps.
+ */
+export async function getMostRepsHistory(userId: string, exerciseId: string): Promise<RepsPoint[]> {
+  const db = await getDb();
+  const rows = await db.getAllAsync<{ achieved_at: string; reps: number | null }>(
+    `SELECT s.completed_at AS achieved_at, s.reps AS reps
+       FROM sets s
+       JOIN workout_exercises we ON we.id = s.workout_exercise_id
+       JOIN workouts w ON w.id = we.workout_id
+       WHERE w.user_id = ? AND we.exercise_id = ?
+         AND s.completed = 1 AND s.deleted_at IS NULL
+         AND we.deleted_at IS NULL AND w.deleted_at IS NULL
+         AND w.ended_at IS NOT NULL
+         AND s.reps IS NOT NULL
+       ORDER BY s.completed_at ASC`,
+    [userId, exerciseId],
+  );
+  const seen = new Map<string, number>();
+  for (const r of rows) {
+    if (r.reps == null || !r.achieved_at) continue;
+    const key = localDayKey(r.achieved_at);
+    const prev = seen.get(key) ?? 0;
+    if (r.reps > prev) seen.set(key, r.reps);
+  }
+  return Array.from(seen.entries())
+    .sort(([a], [b]) => a.localeCompare(b))
+    .map(([achievedAt, reps]) => ({ achievedAt, reps }));
 }
 
 export type VolumePoint = { achievedAt: string; volume: number };
@@ -307,6 +383,7 @@ export async function getBestSetVolumeHistory(
        WHERE w.user_id = ? AND we.exercise_id = ?
          AND s.completed = 1 AND s.deleted_at IS NULL
          AND we.deleted_at IS NULL AND w.deleted_at IS NULL
+         AND w.ended_at IS NOT NULL
          AND s.weight IS NOT NULL AND s.reps IS NOT NULL
        ORDER BY s.completed_at ASC`,
     [userId, exerciseId],

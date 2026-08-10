@@ -29,23 +29,28 @@ export type { Set } from '@/db/types';
 
 export type Units = Profile['units'];
 
-export type PRType = 'heaviest_weight' | 'best_volume' | 'most_reps_at_weight';
+export type PRType = 'heaviest_weight' | 'most_reps';
 
 export type PRValue =
   | { type: 'heaviest_weight'; value: number }
-  | { type: 'best_volume'; value: number }
-  | { type: 'most_reps_at_weight'; value: { weight: number; reps: number } };
+  /** weight null = a bodyweight record (set-entry spec §4: BW is NULL, never 0). */
+  | { type: 'most_reps'; value: { reps: number; weight: number | null } };
 
+// 'best_volume' and 'most_reps_at_weight' are retired types (2026-08-09 spec);
+// they fall through to the default null and their cached rows are deleted by
+// the recompute in personalRecords.ts.
 export function parsePRValue(type: string, raw: Json): PRValue | null {
   switch (type) {
     case 'heaviest_weight':
       return typeof raw === 'number' ? { type, value: raw } : null;
-    case 'best_volume':
-      return typeof raw === 'number' ? { type, value: raw } : null;
-    case 'most_reps_at_weight':
-      if (raw != null && typeof raw === 'object' && 'weight' in raw && 'reps' in raw) {
-        const obj = raw as { weight: number; reps: number };
-        return { type, value: obj };
+    case 'most_reps':
+      if (raw != null && typeof raw === 'object' && 'reps' in raw) {
+        const obj = raw as { reps: unknown; weight?: unknown };
+        if (typeof obj.reps !== 'number') return null;
+        return {
+          type,
+          value: { reps: obj.reps, weight: typeof obj.weight === 'number' ? obj.weight : null },
+        };
       }
       return null;
     default:

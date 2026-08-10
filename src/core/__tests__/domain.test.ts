@@ -10,25 +10,29 @@ describe('parsePRValue', () => {
     expect(parsePRValue('heaviest_weight', '225')).toBeNull();
   });
 
-  test('parses best_volume from a number', () => {
-    expect(parsePRValue('best_volume', 4500)).toEqual({ type: 'best_volume', value: 4500 });
-  });
-
-  test('rejects best_volume when value is not a number', () => {
-    expect(parsePRValue('best_volume', null)).toBeNull();
-  });
-
-  test('parses most_reps_at_weight from a {weight, reps} object', () => {
-    expect(parsePRValue('most_reps_at_weight', { weight: 100, reps: 8 })).toEqual({
-      type: 'most_reps_at_weight',
-      value: { weight: 100, reps: 8 },
+  test('parses most_reps from a {reps, weight} object', () => {
+    expect(parsePRValue('most_reps', { reps: 8, weight: 100 })).toEqual({
+      type: 'most_reps',
+      value: { reps: 8, weight: 100 },
     });
   });
 
-  test('rejects most_reps_at_weight when shape is wrong', () => {
-    expect(parsePRValue('most_reps_at_weight', { weight: 100 })).toBeNull();
-    expect(parsePRValue('most_reps_at_weight', 100)).toBeNull();
-    expect(parsePRValue('most_reps_at_weight', null)).toBeNull();
+  test('parses a bodyweight most_reps (null weight)', () => {
+    expect(parsePRValue('most_reps', { reps: 15, weight: null })).toEqual({
+      type: 'most_reps',
+      value: { reps: 15, weight: null },
+    });
+  });
+
+  test('rejects most_reps when shape is wrong', () => {
+    expect(parsePRValue('most_reps', { weight: 100 })).toBeNull();
+    expect(parsePRValue('most_reps', 100)).toBeNull();
+    expect(parsePRValue('most_reps', null)).toBeNull();
+  });
+
+  test('returns null for retired record types (best_volume, most_reps_at_weight)', () => {
+    expect(parsePRValue('best_volume', 4500)).toBeNull();
+    expect(parsePRValue('most_reps_at_weight', { weight: 100, reps: 8 })).toBeNull();
   });
 
   test('returns null for an unknown type', () => {

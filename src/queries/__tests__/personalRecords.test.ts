@@ -2,6 +2,9 @@ import { getDb, initDb, resetDbForTests } from '@/db/client';
 import {
   getGroupedPRs,
   getHeaviestWeightHistory,
+  getBestSetVolumeHistory,
+  getMostRepsHistory,
+  recomputeAllPRs,
   recordWorkoutPRs,
 } from '@/queries/personalRecords';
 import { setSyncState } from '@/sync/state';
@@ -70,8 +73,8 @@ describe('getGroupedPRs', () => {
     await insertPR({
       id: 'pr2',
       exerciseId: 'ex-bench',
-      type: 'best_volume',
-      value: 4500,
+      type: 'most_reps',
+      value: { reps: 12, weight: 100 },
       achievedAt: oldIso(),
     });
     await insertPR({
@@ -90,24 +93,80 @@ describe('getGroupedPRs', () => {
     expect(bench.muscleGroup).toBe('Chest');
   });
 
-  test('formats display values per PR type', async () => {
-    await insertExercise('ex', 'Deadlift', 'Back');
+  test('formats display values per PR type, including bodyweight rep records', async () => {
+    await insertExercise('ex-dl', 'Deadlift', 'Back');
+    await insertExercise('ex-pu', 'Pull-up', 'Back');
     await insertPR({
       id: 'a',
-      exerciseId: 'ex',
+      exerciseId: 'ex-dl',
       type: 'heaviest_weight',
       value: 405,
       achievedAt: oldIso(),
     });
     await insertPR({
       id: 'b',
-      exerciseId: 'ex',
-      type: 'best_volume',
-      value: 6000,
+      exerciseId: 'ex-dl',
+      type: 'most_reps',
+      value: { reps: 12, weight: 100 },
       achievedAt: oldIso(),
     });
     await insertPR({
       id: 'c',
+      exerciseId: 'ex-pu',
+      type: 'most_reps',
+      value: { reps: 15, weight: null },
+      achievedAt: oldIso(),
+    });
+
+    const groups = await getGroupedPRs(USER);
+    const dl = groups.find((g) => g.exerciseId === 'ex-dl')!;
+    const byType = Object.fromEntries(dl.records.map((r) => [r.type, r.displayValue]));
+    expect(byType.heaviest_weight).toBe('405');
+    expect(byType.most_reps).toBe('12 × 100 kg');
+    const pu = groups.find((g) => g.exerciseId === 'ex-pu')!;
+    expect(pu.records[0]!.displayValue).toBe('15 BW');
+  });
+
+  test('orders each exercise’s records heaviest-first regardless of achieved_at', async () => {
+    await insertExercise('ex', 'Bench', 'Chest');
+    // The rep record is newer — SQL recency order would put it first.
+    await insertPR({
+      id: 'reps',
+      exerciseId: 'ex',
+      type: 'most_reps',
+      value: { reps: 10, weight: 80 },
+      achievedAt: recentIso(),
+    });
+    await insertPR({
+      id: 'heavy',
+      exerciseId: 'ex',
+      type: 'heaviest_weight',
+      value: 100,
+      achievedAt: oldIso(),
+    });
+
+    const [group] = await getGroupedPRs(USER);
+    expect(group!.records.map((r) => r.type)).toEqual(['heaviest_weight', 'most_reps']);
+  });
+
+  test('excludes rows of retired record types', async () => {
+    await insertExercise('ex', 'Bench', 'Chest');
+    await insertPR({
+      id: 'live',
+      exerciseId: 'ex',
+      type: 'heaviest_weight',
+      value: 100,
+      achievedAt: oldIso(),
+    });
+    await insertPR({
+      id: 'stale-vol',
+      exerciseId: 'ex',
+      type: 'best_volume',
+      value: 4500,
+      achievedAt: oldIso(),
+    });
+    await insertPR({
+      id: 'stale-raw',
       exerciseId: 'ex',
       type: 'most_reps_at_weight',
       value: { weight: 100, reps: 12 },
@@ -115,10 +174,7 @@ describe('getGroupedPRs', () => {
     });
 
     const [group] = await getGroupedPRs(USER);
-    const byType = Object.fromEntries(group!.records.map((r) => [r.type, r.displayValue]));
-    expect(byType.heaviest_weight).toBe('405');
-    expect(byType.best_volume).toBe('6000');
-    expect(byType.most_reps_at_weight).toBe('12 × 100');
+    expect(group!.records.map((r) => r.id)).toEqual(['live']);
   });
 
   test('flags records achieved within the last 7 days as recent', async () => {
@@ -133,8 +189,8 @@ describe('getGroupedPRs', () => {
     await insertPR({
       id: 'old',
       exerciseId: 'ex',
-      type: 'best_volume',
-      value: 100,
+      type: 'most_reps',
+      value: { reps: 5, weight: 100 },
       achievedAt: oldIso(),
     });
 
@@ -169,8 +225,8 @@ describe('getGroupedPRs', () => {
     await insertPR({
       id: 'dead',
       exerciseId: 'ex',
-      type: 'best_volume',
-      value: 100,
+      type: 'most_reps',
+      value: { reps: 5, weight: 100 },
       achievedAt: oldIso(),
       deleted: true,
     });
@@ -208,21 +264,80 @@ describe('recordWorkoutPRs', () => {
     }
   }
 
-  test('creates heaviest/volume/most-reps PRs from a finished workout', async () => {
+  test('creates heaviest and most-reps PRs from a finished workout — and no volume record', async () => {
     await insertExercise('ex-dl', 'Deadlift', 'Back');
     await seedWorkout('w1', 'we1', 'ex-dl', [
       { weight: 140, reps: 5, completed: true }, // heaviest 140
-      { weight: 100, reps: 10, completed: true }, // best volume 1000, most reps 10@100
+      { weight: 100, reps: 10, completed: true }, // most reps 10 @ 100
       { weight: 999, reps: 1, completed: false }, // incomplete — ignored
     ]);
 
     await recordWorkoutPRs(USER, 'w1');
 
     const [group] = await getGroupedPRs(USER);
+    expect(group!.records).toHaveLength(2);
     const byType = Object.fromEntries(group!.records.map((r) => [r.type, r.displayValue]));
     expect(byType.heaviest_weight).toBe('140');
-    expect(byType.best_volume).toBe('1000');
-    expect(byType.most_reps_at_weight).toBe('10 × 100');
+    expect(byType.most_reps).toBe('10 × 100 kg');
+  });
+
+  test('a bodyweight-only workout earns a rep record', async () => {
+    await insertExercise('ex-pu', 'Pull-up', 'Back');
+    await seedWorkout('w-bw', 'we-bw', 'ex-pu', [
+      { weight: null, reps: 12, completed: true },
+      { weight: null, reps: 15, completed: true },
+    ]);
+
+    await recordWorkoutPRs(USER, 'w-bw');
+
+    const [group] = await getGroupedPRs(USER);
+    expect(group!.records.map((r) => [r.type, r.displayValue])).toEqual([['most_reps', '15 BW']]);
+  });
+
+  test('recompute hard-deletes cached rows of retired types (best_volume, most_reps_at_weight)', async () => {
+    await insertExercise('ex', 'Bench', 'Chest');
+    await insertPR({
+      id: 'stale-vol',
+      exerciseId: 'ex',
+      type: 'best_volume',
+      value: 4500,
+      achievedAt: oldIso(),
+    });
+    await insertPR({
+      id: 'stale-raw',
+      exerciseId: 'ex',
+      type: 'most_reps_at_weight',
+      value: { weight: 100, reps: 12 },
+      achievedAt: oldIso(),
+    });
+    await seedWorkout('w', 'we', 'ex', [{ weight: 100, reps: 5, completed: true }]);
+
+    await recordWorkoutPRs(USER, 'w');
+
+    const db = await getDb();
+    const stale = await db.getFirstAsync<{ c: number }>(
+      `SELECT COUNT(*) AS c FROM personal_records WHERE type IN ('best_volume', 'most_reps_at_weight')`,
+    );
+    expect(stale?.c).toBe(0);
+  });
+
+  test('recomputeAllPRs sweeps retired-type rows even for exercises with no remaining sets', async () => {
+    await insertExercise('ex-ghost', 'Ghost', null);
+    await insertPR({
+      id: 'orphan',
+      exerciseId: 'ex-ghost',
+      type: 'best_volume',
+      value: 1000,
+      achievedAt: oldIso(),
+    });
+
+    await recomputeAllPRs(USER);
+
+    const db = await getDb();
+    const stale = await db.getFirstAsync<{ c: number }>(
+      `SELECT COUNT(*) AS c FROM personal_records WHERE type = 'best_volume'`,
+    );
+    expect(stale?.c).toBe(0);
   });
 
   test('PRs are a LOCAL cache — recording them never enqueues a sync op (#138/#139)', async () => {
@@ -280,7 +395,7 @@ describe('recordWorkoutPRs', () => {
   });
 });
 
-describe('getHeaviestWeightHistory', () => {
+describe('chart history series', () => {
   async function seedSet(args: {
     setId: string;
     exerciseId: string;
@@ -288,13 +403,17 @@ describe('getHeaviestWeightHistory', () => {
     completed: boolean;
     completedAt: string | null;
     deleted?: boolean;
+    reps?: number | null;
+    finished?: boolean;
   }) {
     const db = await getDb();
     const wId = `w-${args.setId}`;
     const weId = `we-${args.setId}`;
+    // Chart series must agree with the records, so only FINISHED workouts count;
+    // pass finished: false to model an in-progress session.
     await db.runAsync(
-      'INSERT OR IGNORE INTO workouts (id, user_id, started_at, title, created_at, updated_at) VALUES (?, ?, ?, ?, ?, ?)',
-      [wId, USER, T, 'W', T, T],
+      'INSERT OR IGNORE INTO workouts (id, user_id, started_at, ended_at, title, created_at, updated_at) VALUES (?, ?, ?, ?, ?, ?, ?)',
+      [wId, USER, T, args.finished === false ? null : T, 'W', T, T],
     );
     await db.runAsync(
       'INSERT INTO workout_exercises (id, workout_id, exercise_id, order_index, created_at, updated_at) VALUES (?, ?, ?, ?, ?, ?)',
@@ -308,7 +427,7 @@ describe('getHeaviestWeightHistory', () => {
         weId,
         0,
         args.weight,
-        5,
+        args.reps === undefined ? 5 : args.reps,
         args.completed ? 1 : 0,
         args.completedAt,
         T,
@@ -383,5 +502,97 @@ describe('getHeaviestWeightHistory', () => {
 
     const points = await getHeaviestWeightHistory(USER, 'ex');
     expect(points).toEqual([{ achievedAt: '2026-02-06', weight: 150 }]);
+  });
+
+  test('excludes sets from in-progress workouts so the chart peak matches the records', async () => {
+    await insertExercise('ex', 'Bench', 'Chest');
+    await seedSet({
+      setId: 'done',
+      exerciseId: 'ex',
+      weight: 100,
+      completed: true,
+      completedAt: '2026-02-01T10:00:00.000Z',
+    });
+    await seedSet({
+      setId: 'live',
+      exerciseId: 'ex',
+      weight: 180,
+      completed: true,
+      completedAt: '2026-02-02T10:00:00.000Z',
+      finished: false,
+    });
+
+    expect(await getHeaviestWeightHistory(USER, 'ex')).toEqual([
+      { achievedAt: '2026-02-01', weight: 100 },
+    ]);
+    expect(await getBestSetVolumeHistory(USER, 'ex')).toEqual([
+      { achievedAt: '2026-02-01', volume: 500 },
+    ]);
+  });
+
+  test('reps series returns the per-day best set reps, bodyweight sets included', async () => {
+    await insertExercise('ex', 'Pull-up', 'Back');
+    await seedSet({
+      setId: 'r1',
+      exerciseId: 'ex',
+      weight: null,
+      reps: 12,
+      completed: true,
+      completedAt: '2026-02-01T10:00:00.000Z',
+    });
+    await seedSet({
+      setId: 'r2',
+      exerciseId: 'ex',
+      weight: 10, // loaded sets count toward the reps series too
+      reps: 15,
+      completed: true,
+      completedAt: '2026-02-01T11:00:00.000Z',
+    });
+    await seedSet({
+      setId: 'r3',
+      exerciseId: 'ex',
+      weight: null,
+      reps: 9,
+      completed: true,
+      completedAt: '2026-02-03T10:00:00.000Z',
+    });
+    await seedSet({
+      setId: 'r4',
+      exerciseId: 'ex',
+      weight: null,
+      reps: 20,
+      completed: true,
+      completedAt: '2026-02-04T10:00:00.000Z',
+      finished: false, // in-progress workouts stay off the chart
+    });
+
+    expect(await getMostRepsHistory(USER, 'ex')).toEqual([
+      { achievedAt: '2026-02-01', reps: 15 },
+      { achievedAt: '2026-02-03', reps: 9 },
+    ]);
+  });
+
+  test('volume series returns the per-day best set volume', async () => {
+    await insertExercise('ex', 'Bench', 'Chest');
+    await seedSet({
+      setId: 'v1',
+      exerciseId: 'ex',
+      weight: 100,
+      reps: 5, // 500
+      completed: true,
+      completedAt: '2026-02-01T10:00:00.000Z',
+    });
+    await seedSet({
+      setId: 'v2',
+      exerciseId: 'ex',
+      weight: 80,
+      reps: 10, // 800 — the day's best single set
+      completed: true,
+      completedAt: '2026-02-01T11:00:00.000Z',
+    });
+
+    expect(await getBestSetVolumeHistory(USER, 'ex')).toEqual([
+      { achievedAt: '2026-02-01', volume: 800 },
+    ]);
   });
 });
