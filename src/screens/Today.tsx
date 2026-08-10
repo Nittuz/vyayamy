@@ -7,6 +7,7 @@ import { useQueryClient } from '@tanstack/react-query';
 import { useAuth } from '@/auth/useAuth';
 import { greetingFor, localDaysBetween } from '@/core/format';
 import { CollisionSheet } from '@/components/CollisionSheet';
+import { ExercisePicker } from '@/components/ExercisePicker';
 import { QuarantineBanner } from '@/components/QuarantineBanner';
 import { QuarantineSheet } from '@/components/QuarantineSheet';
 import { RepeatCard } from '@/components/RepeatCard';
@@ -14,7 +15,9 @@ import { SyncDiagnosticsSheet } from '@/components/SyncDiagnosticsSheet';
 import { useLastFinishedWorkoutWithSeeds, useRepeatLastWorkout } from '@/queries/repeatLastWorkout';
 import { finishOtherActiveWorkouts, useActiveWorkoutCollisions } from '@/queries/activeWorkouts';
 import { queryKeys } from '@/queries/keys';
+import { useQuickLog } from '@/queries/quickLog';
 import {
+  getActiveWorkout,
   useActiveWorkout,
   useRecentWorkouts,
   useCreateWorkout,
@@ -167,6 +170,40 @@ export default function TodayScreen() {
     router.push('/workout/active');
   }, [createWorkout, userId]);
 
+  // Quick log (spec 2026-08-09-quick-log): picker first, then straight into a
+  // workout titled after the exercise — two taps from Today to logging.
+  const quickLog = useQuickLog(toastError);
+  const [quickLogOpen, setQuickLogOpen] = useState(false);
+  // Ref latch against the picker double-fire class (#16, completingRef
+  // precedent): the sheet stays tappable through its 220ms exit animation, so
+  // two picks can land before isPending flips (review finding).
+  const quickLogStartingRef = useRef(false);
+  const onQuickLogPick = useCallback(
+    async (exerciseId: string) => {
+      if (!userId || quickLogStartingRef.current) return;
+      quickLogStartingRef.current = true;
+      try {
+        setQuickLogOpen(false);
+        // Re-check the one-active-workout invariant with a FRESH read — the
+        // button's disabled guard was evaluated before the picker opened, and
+        // a sync pull can land an active workout mid-pick (review finding).
+        // Per the approved design, resume it instead of minting a second one.
+        const existing = await getActiveWorkout(userId);
+        if (existing) {
+          router.push('/workout/active');
+          return;
+        }
+        await quickLog.mutateAsync({ userId, exerciseId });
+        router.push('/workout/active');
+      } catch {
+        // useQuickLog's onError already showed the toast; stay on Today.
+      } finally {
+        quickLogStartingRef.current = false;
+      }
+    },
+    [quickLog, userId],
+  );
+
   if (!userId) return null;
 
   return (
@@ -284,10 +321,19 @@ export default function TodayScreen() {
 
         <View style={styles.ghostRow}>
           <Button
-            label="Blank workout"
+            label="Quick log"
             kind="ghost"
             size="row"
             icon="plus"
+            onPress={() => setQuickLogOpen(true)}
+            disabled={quickLog.isPending || !!activeQuery.data}
+            accessibilityLabel="Quick log an exercise"
+            accessibilityHint="Pick one exercise and start logging it immediately"
+          />
+          <Button
+            label="Blank workout"
+            kind="ghost"
+            size="row"
             onPress={onBlankStart}
             disabled={createWorkout.isPending || !!activeQuery.data}
             accessibilityLabel="Start a blank workout"
@@ -331,6 +377,12 @@ export default function TodayScreen() {
           )}
         </View>
       </ScrollView>
+      <ExercisePicker
+        userId={userId}
+        visible={quickLogOpen}
+        onClose={() => setQuickLogOpen(false)}
+        onPick={(exerciseId) => void onQuickLogPick(exerciseId)}
+      />
       <CollisionSheet
         visible={collisionVisible}
         workouts={collisionsQuery.data?.workouts ?? []}
@@ -490,6 +542,10 @@ const makeStyles = (theme: Theme) =>
     emptyHint: { textAlign: 'center' },
     ghostRow: {
       flexDirection: 'row',
+      // Three ghost actions no longer fit one line on narrow devices; Yoga's
+      // default flexShrink:0 would overflow rather than compress (review
+      // finding), so let the row wrap.
+      flexWrap: 'wrap',
       alignItems: 'center',
       justifyContent: 'flex-start',
       gap: theme.space.s4,
