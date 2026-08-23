@@ -12,6 +12,7 @@ import {
 } from 'react-native';
 
 import { useAuth } from '@/auth/useAuth';
+import { buildDayChoiceOptions, dayChoicePatch, dayChoiceValue } from '@/core/dayChoice';
 import type { SlotDraft } from '@/core/domain';
 import {
   type ActivePlan,
@@ -23,7 +24,6 @@ import {
 import { type HydratedPreset, useListPlanPresets } from '@/queries/planPresets';
 import { Button } from '@/ui/Button';
 import { Plate } from '@/ui/Plate';
-import { resolvePlateStyles } from '@/ui/plateStyles';
 import { Segment } from '@/ui/Segment';
 import { SettleSlam } from '@/ui/SettleSlam';
 import { Text } from '@/ui/Text';
@@ -44,8 +44,6 @@ export default function PlanSetupScreen() {
   const apply = useApplyPresetAndSavePlan(toastError);
   const theme = useTheme();
   const styles = useMemo(() => makeStyles(theme), [theme]);
-  // Recommended foreground for the inverted (training-day) plates.
-  const invertedInk = resolvePlateStyles(theme, { tone: 'inverted' }).ink;
 
   const [name, setName] = useState('My plan');
   const [planType, setPlanType] = useState<'weekly' | 'cycle'>('weekly');
@@ -284,61 +282,32 @@ export default function PlanSetupScreen() {
             <Text variant="label" color={theme.color.inkTertiary} style={styles.sectionTitle}>
               Days
             </Text>
-            {slots.map((slot, idx) => (
-              // Training days are inverted plates (the emphasis state, matching
-              // TrainingPlan); rest days stay quiet ghost rows.
-              <Plate
-                key={slot.key}
-                tone={slot.isRestDay ? 'ghost' : 'inverted'}
-                border={slot.isRestDay ? 'soft' : 'none'}
-                faceStyle={styles.slotFace}
-              >
-                <View style={styles.slotHeader}>
-                  <Text
-                    variant="card"
-                    color={slot.isRestDay ? theme.color.inkTertiary : invertedInk}
-                    style={styles.slotHeaderText}
-                  >
-                    {planType === 'weekly'
-                      ? DAY_LABELS[slot.dayOfWeek ?? idx]
-                      : `Day ${(slot.cyclePosition ?? idx) + 1}`}
+            {slots.map((slot, idx) => {
+              const dayLabel =
+                planType === 'weekly'
+                  ? (DAY_LABELS[slot.dayOfWeek ?? idx] ?? '')
+                  : `Day ${(slot.cyclePosition ?? idx) + 1}`;
+              return (
+                // One choice, one control: Rest / None / a template used to be
+                // a top-right toggle chip plus a separate pill row underneath
+                // (impeccable polish A). A uniform quiet ground here — instead
+                // of the overview's alternating rest/training chalk-slab fill —
+                // means the Segment's own inversion (its selected/unselected
+                // contrast) never fights a same-toned row underneath it; the
+                // overview keeps its chalk hierarchy since it has no control to
+                // clash with.
+                <Plate key={slot.key} tone="ghost" border="soft" faceStyle={styles.slotFace}>
+                  <Text variant="card" color={theme.color.ink}>
+                    {dayLabel}
                   </Text>
-                  {/* Selection is inversion, never a heavier border: the toggle
-                    flips to the inverted chip when ON; OFF sits ghost on the
-                    inverted training row, so invertedInk is right either way. */}
-                  <Plate
-                    tone={slot.isRestDay ? 'inverted' : 'ghost'}
-                    border={slot.isRestDay ? 'none' : 'soft'}
-                    onPress={() => setSlotAt(idx, { isRestDay: !slot.isRestDay })}
-                    accessibilityLabel="Rest day"
-                    accessibilityState={{ selected: slot.isRestDay }}
-                    faceStyle={styles.toggleFace}
-                  >
-                    <Text variant="meta" color={invertedInk}>
-                      Rest day
-                    </Text>
-                  </Plate>
-                </View>
-                {!slot.isRestDay ? (
-                  <View style={styles.templatePicker}>
-                    <TemplatePill
-                      label="None"
-                      accessibilityLabel="No template"
-                      active={slot.templateId === null}
-                      onPress={() => setSlotAt(idx, { templateId: null })}
-                    />
-                    {templateOptions.map((tpl) => (
-                      <TemplatePill
-                        key={tpl.id}
-                        label={tpl.name}
-                        active={slot.templateId === tpl.id}
-                        onPress={() => setSlotAt(idx, { templateId: tpl.id })}
-                      />
-                    ))}
-                  </View>
-                ) : null}
-              </Plate>
-            ))}
+                  <Segment
+                    options={buildDayChoiceOptions(dayLabel, templateOptions)}
+                    value={dayChoiceValue(slot)}
+                    onChange={(value) => setSlotAt(idx, dayChoicePatch(value))}
+                  />
+                </Plate>
+              );
+            })}
 
             {planType === 'cycle' ? (
               <Button
@@ -364,40 +333,6 @@ export default function PlanSetupScreen() {
         </ScrollView>
       </KeyboardAvoidingView>
     </SafeAreaView>
-  );
-}
-
-function TemplatePill({
-  label,
-  active,
-  onPress,
-  accessibilityLabel,
-}: {
-  label: string;
-  active: boolean;
-  onPress: () => void;
-  accessibilityLabel?: string;
-}) {
-  const theme = useTheme();
-  const styles = useMemo(() => makeStyles(theme), [theme]);
-  // One chip idiom: idle = ghost + soft hairline ("available"), selected =
-  // inversion ("current"), never volt. The pills sit ON the training day's
-  // inverted (chalk) face, so the selected chip re-inverts relative to the
-  // row — the panel fill — which reads as inversion in both schemes.
-  const rowInk = resolvePlateStyles(theme, { tone: 'inverted' }).ink;
-  return (
-    <Plate
-      tone={active ? 'panel' : 'ghost'}
-      border="soft"
-      onPress={onPress}
-      accessibilityLabel={accessibilityLabel ?? label}
-      accessibilityState={{ selected: active }}
-      faceStyle={styles.pillFace}
-    >
-      <Text variant="card" color={active ? theme.color.ink : rowInk}>
-        {label}
-      </Text>
-    </Plate>
   );
 }
 
@@ -580,21 +515,6 @@ const makeStyles = (theme: Theme) =>
     stagedText: { flex: 1 },
     stagedName: { marginTop: theme.space.half },
     slotFace: { padding: theme.space.s4, gap: theme.space.s3 },
-    slotHeader: { flexDirection: 'row', alignItems: 'center', gap: theme.space.s3 },
-    slotHeaderText: { flex: 1 },
-    toggleFace: {
-      minHeight: theme.touch.min,
-      justifyContent: 'center',
-      paddingHorizontal: theme.space.s3,
-    },
-    templatePicker: { flexDirection: 'row', flexWrap: 'wrap', gap: theme.space.s2 },
-    pillFace: {
-      minHeight: theme.touch.min,
-      minWidth: theme.touch.min,
-      alignItems: 'center',
-      justifyContent: 'center',
-      paddingHorizontal: theme.space.s3,
-    },
     addDay: { alignSelf: 'flex-start' },
     saveBtn: { marginTop: theme.space.s3 },
   });

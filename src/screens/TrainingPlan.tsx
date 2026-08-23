@@ -3,7 +3,8 @@ import { useMemo } from 'react';
 import { ActivityIndicator, SafeAreaView, ScrollView, StyleSheet, View } from 'react-native';
 
 import { useAuth } from '@/auth/useAuth';
-import { useActivePlan } from '@/queries/plans';
+import { resolveTodaySlot } from '@/core/planResolver';
+import { parseExerciseOrder, useActivePlan } from '@/queries/plans';
 import { Button } from '@/ui/Button';
 import { EmptyState } from '@/ui/EmptyState';
 import { FadeInView } from '@/ui/FadeInView';
@@ -26,6 +27,13 @@ export default function TrainingPlanScreen() {
   const invertedInk = resolvePlateStyles(theme, { tone: 'inverted' }).ink;
 
   const plan = planQuery.data;
+  // Today's slot per the same resolver Today/plannedWorkout use (spec
+  // 2026-08-10 day semantics: device-local weekday, Sunday = 0) — not
+  // reimplemented here, just reused to find which row to tag (impeccable
+  // polish C).
+  const todayResolution = plan
+    ? resolveTodaySlot(plan.plan, plan.slots, new Date().getDay())
+    : null;
 
   return (
     <SafeAreaView style={styles.container}>
@@ -77,9 +85,21 @@ export default function TrainingPlanScreen() {
                   (plan.plan.plan_type === 'weekly' && slot.day_of_week != null
                     ? (DAY_LABELS[slot.day_of_week] ?? '')
                     : `Day ${(slot.cycle_position ?? 0) + 1}`);
+                const template = slot.template_id
+                  ? plan.templates.get(slot.template_id)
+                  : undefined;
                 const templateName = slot.template_id
-                  ? (plan.templates.get(slot.template_id)?.name ?? 'No template')
+                  ? (template?.name ?? 'No template')
                   : 'No template';
+                const exerciseCount = template
+                  ? parseExerciseOrder(template.exercise_order).length
+                  : 0;
+                // Same slot the resolver picked for today, by identity — covers
+                // rest/workout/unconfigured alike (impeccable polish C).
+                const isToday =
+                  todayResolution != null &&
+                  todayResolution.kind !== 'none' &&
+                  todayResolution.slot.id === slot.id;
                 return (
                   <FadeInView key={slot.id} delay={staggerDelay(i)}>
                     {slot.is_rest_day ? (
@@ -99,6 +119,15 @@ export default function TrainingPlanScreen() {
                         >
                           Rest
                         </Text>
+                        {isToday ? (
+                          <Text
+                            variant="strip"
+                            color={theme.color.inkTertiary}
+                            style={styles.todayTag}
+                          >
+                            Today
+                          </Text>
+                        ) : null}
                       </View>
                     ) : (
                       // Training days carry the emphasis: inverted plates. The
@@ -111,9 +140,29 @@ export default function TrainingPlanScreen() {
                         >
                           {label}
                         </Text>
-                        <Text variant="card" color={invertedInk} style={styles.slotBody}>
-                          {templateName}
-                        </Text>
+                        <View style={styles.slotBody}>
+                          <Text variant="card" color={invertedInk}>
+                            {templateName}
+                          </Text>
+                          {exerciseCount > 0 ? (
+                            <Text
+                              variant="strip"
+                              color={invertedInk}
+                              style={[styles.slotMeta, styles.slotDaySoft]}
+                            >
+                              {exerciseCount} {exerciseCount === 1 ? 'exercise' : 'exercises'}
+                            </Text>
+                          ) : null}
+                        </View>
+                        {isToday ? (
+                          <Text
+                            variant="strip"
+                            color={invertedInk}
+                            style={[styles.todayTag, styles.slotDaySoft]}
+                          >
+                            Today
+                          </Text>
+                        ) : null}
                       </Plate>
                     )}
                   </FadeInView>
@@ -155,5 +204,9 @@ const makeStyles = (theme: Theme) =>
     slotDay: { width: 64 },
     slotDaySoft: { opacity: 0.65 },
     slotBody: { flex: 1 },
+    slotMeta: { marginTop: theme.space.half },
+    // Right-aligned, mirroring History's row-date idiom; never lets a long
+    // day/template pairing squeeze the tag down to nothing.
+    todayTag: { flexShrink: 0 },
     emptyWrap: { marginTop: theme.space.s8 },
   });
