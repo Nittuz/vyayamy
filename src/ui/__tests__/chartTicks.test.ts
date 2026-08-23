@@ -1,4 +1,4 @@
-import { chartTicks, formatCompactTick } from '@/ui/chartTicks';
+import { chartTicks, clampMarkerLabelX, formatCompactTick, xTickAnchor } from '@/ui/chartTicks';
 
 const NICE_FRACTIONS = [1, 2, 2.5, 5];
 
@@ -111,6 +111,93 @@ describe('chartTicks', () => {
     expect(isNiceStep(step)).toBe(true);
     expect(isAscending(ticks)).toBe(true);
     expect(ticks.length).toBeGreaterThanOrEqual(2);
+  });
+
+  // Owner-review finding: a flat/near-flat series (e.g. a plateaued lift, or
+  // bodyweight reps that never move) hugged one gridline under a big fill
+  // slab — the plain 10%-of-span pad barely separated the line from its own
+  // value. Low-variance series should pad relative to the data's own
+  // magnitude instead, so the (still flat) line comfortably floats mid-plot.
+  test('widens padding for a low-variance (near-flat) series so the line sits mid-plot', () => {
+    const { min, max } = chartTicks(100, 100.5, 4);
+    const dataMid = (100 + 100.5) / 2;
+    const axisMid = (min + max) / 2;
+    const axisSpan = max - min;
+    // The axis center should land close to the data's own center, not off to
+    // one side (which is what "hugging one gridline" looks like).
+    expect(Math.abs(axisMid - dataMid)).toBeLessThan(axisSpan * 0.15);
+    // And the band must be meaningfully wider than a naive 10%-of-span pad
+    // would produce — proof the padding was actually widened, not just
+    // coincidentally centered.
+    expect(axisSpan).toBeGreaterThan((100.5 - 100) * 5);
+  });
+
+  test('a typical (non-flat) range is unaffected by the low-variance widening', () => {
+    // Same range as the "chooses a nice step" test above — asserts the fix is
+    // scoped to low-variance series and doesn't change ordinary axes.
+    const { step } = chartTicks(82, 117, 4);
+    expect([10, 20]).toContain(step);
+  });
+
+  test('exact-flat series (min === max) still centers the value, unaffected by the low-variance path', () => {
+    const { min, max } = chartTicks(50, 50, 4);
+    const axisMid = (min + max) / 2;
+    expect(axisMid).toBeCloseTo(50, 6);
+  });
+});
+
+describe('xTickAnchor', () => {
+  test('the first of several ticks starts at its own x (never hangs off the left edge)', () => {
+    expect(xTickAnchor(0, 3)).toBe('start');
+  });
+
+  test('the last of several ticks ends at its own x (never clips off the right edge)', () => {
+    expect(xTickAnchor(2, 3)).toBe('end');
+  });
+
+  test('a tick strictly between the ends stays centered', () => {
+    expect(xTickAnchor(1, 3)).toBe('middle');
+  });
+
+  test('a lone tick (single-point series) stays centered — it is both ends at once', () => {
+    expect(xTickAnchor(0, 1)).toBe('middle');
+  });
+
+  test('two ticks: first starts, second ends — no middle case', () => {
+    expect(xTickAnchor(0, 2)).toBe('start');
+    expect(xTickAnchor(1, 2)).toBe('end');
+  });
+});
+
+describe('clampMarkerLabelX', () => {
+  const plotLeft = 44;
+  const plotRight = 360;
+
+  test('nudges a label right when its marker sits at the left plot edge (crowds the y-axis)', () => {
+    const x = clampMarkerLabelX(plotLeft, plotLeft, plotRight);
+    expect(x).toBeGreaterThan(plotLeft);
+  });
+
+  test('nudges a label left when its marker sits at the right plot edge', () => {
+    const x = clampMarkerLabelX(plotRight, plotLeft, plotRight);
+    expect(x).toBeLessThan(plotRight);
+  });
+
+  test('leaves a mid-plot marker label untouched', () => {
+    const mid = (plotLeft + plotRight) / 2;
+    expect(clampMarkerLabelX(mid, plotLeft, plotRight)).toBe(mid);
+  });
+
+  test('never places the label outside the plot bounds', () => {
+    expect(clampMarkerLabelX(plotLeft, plotLeft, plotRight)).toBeGreaterThanOrEqual(plotLeft);
+    expect(clampMarkerLabelX(plotRight, plotLeft, plotRight)).toBeLessThanOrEqual(plotRight);
+  });
+
+  test('degrades gracefully when the plot is narrower than the clamp margin', () => {
+    const x = clampMarkerLabelX(50, 48, 52);
+    expect(Number.isFinite(x)).toBe(true);
+    expect(x).toBeGreaterThanOrEqual(48);
+    expect(x).toBeLessThanOrEqual(52);
   });
 });
 

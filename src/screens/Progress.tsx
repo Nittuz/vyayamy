@@ -261,7 +261,17 @@ export default function ProgressScreen() {
                     <Text variant="strip" color={invertedInk} style={styles.tileCaption}>
                       Heaviest
                     </Text>
-                    <Text variant="numeralLg" color={invertedInk}>
+                    {/* GroupedPR only exposes a formatted displayValue string
+                        (no raw weight/reps fields to compose structurally), so
+                        the guard against mid-unit wrap is a single-line clamp
+                        rather than a numeral+strip split (owner review). */}
+                    <Text
+                      variant="numeralLg"
+                      color={invertedInk}
+                      numberOfLines={1}
+                      adjustsFontSizeToFit
+                      minimumFontScale={0.6}
+                    >
                       {heaviest.displayValue} {units}
                     </Text>
                     <Text variant="strip" color={invertedInk} style={styles.tileCaption}>
@@ -274,8 +284,18 @@ export default function ProgressScreen() {
                     <Text variant="strip" color={invertedInk} style={styles.tileCaption}>
                       Most reps
                     </Text>
-                    {/* displayValue is self-contained ("15 BW" / "12 × 80 kg") — no extra suffix */}
-                    <Text variant="numeralLg" color={invertedInk}>
+                    {/* displayValue is self-contained ("15 BW" / "12 × 80 kg") — no
+                        extra suffix. numberOfLines={1} + adjustsFontSizeToFit is
+                        the fallback the data model forces here: "3 × 52.5 kg" was
+                        wrapping mid-unit onto a second line, which both grew this
+                        tile taller than its sibling AND broke the unit apart. */}
+                    <Text
+                      variant="numeralLg"
+                      color={invertedInk}
+                      numberOfLines={1}
+                      adjustsFontSizeToFit
+                      minimumFontScale={0.6}
+                    >
                       {mostReps.displayValue}
                     </Text>
                     <Text variant="strip" color={invertedInk} style={styles.tileCaption}>
@@ -307,23 +327,36 @@ export default function ProgressScreen() {
               accessibilityLabel={chartAccessibilityLabel}
             />
 
-            {/* range + metric controls (Segment: inversion = selected) */}
+            {/* range + metric controls (Segment: inversion = selected). Each
+                row carries a tiny strip-caps label — two stacked unlabeled
+                3-button rows read as an unlabeled wall of 6 boxes (owner
+                review); the label is what tells the two axes apart. */}
             <View style={[styles.pad, styles.controls]}>
-              <Segment
-                size="sm"
-                options={RANGES.map((r) => ({ value: r.key, label: r.label }))}
-                value={range}
-                onChange={setRange}
-              />
-              <Segment
-                size="sm"
-                options={METRICS.map((m) => ({ value: m.key, label: m.label }))}
-                value={metric}
-                onChange={(m) => {
-                  setMetric(m);
-                  setScrubbed(null);
-                }}
-              />
+              <View style={styles.controlGroup}>
+                <Text variant="strip" color={theme.color.inkTertiary}>
+                  Range
+                </Text>
+                <Segment
+                  size="sm"
+                  options={RANGES.map((r) => ({ value: r.key, label: r.label }))}
+                  value={range}
+                  onChange={setRange}
+                />
+              </View>
+              <View style={styles.controlGroup}>
+                <Text variant="strip" color={theme.color.inkTertiary}>
+                  Metric
+                </Text>
+                <Segment
+                  size="sm"
+                  options={METRICS.map((m) => ({ value: m.key, label: m.label }))}
+                  value={metric}
+                  onChange={(m) => {
+                    setMetric(m);
+                    setScrubbed(null);
+                  }}
+                />
+              </View>
             </View>
 
             <View style={[styles.pad, styles.section]}>
@@ -478,12 +511,28 @@ const makeStyles = (theme: Theme) =>
     },
     exerciseSelectRow: { flexDirection: 'row', alignItems: 'center', gap: theme.space.s2 },
 
-    tileRow: { flexDirection: 'row', gap: theme.space.s3 },
+    tileRow: { flexDirection: 'row', alignItems: 'stretch', gap: theme.space.s3 },
     tile: { flex: 1 },
-    tileFace: { padding: theme.space.s4, gap: theme.space.s1 },
+    // flex:1 here is load-bearing: the row's default stretch already equalizes
+    // each tile's outer (invisible) container height, but Plate's face — the
+    // one that actually paints the background/border — hugs its own content
+    // unless it also grows to fill that container. Without it, a taller value
+    // (e.g. a wrapped "3 × 52.5 kg") stretched its own container while the
+    // sibling's face stayed short, reading as misaligned tile bottoms (owner
+    // review). justifyContent pins the top/bottom captions to the tile's true
+    // edges so they baseline-align once both tiles share one height.
+    tileFace: {
+      padding: theme.space.s4,
+      gap: theme.space.s1,
+      flex: 1,
+      justifyContent: 'space-between',
+    },
     tileCaption: { opacity: 0.65 },
 
     controls: { gap: theme.space.s2 },
+    // Tight token spacing between a group's caption and its Segment row —
+    // matches the exerciseSelect label idiom above.
+    controlGroup: { gap: theme.space.half },
 
     section: { gap: theme.space.s2, marginTop: theme.space.s2 },
     // The ONE section-header treatment: strip caps + a single hairline below.

@@ -66,10 +66,19 @@ export function chartTicks(dataMin: number, dataMax: number, desiredCount = 4): 
 
   const lo = Math.min(dataMin, dataMax);
   const hi = Math.max(dataMin, dataMax);
+  const span = hi - lo;
 
   // Headroom both sides so the line never kisses the frame — the chart shows
   // variation, so a touch of breathing room reads as "this is the real spread".
-  const pad = (hi - lo) * 0.1;
+  //
+  // Flat/low-variance series (a plateaued lift, bodyweight reps that never
+  // move) broke this: a plain 10%-of-span pad is itself near-zero when span
+  // is near-zero, so the line ends up hugging one gridline under a big fill
+  // slab instead of floating mid-plot. Once the data's own spread is under
+  // 10% of its magnitude, pad relative to the magnitude instead (mirrors the
+  // exact-flat branch above) so a still-flat line gets real breathing room.
+  const magnitude = Math.max(Math.abs(hi), Math.abs(lo), 1);
+  const pad = span < magnitude * 0.1 ? magnitude * 0.1 : span * 0.1;
   const paddedLo = lo - pad;
   const paddedHi = hi + pad;
 
@@ -100,6 +109,46 @@ export function formatCompactTick(value: number): string {
 
 function trimNum(n: number): string {
   return String(Math.round(n * 100) / 100);
+}
+
+export type XTickAnchor = 'start' | 'middle' | 'end';
+
+/**
+ * Edge-aware SVG text-anchor for an x-axis tick label (owner-review finding:
+ * the last tick, e.g. "Aug 22", clipped off the chart's right edge because
+ * every label was center-anchored on its own tick x — for the last tick that
+ * puts half its width past the plot's right boundary). The first tick starts
+ * at its own x so it never hangs left past the y-axis gutter, the last tick
+ * ends at its own x so it never clips off the right edge, and every tick in
+ * between stays centered. A lone tick (a single-point series) stays centered
+ * — it is simultaneously the first and last tick.
+ */
+export function xTickAnchor(index: number, count: number): XTickAnchor {
+  if (count <= 1) return 'middle';
+  if (index === 0) return 'start';
+  if (index === count - 1) return 'end';
+  return 'middle';
+}
+
+/**
+ * Clamps a PR marker's "PR" label x so it never crowds past the plot's
+ * bounds — nudges right when the marker sits at (or near) the left edge,
+ * e.g. the first data point, where a center-anchored label would overlap the
+ * y-axis tick labels; nudges left symmetrically at the right edge. Falls
+ * back to the plot's midpoint when it is narrower than the clamp margin
+ * itself, so the label degrades to "just centered" rather than producing an
+ * inverted (min > max) range.
+ */
+export function clampMarkerLabelX(
+  x: number,
+  plotLeft: number,
+  plotRight: number,
+  halfWidth = 12,
+): number {
+  const lo = plotLeft + halfWidth;
+  const hi = plotRight - halfWidth;
+  if (lo > hi) return (plotLeft + plotRight) / 2;
+  return Math.min(Math.max(x, lo), hi);
 }
 
 function buildTicks(min: number, max: number, step: number): Omit<ChartTicks, 'step'> {

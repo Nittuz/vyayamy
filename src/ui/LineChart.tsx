@@ -17,7 +17,7 @@ import { Gesture, GestureDetector } from 'react-native-gesture-handler';
 import { runOnJS } from 'react-native-reanimated';
 import Svg, { Circle, Line, Path, Text as SvgText } from 'react-native-svg';
 
-import { chartTicks, formatCompactTick } from './chartTicks';
+import { chartTicks, clampMarkerLabelX, formatCompactTick, xTickAnchor } from './chartTicks';
 import { Text } from './Text';
 import { useTheme } from './useTheme';
 
@@ -270,7 +270,10 @@ export function LineChart({
         );
       })}
 
-      {/* x-axis labels — Geist Mono */}
+      {/* x-axis labels — Geist Mono. Edge-aware anchor: the first tick starts
+          at its own x and the last ends at its own x, so neither hangs past
+          the plot's left gutter or clips off the right edge (owner review:
+          the last label, e.g. "Aug 22", was clipping). */}
       {chart.xTicks.map((t, i) => (
         <SvgText
           key={`tx-${i}`}
@@ -279,7 +282,7 @@ export function LineChart({
           fill={theme.color.inkTertiary}
           fontFamily={theme.font.family.mono}
           fontSize={10}
-          textAnchor="middle"
+          textAnchor={xTickAnchor(i, chart.xTicks.length)}
         >
           {xTickFormatter(t)}
         </SvgText>
@@ -306,7 +309,10 @@ export function LineChart({
       {chart.markerPoints.map((p, i) => (
         <SvgText
           key={`ml-${i}`}
-          x={p.x}
+          // Clamped so a PR at the first data point doesn't crowd/overlap the
+          // y-axis tick labels (owner review) — nudges right near the left
+          // edge, left near the right edge; centered everywhere else.
+          x={clampMarkerLabelX(p.x, PADDING.left, width - PADDING.right)}
           y={p.y - 12}
           fill={theme.color.ink}
           fontFamily={theme.font.family.mono}
