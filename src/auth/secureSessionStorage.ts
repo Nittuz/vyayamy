@@ -9,14 +9,31 @@
  * CTR counter can always start at 1 — no IV bookkeeping.
  *
  * Legacy migration: pre-#88 builds stored the session as plaintext JSON
- * under the same AsyncStorage key. Plaintext starts with '{'; our
- * ciphertext is hex, so first read detects, re-encrypts in place, and
- * returns the value — the user never re-logs.
+ * (starts with '{') or, for a stored PKCE code verifier, a plain JSON
+ * string (starts with '"'); our ciphertext is hex, so first read detects
+ * either legacy shape, re-encrypts in place, and returns the value — the
+ * user never re-logs.
+ *
+ * Randomness: `Crypto.getRandomBytes` uses the native CSPRNG in release
+ * builds. Under `__DEV__` with remote JS debugging attached, Expo's JS
+ * runtime falls back to `Math.random` — fine for dev iteration, not a
+ * security boundary; release builds never take that path.
+ *
+ * Error handling: getItem never throws — any failure decrypting a stored
+ * value (missing Keychain key, corrupt ciphertext) resolves to `null`,
+ * which auth-js treats as "no session" and routes to re-login. removeItem
+ * never throws either — the sign-out path must complete even if the
+ * Keychain delete fails, otherwise supabase-js's `_removeSession` never
+ * emits `SIGNED_OUT` and local DB/cache teardown for the outgoing user
+ * never runs. setItem is the one method that rethrows: a session that
+ * silently failed to persist is worse than a visible failure.
  */
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import aesjs from 'aes-js';
 import * as Crypto from 'expo-crypto';
 import * as SecureStore from 'expo-secure-store';
+
+import { captureException } from '@/lib/errorReporting';
 
 const keychainKeyFor = (storageKey: string) => `flexyug.aeskey.${storageKey}`;
 
@@ -45,21 +62,45 @@ export const secureSessionStorage = {
   async getItem(key: string): Promise<string | null> {
     const stored = await AsyncStorage.getItem(key);
     if (stored == null) return null;
-    if (stored.startsWith('{')) {
-      // Legacy plaintext session — encrypt in place, then hand it back.
+    if (stored.startsWith('{') || stored.startsWith('"')) {
+      // Legacy plaintext value (session JSON, or a PKCE code verifier
+      // stored as a bare JSON string) — encrypt in place, hand it back.
       await secureSessionStorage.setItem(key, stored);
       return stored;
     }
-    return decrypt(key, stored);
+    try {
+      return await decrypt(key, stored);
+    } catch (err) {
+      // Any decrypt failure (missing/rotated Keychain key, corrupt
+      // ciphertext) is treated as no-session rather than propagated —
+      // auth-js reads null as signed-out and routes to re-login instead
+      // of crashing.
+      captureException(err, { where: 'secureSessionStorage.getItem' });
+      return null;
+    }
   },
 
   async setItem(key: string, value: string): Promise<void> {
-    const ciphertext = await encrypt(key, value);
-    await AsyncStorage.setItem(key, ciphertext);
+    try {
+      const ciphertext = await encrypt(key, value);
+      await AsyncStorage.setItem(key, ciphertext);
+    } catch (err) {
+      captureException(err, { where: 'secureSessionStorage.setItem' });
+      throw err;
+    }
   },
 
   async removeItem(key: string): Promise<void> {
     await AsyncStorage.removeItem(key);
-    await SecureStore.deleteItemAsync(keychainKeyFor(key));
+    try {
+      await SecureStore.deleteItemAsync(keychainKeyFor(key));
+    } catch (err) {
+      // Swallow: the AsyncStorage ciphertext is already gone, so the
+      // session is unrecoverable either way. Letting this reject would
+      // propagate into supabase-js's `_removeSession`, which never emits
+      // SIGNED_OUT on failure — so local DB/cache teardown for the old
+      // user would never run.
+      captureException(err, { where: 'secureSessionStorage.removeItem' });
+    }
   },
 };

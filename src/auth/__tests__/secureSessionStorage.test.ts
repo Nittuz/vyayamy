@@ -14,6 +14,7 @@ import { secureSessionStorage } from '../secureSessionStorage';
 jest.mock('@react-native-async-storage/async-storage', () =>
   require('@react-native-async-storage/async-storage/jest/async-storage-mock'),
 );
+jest.mock('@/lib/errorReporting', () => ({ captureException: jest.fn() }));
 
 const KEY = 'sb-oqwpjksgnwthqmgeqrnu-auth-token';
 const SESSION = JSON.stringify({ access_token: 'jwt-abc123', refresh_token: 'refresh-xyz' });
@@ -59,4 +60,42 @@ test('removeItem clears both the blob and the keychain key', async () => {
   await secureSessionStorage.removeItem(KEY);
   await expect(secureSessionStorage.getItem(KEY)).resolves.toBeNull();
   await expect(SecureStore.getItemAsync(`flexyug.aeskey.${KEY}`)).resolves.toBeNull();
+});
+
+test('getItem resolves null (not a rejection) when the Keychain read throws', async () => {
+  await secureSessionStorage.setItem(KEY, SESSION);
+  (SecureStore as unknown as { __failNext(method: string): void }).__failNext('getItemAsync');
+  await expect(secureSessionStorage.getItem(KEY)).resolves.toBeNull();
+});
+
+test('removeItem resolves (does not throw) when the Keychain delete throws', async () => {
+  await secureSessionStorage.setItem(KEY, SESSION);
+  (SecureStore as unknown as { __failNext(method: string): void }).__failNext('deleteItemAsync');
+  await expect(secureSessionStorage.removeItem(KEY)).resolves.toBeUndefined();
+  // The AsyncStorage half is still torn down even though the Keychain call failed.
+  await expect(AsyncStorage.getItem(KEY)).resolves.toBeNull();
+});
+
+test('setItem rejects when the Keychain write throws', async () => {
+  (SecureStore as unknown as { __failNext(method: string): void }).__failNext('setItemAsync');
+  await expect(secureSessionStorage.setItem(KEY, SESSION)).rejects.toThrow();
+});
+
+test('decrypting under the wrong key yields garbage, not the original session, not a throw', async () => {
+  await secureSessionStorage.setItem(KEY, SESSION);
+  const oldCiphertext = await AsyncStorage.getItem(KEY);
+  await secureSessionStorage.setItem(KEY, SESSION); // rotates to a fresh key
+  await AsyncStorage.setItem(KEY, oldCiphertext!); // restore ciphertext encrypted under the old key
+  const result = await secureSessionStorage.getItem(KEY);
+  expect(result).not.toBeNull();
+  expect(result).not.toBe(SESSION);
+});
+
+test('migrates a legacy plaintext PKCE code verifier (JSON string) on first read', async () => {
+  const verifier = JSON.stringify('a-code-verifier');
+  await AsyncStorage.setItem(KEY, verifier);
+  await expect(secureSessionStorage.getItem(KEY)).resolves.toBe(verifier);
+  const raw = await AsyncStorage.getItem(KEY);
+  expect(raw).not.toBe(verifier); // re-stored encrypted in place
+  await expect(secureSessionStorage.getItem(KEY)).resolves.toBe(verifier); // still readable
 });
