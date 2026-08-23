@@ -180,6 +180,15 @@ export default function ProgressScreen() {
   // Reps have no unit; weight/volume read out in the profile unit.
   const scrubUnit = metric === 'reps' ? 'reps' : units;
 
+  // Chart a11y summary (impeccable r2 wave 2 S4): the chart itself is generic
+  // SVG, so it can't name its own metric or units — build the words here from
+  // data already in scope and hand them down as a single accessibilityLabel.
+  const metricName =
+    metric === 'volume' ? 'Best volume' : metric === 'reps' ? 'Most reps' : 'Heaviest weight';
+  const rangeLabel =
+    range === 'all' ? 'all time' : `last ${RANGES.find((r) => r.key === range)?.label ?? ''}`;
+  const chartAccessibilityLabel = buildChartSummary(metricName, rangeLabel, series, scrubUnit);
+
   // Stat tiles read the all-time records straight off the PR cache. Heaviest
   // leads — it is THE record (2026-08-09 spec); reps cover bodyweight work.
   const activeGroup = prs?.find((p) => p.exerciseId === active) ?? null;
@@ -295,6 +304,7 @@ export default function ProgressScreen() {
               xTickFormatter={(v) =>
                 new Date(v).toLocaleDateString(undefined, { month: 'short', day: 'numeric' })
               }
+              accessibilityLabel={chartAccessibilityLabel}
             />
 
             {/* range + metric controls (Segment: inversion = selected) */}
@@ -337,7 +347,10 @@ export default function ProgressScreen() {
                       }}
                       tone={isActive ? 'inverted' : 'panel'}
                       accessibilityRole="button"
-                      accessibilityLabel={`${g.exerciseName} records. Tap to chart.`}
+                      // Plate's `accessible` grouping means the recentDot below
+                      // is never independently announced — the row's own label
+                      // is the only place "recent" can be said (S4).
+                      accessibilityLabel={`${g.exerciseName} records. Tap to chart.${g.hasRecent ? ' Recent.' : ''}`}
                       accessibilityState={{ selected: isActive }}
                       faceStyle={styles.prFace}
                     >
@@ -351,15 +364,18 @@ export default function ProgressScreen() {
                           numberOfLines={1}
                           style={[styles.prStrip, isActive && styles.softInk]}
                         >
-                          {g.records
+                          {[
                             // Honest fallback: an unrecognized record type (e.g. a
                             // retired type not yet swept) humanizes rather than
                             // showing the raw snake_case enum (impeccable batch 5).
-                            .map(
+                            ...g.records.map(
                               (r) =>
                                 `${PR_LABEL[r.type] ?? humanizeEnum(r.type)} ${r.displayValue}`,
-                            )
-                            .join(' · ')}
+                            ),
+                            // Visible echo of the recentDot (S4) — same dot-joined
+                            // strip, so it costs no new treatment.
+                            ...(g.hasRecent ? ['Recent'] : []),
+                          ].join(' · ')}
                         </Text>
                       </View>
                       {g.hasRecent ? (
@@ -411,6 +427,28 @@ export default function ProgressScreen() {
 /** Trim a trailing ".0" so 100.0 reads as 100 but 102.5 keeps its decimal. */
 function trim(n: number): string {
   return String(Math.round(n * 10) / 10);
+}
+
+/**
+ * Builds the LineChart's a11y summary, e.g. "Heaviest weight, last 12 weeks,
+ * from 60 kg to 72.5 kg" (impeccable r2 wave 2 S4). Null-safe for the empty
+ * series (nothing to summarize — LineChart's own "No data yet" state covers
+ * it) and the single-point series (no "from → to" span to report).
+ */
+function buildChartSummary(
+  metricName: string,
+  rangeLabel: string,
+  series: ChartPoint[],
+  unit: string,
+): string | undefined {
+  if (series.length === 0) return undefined;
+  const value = (n: number) => `${trim(n)} ${unit}`;
+  const first = series[0]!;
+  if (series.length === 1) {
+    return `${metricName}, ${rangeLabel}, ${value(first.y)}`;
+  }
+  const last = series[series.length - 1]!;
+  return `${metricName}, ${rangeLabel}, from ${value(first.y)} to ${value(last.y)}`;
 }
 
 const makeStyles = (theme: Theme) =>

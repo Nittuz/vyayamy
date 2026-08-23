@@ -292,14 +292,16 @@ export default function TodayScreen() {
             : lastFinishedQuery.data
               ? 'repeat'
               : 'empty';
-  // Poster mode (the two-line display headline) is earned only by the quiet
-  // states — nothing else competing for attention: an empty slot with
-  // nothing to act on, or a rest day (its own breathing moment, spec
-  // 2026-08-10) — but the rest day only counts when nothing is actually
-  // running (same guard the rest strip below uses): a workout resumed on a
-  // scheduled rest day is never a quiet moment. Every other state yields to
-  // the act-now card below.
-  const isPoster = slotState === 'empty' || (!activeQuery.data && schedule?.kind === 'rest');
+  // Poster mode (the two-line display headline) is earned only when NO
+  // act-now card occupies the primary slot — one attention owner per screen
+  // (owner decision, impeccable r2 wave 2 S1). 'empty' has nothing to act
+  // on; 'loading' renders a bare spinner (no card yet), and posting here
+  // avoids a headline jump the instant it resolves into a real card.
+  // 'repeatSkeleton' is itself a card (RepeatCard, just in its loading
+  // dress) — it collapses like every other card state. The rest day no
+  // longer earns a poster on its own: the rest strip below still marks it,
+  // but the moment is no longer this screen's one display headline.
+  const isPoster = slotState === 'empty' || slotState === 'loading';
 
   return (
     <SafeAreaView style={styles.container}>
@@ -705,7 +707,9 @@ const makeStyles = (theme: Theme) =>
       gap: theme.space.s3,
     },
     emptyHint: { textAlign: 'center' },
-    restStrip: { marginHorizontal: theme.space.s4 },
+    // marginTop closes the gap the reviewer flagged between the act-now card
+    // above and this strip (impeccable r2 wave 2 S1).
+    restStrip: { marginHorizontal: theme.space.s4, marginTop: theme.space.s3 },
     restFace: {
       flexDirection: 'row',
       alignItems: 'center',

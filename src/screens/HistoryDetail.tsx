@@ -29,12 +29,17 @@ import { Plate } from '@/ui/Plate';
 import { Text } from '@/ui/Text';
 import { useSyncAwareErrorToast } from '@/ui/ToastContext';
 import { useTheme, type Theme } from '@/ui/useTheme';
+import { useFontScale } from '@/ui/useFontScale';
 
 export default function HistoryDetailScreen() {
   const { id } = useLocalSearchParams<{ id: string }>();
   const detail = useWorkoutDetail(id);
   const theme = useTheme();
   const styles = useMemo(() => makeStyles(theme), [theme]);
+  // Sizes the trailing chevron on pressable set rows — it sits inline with
+  // numeral text, so it rides the same capped scale as Today's history-link
+  // arrow (impeccable r2 wave 2 S3).
+  const fontScale = useFontScale();
   const qc = useQueryClient();
   // Mirrors WorkoutActive's toastError construction exactly (WorkoutActive.tsx:63-64).
   const syncAwareError = useSyncAwareErrorToast();
@@ -140,6 +145,11 @@ export default function HistoryDetailScreen() {
                 .filter(Boolean)
                 .join(' · ')}
             </Text>
+            {/* Correction affordance (P2, impeccable r2 wave 2 S3): names the
+                interaction up front — inkTertiary now passes body contrast. */}
+            <Text variant="meta" color={theme.color.inkTertiary}>
+              Tap a set to correct it.
+            </Text>
             {workout.note ? (
               <Text variant="meta" color={theme.color.inkSecondary} style={styles.note}>
                 {workout.note}
@@ -232,6 +242,13 @@ export default function HistoryDetailScreen() {
                       ]}
                     >
                       {rowContent}
+                      {/* Record-quiet correction affordance (S3): only rows
+                          that are actually pressable earn the chevron. */}
+                      <Icon
+                        name="chevron-right"
+                        size={Math.round(14 * fontScale)}
+                        color={theme.color.inkTertiary}
+                      />
                     </Pressable>
                   );
                 })}
@@ -240,16 +257,20 @@ export default function HistoryDetailScreen() {
           </FadeInView>
         ))}
 
-        <Button
-          label="Delete workout"
-          kind="danger"
-          size="row"
-          loading={deleting}
-          onPress={() => setDeleteConfirm(true)}
-          accessibilityLabel="Delete this workout"
-          accessibilityHint="Removes it from history and recomputes records"
-          style={styles.deleteBtn}
-        />
+        {/* Demoted (P2, impeccable r2 wave 2 S3): a hairline rule + extra top
+            margin stop Delete from reading as the screen's visual conclusion. */}
+        <View style={styles.deleteSection}>
+          <Button
+            label="Delete workout"
+            kind="danger"
+            size="row"
+            loading={deleting}
+            onPress={() => setDeleteConfirm(true)}
+            accessibilityLabel="Delete this workout"
+            accessibilityHint="Removes it from history and recomputes records"
+            style={styles.deleteBtn}
+          />
+        </View>
       </ScrollView>
 
       {editTarget && userId ? (
@@ -329,5 +350,11 @@ const makeStyles = (theme: Theme) =>
       alignItems: 'center',
       justifyContent: 'center',
     },
-    deleteBtn: { marginTop: theme.space.section, alignSelf: 'center' },
+    deleteSection: {
+      marginTop: theme.space.section,
+      paddingTop: theme.space.section,
+      borderTopWidth: theme.depth.hairline,
+      borderTopColor: theme.color.border,
+    },
+    deleteBtn: { alignSelf: 'center' },
   });

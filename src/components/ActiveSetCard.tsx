@@ -332,10 +332,20 @@ const ActiveSetCardBase = forwardRef<ActiveSetCardHandle, Props>(function Active
         ) : null}
 
         <View style={styles.swipeHintRow}>
-          {/* Signature interaction — must not be the faintest text on the
-              card, so inkSecondary rather than inkTertiary (impeccable batch 2). */}
-          <Text variant="meta" color={theme.color.inkSecondary}>
-            {canComplete ? '↑ Swipe up to log' : 'Enter reps to log this set'}
+          {/* Button-first (impeccable r2 wave 2 S2): the swipe survives as an
+              undocumented shortcut, so it no longer advertises itself once the
+              set is ready — the bottom bar's `Log set · 52.5 kg × 5` echo is
+              the teaching now. The gated state still needs the hint, since
+              nothing else on screen explains why the button is disabled.
+              Same string renders at opacity 0 in the ready state (rather than
+              unmounting) so the line's height is always reserved — the card
+              must not visibly resize the instant the gate opens. */}
+          <Text
+            variant="meta"
+            color={theme.color.inkSecondary}
+            style={canComplete && styles.hintHidden}
+          >
+            Enter reps to log this set
           </Text>
         </View>
       </Animated.View>
@@ -387,6 +397,7 @@ const makeStyles = (theme: Theme) =>
       minHeight: theme.touch.min,
     },
     swipeHintRow: { marginTop: theme.space.s6, alignItems: 'center' },
+    hintHidden: { opacity: 0 },
     voiceRow: { marginTop: theme.space.s4, alignItems: 'center' },
     voiceText: { fontStyle: 'italic' },
   });

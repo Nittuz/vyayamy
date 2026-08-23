@@ -46,6 +46,14 @@ interface Props {
   onScrub?: (point: ChartPoint | null) => void;
   /** The currently scrubbed point (controlled by the parent), drawn emphasized. */
   scrubX?: number | null;
+  /**
+   * A11y summary for the whole chart (impeccable r2 wave 2 S4) — the chart is
+   * generic (it doesn't know the metric name or units), so the caller builds
+   * the words from the same data it already has in scope and passes them in.
+   * Omit only when the caller has no meaningful summary to give (e.g. an
+   * empty series where the "No data yet" text already speaks for itself).
+   */
+  accessibilityLabel?: string;
 }
 
 const PADDING = { top: 18, right: 16, bottom: 28, left: 44 };
@@ -60,6 +68,7 @@ export function LineChart({
   markers,
   onScrub,
   scrubX = null,
+  accessibilityLabel,
 }: Props) {
   const theme = useTheme();
 
@@ -344,10 +353,26 @@ export function LineChart({
 
   // Tap-scrub wraps the SVG in a Pan GestureDetector when onScrub is supplied;
   // otherwise the chart renders exactly as before (graceful degrade).
-  if (panGesture) {
-    return <GestureDetector gesture={panGesture}>{svg}</GestureDetector>;
-  }
-  return svg;
+  const gestureWrapped = panGesture ? (
+    <GestureDetector gesture={panGesture}>{svg}</GestureDetector>
+  ) : (
+    svg
+  );
+
+  // A raw Svg is invisible to screen readers — its individual shapes would
+  // otherwise be silently skipped (no announcement at all) rather than read
+  // as a chart (impeccable r2 wave 2 S4). `accessible` collapses the whole
+  // subtree into one element carrying the caller-supplied summary.
+  return (
+    <View
+      style={{ width, height }}
+      accessible
+      accessibilityRole="image"
+      accessibilityLabel={accessibilityLabel}
+    >
+      {gestureWrapped}
+    </View>
+  );
 }
 
 const styles = StyleSheet.create({
