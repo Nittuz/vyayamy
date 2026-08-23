@@ -5,14 +5,17 @@
  * personal-records recompute path so an edited or removed set can never leave
  * a phantom PR behind (recompute is authoritative, #138).
  */
+import { useQueryClient } from '@tanstack/react-query';
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { StyleSheet, View } from 'react-native';
 
 import { type SetShape } from '@/components/activeSet';
 import { NumericStepper, type NumericStepperHandle } from '@/components/NumericStepperView';
+import { queryKeys } from '@/queries/keys';
 import { recomputeExercisePRs } from '@/queries/personalRecords';
 import { useDeleteSet, useUpdateSet } from '@/queries/sets';
 import { Button } from '@/ui/Button';
+import { ConfirmSheet } from '@/ui/ConfirmSheet';
 import { haptics } from '@/ui/haptics';
 import { Sheet } from '@/ui/Sheet';
 import { Text } from '@/ui/Text';
@@ -30,6 +33,8 @@ interface Props {
   units: 'kg' | 'lb';
   weightStep: number; // 2.5 (kg) or 5 (lb)
   weightUnit: 'LB' | 'KG';
+  /** Gate Delete behind a confirm — finished sets are records (spec 2026-08-22 §1). */
+  confirmDelete?: boolean;
   onClose: () => void;
   onError?: (msg: string) => void;
 }
@@ -44,13 +49,16 @@ export function EditSetSheet({
   units,
   weightStep,
   weightUnit,
+  confirmDelete = false,
   onClose,
   onError,
 }: Props) {
   const theme = useTheme();
   const styles = useMemo(() => makeStyles(theme), [theme]);
+  const qc = useQueryClient();
   const updateSet = useUpdateSet(onError);
   const deleteSet = useDeleteSet(onError);
+  const [deleteConfirm, setDeleteConfirm] = useState(false);
 
   const [weight, setWeight] = useState<number | null>(set.weight);
   const [reps, setReps] = useState<number | null>(set.reps);
@@ -66,8 +74,15 @@ export function EditSetSheet({
 
   // Fire-and-forget: the recompute path is serialized internally and only
   // counts finished workouts, so this is safe to kick after every edit.
+  // Invalidate Progress/History so a correction here shows up on next focus
+  // without waiting for a pull (spec 2026-08-22 §5).
   const recompute = () => {
-    void recomputeExercisePRs(userId, exerciseId).catch(() => {});
+    void recomputeExercisePRs(userId, exerciseId)
+      .then(() => {
+        void qc.invalidateQueries({ queryKey: queryKeys.personalRecords(userId) });
+        void qc.invalidateQueries({ queryKey: queryKeys.history(userId) });
+      })
+      .catch(() => {});
   };
 
   const handleSave = () => {
@@ -117,66 +132,77 @@ export function EditSetSheet({
   };
 
   return (
-    <Sheet
-      visible={visible}
-      onClose={onClose}
-      title={`Edit set ${setNumber}`}
-      footer={
-        <>
-          <Button
-            label="Save changes"
-            size="row"
-            loading={updateSet.isPending}
-            onPress={handleSave}
-            accessibilityLabel={`Save changes to set ${setNumber}`}
-          />
-          <Button
-            label="Delete set"
-            kind="danger"
-            size="row"
-            loading={deleteSet.isPending}
-            onPress={handleDelete}
-            accessibilityLabel={`Delete set ${setNumber}`}
-            accessibilityHint="Removes this set from the workout"
-          />
-        </>
-      }
-    >
-      <Text variant="meta" color={theme.color.inkSecondary}>
-        {exerciseName}
-      </Text>
-      <View style={styles.fieldRow}>
-        <Text variant="strip" color={theme.color.inkTertiary}>
-          WEIGHT · {weightUnit}
+    <>
+      <Sheet
+        visible={visible}
+        onClose={onClose}
+        title={`Edit set ${setNumber}`}
+        footer={
+          <>
+            <Button
+              label="Save changes"
+              size="row"
+              loading={updateSet.isPending}
+              onPress={handleSave}
+              accessibilityLabel={`Save changes to set ${setNumber}`}
+            />
+            <Button
+              label="Delete set"
+              kind="danger"
+              size="row"
+              loading={deleteSet.isPending}
+              onPress={() => (confirmDelete ? setDeleteConfirm(true) : handleDelete())}
+              accessibilityLabel={`Delete set ${setNumber}`}
+              accessibilityHint="Removes this set from the workout"
+            />
+          </>
+        }
+      >
+        <Text variant="meta" color={theme.color.inkSecondary}>
+          {exerciseName}
         </Text>
-        <NumericStepper
-          ref={weightRef}
-          value={weight}
-          step={weightStep}
-          unit={weightUnit}
-          onChange={setWeight}
-          accessoryLabel="NEXT → REPS"
-          onAccessoryPress={() => repsRef.current?.openKeypad()}
-          size="inline"
-          testID="edit-weight-stepper"
-        />
-      </View>
-      <View style={styles.fieldRow}>
-        <Text variant="strip" color={theme.color.inkTertiary}>
-          REPS
-        </Text>
-        <NumericStepper
-          ref={repsRef}
-          value={reps}
-          step={1}
-          unit="REPS"
-          onChange={setReps}
-          accessoryLabel="DONE"
-          size="inline"
-          testID="edit-reps-stepper"
-        />
-      </View>
-    </Sheet>
+        <View style={styles.fieldRow}>
+          <Text variant="strip" color={theme.color.inkTertiary}>
+            WEIGHT · {weightUnit}
+          </Text>
+          <NumericStepper
+            ref={weightRef}
+            value={weight}
+            step={weightStep}
+            unit={weightUnit}
+            onChange={setWeight}
+            accessoryLabel="NEXT → REPS"
+            onAccessoryPress={() => repsRef.current?.openKeypad()}
+            size="inline"
+            testID="edit-weight-stepper"
+          />
+        </View>
+        <View style={styles.fieldRow}>
+          <Text variant="strip" color={theme.color.inkTertiary}>
+            REPS
+          </Text>
+          <NumericStepper
+            ref={repsRef}
+            value={reps}
+            step={1}
+            unit="REPS"
+            onChange={setReps}
+            accessoryLabel="DONE"
+            size="inline"
+            testID="edit-reps-stepper"
+          />
+        </View>
+      </Sheet>
+      <ConfirmSheet
+        visible={deleteConfirm}
+        onClose={() => setDeleteConfirm(false)}
+        title={`Delete set ${setNumber}?`}
+        message="Removes it from this workout and recomputes records."
+        confirmLabel="Delete set"
+        destructive
+        onConfirm={handleDelete}
+      />
+    </>
   );
 }
 
