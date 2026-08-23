@@ -69,7 +69,14 @@ export function SessionRecap({
           Volume
         </Text>
         <View style={styles.headlineRow}>
-          <AnimatedText animatedProps={volumeProps} style={styles.headlineValue}>
+          <AnimatedText
+            animatedProps={volumeProps}
+            style={styles.headlineValue}
+            // VoiceOver reads animatedProps' mount value ("0") — announce the
+            // real total instead (re-score fix).
+            accessible
+            accessibilityLabel={`${Math.round(volume)} ${units} total volume`}
+          >
             {mountText}
           </AnimatedText>
           <RNText style={styles.headlineUnit}> {units}</RNText>

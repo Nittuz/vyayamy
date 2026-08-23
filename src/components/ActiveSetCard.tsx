@@ -227,7 +227,10 @@ const ActiveSetCardBase = forwardRef<ActiveSetCardHandle, Props>(function Active
     <GestureDetector gesture={pan}>
       <Animated.View
         style={[styles.container, animatedStyle]}
-        accessibilityLabel={`Set ${setIndex}, ${set.weight ?? 'bodyweight'} by ${set.reps ?? 'no reps'} reps. Swipe up to complete.`}
+        // accessible: without it the label/actions never form a VoiceOver
+        // element and the swipe-alternative action is unreachable (#9.1).
+        accessible
+        accessibilityLabel={`Set ${setIndex}, ${set.weight ?? 'bodyweight'}${set.weight != null && set.units ? ` ${set.units}` : ''} by ${set.reps ?? 'no reps'} reps. Swipe up to complete.`}
         accessibilityHint="Swipe up to mark this set complete"
         accessibilityActions={canComplete ? COMPLETE_ACTION : undefined}
         onAccessibilityAction={onAccessibilityAction}
