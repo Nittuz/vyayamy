@@ -91,7 +91,10 @@ export function formatShortDate(dateStr: string): string {
  * sections, so both would be redundant noise on every row.
  */
 export function formatRowDate(dateStr: string): string {
-  return new Date(dateStr).toLocaleDateString(undefined, {
+  // 'en-US' pinned: the app's copy is English-only, and an unpinned locale
+  // makes the output (and its exact-match test) depend on the host's ICU
+  // env — a CI-image change away from a false failure (review 2026-08-23).
+  return new Date(dateStr).toLocaleDateString('en-US', {
     month: 'short',
     day: 'numeric',
   });
