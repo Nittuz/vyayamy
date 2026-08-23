@@ -150,7 +150,18 @@ export function ToastProvider({ children }: { children: React.ReactNode }) {
           pointerEvents={hasAction ? 'box-none' : 'none'}
           style={[styles.wrap, animatedStyle]}
         >
-          <View style={[styles.toast, toast.kind === 'error' && styles.error]}>
+          <View
+            style={[
+              styles.toast,
+              toast.kind === 'error' && styles.error,
+              // Only when there's an action row: a definite width is what
+              // lets messageInRow's flex:1 resolve against (see toastStretch's
+              // doc comment). The no-action pill stays intrinsically sized —
+              // stretching it too would read as an oversized bar for a short
+              // message, which is worse.
+              hasAction && styles.toastStretch,
+            ]}
+          >
             {hasAction ? (
               <View style={styles.row}>
                 <Text
@@ -237,6 +248,10 @@ const makeStyles = (theme: Theme, bottomInset: number) => {
       // judged worse.
       bottom: bottomInset + theme.space.s4,
       alignItems: 'center',
+      // Room for the pill to stretch into (toastStretch below) without
+      // touching the screen edges — wrap itself spans full width
+      // (left:0/right:0), so without this the stretched pill would too.
+      paddingHorizontal: theme.space.s5,
     },
     toast: {
       maxWidth: 360,
@@ -245,6 +260,22 @@ const makeStyles = (theme: Theme, bottomInset: number) => {
       // Inverted pill: ink-on-bg stays high-contrast in both schemes (was pinned
       // to the dark palette, so it clashed in light mode, #23).
       backgroundColor: theme.color.ink,
+    },
+    // Applied only when hasAction (see the View's style array above). The
+    // real bug behind the "invisible" message report (live-QA correction):
+    // `toast` has no definite width — only maxWidth — and `wrap`'s
+    // alignItems:'center' shrink-wraps it to content instead of stretching.
+    // Inside, `messageInRow` is `flex:1`, i.e. flexBasis 0: a 0-basis child
+    // contributes ~nothing to an auto/shrink-wrap parent's width
+    // calculation, so the row's intrinsic width converged on roughly just
+    // the action label's width, and the message flexed into ~0 width — not
+    // a color problem, a sizing one (the color hardening in
+    // resolveToastMessageColor still stands; it just wasn't the message's
+    // actual bug). alignSelf:'stretch' gives `toast` a definite width (wrap's
+    // available width, still capped at maxWidth 360) for flex:1 to resolve
+    // against, and wrap's paddingHorizontal above keeps it off the edges.
+    toastStretch: {
+      alignSelf: 'stretch',
     },
     error: {
       backgroundColor: theme.color.danger,
