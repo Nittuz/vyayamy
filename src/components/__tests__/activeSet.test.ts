@@ -1,5 +1,5 @@
 import {
-  countIncompleteSets,
+  countDiscardableSets,
   findNextExercise,
   setRowToShape,
   shouldConfirmLeavingSet,
@@ -184,17 +184,91 @@ describe('setRowToShape', () => {
   });
 });
 
-describe('countIncompleteSets', () => {
-  it('counts only incomplete sets across exercises', () => {
-    const ex = (sets: Partial<SetShape>[]): ExerciseShape =>
-      ({ id: 'we', exerciseId: 'e', exerciseName: 'X', orderIndex: 0, sets }) as never;
-    expect(
-      countIncompleteSets([
-        ex([{ completed: true }, { completed: false }]),
-        ex([{ completed: false }]),
+describe('countDiscardableSets', () => {
+  // Fixture matches the field set shouldConfirmLeavingSet reads (id/weId/
+  // orderIndex/weight/reps/units/completed) — countDiscardableSets forwards
+  // straight to it per-set, so these pin the same semantics at the exercises
+  // level rather than re-deriving them.
+  const s = (over: Partial<SetShape>): SetShape => ({
+    id: 's',
+    weId: 'we',
+    orderIndex: 0,
+    weight: null,
+    reps: null,
+    units: null,
+    completed: false,
+    ...over,
+  });
+  const ex = (sets: SetShape[]): ExerciseShape => ({
+    id: sets[0]?.weId ?? 'we',
+    exerciseId: 'e',
+    exerciseName: 'X',
+    orderIndex: 0,
+    sets,
+  });
+  const noMarkers: ReadonlyMap<string, AutoStagedSet> = new Map();
+
+  it('a flawless workout (all completed + an untouched, truly-empty auto-staged tail) discards nothing', () => {
+    // The tail carries no marker at all — e.g. it survived a resume, where
+    // useWorkoutCursor's marker ref resets (the documented over-warn-never-
+    // under-warn caveat doesn't apply here because shouldConfirmLeavingSet
+    // already excludes an empty set regardless of marker).
+    const exercises = [
+      ex([
+        s({ id: 's1', completed: true, weight: 100, reps: 5 }),
+        s({ id: 's2', completed: true, weight: 100, reps: 5 }),
+        s({ id: 's3', completed: false, weight: null, reps: null }), // auto-staged tail, untouched
       ]),
-    ).toBe(2);
-    expect(countIncompleteSets([ex([{ completed: true }])])).toBe(0);
-    expect(countIncompleteSets([])).toBe(0);
+    ];
+    expect(countDiscardableSets(exercises, noMarkers)).toBe(0);
+  });
+
+  it('an untouched auto-staged set carrying values is excluded when its marker matches', () => {
+    // Completing a set carries its weight × reps into the next staged set
+    // (planStagedSet) — "has values" alone can't distinguish that from a set
+    // the user actually typed, so the marker is what makes it silent.
+    const markers: ReadonlyMap<string, AutoStagedSet> = new Map([
+      ['s2', { id: 's2', weight: 100, reps: 5 }],
+    ]);
+    const exercises = [
+      ex([
+        s({ id: 's1', completed: true, weight: 100, reps: 5 }),
+        s({ id: 's2', completed: false, weight: 100, reps: 5 }), // == marker, untouched
+      ]),
+    ];
+    expect(countDiscardableSets(exercises, markers)).toBe(0);
+  });
+
+  it('counts a set the user typed into with no marker at all', () => {
+    const exercises = [ex([s({ id: 's1', completed: false, weight: 60, reps: 8 })])];
+    expect(countDiscardableSets(exercises, noMarkers)).toBe(1);
+  });
+
+  it('counts a staged set once the user edits it away from its marker', () => {
+    const markers: ReadonlyMap<string, AutoStagedSet> = new Map([
+      ['s2', { id: 's2', weight: 100, reps: 5 }],
+    ]);
+    const exercises = [
+      ex([
+        s({ id: 's1', completed: true, weight: 100, reps: 5 }),
+        s({ id: 's2', completed: false, weight: 105, reps: 5 }), // edited weight
+      ]),
+    ];
+    expect(countDiscardableSets(exercises, markers)).toBe(1);
+  });
+
+  it('sums discardable sets across exercises', () => {
+    const exercises = [
+      ex([
+        s({ id: 'a1', weId: 'wa', completed: true, weight: 100, reps: 5 }),
+        s({ id: 'a2', weId: 'wa', completed: false, weight: 60, reps: 8 }), // counts
+      ]),
+      ex([s({ id: 'b1', weId: 'wb', completed: false, weight: 40, reps: 10 })]), // counts
+    ];
+    expect(countDiscardableSets(exercises, noMarkers)).toBe(2);
+  });
+
+  it('empty workout discards nothing', () => {
+    expect(countDiscardableSets([], noMarkers)).toBe(0);
   });
 });

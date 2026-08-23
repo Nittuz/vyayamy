@@ -295,8 +295,11 @@ export default function TodayScreen() {
   // Poster mode (the two-line display headline) is earned only by the quiet
   // states — nothing else competing for attention: an empty slot with
   // nothing to act on, or a rest day (its own breathing moment, spec
-  // 2026-08-10). Every other state yields to the act-now card below.
-  const isPoster = slotState === 'empty' || schedule?.kind === 'rest';
+  // 2026-08-10) — but the rest day only counts when nothing is actually
+  // running (same guard the rest strip below uses): a workout resumed on a
+  // scheduled rest day is never a quiet moment. Every other state yields to
+  // the act-now card below.
+  const isPoster = slotState === 'empty' || (!activeQuery.data && schedule?.kind === 'rest');
 
   return (
     <SafeAreaView style={styles.container}>

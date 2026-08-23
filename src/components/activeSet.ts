@@ -45,9 +45,36 @@ export function setRowToShape(s: SetRow): SetShape {
   };
 }
 
-/** Incomplete sets a Finish would prune (confirm gate, spec 2026-08-22 §3). */
-export function countIncompleteSets(exercises: ExerciseShape[]): number {
-  return exercises.reduce((n, ex) => n + ex.sets.filter((s) => !s.completed).length, 0);
+/**
+ * Incomplete sets a Finish would prune that carry USER intent (confirm gate,
+ * spec 2026-08-22 §3). Every completion auto-stages a trailing set in the
+ * same exercise (onComplete) and every fresh exercise auto-stages a first
+ * set (stageFirstSet) — a flawless workout always ends with one of these
+ * sitting incomplete, so a plain `!completed` count would warn on EVERY
+ * finish. Delegates to the same tested predicate the leave-set confirm uses
+ * (shouldConfirmLeavingSet) so "did the user actually touch this" is decided
+ * in exactly one place.
+ *
+ * Caveat: `stagedMarkers` only tracks sets staged during the CURRENT mount
+ * (useWorkoutCursor's ref starts empty on every mount/resume). A staged-but-
+ * untouched set from before a resume therefore has no marker — if it carries
+ * non-null values (e.g. weight × reps carried over before the app closed),
+ * shouldConfirmLeavingSet reads that as user intent and counts it. That's an
+ * over-warn, never an under-warn: a merely-annoying extra confirm, not a
+ * silently discarded real set.
+ */
+export function countDiscardableSets(
+  exercises: ExerciseShape[],
+  stagedMarkers: ReadonlyMap<string, AutoStagedSet>,
+): number {
+  return exercises.reduce(
+    (n, ex) =>
+      n +
+      ex.sets.filter(
+        (s) => !s.completed && shouldConfirmLeavingSet(s, stagedMarkers.get(s.id) ?? null),
+      ).length,
+    0,
+  );
 }
 
 export interface ActiveCursor {

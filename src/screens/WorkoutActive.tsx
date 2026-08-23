@@ -9,7 +9,7 @@ import { ActiveSetCard, type ActiveSetCardHandle } from '@/components/ActiveSetC
 import {
   canCompleteSet,
   completedSetsBeforeCursor,
-  countIncompleteSets,
+  countDiscardableSets,
   type ExerciseShape,
   findNextExercise,
   findPrevExercise,
@@ -86,6 +86,12 @@ export default function WorkoutActiveScreen() {
 
   const addExercise = useAddExerciseToWorkout(toastError);
   const updateSet = useUpdateSet(toastError);
+  // TanStack's useMutation returns a fresh object every render; `.mutate`
+  // itself is stable across renders, so depending on THIS instead of
+  // `updateSet` keeps onChangeWeight/onChangeReps/onComplete referentially
+  // stable — otherwise they churn every render and defeat ActiveSetCard's
+  // memo (Batch 2 P1) on every keystroke (final review F2).
+  const updateSetMutate = updateSet.mutate;
   const finishWorkout = useFinishWorkout(userId, toastError);
   const updateTitle = useUpdateWorkoutTitle(toastError);
 
@@ -202,21 +208,21 @@ export default function WorkoutActiveScreen() {
       // #131); clearing the weight clears the stamp with it. (EditSetSheet
       // deliberately differs: editing a LOGGED set keeps its historical stamp
       // on clear — don't "unify" these.)
-      updateSet.mutate({
+      updateSetMutate({
         setId: cursor.setId,
         weId: cursor.weId,
         patch: { weight: next, units: next != null ? units : null },
       });
     },
-    [cursor, updateSet, units],
+    [cursor, updateSetMutate, units],
   );
 
   const onChangeReps = useCallback(
     (next: number | null) => {
       if (!cursor) return;
-      updateSet.mutate({ setId: cursor.setId, weId: cursor.weId, patch: { reps: next } });
+      updateSetMutate({ setId: cursor.setId, weId: cursor.weId, patch: { reps: next } });
     },
-    [cursor, updateSet],
+    [cursor, updateSetMutate],
   );
 
   // Guards against a swipe + voice "done" double-fire racing two completions /
@@ -228,7 +234,7 @@ export default function WorkoutActiveScreen() {
       completingRef.current = true;
       try {
         // Mark the current set complete
-        updateSet.mutate({ setId: cursor.setId, weId: cursor.weId, patch: { completed: true } });
+        updateSetMutate({ setId: cursor.setId, weId: cursor.weId, patch: { completed: true } });
         timer.start();
         // Auto-stage the next set with the same weight × reps (Phase 3).
         // Overlay the just-flushed keypad values — the cached set may lag an
@@ -252,7 +258,7 @@ export default function WorkoutActiveScreen() {
     [
       cursor,
       currentExForRest,
-      updateSet,
+      updateSetMutate,
       timer,
       refreshDetail,
       units,
@@ -493,7 +499,7 @@ export default function WorkoutActiveScreen() {
 
   // Cursor is null → all exercises complete → show Finish summary
   if (!cursor) {
-    const incomplete = countIncompleteSets(exercises);
+    const incomplete = countDiscardableSets(exercises, stagedMarkers);
     return (
       <SafeAreaView style={[styles.container, { backgroundColor: theme.color.bg }]}>
         <Stack.Screen options={screenOptions} />

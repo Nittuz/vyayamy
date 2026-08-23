@@ -25,14 +25,6 @@ export default function TrainingPlanScreen() {
   // Recommended foreground for the inverted (training-day) plates.
   const invertedInk = resolvePlateStyles(theme, { tone: 'inverted' }).ink;
 
-  if (planQuery.isLoading) {
-    return (
-      <SafeAreaView style={[styles.container, styles.center]}>
-        <ActivityIndicator color={theme.color.inkSecondary} />
-      </SafeAreaView>
-    );
-  }
-
   const plan = planQuery.data;
 
   return (
@@ -40,14 +32,18 @@ export default function TrainingPlanScreen() {
       <ScrollView contentContainerStyle={styles.scroll}>
         {/* Chrome title moved in-screen (Anton display, matching Progress/
             Profile) — the nav header now carries only the back chevron
-            (impeccable batch 5). */}
+            (impeccable batch 5). Rendered above the loading branch below so
+            the screen is never titleless while the plan query is in flight
+            (final review F5). */}
         <SettleSlam>
           <Text variant="displayXL" color={theme.color.inkHero}>
             Training plan
           </Text>
         </SettleSlam>
 
-        {!plan ? (
+        {planQuery.isLoading ? (
+          <ActivityIndicator color={theme.color.inkSecondary} style={styles.loading} />
+        ) : !plan ? (
           <View style={styles.emptyWrap}>
             <EmptyState
               title="No training plan yet."
@@ -134,7 +130,7 @@ export default function TrainingPlanScreen() {
 const makeStyles = (theme: Theme) =>
   StyleSheet.create({
     container: { flex: 1, backgroundColor: theme.color.bg },
-    center: { alignItems: 'center', justifyContent: 'center' },
+    loading: { marginTop: theme.space.s8 },
     scroll: { padding: theme.space.page, gap: theme.space.s4 },
     headerRow: { flexDirection: 'row', alignItems: 'center', gap: theme.space.s3 },
     headerText: { flex: 1 },

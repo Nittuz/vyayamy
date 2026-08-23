@@ -316,8 +316,7 @@ const makeStyles = (theme: Theme) =>
       borderTopWidth: theme.depth.hairline,
       borderTopColor: theme.color.border,
     },
-    // Quiet opacity dip — matches Today.tsx's historyLink press feedback
-    // (this screen stays ink/danger only, no volt).
+    // Quiet opacity dip — matches Today.tsx's historyLink press feedback.
     setRowPressed: { opacity: 0.6 },
     setIndex: {
       width: 24,

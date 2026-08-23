@@ -59,6 +59,14 @@ export function EditSetSheet({
   const updateSet = useUpdateSet(onError);
   const deleteSet = useDeleteSet(onError);
   const [deleteConfirm, setDeleteConfirm] = useState(false);
+  // Ref latch, not `deleteSet.isPending` (HistoryDetail's deletingRef
+  // precedent): ConfirmSheet's confirm button stays tappable through its
+  // ~220ms exit animation, so a second tap can land before `isPending`'s
+  // state update has committed. A ref read is synchronous; mutation state
+  // isn't. Reset once the mutation settles (success or error) — this sheet
+  // stays mounted across open/close cycles (the parent keeps `editTarget`
+  // alive through the exit animation), so the ref must not stay latched.
+  const deletingRef = useRef(false);
 
   const [weight, setWeight] = useState<number | null>(set.weight);
   const [reps, setReps] = useState<number | null>(set.reps);
@@ -119,10 +127,8 @@ export function EditSetSheet({
   };
 
   const handleDelete = () => {
-    // ConfirmSheet's confirm button stays tappable through its exit
-    // animation (same double-tap shape as onDeleteWorkout) — one-line guard,
-    // no API change.
-    if (deleteSet.isPending) return;
+    if (deletingRef.current) return;
+    deletingRef.current = true;
     haptics.medium();
     deleteSet.mutate(
       { setId: set.id, weId: set.weId },
@@ -130,6 +136,9 @@ export function EditSetSheet({
         onSuccess: () => {
           recompute();
           onClose();
+        },
+        onSettled: () => {
+          deletingRef.current = false;
         },
       },
     );
