@@ -25,8 +25,25 @@
  * in the component).
  */
 
-/** `157.5 -> "158"` — the exact text both the worklet and the settle fallback render. */
+/**
+ * `157.5 -> "158"` — the exact text both the worklet and the settle fallback
+ * render.
+ *
+ * Called from the UI thread (by `settledCounterText`, itself called from a
+ * `withTiming` completion callback) as well as from plain JS (the
+ * components' initial `useState`) — the `'worklet'` directive is load-
+ * bearing for the former: without it, Metro/Babel doesn't bundle this
+ * function for the UI runtime, and calling it from worklet context throws
+ * `[Worklets] Tried to synchronously call a non-worklet function` at
+ * runtime (live-QA regression, SessionRecap.tsx). A worklet-marked function
+ * is still perfectly callable from JS thread — the directive only ADDS UI-
+ * thread capability, so this stays correct either way. `ts-jest` compiles
+ * this file with plain tsc (no Babel, no worklets plugin), so the directive
+ * is an inert string literal under Jest — node tests cannot verify this
+ * requirement at all; it only matters, and only fails, on-device.
+ */
 export function formatCounterText(volume: number): string {
+  'worklet';
   // `Math.round` alone can hand back a `-0` for tiny negative inputs, which
   // template-literal-stringifies to "-0" — never a real volume, but worth
   // killing at the source so the label is never surprising.
@@ -45,10 +62,15 @@ export function formatCounterText(volume: number): string {
  * fires — the newer run's own completion (or lack thereof) owns the label
  * from that point on. `undefined` is treated the same as `false`: without a
  * confirmed finish, settling is not safe.
+ *
+ * Called directly inside a `withTiming` completion callback, i.e. on the UI
+ * thread — the `'worklet'` directive is load-bearing (see formatCounterText
+ * above); node tests cannot verify it, only on-device runs can.
  */
 export function settledCounterText(
   finished: boolean | undefined,
   targetVolume: number,
 ): string | null {
+  'worklet';
   return finished ? formatCounterText(targetVolume) : null;
 }
