@@ -1,7 +1,7 @@
 import { useQueryClient } from '@tanstack/react-query';
 import { router, Stack } from 'expo-router';
 import { useCallback, useMemo, useRef, useState } from 'react';
-import { ActivityIndicator, ScrollView, StyleSheet, View } from 'react-native';
+import { ActivityIndicator, Pressable, ScrollView, StyleSheet, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
 import { useAuth } from '@/auth/useAuth';
@@ -24,6 +24,7 @@ import { EditSetSheet } from '@/components/EditSetSheet';
 import { ExercisePicker } from '@/components/ExercisePicker';
 import { SessionVolumeBar } from '@/components/SessionVolumeBar';
 import { SyncErrorStripe } from '@/components/SyncErrorStripe';
+import { VoiceHelpSheet } from '@/components/VoiceHelpSheet';
 import { VoiceMicButton } from '@/components/VoiceMicButton';
 import { useVoiceSession } from '@/voice/useVoiceSession';
 import { useAddExerciseToWorkout } from '@/queries/exercises';
@@ -89,6 +90,7 @@ export default function WorkoutActiveScreen() {
   const updateTitle = useUpdateWorkoutTitle(toastError);
 
   const [pickerOpen, setPickerOpen] = useState(false);
+  const [voiceHelpOpen, setVoiceHelpOpen] = useState(false);
   const [discardConfirm, setDiscardConfirm] = useState(false);
   // Recap branch only (spec 2026-08-22 §3): destructive confirm when Finish
   // would prune incomplete sets. Declared here, not inside the `!cursor`
@@ -635,6 +637,20 @@ export default function WorkoutActiveScreen() {
               accessibilityLabel="Confirm voice command"
             />
           ) : null}
+          {voice.available ? (
+            // hitSlop pads the meta-line label (~19pt) up to the 44pt touch
+            // minimum without reflowing the voice row's layout.
+            <Pressable
+              onPress={() => setVoiceHelpOpen(true)}
+              hitSlop={14}
+              accessibilityRole="button"
+              accessibilityLabel="Voice command help"
+            >
+              <Text variant="meta" color={theme.color.inkSecondary}>
+                What can I say
+              </Text>
+            </Pressable>
+          ) : null}
         </View>
         <Button
           label="Add exercise"
@@ -718,6 +734,7 @@ export default function WorkoutActiveScreen() {
         saving={setWorkoutNoteMut.isPending || setExerciseNoteMut.isPending}
         onSave={(changes) => onSaveNotes(changes, noteTarget?.weId)}
       />
+      <VoiceHelpSheet visible={voiceHelpOpen} onClose={() => setVoiceHelpOpen(false)} />
       {currentEx ? (
         <RestOverrideSheet
           visible={overrideSheetOpen}
