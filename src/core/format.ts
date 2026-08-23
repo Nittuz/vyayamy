@@ -159,6 +159,27 @@ export function getInitials(
   return '?';
 }
 
+export interface IdentityLines {
+  headline: string;
+  secondary: string | null;
+}
+
+/**
+ * Profile's ghost identity block (impeccable polish A): once a display name
+ * exists it leads (the headline), with the email demoted to a secondary
+ * line beneath it; with no display name, the email keeps leading exactly as
+ * before (no secondary line). A whitespace-only name doesn't count as
+ * "having a name" — mirrors getInitials' own blank handling above.
+ */
+export function identityLines(
+  displayName: string | null | undefined,
+  email: string | null | undefined,
+): IdentityLines {
+  const name = displayName?.trim();
+  if (name) return { headline: name, secondary: email ?? null };
+  return { headline: email ?? '', secondary: null };
+}
+
 /**
  * Honest fallback for a snake_case enum with no curated label ("best_volume"
  * → "Best volume") — used when a lookup table like Progress's PR_LABEL

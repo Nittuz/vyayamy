@@ -12,6 +12,7 @@ import {
   greetingFor,
   formatMemberSince,
   getInitials,
+  identityLines,
   formatWeight,
   humanizeEnum,
   localDayKey,
@@ -243,6 +244,44 @@ describe('getInitials', () => {
 
   test('returns "?" when nothing is available', () => {
     expect(getInitials(null, undefined)).toBe('?');
+  });
+});
+
+describe('identityLines', () => {
+  test('name leads, email demotes to secondary, when a display name exists', () => {
+    expect(identityLines('Naren', 'nittuz4@gmail.com')).toEqual({
+      headline: 'Naren',
+      secondary: 'nittuz4@gmail.com',
+    });
+  });
+
+  test('trims a display name before using it as the headline', () => {
+    expect(identityLines('  Naren  ', 'nittuz4@gmail.com')).toEqual({
+      headline: 'Naren',
+      secondary: 'nittuz4@gmail.com',
+    });
+  });
+
+  test('email leads alone when there is no display name', () => {
+    expect(identityLines(null, 'nittuz4@gmail.com')).toEqual({
+      headline: 'nittuz4@gmail.com',
+      secondary: null,
+    });
+    expect(identityLines(undefined, 'nittuz4@gmail.com')).toEqual({
+      headline: 'nittuz4@gmail.com',
+      secondary: null,
+    });
+  });
+
+  test('a whitespace-only display name does not count as having a name', () => {
+    expect(identityLines('   ', 'nittuz4@gmail.com')).toEqual({
+      headline: 'nittuz4@gmail.com',
+      secondary: null,
+    });
+  });
+
+  test('falls back to an empty headline when neither name nor email is available', () => {
+    expect(identityLines(null, undefined)).toEqual({ headline: '', secondary: null });
   });
 });
 

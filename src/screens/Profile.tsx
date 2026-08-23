@@ -14,7 +14,7 @@ import {
 
 import { signOut } from '@/auth/authActions';
 import { useAuth } from '@/auth/useAuth';
-import { formatMemberSince, getInitials } from '@/core/format';
+import { formatMemberSince, getInitials, identityLines } from '@/core/format';
 import type { RestAlertStatus } from '@/lib/notificationStatus';
 import { useProfile, useUpdateProfile } from '@/queries/profile';
 import { getRestAlertStatus, primeRestAlerts } from '@/rest/notifications';
@@ -140,6 +140,10 @@ export default function ProfileScreen() {
 
   const initials = getInitials(profileQuery.data?.display_name ?? null, user?.email);
   const memberSince = profileQuery.data ? formatMemberSince(profileQuery.data.created_at) : '';
+  // Polish A: the display name leads once one exists; email demotes to a
+  // secondary line beneath it. With no display name, email keeps leading
+  // exactly as before (secondary is null, so only one line renders).
+  const identity = identityLines(profileQuery.data?.display_name, user?.email);
 
   const currentUnits = profileQuery.data?.units ?? 'kg';
   const restCopy = restStatus ? REST_ALERT_COPY[restStatus] : null;
@@ -168,9 +172,17 @@ export default function ProfileScreen() {
                 {initials}
               </Text>
             </View>
-            <Text variant="numeral" color={theme.color.inkSecondary}>
-              {user?.email}
+            <Text
+              variant={identity.secondary ? 'title' : 'numeral'}
+              color={identity.secondary ? theme.color.ink : theme.color.inkSecondary}
+            >
+              {identity.headline}
             </Text>
+            {identity.secondary ? (
+              <Text variant="numeral" color={theme.color.inkSecondary}>
+                {identity.secondary}
+              </Text>
+            ) : null}
             {memberSince ? (
               <Text variant="strip" color={theme.color.inkTertiary}>
                 Member since {memberSince}
@@ -232,9 +244,15 @@ export default function ProfileScreen() {
                 </Text>
               ) : null}
             </View>
-            <Text variant="numeral" color={theme.color.inkSecondary}>
-              {restCopy?.value ?? ''}
-            </Text>
+            {/* Trailing chevron (polish B): matches Training plan's exactly —
+                the row routes to iOS Settings, so it should read as tappable
+                the same way. */}
+            <View style={styles.restAlertsTrailing}>
+              <Text variant="numeral" color={theme.color.inkSecondary}>
+                {restCopy?.value ?? ''}
+              </Text>
+              <Icon name="chevron-right" size={20} color={theme.color.inkTertiary} />
+            </View>
           </Plate>
 
           <Plate
@@ -251,15 +269,20 @@ export default function ProfileScreen() {
             <Icon name="chevron-right" size={20} color={theme.color.inkTertiary} />
           </Plate>
 
-          <Button
-            label="Sign out"
-            kind="danger"
-            size="row"
-            loading={signingOut}
-            onPress={handleSignOut}
-            accessibilityLabel="Sign out"
-            style={styles.signOut}
-          />
+          {/* Demoted (polish C): hairline rule + section margin, mirroring
+              HistoryDetail's deleteSection — Sign out joins the screen's
+              rhythm as a full-width row instead of reading as a centered
+              box on an otherwise left-aligned screen. */}
+          <View style={styles.signOutSection}>
+            <Button
+              label="Sign out"
+              kind="danger"
+              size="row"
+              loading={signingOut}
+              onPress={handleSignOut}
+              accessibilityLabel="Sign out"
+            />
+          </View>
         </ScrollView>
       </KeyboardAvoidingView>
       <ConfirmSheet
@@ -287,7 +310,8 @@ const makeStyles = (theme: Theme) =>
     headerRow: { flexDirection: 'row', alignItems: 'flex-end', gap: theme.space.s3 },
     title: { flex: 1 },
     // Identity is a ghost composition: no plate, just the chalk-on-blacktop
-    // ring, the address, and a mono member strip.
+    // ring, a headline (name if there is one, else the address), an optional
+    // demoted address line, and a mono member strip (impeccable polish A).
     identity: {
       alignItems: 'flex-start',
       gap: theme.space.s2,
@@ -323,5 +347,14 @@ const makeStyles = (theme: Theme) =>
       gap: theme.space.s3,
     },
     navText: { flex: 1, gap: theme.space.half },
-    signOut: { marginTop: theme.space.s4, alignSelf: 'center' },
+    restAlertsTrailing: { flexDirection: 'row', alignItems: 'center', gap: theme.space.s2 },
+    // Mirrors HistoryDetail's deleteSection idiom exactly (impeccable polish
+    // C): a hairline rule + extra top margin demotes the destructive action
+    // below it, same as Delete workout there.
+    signOutSection: {
+      marginTop: theme.space.section,
+      paddingTop: theme.space.section,
+      borderTopWidth: theme.depth.hairline,
+      borderTopColor: theme.color.border,
+    },
   });
