@@ -552,6 +552,7 @@ export default function TodayScreen() {
 
 function ResumeCard({ onPress }: { onPress: () => void }) {
   const theme = useTheme();
+  const fontScale = useFontScale();
   const styles = useMemo(() => makeStyles(theme), [theme]);
   const ink = useMemo(() => resolvePlateStyles(theme, { tone: 'inverted' }).ink, [theme]);
   return (
@@ -574,7 +575,7 @@ function ResumeCard({ onPress }: { onPress: () => void }) {
         <Text variant="card" color={ink} style={styles.resumeCtaLabel}>
           Resume
         </Text>
-        <Icon name="arrow-right" size={16} color={ink} />
+        <Icon name="arrow-right" size={Math.round(16 * fontScale)} color={ink} />
       </View>
     </Plate>
   );

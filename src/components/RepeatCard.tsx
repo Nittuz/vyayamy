@@ -12,6 +12,7 @@ import { Icon } from '@/ui/icons';
 import { Plate } from '@/ui/Plate';
 import { resolvePlateStyles } from '@/ui/plateStyles';
 import { Text } from '@/ui/Text';
+import { useFontScale } from '@/ui/useFontScale';
 import { useTheme, type Theme } from '@/ui/useTheme';
 import { haptics } from '@/ui/haptics';
 
@@ -29,6 +30,7 @@ interface Props {
 
 export function RepeatCard({ title, daysAgo, seeds, loading, onPress }: Props) {
   const theme = useTheme();
+  const fontScale = useFontScale();
   const styles = useMemo(() => makeStyles(theme), [theme]);
   // Recommended foreground for the inverted tone (blacktop-on-chalk in dark,
   // chalk-on-black in light) — never hand-picked per scheme.
@@ -87,7 +89,7 @@ export function RepeatCard({ title, daysAgo, seeds, loading, onPress }: Props) {
             <Text variant="card" color={ink} style={styles.ctaLabel}>
               Repeat workout
             </Text>
-            <Icon name="arrow-right" size={16} color={ink} />
+            <Icon name="arrow-right" size={Math.round(16 * fontScale)} color={ink} />
           </>
         )}
       </View>

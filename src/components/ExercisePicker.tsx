@@ -88,6 +88,8 @@ export function ExercisePicker({ userId, visible, onClose, onPick }: Props) {
         placeholder="Search, or type to create"
         placeholderTextColor={theme.color.inkTertiary}
         autoFocus
+        // Synthesized: this field has no adjacent visible label (sheet title +
+        // placeholder only), so the label names both jobs the field does.
         accessibilityLabel="Search or create exercise"
         style={styles.search}
       />

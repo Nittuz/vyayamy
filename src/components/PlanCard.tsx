@@ -11,6 +11,7 @@ import { Icon } from '@/ui/icons';
 import { Plate } from '@/ui/Plate';
 import { resolvePlateStyles } from '@/ui/plateStyles';
 import { Text } from '@/ui/Text';
+import { useFontScale } from '@/ui/useFontScale';
 import { useTheme, type Theme } from '@/ui/useTheme';
 import { haptics } from '@/ui/haptics';
 
@@ -25,6 +26,7 @@ interface Props {
 
 export function PlanCard({ title, planName, exerciseNames, loading, onPress }: Props) {
   const theme = useTheme();
+  const fontScale = useFontScale();
   const styles = useMemo(() => makeStyles(theme), [theme]);
   const ink = useMemo(() => resolvePlateStyles(theme, { tone: 'inverted' }).ink, [theme]);
   const displayNames = exerciseNames.slice(0, 4);
@@ -71,7 +73,7 @@ export function PlanCard({ title, planName, exerciseNames, loading, onPress }: P
             <Text variant="card" color={ink} style={styles.ctaLabel}>
               Start workout
             </Text>
-            <Icon name="arrow-right" size={16} color={ink} />
+            <Icon name="arrow-right" size={Math.round(16 * fontScale)} color={ink} />
           </>
         )}
       </View>
