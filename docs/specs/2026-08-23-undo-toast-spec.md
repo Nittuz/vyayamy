@@ -1,7 +1,7 @@
 # Undo toasts for the delete paths (Impeccable round-2 follow-up)
 
 - Date: 2026-08-23
-- Status: draft (owner approved direction "Both" 2026-08-23: confirm-sheet weighting shipped in r2; this spec covers the undo half — NOT yet scheduled)
+- Status: implemented (2026-08-23)
 - Source: Impeccable re-score provocative question 2 ("every irreversible act is guarded by a confirm, none by an undo")
 
 ## Problem
@@ -15,22 +15,32 @@ action recoverable for a beat after it happens.
 Soft-delete + 10-second undo toast for the two delete paths; Finish and Sign-out keep their
 conditional confirms (they are not deletes).
 
-## Design sketch (to be validated at implementation time)
+## Design sketch (validated and implemented, see plan `docs/superpowers/plans/2026-08-23-undo-toast-batch.md`)
 
 1. **Mechanism**: rows already soft-delete via `deleted_at` tombstones (ADR 0003) with
    cascade + outbox rows. Undo = clear `deleted_at` on the parent (and cascaded children)
    and enqueue compensating outbox updates; recompute PRs again after restore.
-   - Open question: outbox semantics for delete-then-undo inside one push window —
-     ideally the pair collapses; at minimum the server's soft-delete + un-delete both
-     apply idempotently (server keeps `deleted_at` as a plain column, so an update
-     restoring `deleted_at = null` must be honored; verify pull/push treat it symmetrically).
+   - Validated (implementation-time scout, re-checked against `src/sync/push.ts` and
+     `src/sync/pull.ts`): push sends the restore as a plain `op:'update'` outbox row
+     with payload `{ id, deleted_at: null }`, and `stripServerOwned` only strips
+     `updated_at` — `deleted_at: null` goes to the server unfiltered, so the
+     server-side column is honored exactly as sent. The outbox drains per-row FIFO
+     (`drainBatch`'s `NOT EXISTS (... e.id < o.id)` guard admits only the
+     lowest-id row per `(table_name, row_id)` per pass), so a row's delete —
+     enqueued first, lower id — always ships before its restore-update becomes
+     eligible; T1's `mutations.test.ts` pins this as `['delete','update']` per row.
+     Pull's conflict resolution skips a row entirely while ANY pending
+     insert/upsert/delete op sits in the outbox for it (`pullTable`'s
+     `pending?.some(...)` check), so a mid-window server pull can never re-apply a
+     stale tombstoned/live state over a delete or restore still in flight — the
+     undo window can't be re-tombstoned mid-flight by a concurrent pull.
 2. **UI**: reuse the existing Toast surface with an action slot ("Set deleted · UNDO",
    "Workout deleted · UNDO"); 10s presence; Reduce Motion honored (ToastContext already
    does). Deleting from HistoryDetail then navigating back must keep the toast alive —
    toast context is app-level (verify mount point above the navigator).
-3. **Confirm sheets on the delete paths are then REMOVED** (the whole point): delete
-   becomes immediate + undoable. `confirmDelete` prop on EditSetSheet and the
-   delete-workout ConfirmSheet go away; the r2 safe-path weighting stays for the
+3. **Confirm sheets on the delete paths are REMOVED** (the whole point): delete is
+   immediate + undoable. The `confirmDelete` prop on EditSetSheet and the
+   delete-workout ConfirmSheet are gone; the r2 safe-path weighting stays for the
    remaining confirms (Finish with discards, Sign-out with unsynced, leave-set).
 4. **Recompute cost**: delete + undo within 10s triggers two recomputes per exercise —
    acceptable (serialized, per-exercise).

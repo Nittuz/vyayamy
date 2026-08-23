@@ -18,16 +18,16 @@ import { DEFAULT_UNITS } from '@/core/units';
 import { queryKeys } from '@/queries/keys';
 import { useProfile } from '@/queries/profile';
 import { useWorkoutDetail } from '@/queries/workoutDetail';
-import { deleteWorkoutAndRecompute } from '@/queries/workouts';
+import { deleteWorkoutAndRecompute, undoWorkoutDelete } from '@/queries/workouts';
 import { Button } from '@/ui/Button';
-import { ConfirmSheet } from '@/ui/ConfirmSheet';
 import { EmptyState } from '@/ui/EmptyState';
 import { FadeInView } from '@/ui/FadeInView';
 import { Icon } from '@/ui/icons';
 import { staggerDelay } from '@/ui/motion';
 import { Plate } from '@/ui/Plate';
 import { Text } from '@/ui/Text';
-import { useSyncAwareErrorToast } from '@/ui/ToastContext';
+import { useSyncAwareErrorToast, useToast } from '@/ui/ToastContext';
+import { UNDO_HOLD_MS } from '@/ui/toastLogic';
 import { useTheme, type Theme } from '@/ui/useTheme';
 import { useFontScale } from '@/ui/useFontScale';
 
@@ -44,6 +44,7 @@ export default function HistoryDetailScreen() {
   // Mirrors WorkoutActive's toastError construction exactly (WorkoutActive.tsx:63-64).
   const syncAwareError = useSyncAwareErrorToast();
   const toastError = useCallback((msg: string) => syncAwareError(msg), [syncAwareError]);
+  const { showToast } = useToast();
 
   // Correction path (spec 2026-08-22 §1/§2): set rows open the existing
   // EditSetSheet, and the whole workout can be deleted. userId/units mirror
@@ -65,12 +66,11 @@ export default function HistoryDetailScreen() {
     exerciseName: string;
   } | null>(null);
   const [editOpen, setEditOpen] = useState(false);
-  const [deleteConfirm, setDeleteConfirm] = useState(false);
   const [deleting, setDeleting] = useState(false);
   // Ref latch, not the `deleting` state (Today quick-log precedent,
-  // quickLogStartingRef): ConfirmSheet's confirm button stays tappable
-  // through its ~220ms exit animation, so a second tap can land before a
-  // state update from the first has committed. A ref read is synchronous.
+  // quickLogStartingRef): the Delete button stays tappable until React
+  // re-renders with `deleting: true`, so a rapid double-tap can land before
+  // that state update has committed. A ref read is synchronous.
   const deletingRef = useRef(false);
 
   const onEditSet = useCallback(
@@ -90,12 +90,31 @@ export default function HistoryDetailScreen() {
       const exerciseIds = exercises
         .map((we) => we.exercise?.id)
         .filter((exId): exId is string => !!exId);
-      await deleteWorkoutAndRecompute(userId, workout.id, exerciseIds);
+      const rows = await deleteWorkoutAndRecompute(userId, workout.id, exerciseIds);
       // Freshness (spec §5): same trio useFinishWorkout invalidates.
       void qc.invalidateQueries({ queryKey: queryKeys.history(userId) });
       void qc.invalidateQueries({ queryKey: queryKeys.personalRecords(userId) });
       void qc.invalidateQueries({ queryKey: queryKeys.workouts.all });
       router.back();
+      // Undo spec §3: delete is immediate, recoverable for a beat after.
+      // ToastProvider mounts above the navigator, so the toast survives
+      // router.back(). The closure captures rows/userId/exerciseIds as they
+      // stood at THIS delete.
+      showToast('Workout deleted', 'info', {
+        actionLabel: 'Undo',
+        holdMs: UNDO_HOLD_MS,
+        onAction: () => {
+          void undoWorkoutDelete(userId, rows, exerciseIds)
+            .then(() => {
+              void qc.invalidateQueries({ queryKey: queryKeys.history(userId) });
+              void qc.invalidateQueries({ queryKey: queryKeys.personalRecords(userId) });
+              void qc.invalidateQueries({ queryKey: queryKeys.workouts.all });
+            })
+            .catch(() => {
+              toastError('Could not undo the delete. Please try again.');
+            });
+        },
+      });
     } catch {
       // deleteWorkoutAndRecompute isn't a mutation hook, so this screen owns
       // the failure surface (F2): toast + stay put, matching the tone of
@@ -105,7 +124,7 @@ export default function HistoryDetailScreen() {
       setDeleting(false);
       deletingRef.current = false;
     }
-  }, [userId, detail.data, qc, toastError]);
+  }, [userId, detail.data, qc, toastError, showToast]);
 
   if (detail.isLoading) {
     return (
@@ -265,7 +284,7 @@ export default function HistoryDetailScreen() {
             kind="danger"
             size="row"
             loading={deleting}
-            onPress={() => setDeleteConfirm(true)}
+            onPress={() => void onDeleteWorkout()}
             accessibilityLabel="Delete this workout"
             accessibilityHint="Removes it from history and recomputes records"
             style={styles.deleteBtn}
@@ -284,22 +303,10 @@ export default function HistoryDetailScreen() {
           units={units}
           weightStep={weightStep}
           weightUnit={weightUnit}
-          confirmDelete
           onClose={() => setEditOpen(false)}
           onError={toastError}
         />
       ) : null}
-      <ConfirmSheet
-        visible={deleteConfirm}
-        onClose={() => setDeleteConfirm(false)}
-        title="Delete workout?"
-        message={`Removes ${exercises.length} ${
-          exercises.length === 1 ? 'exercise' : 'exercises'
-        } and their sets from history and records.`}
-        confirmLabel="Delete workout"
-        destructive
-        onConfirm={() => void onDeleteWorkout()}
-      />
     </SafeAreaView>
   );
 }

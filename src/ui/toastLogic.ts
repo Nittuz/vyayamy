@@ -22,6 +22,14 @@ import { motion } from './motion';
 /** Hold duration absent an explicit `holdMs` opt — unchanged from before the action slot. */
 export const TOAST_HOLD_MS = 2200;
 
+/**
+ * Hold duration for the two delete-undo toasts (undo spec §2/§3) — long
+ * enough for a deliberate second look before the window closes. Both undo
+ * call sites (EditSetSheet, HistoryDetail) MUST pass this explicitly as
+ * `holdMs`; it is not applied automatically just because `onAction` is set.
+ */
+export const UNDO_HOLD_MS = 10_000;
+
 export interface ToastTimingOpts {
   holdMs?: number;
 }
