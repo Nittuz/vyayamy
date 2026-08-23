@@ -1,7 +1,7 @@
 # Design System — Forged Iron
 
 > **SUPERSEDED (2026-07):** the Blacktop overhaul
-> ([specs/2026-07-11-blacktop-overhaul-spec.md](specs/2026-07-11-blacktop-overhaul-spec.md))
+> (spec in git history: `docs/specs/2026-07-11-blacktop-overhaul-spec.md`)
 > replaced this system: true-mono palette with a single volt accent, all-sharp
 > corners (no radius scale), elevation by inversion (no slabs, no press-sink),
 > and a single skin. Token names below (ember, `slab`, `press`, `radius.md`,

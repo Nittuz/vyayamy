@@ -363,7 +363,7 @@ The `AuthProvider` ([src/auth/AuthContext.tsx](src/auth/AuthContext.tsx)) subscr
 
 PR logic runs client-side in [src/core/pr-detection.ts](src/core/pr-detection.ts) after a workout finishes. `personal_records` is a local derived cache, not a synced table: it is recomputed from completed sets (which do sync) on workout finish via `recordWorkoutPRs` ([src/queries/workouts.ts](src/queries/workouts.ts):104) and on Progress screen load via `recomputeAllPRs` ([src/screens/Progress.tsx](src/screens/Progress.tsx):50), so a fresh device rebuilds PRs after its first pull of sets. Weights are normalized to canonical kg before comparison so sets logged in different units compare correctly.
 
-Record types (2026-08-09 spec — see [docs/specs/2026-08-09-pr-semantics-spec.md](docs/specs/2026-08-09-pr-semantics-spec.md)):
+Record types (2026-08-09 spec, in git history as `docs/specs/2026-08-09-pr-semantics-spec.md`):
 
 | Type              | Value shape                                                                                                                           |
 | ----------------- | ------------------------------------------------------------------------------------------------------------------------------------- |
@@ -409,7 +409,7 @@ reference per scheme). Text renders through the
 applied. No CSS files ship in the mobile app. The token reference in
 [docs/design-system.md](docs/design-system.md) describes the superseded Forged
 Iron system; the current source of truth is the Blacktop overhaul spec
-([docs/specs/2026-07-11-blacktop-overhaul-spec.md](docs/specs/2026-07-11-blacktop-overhaul-spec.md))
+(spec in git history: `docs/specs/2026-07-11-blacktop-overhaul-spec.md`)
 plus the token modules themselves.
 
 ```tsx

@@ -82,7 +82,7 @@ npx expo run:ios
 
 ## Implementation status
 
-A 16-dimension deep review ran in June 2026 (115 confirmed findings), followed by roughly 33 test-first fix commits merged to main. The narrative synthesis, phase plan, and full findings appendix live in [docs/specs/2026-06-10-deep-review-improvement-plan.md](docs/specs/2026-06-10-deep-review-improvement-plan.md). The per-area assessment from that review (pre-redesign snapshot) lives in git history as `docs/archive/REPO_REVIEW.md`; the visual and interaction backlog is in [docs/UX_POLISH_BACKLOG.md](docs/UX_POLISH_BACKLOG.md).
+A 16-dimension deep review ran in June 2026 (115 confirmed findings), followed by roughly 33 test-first fix commits merged to main. The narrative synthesis, phase plan, and full findings appendix live in git history as `docs/specs/2026-06-10-deep-review-improvement-plan.md`. The per-area assessment from that review (pre-redesign snapshot) lives in git history as `docs/archive/REPO_REVIEW.md`; the visual and interaction backlog is in [docs/UX_POLISH_BACKLOG.md](docs/UX_POLISH_BACKLOG.md).
 
 **Partial**:
 

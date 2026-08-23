@@ -30,16 +30,13 @@ flowchart LR
 
 ## Index
 
-| Date                                                     | Title                                | Status      |
-| -------------------------------------------------------- | ------------------------------------ | ----------- |
-| [2026-05-26](2026-05-26-docs-uplevel-design.md)          | Docs Uplevel: ADRs + Design Specs    | implemented |
-| [2026-06-10](2026-06-10-deep-review-improvement-plan.md) | Deep Review — improvement plan       | implemented |
-| [2026-07-11](2026-07-11-taste-audit.md)                  | Taste Audit (round 2)                | implemented |
-| [2026-07-11](2026-07-11-blacktop-overhaul-spec.md)       | Blacktop Overhaul — Direction C spec | implemented |
+| Date                                                           | Title                                          | Status                                                     |
+| -------------------------------------------------------------- | ---------------------------------------------- | ---------------------------------------------------------- |
+| [2026-08-09](2026-08-09-entry-branding-refresh-and-roadmap.md) | Entry branding refresh + August review roadmap | partially implemented — Batch 5 deferred, Batch 6 unscoped |
 
 ### Archived
 
-Superseded phase specs (the 2026-05/06 Uplevel, Restrained Flourish, Voice Logging, and SDK 56 scoping documents) were frozen after implementation and have been removed from the working tree — retrieve them from git history under `docs/specs/archive/` if needed. The behavior they described lives in the code and in [../adr/](../adr/).
+Superseded phase specs (the 2026-05/06 Uplevel, Restrained Flourish, Voice Logging, and SDK 56 scoping documents) were frozen after implementation and have been removed from the working tree — retrieve them from git history under `docs/specs/archive/` if needed. The behavior they described lives in the code and in [../adr/](../adr/). The same is true of a later batch, also frozen on implementation and removed from the working tree — retrieve them from git history if needed: 2026-05-26 Docs Uplevel: ADRs + Design Specs; 2026-06-10 Deep Review improvement plan (115 confirmed findings plus phased fix plan); 2026-07-11 Taste Audit (round 2); 2026-07-11 Blacktop Overhaul — Direction C spec; 2026-07-19 Set-entry redesign spec and its companion plan; 2026-08-09 PR semantics spec; 2026-08-09 Session capture spec (session times plus workout/exercise notes); 2026-08-09 Quick-log spec; and 2026-08-10 Plan-reaches-Today spec.
 
 ## Template
 
