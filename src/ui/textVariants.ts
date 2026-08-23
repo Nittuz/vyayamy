@@ -164,3 +164,26 @@ export function resolveTextStyle(variant: TextVariant): TextStyle {
       };
   }
 }
+
+/**
+ * Round-2 P0: RN scales `fontSize` with the OS text-size setting but leaves a
+ * numeric `lineHeight` frozen — at accessibility sizes the glyphs outgrow the
+ * line box and text visually slices apart (verified live: "5 EXERCISES"
+ * rendered as "5 FXFRCISFS" at AX-XL).
+ *
+ * The line box must track the same EFFECTIVE scale RN applies to fontSize:
+ * `min(fontScale, cap)` for a capped variant, raw `fontScale` for an
+ * uncapped one. `capOverride` lets a caller (Text.tsx's own
+ * `maxFontSizeMultiplier` prop) replace the variant's default cap so the
+ * line box always tracks whatever cap actually governs fontSize.
+ */
+export function scaledLineHeight(
+  variant: TextVariant,
+  fontScale: number,
+  capOverride?: number,
+): number {
+  const baseLineHeight = resolveTextStyle(variant).lineHeight as number;
+  const cap = capOverride ?? resolveMaxFontSizeMultiplier(variant);
+  const effectiveScale = cap != null ? Math.min(fontScale, cap) : fontScale;
+  return Math.round(baseLineHeight * effectiveScale);
+}

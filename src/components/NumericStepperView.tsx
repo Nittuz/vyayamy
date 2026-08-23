@@ -14,6 +14,7 @@ import {
   Pressable,
   StyleSheet,
   TextInput,
+  useWindowDimensions,
   View,
 } from 'react-native';
 
@@ -21,7 +22,11 @@ import { haptics } from '@/ui/haptics';
 import { Icon } from '@/ui/icons';
 import { PRESS_DIP_OPACITY } from '@/ui/plateStyles';
 import { Text } from '@/ui/Text';
-import { resolveMaxFontSizeMultiplier, resolveTextStyle } from '@/ui/textVariants';
+import {
+  resolveMaxFontSizeMultiplier,
+  resolveTextStyle,
+  scaledLineHeight,
+} from '@/ui/textVariants';
 import { useTheme, type Theme } from '@/ui/useTheme';
 
 import {
@@ -159,6 +164,12 @@ export const NumericStepper = forwardRef<NumericStepperHandle, Props>(function N
   const editing = session != null;
   const numeralVariant = size === 'hero' ? ('hero' as const) : ('numeralLg' as const);
   const numeralStyle = resolveTextStyle(numeralVariant);
+  // Both hero and numeralLg are force-capped to 1.2x here regardless of their
+  // variant default (numeralLg is otherwise uncapped) — the keypad TextInput
+  // has less room than free-flowing body text. scaledLineHeight must be
+  // driven by this same effective cap, not the variant's own default.
+  const numeralMaxFontSizeMultiplier = resolveMaxFontSizeMultiplier(numeralVariant) ?? 1.2;
+  const { fontScale } = useWindowDimensions();
   const accessoryID = `${testID ?? unit}-accessory`;
 
   const onDone = useCallback(() => {
@@ -192,10 +203,17 @@ export const NumericStepper = forwardRef<NumericStepperHandle, Props>(function N
               accessibilityLabel={`${unit} input`}
               placeholder="0"
               placeholderTextColor={theme.color.inkTertiary}
-              maxFontSizeMultiplier={resolveMaxFontSizeMultiplier(numeralVariant) ?? 1.2}
+              maxFontSizeMultiplier={numeralMaxFontSizeMultiplier}
               style={[
                 numeralStyle,
                 styles.numeral,
+                {
+                  lineHeight: scaledLineHeight(
+                    numeralVariant,
+                    fontScale,
+                    numeralMaxFontSizeMultiplier,
+                  ),
+                },
                 // 0.62 ≈ one tabular digit's width/em in GeistMono; 82 = hero fallback.
                 { color: theme.color.inkHero, minWidth: (numeralStyle.fontSize ?? 82) * 0.62 },
               ]}

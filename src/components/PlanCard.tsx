@@ -5,7 +5,7 @@
  * exercise rows, plain ink CTA line.
  */
 import { useMemo } from 'react';
-import { ActivityIndicator, StyleSheet, View } from 'react-native';
+import { ActivityIndicator, StyleSheet, useWindowDimensions, View } from 'react-native';
 
 import { Icon } from '@/ui/icons';
 import { Plate } from '@/ui/Plate';
@@ -27,10 +27,17 @@ interface Props {
 export function PlanCard({ title, planName, exerciseNames, loading, onPress }: Props) {
   const theme = useTheme();
   const fontScale = useFontScale();
+  // Raw (uncapped) scale — the name rows' own decision of whether they fit at
+  // all, distinct from useFontScale's 1.5x ceiling used for icon sizing.
+  const { fontScale: rawFontScale } = useWindowDimensions();
   const styles = useMemo(() => makeStyles(theme), [theme]);
   const ink = useMemo(() => resolvePlateStyles(theme, { tone: 'inverted' }).ink, [theme]);
   const displayNames = exerciseNames.slice(0, 4);
   const overflow = exerciseNames.length - displayNames.length;
+  // Past fontScale 2x, a title + 4 truncated rows + CTA no longer fit
+  // legibly in a card — the card's job collapses to "here's the workout,
+  // start it": drop the name rows and keep title + strip + CTA only.
+  const degraded = rawFontScale > 2;
 
   const handlePress = () => {
     haptics.light();
@@ -53,24 +60,26 @@ export function PlanCard({ title, planName, exerciseNames, loading, onPress }: P
       <Text variant="title" color={ink}>
         {title}
       </Text>
-      <View style={styles.nameList}>
-        {displayNames.map((name, i) => (
-          <Text key={`${name}-${i}`} variant="body" color={ink} numberOfLines={1}>
-            {name}
-          </Text>
-        ))}
-        {overflow > 0 ? (
-          <Text variant="meta" color={ink} style={styles.strip}>
-            +{overflow} more
-          </Text>
-        ) : null}
-      </View>
+      {degraded ? null : (
+        <View style={styles.nameList}>
+          {displayNames.map((name, i) => (
+            <Text key={`${name}-${i}`} variant="body" color={ink} numberOfLines={1}>
+              {name}
+            </Text>
+          ))}
+          {overflow > 0 ? (
+            <Text variant="meta" color={ink} style={styles.strip}>
+              +{overflow} more
+            </Text>
+          ) : null}
+        </View>
+      )}
       <View style={styles.ctaRow}>
         {loading ? (
           <ActivityIndicator color={ink} />
         ) : (
           <>
-            <Text variant="card" color={ink} style={styles.ctaLabel}>
+            <Text variant="card" color={ink} numberOfLines={1} style={styles.ctaLabel}>
               Start workout
             </Text>
             <Icon name="arrow-right" size={Math.round(16 * fontScale)} color={ink} />
@@ -101,5 +110,7 @@ const makeStyles = (theme: Theme) =>
     },
     ctaLabel: {
       fontFamily: theme.font.family.sansSemibold,
+      // The arrow icon keeps its fixed size; the label truncates first.
+      flexShrink: 1,
     },
   });

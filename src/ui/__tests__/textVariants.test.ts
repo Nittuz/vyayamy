@@ -7,7 +7,12 @@
  * the right tracking/transform, so a <Text variant=...> can never silently fall
  * back to the system font. The Text primitive is built on this pure resolver.
  */
-import { resolveMaxFontSizeMultiplier, resolveTextStyle, TEXT_VARIANTS } from '@/ui/textVariants';
+import {
+  resolveMaxFontSizeMultiplier,
+  resolveTextStyle,
+  scaledLineHeight,
+  TEXT_VARIANTS,
+} from '@/ui/textVariants';
 import { typography } from '@/ui/typography';
 
 test('every variant binds a loaded family (no system-font fallback)', () => {
@@ -98,4 +103,50 @@ test('metadata variants (strip, label) cap at 1.5x; body/meta stay uncapped', ()
   expect(resolveMaxFontSizeMultiplier('meta')).toBeUndefined();
   expect(resolveMaxFontSizeMultiplier('numeral')).toBeUndefined();
   expect(resolveMaxFontSizeMultiplier('numeralLg')).toBeUndefined();
+});
+
+// Round-2 P0: RN scales fontSize with the OS text-size setting but leaves a
+// numeric lineHeight frozen, so at accessibility sizes glyphs outgrow the
+// line box and text visually slices apart ("5 EXERCISES" → "5 FXFRCISFS" at
+// AX-XL, verified live). The line box must track the same EFFECTIVE scale RN
+// applies to fontSize: min(fontScale, cap) for capped variants, raw
+// fontScale for uncapped ones.
+describe('scaledLineHeight — line boxes track the effective font scale', () => {
+  test('fontScale 1 leaves the base line height unchanged', () => {
+    expect(scaledLineHeight('body', 1)).toBe(resolveTextStyle('body').lineHeight);
+    expect(scaledLineHeight('title', 1)).toBe(resolveTextStyle('title').lineHeight);
+  });
+
+  test('a capped display variant clamps to its 1.2x cap, not the raw scale', () => {
+    const base = resolveTextStyle('display').lineHeight!;
+    expect(scaledLineHeight('display', 3)).toBe(Math.round(base * 1.2));
+  });
+
+  test('capped metadata (strip) clamps to its looser 1.5x cap', () => {
+    const base = resolveTextStyle('strip').lineHeight!;
+    expect(scaledLineHeight('strip', 3)).toBe(Math.round(base * 1.5));
+  });
+
+  test('uncapped body-class variant scales freely with fontScale', () => {
+    const base = resolveTextStyle('body').lineHeight!;
+    expect(scaledLineHeight('body', 2)).toBe(Math.round(base * 2));
+  });
+
+  test('rounds to the nearest integer', () => {
+    // meta: base line height is 12 * 1.6 = 19.2 → rounds to 19; scaled by an
+    // uncapped 1.5x gives 28.5, which must round up to 29 (not truncate to 28).
+    const base = resolveTextStyle('meta').lineHeight!;
+    expect(base).toBe(19);
+    expect(scaledLineHeight('meta', 1.5)).toBe(29);
+  });
+
+  test('an explicit capOverride replaces the variant default cap', () => {
+    // Text.tsx threads its own maxFontSizeMultiplier prop through as a
+    // capOverride, so it must win over both "no cap" and the variant's cap.
+    const bodyBase = resolveTextStyle('body').lineHeight!; // uncapped by default
+    expect(scaledLineHeight('body', 3, 1.5)).toBe(Math.round(bodyBase * 1.5));
+
+    const displayBase = resolveTextStyle('display').lineHeight!; // capped at 1.2 by default
+    expect(scaledLineHeight('display', 3, 2)).toBe(Math.round(displayBase * 2));
+  });
 });

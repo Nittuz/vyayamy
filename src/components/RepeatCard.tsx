@@ -5,7 +5,7 @@
  * plain ink CTA line. Volt stays reserved for act-now CTAs elsewhere.
  */
 import { useMemo } from 'react';
-import { ActivityIndicator, StyleSheet, View } from 'react-native';
+import { ActivityIndicator, StyleSheet, useWindowDimensions, View } from 'react-native';
 
 import type { ExerciseSeed } from '@/queries/repeatLastWorkout';
 import { Icon } from '@/ui/icons';
@@ -31,12 +31,19 @@ interface Props {
 export function RepeatCard({ title, daysAgo, seeds, loading, onPress }: Props) {
   const theme = useTheme();
   const fontScale = useFontScale();
+  // Raw (uncapped) scale — the seed rows' own decision of whether they fit at
+  // all, distinct from useFontScale's 1.5x ceiling used for icon sizing.
+  const { fontScale: rawFontScale } = useWindowDimensions();
   const styles = useMemo(() => makeStyles(theme), [theme]);
   // Recommended foreground for the inverted tone (blacktop-on-chalk in dark,
   // chalk-on-black in light) — never hand-picked per scheme.
   const ink = useMemo(() => resolvePlateStyles(theme, { tone: 'inverted' }).ink, [theme]);
   const displaySeeds = seeds.slice(0, 4);
   const overflow = seeds.length - displaySeeds.length;
+  // Past fontScale 2x, a title + 4 truncated rows + CTA no longer fit
+  // legibly in a card — the card's job collapses to "here's the workout,
+  // repeat it": drop the seed rows and keep title + strip + CTA only.
+  const degraded = rawFontScale > 2;
 
   const handlePress = () => {
     haptics.light();
@@ -60,33 +67,38 @@ export function RepeatCard({ title, daysAgo, seeds, loading, onPress }: Props) {
       <Text variant="title" color={ink}>
         {title || 'Workout'}
       </Text>
-      <View style={styles.seedList}>
-        {displaySeeds.map((seed, i) => (
-          <View
-            key={`${seed.exerciseId}-${i}`}
-            style={styles.seedRow}
-            accessibilityLabel={`${seed.exerciseName}, ${formatSeed(seed)}`}
-          >
-            <Text variant="body" color={ink} numberOfLines={1} style={styles.seedName}>
-              {seed.exerciseName}
+      {degraded ? null : (
+        <View style={styles.seedList}>
+          {displaySeeds.map((seed, i) => (
+            <View
+              key={`${seed.exerciseId}-${i}`}
+              style={styles.seedRow}
+              accessibilityLabel={`${seed.exerciseName}, ${formatSeed(seed)}`}
+            >
+              <Text variant="body" color={ink} numberOfLines={1} style={styles.seedName}>
+                {seed.exerciseName}
+              </Text>
+              {/* The number is the payload, the name truncates: figures keep
+                  their intrinsic size (no flexShrink) so they're never the
+                  thing that gives at accessibility sizes. */}
+              <Text variant="numeral" color={ink} numberOfLines={1} style={styles.seedFigures}>
+                {formatSeed(seed)}
+              </Text>
+            </View>
+          ))}
+          {overflow > 0 ? (
+            <Text variant="meta" color={ink} style={styles.strip}>
+              +{overflow} more
             </Text>
-            <Text variant="numeral" color={ink} style={styles.seedFigures}>
-              {formatSeed(seed)}
-            </Text>
-          </View>
-        ))}
-        {overflow > 0 ? (
-          <Text variant="meta" color={ink} style={styles.strip}>
-            +{overflow} more
-          </Text>
-        ) : null}
-      </View>
+          ) : null}
+        </View>
+      )}
       <View style={styles.ctaRow}>
         {loading ? (
           <ActivityIndicator color={ink} />
         ) : (
           <>
-            <Text variant="card" color={ink} style={styles.ctaLabel}>
+            <Text variant="card" color={ink} numberOfLines={1} style={styles.ctaLabel}>
               Repeat workout
             </Text>
             <Icon name="arrow-right" size={Math.round(16 * fontScale)} color={ink} />
@@ -109,7 +121,7 @@ const makeStyles = (theme: Theme) =>
       alignItems: 'baseline',
       gap: theme.space.s3,
     },
-    seedName: { flex: 1 },
+    seedName: { flex: 1, flexShrink: 1 },
     seedFigures: { opacity: 0.65 },
     ctaRow: {
       flexDirection: 'row',
@@ -120,5 +132,7 @@ const makeStyles = (theme: Theme) =>
     },
     ctaLabel: {
       fontFamily: theme.font.family.sansSemibold,
+      // The arrow icon keeps its fixed size; the label truncates first.
+      flexShrink: 1,
     },
   });

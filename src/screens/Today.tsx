@@ -313,7 +313,12 @@ export default function TodayScreen() {
             accessibilityLabel="Open workout history"
             style={({ pressed }) => [styles.historyLink, pressed && styles.historyLinkPressed]}
           >
-            <Text variant="meta" color={theme.color.inkTertiary}>
+            <Text
+              variant="meta"
+              color={theme.color.inkTertiary}
+              numberOfLines={1}
+              style={styles.historyLinkText}
+            >
               History
             </Text>
             <Icon
@@ -645,8 +650,12 @@ const makeStyles = (theme: Theme) =>
       alignItems: 'center',
       gap: theme.space.s1,
       minHeight: theme.touch.min,
+      flexShrink: 1,
     },
     historyLinkPressed: { opacity: 0.6 },
+    // The arrow icon keeps its fixed size; the "History" label truncates
+    // first — same shrink priority as the card CTA rows.
+    historyLinkText: { flexShrink: 1 },
     syncRow: {
       marginHorizontal: theme.space.s4,
       marginTop: theme.space.s2,

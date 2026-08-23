@@ -7,9 +7,20 @@
  * Display-class variants get a Dynamic Type cap (see resolveMaxFontSizeMultiplier);
  * an explicit maxFontSizeMultiplier prop overrides it.
  */
-import { Text as RNText, type StyleProp, type TextProps, type TextStyle } from 'react-native';
+import {
+  Text as RNText,
+  useWindowDimensions,
+  type StyleProp,
+  type TextProps,
+  type TextStyle,
+} from 'react-native';
 
-import { resolveMaxFontSizeMultiplier, resolveTextStyle, type TextVariant } from './textVariants';
+import {
+  resolveMaxFontSizeMultiplier,
+  resolveTextStyle,
+  scaledLineHeight,
+  type TextVariant,
+} from './textVariants';
 
 export interface AppTextProps extends TextProps {
   variant?: TextVariant;
@@ -24,11 +35,21 @@ export function Text({
   maxFontSizeMultiplier,
   ...rest
 }: AppTextProps) {
+  // Round-2 P0: the line box must track the same effective cap that governs
+  // fontSize below, including a caller-supplied maxFontSizeMultiplier override
+  // (resolveMaxFontSizeMultiplier(variant) is the fallback when none is passed).
+  const { fontScale } = useWindowDimensions();
+  const cap = maxFontSizeMultiplier ?? resolveMaxFontSizeMultiplier(variant);
   return (
     <RNText
       {...rest}
-      maxFontSizeMultiplier={maxFontSizeMultiplier ?? resolveMaxFontSizeMultiplier(variant)}
-      style={[resolveTextStyle(variant), color ? { color } : null, style]}
+      maxFontSizeMultiplier={cap}
+      style={[
+        resolveTextStyle(variant),
+        { lineHeight: scaledLineHeight(variant, fontScale, cap) },
+        color ? { color } : null,
+        style,
+      ]}
     />
   );
 }
