@@ -35,6 +35,7 @@ export function EditableTitle({ value, onCommit }: Props) {
         onSubmitEditing={commit}
         autoFocus
         returnKeyType="done"
+        accessibilityLabel="Workout title"
         style={[
           styles.input,
           {

@@ -121,6 +121,7 @@ export function RestOverrideSheet({
           placeholder="seconds"
           placeholderTextColor={theme.color.inkTertiary}
           style={styles.input}
+          accessibilityLabel="Custom seconds"
         />
       </View>
     </Sheet>
