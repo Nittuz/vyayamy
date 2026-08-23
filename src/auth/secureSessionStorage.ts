@@ -19,13 +19,17 @@
  * runtime falls back to `Math.random` — fine for dev iteration, not a
  * security boundary; release builds never take that path.
  *
- * Error handling: getItem never throws — any failure decrypting a stored
- * value (missing Keychain key, corrupt ciphertext) resolves to `null`,
- * which auth-js treats as "no session" and routes to re-login. removeItem
- * never throws either — the sign-out path must complete even if the
- * Keychain delete fails, otherwise supabase-js's `_removeSession` never
- * emits `SIGNED_OUT` and local DB/cache teardown for the outgoing user
- * never runs. setItem is the one method that rethrows: a session that
+ * Error handling: getItem never throws. A failed AsyncStorage read or a
+ * failed Keychain read/decrypt resolves to `null`, which auth-js treats
+ * as "no session" and routes to re-login. The one carve-out: if the
+ * one-time legacy-plaintext migration write fails, getItem still hands
+ * back the plaintext value (it's a valid session on its own) instead of
+ * turning it into `null` — the next read just retries the migration.
+ * removeItem never throws either, on either of its two steps — the
+ * sign-out path must complete even if the AsyncStorage or Keychain
+ * delete fails, otherwise supabase-js's `_removeSession` never emits
+ * `SIGNED_OUT` and local DB/cache teardown for the outgoing user never
+ * runs. setItem is the one method that rethrows: a session that
  * silently failed to persist is worse than a visible failure.
  */
 import AsyncStorage from '@react-native-async-storage/async-storage';
@@ -60,21 +64,29 @@ async function decrypt(storageKey: string, hexCiphertext: string): Promise<strin
 
 export const secureSessionStorage = {
   async getItem(key: string): Promise<string | null> {
-    const stored = await AsyncStorage.getItem(key);
-    if (stored == null) return null;
-    if (stored.startsWith('{') || stored.startsWith('"')) {
-      // Legacy plaintext value (session JSON, or a PKCE code verifier
-      // stored as a bare JSON string) — encrypt in place, hand it back.
-      await secureSessionStorage.setItem(key, stored);
-      return stored;
-    }
     try {
+      const stored = await AsyncStorage.getItem(key);
+      if (stored == null) return null;
+      if (stored.startsWith('{') || stored.startsWith('"')) {
+        // Legacy plaintext value (session JSON, or a PKCE code verifier
+        // stored as a bare JSON string) — encrypt in place, hand it back.
+        try {
+          await secureSessionStorage.setItem(key, stored);
+        } catch (err) {
+          // The migration write failed (setItem already reported it),
+          // but the plaintext we just read is still a valid session —
+          // hand it back rather than turning a readable session into
+          // null. The next read retries the migration.
+          captureException(err, { where: 'secureSessionStorage.getItem (migration)' });
+        }
+        return stored;
+      }
       return await decrypt(key, stored);
     } catch (err) {
-      // Any decrypt failure (missing/rotated Keychain key, corrupt
-      // ciphertext) is treated as no-session rather than propagated —
-      // auth-js reads null as signed-out and routes to re-login instead
-      // of crashing.
+      // Any other failure (AsyncStorage read, missing/rotated Keychain
+      // key, corrupt ciphertext) is treated as no-session rather than
+      // propagated — auth-js reads null as signed-out and routes to
+      // re-login instead of crashing.
       captureException(err, { where: 'secureSessionStorage.getItem' });
       return null;
     }
@@ -91,16 +103,20 @@ export const secureSessionStorage = {
   },
 
   async removeItem(key: string): Promise<void> {
-    await AsyncStorage.removeItem(key);
+    // Both halves are wrapped independently (not one try around both) so
+    // a failure on the first doesn't skip the second — either failure
+    // must not reject, since letting it propagate would abort
+    // supabase-js's `_removeSession` before it emits SIGNED_OUT, and
+    // local DB/cache teardown for the old user would never run.
+    try {
+      await AsyncStorage.removeItem(key);
+    } catch (err) {
+      captureException(err, { where: 'secureSessionStorage.removeItem (AsyncStorage)' });
+    }
     try {
       await SecureStore.deleteItemAsync(keychainKeyFor(key));
     } catch (err) {
-      // Swallow: the AsyncStorage ciphertext is already gone, so the
-      // session is unrecoverable either way. Letting this reject would
-      // propagate into supabase-js's `_removeSession`, which never emits
-      // SIGNED_OUT on failure — so local DB/cache teardown for the old
-      // user would never run.
-      captureException(err, { where: 'secureSessionStorage.removeItem' });
+      captureException(err, { where: 'secureSessionStorage.removeItem (Keychain)' });
     }
   },
 };

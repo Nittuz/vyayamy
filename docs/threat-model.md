@@ -119,7 +119,8 @@ this adapter follows.
 
 ## Open risks
 
-None currently tracked.
+- Hosted redirect allowlist not yet re-verified against the dashboard
+  (`exp://*` must not appear in production; #89 — owner action pending).
 
 ## Out of scope
 

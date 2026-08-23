@@ -99,3 +99,24 @@ test('migrates a legacy plaintext PKCE code verifier (JSON string) on first read
   expect(raw).not.toBe(verifier); // re-stored encrypted in place
   await expect(secureSessionStorage.getItem(KEY)).resolves.toBe(verifier); // still readable
 });
+
+test('getItem still returns the plaintext when the one-time migration write fails', async () => {
+  await AsyncStorage.setItem(KEY, SESSION); // legacy plaintext, not yet migrated
+  (SecureStore as unknown as { __failNext(method: string): void }).__failNext('setItemAsync');
+  await expect(secureSessionStorage.getItem(KEY)).resolves.toBe(SESSION);
+  // Migration didn't take (the write failed), so AsyncStorage still holds
+  // the plaintext blob — unchanged, ready to retry migration next read.
+  await expect(AsyncStorage.getItem(KEY)).resolves.toBe(SESSION);
+});
+
+test('removeItem resolves (does not throw) when the AsyncStorage delete rejects', async () => {
+  await secureSessionStorage.setItem(KEY, SESSION);
+  const spy = jest.spyOn(AsyncStorage, 'removeItem').mockRejectedValueOnce(new Error('io error'));
+  try {
+    await expect(secureSessionStorage.removeItem(KEY)).resolves.toBeUndefined();
+    // The Keychain half is still torn down even though the AsyncStorage call failed.
+    await expect(SecureStore.getItemAsync(`flexyug.aeskey.${KEY}`)).resolves.toBeNull();
+  } finally {
+    spy.mockRestore();
+  }
+});
