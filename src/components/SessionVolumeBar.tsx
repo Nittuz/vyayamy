@@ -10,7 +10,7 @@
  * Reduced motion: glow and blink are suppressed (mount-read pattern); the pill
  * still shows because it is state, not motion.
  */
-import { useEffect, useMemo, useRef, useState } from 'react';
+import { memo, useEffect, useMemo, useRef, useState } from 'react';
 import { AccessibilityInfo, StyleSheet, Text as RNText, View } from 'react-native';
 import Animated, {
   Easing,
@@ -36,7 +36,7 @@ export interface BankSignal {
   isPR: boolean;
 }
 
-export function SessionVolumeBar({
+function SessionVolumeBarBase({
   volume,
   units,
   bankSignal,
@@ -151,6 +151,12 @@ export function SessionVolumeBar({
     </Animated.View>
   );
 }
+
+// Memoized: `volume`/`bankSignal` change on every banked set, but this bar
+// re-rendered on every 250ms rest tick too before that tick was isolated to
+// RestProgressBar (Batch 2 P1) — memo() keeps it that way going forward.
+export const SessionVolumeBar = memo(SessionVolumeBarBase);
+SessionVolumeBar.displayName = 'SessionVolumeBar';
 
 const makeStyles = (theme: Theme) =>
   StyleSheet.create({

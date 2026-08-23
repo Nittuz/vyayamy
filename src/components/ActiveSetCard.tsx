@@ -1,5 +1,6 @@
 import {
   forwardRef,
+  memo,
   useCallback,
   useEffect,
   useImperativeHandle,
@@ -72,7 +73,7 @@ interface Props {
 
 const COMPLETE_ACTION = [{ name: 'activate', label: 'Complete set' }];
 
-export const ActiveSetCard = forwardRef<ActiveSetCardHandle, Props>(function ActiveSetCard(
+const ActiveSetCardBase = forwardRef<ActiveSetCardHandle, Props>(function ActiveSetCard(
   {
     exercise,
     set,
@@ -335,6 +336,13 @@ export const ActiveSetCard = forwardRef<ActiveSetCardHandle, Props>(function Act
     </GestureDetector>
   );
 });
+
+// Memoized: this card owns the swipe gesture + numeric steppers, so it's the
+// most expensive leaf under WorkoutActiveScreen. With the rest-tick isolated
+// to RestProgressBar (Batch 2 P1), a stable-props render of this card should
+// be a no-op — memo() is what makes that actually skip work.
+export const ActiveSetCard = memo(ActiveSetCardBase);
+ActiveSetCard.displayName = 'ActiveSetCard';
 
 const makeStyles = (theme: Theme) =>
   StyleSheet.create({

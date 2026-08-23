@@ -334,6 +334,50 @@ export default function WorkoutActiveScreen() {
     [activeQuery.data, updateTitle],
   );
 
+  // Stabilize the props ActiveSetCard/SessionVolumeBar read so their new
+  // React.memo wraps can actually skip a re-render (Batch 2 P1). These hooks
+  // must sit here, above every early return below, per this file's
+  // unconditional-hooks convention — currentExForRest/cursor can still be
+  // null this early, so each guards internally.
+  const ghostSets = useMemo(
+    () => (currentExForRest && cursor ? completedSetsBeforeCursor(currentExForRest, cursor) : []),
+    [currentExForRest, cursor],
+  );
+
+  // LAST TIME provenance strip (spec §2): only while the cursor sits on the
+  // history-prefilled staged set AND the values are still untouched.
+  const lastTime = useMemo(() => {
+    if (!currentExForRest || !cursor) return null;
+    const set = findSet(currentExForRest, cursor.setId);
+    if (!set) return null;
+    const seedMarker = stagedMarkers.get(set.id) ?? null;
+    return seedMarker &&
+      seedMarker.source === 'history' &&
+      set.weight === seedMarker.weight &&
+      set.reps === seedMarker.reps
+      ? { weight: seedMarker.weight, reps: seedMarker.reps }
+      : null;
+  }, [currentExForRest, cursor, stagedMarkers]);
+
+  // The voice card prop changes on every speech partial — narrow the three
+  // fields ActiveSetCard reads first (VoiceUiState is a discriminated union;
+  // `partial`/`label` only exist on some phases) and memoize on those, so the
+  // prop is stable BETWEEN voice events, not frozen (Batch 2 P1).
+  const voicePartial = voice.ui.phase === 'listening' ? voice.ui.partial : undefined;
+  const voiceFeedback =
+    voice.ui.phase === 'pending' || voice.ui.phase === 'applied' || voice.ui.phase === 'error'
+      ? voice.ui.label
+      : undefined;
+  const voiceCardState = useMemo(
+    () => ({ phase: voice.ui.phase, partial: voicePartial, feedback: voiceFeedback }),
+    [voice.ui.phase, voicePartial, voiceFeedback],
+  );
+
+  const handleSetComplete = useCallback(
+    (values: { weight: number | null; reps: number | null }) => void onComplete(values),
+    [onComplete],
+  );
+
   if (!userId) return null;
 
   if (activeQuery.isLoading || detail.isLoading) {
@@ -527,18 +571,6 @@ export default function WorkoutActiveScreen() {
   }
   const currentExIdx = exercises.findIndex((e) => e.id === currentEx.id);
   const currentSetIdx = currentEx.sets.findIndex((s) => s.id === currentSet.id);
-  const ghostSets = completedSetsBeforeCursor(currentEx, cursor);
-
-  // LAST TIME provenance strip (spec §2): only while the cursor sits on the
-  // history-prefilled staged set AND the values are still untouched.
-  const seedMarker = stagedMarkers.get(currentSet.id) ?? null;
-  const lastTime =
-    seedMarker &&
-    seedMarker.source === 'history' &&
-    currentSet.weight === seedMarker.weight &&
-    currentSet.reps === seedMarker.reps
-      ? { weight: seedMarker.weight, reps: seedMarker.reps }
-      : null;
 
   return (
     <SafeAreaView style={[styles.container, { backgroundColor: theme.color.bg }]}>
@@ -546,7 +578,7 @@ export default function WorkoutActiveScreen() {
       <Stack.Screen options={screenOptions} />
       <RestProgressBar
         running={timer.running}
-        elapsedSeconds={timer.elapsed}
+        startedAt={timer.startedAt}
         targetSeconds={timer.targetSeconds}
         onSkip={timer.stop}
         onOpenOverride={() => setOverrideSheetOpen(true)}
@@ -574,19 +606,10 @@ export default function WorkoutActiveScreen() {
           ghostSets={ghostSets}
           onChangeWeight={onChangeWeight}
           onChangeReps={onChangeReps}
-          onComplete={(values) => void onComplete(values)}
+          onComplete={handleSetComplete}
           onEditSet={onEditSet}
           lastTime={lastTime}
-          voice={{
-            phase: voice.ui.phase,
-            partial: voice.ui.phase === 'listening' ? voice.ui.partial : undefined,
-            feedback:
-              voice.ui.phase === 'pending' ||
-              voice.ui.phase === 'applied' ||
-              voice.ui.phase === 'error'
-                ? voice.ui.label
-                : undefined,
-          }}
+          voice={voiceCardState}
         />
         <View style={styles.voiceArea}>
           <VoiceMicButton

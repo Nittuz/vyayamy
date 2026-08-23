@@ -18,9 +18,11 @@ import { motion } from '@/ui/motion';
 import { Text } from '@/ui/Text';
 import { useTheme, type Theme } from '@/ui/useTheme';
 
+import { useRestClock } from './restClock';
+
 interface Props {
   running: boolean;
-  elapsedSeconds: number;
+  startedAt: number | null;
   targetSeconds: number;
   onSkip: () => void;
   onOpenOverride?: () => void;
@@ -28,7 +30,7 @@ interface Props {
 
 export function RestProgressBar({
   running,
-  elapsedSeconds,
+  startedAt,
   targetSeconds,
   onSkip,
   onOpenOverride,
@@ -36,6 +38,9 @@ export function RestProgressBar({
   const theme = useTheme();
   const styles = useMemo(() => makeStyles(theme), [theme]);
   const progress = useSharedValue(0);
+  // Self-ticking clock scoped to this panel (Batch 2 P1) — stop feeding it once
+  // rest isn't running so a stale startedAt can't tick after skip/finish.
+  const elapsedSeconds = useRestClock(running ? startedAt : null);
 
   const fraction = Math.min(elapsedSeconds / Math.max(targetSeconds, 1), 1);
   const remaining = Math.max(0, targetSeconds - elapsedSeconds);

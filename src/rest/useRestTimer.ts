@@ -6,7 +6,7 @@
  * alerted even if the app is backgrounded or the screen is locked.
  */
 import * as Haptics from 'expo-haptics';
-import { useCallback, useEffect, useRef, useState } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 
 import { getKv, registerUserScopedKv, removeKv, setKv } from '@/lib/kvStore';
 
@@ -28,12 +28,10 @@ interface UseRestTimerArgs {
 export function useRestTimer(args: UseRestTimerArgs = {}) {
   const { targetSeconds = 90 } = args;
   const [startedAt, setStartedAt] = useState<number | null>(null);
-  const [elapsed, setElapsed] = useState(0);
   // The target actually in effect — equals the prop unless a spoken duration or a
   // restored timer overrode it (#105/#17). Kept in sync with the prop while idle.
   const [activeTarget, setActiveTarget] = useState(targetSeconds);
   const firedRef = useRef(false);
-  const intervalRef = useRef<ReturnType<typeof setInterval> | null>(null);
   const notificationIdRef = useRef<string | null>(null);
 
   const hydratedRef = useRef(false);
@@ -65,26 +63,27 @@ export function useRestTimer(args: UseRestTimerArgs = {}) {
     if (startedAt == null) setActiveTarget(targetSeconds);
   }, [targetSeconds, startedAt]);
 
+  // At-target haptic — a single timeout instead of a per-250ms check; computed
+  // from startedAt so a restored, already-elapsed timer still fires once.
   useEffect(() => {
     if (startedAt == null) return;
-    intervalRef.current = setInterval(() => {
-      const secs = Math.floor((Date.now() - startedAt) / 1000);
-      setElapsed(secs);
-      if (!firedRef.current && secs >= activeTarget) {
-        firedRef.current = true;
-        void Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success).catch(() => {});
-      }
-    }, 250);
-    return () => {
-      if (intervalRef.current) clearInterval(intervalRef.current);
-      intervalRef.current = null;
+    const remainingMs = startedAt + activeTarget * 1000 - Date.now();
+    const fire = () => {
+      if (firedRef.current) return;
+      firedRef.current = true;
+      void Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success).catch(() => {});
     };
+    if (remainingMs <= 0) {
+      fire();
+      return;
+    }
+    const t = setTimeout(fire, remainingMs);
+    return () => clearTimeout(t);
   }, [startedAt, activeTarget]);
 
   const start = useCallback(
     (secondsOverride?: number) => {
       firedRef.current = false;
-      setElapsed(0);
       const now = Date.now();
       // A spoken "rest two minutes" overrides the exercise's configured rest (#105).
       const target =
@@ -121,7 +120,6 @@ export function useRestTimer(args: UseRestTimerArgs = {}) {
 
   const stop = useCallback(() => {
     setStartedAt(null);
-    setElapsed(0);
     firedRef.current = false;
     void removeKv(REST_TIMER_KEY);
     void cancelRest(notificationIdRef.current);
@@ -137,11 +135,14 @@ export function useRestTimer(args: UseRestTimerArgs = {}) {
     };
   }, []);
 
-  return {
-    running: startedAt != null,
-    elapsed,
-    targetSeconds: activeTarget,
-    start,
-    stop,
-  };
+  return useMemo(
+    () => ({
+      running: startedAt != null,
+      startedAt,
+      targetSeconds: activeTarget,
+      start,
+      stop,
+    }),
+    [startedAt, activeTarget, start, stop],
+  );
 }
