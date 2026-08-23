@@ -114,4 +114,3 @@ After substantive edits run the first two at minimum. The integration test [src/
 - Local-first sync deep dive: [docs/local-first-sync.md](docs/local-first-sync.md)
 - Design system: [docs/design-system.md](docs/design-system.md)
 - Build and operations: [docs/operations.md](docs/operations.md)
-- Cursor-specific rules (narrower, per-glob): [.cursor/rules/](.cursor/rules/)
