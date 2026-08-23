@@ -73,7 +73,7 @@ Every workout/exercise/set write is a local SQLite transaction plus an outbox ro
 ### Review progress
 
 - **History** lists past workouts grouped by date, loaded incrementally as you scroll
-- **History detail** shows the full exercise + sets breakdown for a past workout (read-only). Re-creating a past workout is the **Repeat-Last-Workout** card on Today, not an action here
+- **History detail** shows the full exercise + sets breakdown for a past workout — and is the correction surface for it: each set row opens `EditSetSheet` to edit or delete it, and a destructive confirm deletes the whole workout, all with PRs recomputed afterward (see [docs/specs/2026-08-22-history-correction-spec.md](specs/2026-08-22-history-correction-spec.md)). Re-creating a past workout is the **Repeat-Last-Workout** card on Today, not an action here
 - **Progress** renders the PR list grouped by exercise and a per-exercise heaviest-weight trend chart via [src/ui/LineChart.tsx](../src/ui/LineChart.tsx)
 
 ### Plan a week
