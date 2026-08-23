@@ -352,6 +352,12 @@ export default function TodayScreen() {
           {greeting}
         </Text>
         <SettleSlam style={styles.headline}>
+          {/* Latent interaction, benign with today's short copy: Text.tsx's
+              injected lineHeight is sized off the declared displayXXL
+              fontSize, but adjustsFontSizeToFit can silently shrink the
+              rendered fontSize below that at runtime to fit numberOfLines={1}
+              — if this copy ever grows long enough to trigger a real shrink,
+              re-check that the (now oversized) line box still reads right. */}
           {isPoster ? (
             activeQuery.data ? (
               <>

@@ -256,13 +256,26 @@ const ActiveSetCardBase = forwardRef<ActiveSetCardHandle, Props>(function Active
             testID="weight-stepper"
           />
           <Text
+            // variant="hero" (not the implicit "body" default) purely so
+            // Text.tsx injects the same scaledLineHeight('hero', fontScale,
+            // 1.2) the two hero-sized NumericSteppers beside it get — this
+            // row aligns on `alignItems: 'baseline'`, so the × needs the
+            // identical, Dynamic-Type-scaled line box to keep sharing their
+            // baseline instead of freezing while its neighbors grow
+            // (Round-2 P0 review gap). fontFamily/fontSize/letterSpacing are
+            // still hand-reconciled below: the × is deliberately lighter
+            // (mono, not monoMedium), smaller (0.7x), and untracked — hero's
+            // own -3.5 tracking is tuned for the 82pt numeral run, not a
+            // single small glyph.
+            variant="hero"
+            maxFontSizeMultiplier={1.2}
             style={[
               styles.heroX,
               {
                 color: theme.color.inkTertiary,
                 fontFamily: theme.font.family.mono,
                 fontSize: theme.font.size.hero * 0.7,
-                lineHeight: theme.font.size.hero * theme.font.lineHeightMul.hero,
+                letterSpacing: 0,
               },
             ]}
           >
