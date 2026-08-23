@@ -1,8 +1,9 @@
-import AsyncStorage from '@react-native-async-storage/async-storage';
 import { createClient } from '@supabase/supabase-js';
 import Constants from 'expo-constants';
 
 import type { Database } from '@/db/types';
+
+import { secureSessionStorage } from './secureSessionStorage';
 
 type ExtraRecord = Record<string, unknown> | undefined;
 
@@ -52,7 +53,7 @@ if (!url || !anonKey) {
 
 export const supabase = createClient<Database>(url, anonKey, {
   auth: {
-    storage: AsyncStorage,
+    storage: secureSessionStorage,
     autoRefreshToken: true,
     persistSession: true,
     detectSessionInUrl: false,

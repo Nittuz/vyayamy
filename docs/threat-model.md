@@ -12,13 +12,13 @@ the migration files under `supabase/migrations/`.
 
 ## Assets
 
-| Asset                                               | Storage                      | Sensitivity |
-| --------------------------------------------------- | ---------------------------- | ----------- |
-| Workout data (exercises, weights, reps, timestamps) | Local SQLite + Supabase      | Medium      |
-| Personal records                                    | Local SQLite + Supabase      | Medium      |
-| User identity (Supabase user id)                    | AsyncStorage (Supabase auth) | High        |
-| Magic-link session JWT                              | AsyncStorage (Supabase auth) | High        |
-| Rest timer + override preferences                   | AsyncStorage (`@flexyug/*`)  | Low         |
+| Asset                                               | Storage                                       | Sensitivity |
+| --------------------------------------------------- | --------------------------------------------- | ----------- |
+| Workout data (exercises, weights, reps, timestamps) | Local SQLite + Supabase                       | Medium      |
+| Personal records                                    | Local SQLite + Supabase                       | Medium      |
+| User identity (Supabase user id)                    | AsyncStorage (AES-encrypted; key in Keychain) | High        |
+| Magic-link session JWT                              | AsyncStorage (AES-encrypted; key in Keychain) | High        |
+| Rest timer + override preferences                   | AsyncStorage (`@flexyug/*`)                   | Low         |
 
 ## Threat actors
 
@@ -82,19 +82,35 @@ real DB-corruption issues.
 
 ## Open risks
 
-### Session JWT stored in plaintext AsyncStorage (OPEN, #88)
+### Session JWT encrypted at rest (#88, closed 2026-08-22)
 
 The Supabase auth session (including the refresh token) is stored via
-`storage: AsyncStorage` in `src/auth/supabase.ts:55`. `expo-secure-store`
-is absent from `package.json`. On a jailbroken or rooted device, the
-token is extractable from the app sandbox without any further credentials.
+`storage: secureSessionStorage` in `src/auth/supabase.ts`, backed by
+`src/auth/secureSessionStorage.ts`. On every write, a fresh random
+256-bit AES key is generated and stored in the iOS Keychain via
+`expo-secure-store` (`kSecAttrAccessibleAfterFirstUnlock`, so background
+token refresh keeps working); the session itself is encrypted with
+AES-CTR-256 under that key and the hex ciphertext is stored in
+AsyncStorage (the Keychain's ~4KB practical limit can't hold a full
+session). Because each write gets its own key, the CTR counter can
+always start at 1 with no risk of key/counter reuse. Pre-#88 sessions
+were stored as plaintext JSON under the same AsyncStorage key; those are
+detected on first read (plaintext starts with `{`, ciphertext is hex),
+re-encrypted in place, and returned — the user is never forced to
+re-log-in. On sign-out, Supabase calls the adapter's `removeItem`, which
+clears both the AsyncStorage ciphertext blob and the Keychain key.
 
-This is NOT an accepted risk. The planned fix is migrating the auth
-storage adapter to `expo-secure-store`, currently blocked on device
-testing of the session-restore path. Until that migration ships, this
-remains an open risk: an attacker with sandbox-level access to a
-jailbroken/rooted device can hijack a live or refresh-capable session
-without knowing the user's credentials.
+**Residual risk (accepted):** a jailbroken/rooted-device attacker who can
+extract the Keychain contents still recovers the session — consistent
+with this document's existing "SQLite at-rest is not encrypted
+(accepted)" posture; encrypting session storage does not change the
+device-attacker trust boundary, only the plain-fs-extraction case.
+Separately, the write is two steps (Keychain key, then AsyncStorage
+blob) and is not atomic: a crash between them leaves an AsyncStorage
+blob with no matching key. `decrypt()` treats a missing key as "no
+session" and returns `null`, so the failure mode is a forced re-login,
+not data exposure. This is inherent to the official Supabase RN
+"LargeSecureStore" pattern this adapter follows.
 
 ## Out of scope
 

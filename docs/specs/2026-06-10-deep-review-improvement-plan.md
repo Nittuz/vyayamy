@@ -240,6 +240,8 @@ Status: ✅ confirmed by adversarial verification · ⚪ low-severity, unverifie
 
 **#88 ✅ [security-privacy|M]** Supabase session JWT stored in plaintext AsyncStorage; expo-secure-store absent and risk never formally accepted _(verifier: medium)_
 
+> RESOLVED 2026-08-22 — src/auth/secureSessionStorage.ts (SecureStore-keyed AES-CTR, plaintext migration). See threat-model.md.
+
 - Files: `/Users/naren/Documents/Work/MokshLabs/Projects/vyayamy/src/auth/supabase.ts, /Users/naren/Documents/Work/MokshLabs/Projects/vyayamy/docs/threat-model.md, /Users/naren/Documents/Work/MokshLabs/Projects/vyayamy/package.json`
 - Fix: Implement the standard Supabase RN pattern: an encrypted storage adapter that keeps an AES key in expo-secure-store (iOS Keychain, kSecAttrAccessibleAfterFirstUnlock) and the encrypted session blob in AsyncStorage (Keychain has a ~4KB practical limit; sessions can exceed it). Migrate any existing plaintext session on first launch, then delete the old key. Alternatively, if you deliberately accept this, add a 'Session token at-rest' risk-acceptance section to threat-model.md with rationale — right now the doc promises a posture the code doesn't have.
 
