@@ -5,14 +5,15 @@
  * must not grow private copies (they drift on the opacity clamp and the
  * reduced-motion gate).
  *
- * Reduced motion (read once on mount, FadeInView precedent): renders settled
+ * Reduced motion (useReduceMotion, live — impeccable r2 #I3): renders settled
  * immediately, no animation. The spring overshoots past 1 — that overshoot IS
  * the slam — so opacity clamps at 1 while translateY dips negative.
  */
-import { useEffect, useState } from 'react';
-import { AccessibilityInfo, type StyleProp, type ViewStyle } from 'react-native';
+import { useEffect } from 'react';
+import { type StyleProp, type ViewStyle } from 'react-native';
 import Animated, { useAnimatedStyle, useSharedValue, withSpring } from 'react-native-reanimated';
 
+import { useReduceMotion } from './useReduceMotion';
 import { useTheme } from './useTheme';
 
 export function SettleSlam({
@@ -24,24 +25,9 @@ export function SettleSlam({
 }) {
   const theme = useTheme();
   const progress = useSharedValue(0);
-  const [reduceMotion, setReduceMotion] = useState<boolean | null>(null);
+  const reduceMotion = useReduceMotion();
 
   useEffect(() => {
-    let active = true;
-    AccessibilityInfo.isReduceMotionEnabled()
-      .then((r) => {
-        if (active) setReduceMotion(r);
-      })
-      .catch(() => {
-        if (active) setReduceMotion(false);
-      });
-    return () => {
-      active = false;
-    };
-  }, []);
-
-  useEffect(() => {
-    if (reduceMotion === null) return;
     if (reduceMotion) {
       progress.value = 1;
       return;

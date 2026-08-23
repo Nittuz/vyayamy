@@ -30,10 +30,9 @@ const palettes: { name: string; tokens: PaletteTokens }[] = [
 ];
 
 // Body-sized text (normal) requires 4.5:1.
-// Large text (18pt+ regular, or 14pt+ bold) requires 3.0:1.
-// inkTertiary is used for hints / micro labels; we hold it to 3.0 (treats as large).
+// inkTertiary paints 12pt text (meta/strip/label) — that's body-sized, not
+// large, so it is held to the same 4.5:1 body ratio as everything else.
 const BODY_RATIO = 4.5;
-const LARGE_RATIO = 3.0;
 
 const pairs: Pair[] = palettes.flatMap(({ name }) => [
   { paletteName: name, ink: 'ink', bg: 'bg', minRatio: BODY_RATIO },
@@ -42,9 +41,9 @@ const pairs: Pair[] = palettes.flatMap(({ name }) => [
   { paletteName: name, ink: 'inkSecondary', bg: 'bg', minRatio: BODY_RATIO },
   { paletteName: name, ink: 'inkSecondary', bg: 'surface', minRatio: BODY_RATIO },
   { paletteName: name, ink: 'inkSecondary', bg: 'surface2', minRatio: BODY_RATIO },
-  { paletteName: name, ink: 'inkTertiary', bg: 'bg', minRatio: LARGE_RATIO },
-  { paletteName: name, ink: 'inkTertiary', bg: 'surface', minRatio: LARGE_RATIO },
-  { paletteName: name, ink: 'inkTertiary', bg: 'surface2', minRatio: LARGE_RATIO },
+  { paletteName: name, ink: 'inkTertiary', bg: 'bg', minRatio: BODY_RATIO },
+  { paletteName: name, ink: 'inkTertiary', bg: 'surface', minRatio: BODY_RATIO },
+  { paletteName: name, ink: 'inkTertiary', bg: 'surface2', minRatio: BODY_RATIO },
   { paletteName: name, ink: 'inkHero', bg: 'bg', minRatio: BODY_RATIO },
   { paletteName: name, ink: 'inkHero', bg: 'surface', minRatio: BODY_RATIO },
   // Accent and danger carry body-sized interactive text (CTAs, links, errors).

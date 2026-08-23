@@ -9,7 +9,6 @@
  */
 import { useCallback, useEffect, useRef } from 'react';
 import {
-  AccessibilityInfo,
   Pressable,
   View,
   type AccessibilityRole,
@@ -27,6 +26,7 @@ import {
   type PlateOffset,
   type PlateTone,
 } from './plateStyles';
+import { useReduceMotion } from './useReduceMotion';
 import { useTheme, type Theme } from './useTheme';
 
 const AnimatedPressable = Animated.createAnimatedComponent(Pressable);
@@ -69,18 +69,14 @@ export function Plate({
   const s = resolvePlateStyles(theme, { tone, border });
   const dim = disabled ? { opacity: 0.5 } : null;
 
-  // Read once on mount (Sheet/FadeInView precedent) — a ref, not state, so the
-  // press handlers keep stable identities.
-  const reduceMotionRef = useRef(false);
+  // A ref, not state, so the press handlers keep stable identities — synced
+  // from the live hook. Only read from event handlers (never mid-render), so
+  // the sync can run in an effect rather than during render.
+  const reduceMotion = useReduceMotion();
+  const reduceMotionRef = useRef(reduceMotion);
   useEffect(() => {
-    AccessibilityInfo.isReduceMotionEnabled()
-      .then((r) => {
-        reduceMotionRef.current = r;
-      })
-      .catch(() => {
-        /* default: motion allowed */
-      });
-  }, []);
+    reduceMotionRef.current = reduceMotion;
+  }, [reduceMotion]);
 
   const faceOpacity = useSharedValue(1);
   const faceScale = useSharedValue(1);

@@ -1,9 +1,10 @@
 import { useEffect, useMemo, useRef } from 'react';
-import { AccessibilityInfo, Pressable, StyleSheet } from 'react-native';
+import { Pressable, StyleSheet } from 'react-native';
 
 import { Icon } from '@/ui/icons';
 import { resolvePlateStyles, resolvePressedStyle } from '@/ui/plateStyles';
 import { Text } from '@/ui/Text';
+import { useReduceMotion } from '@/ui/useReduceMotion';
 import { useTheme, type Theme } from '@/ui/useTheme';
 
 interface Props {
@@ -26,18 +27,15 @@ export function VoiceMicButton({ phase, onTap, onHoldStart, onHoldEnd }: Props) 
   const styles = useMemo(() => makeStyles(theme), [theme]);
   const listening = phase === 'listening';
 
-  // Reduced-motion mount read (Plate precedent): the press dip drops its
-  // scale component and keeps the opacity dip only.
-  const reduceMotionRef = useRef(false);
+  // Live reduced-motion (Plate precedent): the press dip drops its scale
+  // component and keeps the opacity dip only. A ref, not state, so it doesn't
+  // force a re-render on toggle — only read from the pressed-style callback,
+  // never mid-render, so the sync can run in an effect.
+  const reduceMotion = useReduceMotion();
+  const reduceMotionRef = useRef(reduceMotion);
   useEffect(() => {
-    AccessibilityInfo.isReduceMotionEnabled()
-      .then((r) => {
-        reduceMotionRef.current = r;
-      })
-      .catch(() => {
-        /* default: motion allowed */
-      });
-  }, []);
+    reduceMotionRef.current = reduceMotion;
+  }, [reduceMotion]);
 
   const plate = resolvePlateStyles(theme, { tone: listening ? 'volt' : 'ghost' });
 

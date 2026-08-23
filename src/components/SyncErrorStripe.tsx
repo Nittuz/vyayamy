@@ -1,5 +1,5 @@
-import { useEffect, useState } from 'react';
-import { AccessibilityInfo, StyleSheet } from 'react-native';
+import { useEffect } from 'react';
+import { StyleSheet } from 'react-native';
 import Animated, {
   cancelAnimation,
   useAnimatedStyle,
@@ -11,6 +11,7 @@ import Animated, {
 
 import { useSyncStateLive } from '@/sync/useSyncStateLive';
 import { motion } from '@/ui/motion';
+import { useReduceMotion } from '@/ui/useReduceMotion';
 import { useTheme } from '@/ui/useTheme';
 
 const PULSE_WINDOW_MS = 30_000;
@@ -33,21 +34,7 @@ export function SyncErrorStripe() {
   const theme = useTheme();
   const sync = useSyncStateLive();
   const opacity = useSharedValue(0);
-  const [reduceMotion, setReduceMotion] = useState(false);
-
-  useEffect(() => {
-    let active = true;
-    AccessibilityInfo.isReduceMotionEnabled()
-      .then((r) => {
-        if (active) setReduceMotion(r);
-      })
-      .catch(() => {
-        /* default: motion allowed */
-      });
-    return () => {
-      active = false;
-    };
-  }, []);
+  const reduceMotion = useReduceMotion();
 
   useEffect(() => {
     const now = Date.now();

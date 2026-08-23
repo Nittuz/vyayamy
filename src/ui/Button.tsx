@@ -3,7 +3,9 @@
  *
  * `primary` is the volt plate (the one "act now" fill), `secondary` a panel,
  * `ghost` flat text for tertiary actions, `danger` a ghost-destructive row
- * (danger text, no fill — destructive actions are quiet, not loud).
+ * (danger text, no fill, plus a hairline danger border — the same quiet-danger
+ * treatment as QuarantineBanner / Today's sync row: destructive actions are
+ * quiet, not loud, but still visibly marked).
  * Labels are uppercase stamped type on primary/secondary; ghost and danger
  * stay sentence-case.
  */
@@ -85,13 +87,18 @@ export function Button({
   return (
     <Plate
       tone={TONE_FOR_KIND[kind]}
+      border={kind === 'danger' ? 'soft' : undefined}
       onPress={onPress}
       disabled={disabled || loading}
       accessibilityRole="button"
       accessibilityLabel={accessibilityLabel ?? label}
       accessibilityHint={accessibilityHint}
       style={style}
-      faceStyle={[styles.face, size === 'cta' ? styles.cta : styles.row]}
+      faceStyle={[
+        styles.face,
+        size === 'cta' ? styles.cta : styles.row,
+        kind === 'danger' && styles.dangerFace,
+      ]}
     >
       {content}
     </Plate>
@@ -107,6 +114,9 @@ const makeStyles = (theme: Theme) =>
     },
     cta: { minHeight: theme.touch.cta },
     row: { minHeight: theme.touch.min },
+    // border="soft" supplies the hairline weight; danger recolors it — the
+    // same quiet-danger idiom as QuarantineBanner / Today's sync row.
+    dangerFace: { borderColor: theme.color.danger },
     labelRow: {
       flexDirection: 'row',
       alignItems: 'center',

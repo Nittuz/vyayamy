@@ -2,6 +2,13 @@
  * ConfirmSheet — the confirm/destructive decision surface, built on Sheet's
  * center variant. Replaces `Alert.alert` for decisions so confirms are themed,
  * animated, and consistent (toasts stay `useToast`, transient only).
+ *
+ * Risk weighting (impeccable r2 #I2): a destructive confirm leads with Cancel
+ * at real weight (`secondary` — the panel plate) and puts the destructive
+ * action second, quiet-but-marked (ghost + danger text + a hairline danger
+ * border, via `Button kind="danger"` — the QuarantineBanner/syncRow idiom).
+ * Non-destructive confirms are unchanged: primary action first, ghost cancel
+ * second.
  */
 import { Button } from './Button';
 import { Sheet } from './Sheet';
@@ -30,6 +37,25 @@ export function ConfirmSheet({
   onConfirm,
 }: ConfirmSheetProps) {
   const theme = useTheme();
+  const confirmButton = (
+    <Button
+      label={confirmLabel}
+      kind={destructive ? 'danger' : 'primary'}
+      size="row"
+      onPress={() => {
+        onClose();
+        onConfirm();
+      }}
+    />
+  );
+  const cancelButton = (
+    <Button
+      label={cancelLabel}
+      kind={destructive ? 'secondary' : 'ghost'}
+      size="row"
+      onPress={onClose}
+    />
+  );
   return (
     <Sheet
       visible={visible}
@@ -37,18 +63,17 @@ export function ConfirmSheet({
       title={title}
       variant="center"
       footer={
-        <>
-          <Button
-            label={confirmLabel}
-            kind={destructive ? 'danger' : 'primary'}
-            size="row"
-            onPress={() => {
-              onClose();
-              onConfirm();
-            }}
-          />
-          <Button label={cancelLabel} kind="ghost" size="row" onPress={onClose} />
-        </>
+        destructive ? (
+          <>
+            {cancelButton}
+            {confirmButton}
+          </>
+        ) : (
+          <>
+            {confirmButton}
+            {cancelButton}
+          </>
+        )
       }
     >
       {message ? (

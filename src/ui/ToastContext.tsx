@@ -7,7 +7,7 @@ import {
   useRef,
   useState,
 } from 'react';
-import { AccessibilityInfo, StyleSheet, Text, View } from 'react-native';
+import { StyleSheet, Text, View } from 'react-native';
 import Animated, {
   runOnJS,
   useAnimatedStyle,
@@ -18,6 +18,7 @@ import Animated, {
 } from 'react-native-reanimated';
 
 import { motion } from './motion';
+import { useReduceMotion } from './useReduceMotion';
 import { useTheme, type Theme } from './useTheme';
 import { isSyncError } from './syncErrors';
 
@@ -50,18 +51,14 @@ export function ToastProvider({ children }: { children: React.ReactNode }) {
   const opacity = useSharedValue(0);
   const idRef = useRef(0);
 
-  // Read once on mount (Sheet/FadeInView precedent). A ref, not state, so
-  // showToast keeps a stable identity for the provider's lifetime.
-  const reduceMotionRef = useRef(false);
+  // Live reduced motion, sourced from the shared hook. A ref, not state, so
+  // showToast keeps a stable identity for the provider's lifetime — only read
+  // from showToast itself, never mid-render, so the sync can run in an effect.
+  const reduceMotion = useReduceMotion();
+  const reduceMotionRef = useRef(reduceMotion);
   useEffect(() => {
-    AccessibilityInfo.isReduceMotionEnabled()
-      .then((r) => {
-        reduceMotionRef.current = r;
-      })
-      .catch(() => {
-        /* default: motion allowed */
-      });
-  }, []);
+    reduceMotionRef.current = reduceMotion;
+  }, [reduceMotion]);
 
   // Retire the toast only if a newer one hasn't replaced it meanwhile.
   const retire = useCallback((id: number) => {

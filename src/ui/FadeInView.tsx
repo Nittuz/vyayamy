@@ -3,8 +3,8 @@
  * The one ambient motion the design allows on entrances; honors reduced motion
  * (renders fully visible, no animation) and supports a stagger `delay`.
  */
-import { useEffect, useState } from 'react';
-import { AccessibilityInfo, type ViewStyle } from 'react-native';
+import { useEffect } from 'react';
+import { type ViewStyle } from 'react-native';
 import Animated, {
   useAnimatedStyle,
   useSharedValue,
@@ -13,6 +13,7 @@ import Animated, {
 } from 'react-native-reanimated';
 
 import { motion } from './motion';
+import { useReduceMotion } from './useReduceMotion';
 
 export function FadeInView({
   children,
@@ -24,24 +25,9 @@ export function FadeInView({
   style?: ViewStyle | ViewStyle[];
 }) {
   const progress = useSharedValue(0);
-  const [reduceMotion, setReduceMotion] = useState<boolean | null>(null);
+  const reduceMotion = useReduceMotion();
 
   useEffect(() => {
-    let active = true;
-    AccessibilityInfo.isReduceMotionEnabled()
-      .then((r) => {
-        if (active) setReduceMotion(r);
-      })
-      .catch(() => {
-        if (active) setReduceMotion(false);
-      });
-    return () => {
-      active = false;
-    };
-  }, []);
-
-  useEffect(() => {
-    if (reduceMotion === null) return;
     if (reduceMotion) {
       progress.value = 1;
     } else {

@@ -8,16 +8,8 @@
  * show/hide instant. Callers own scrolling inside `children`; `footer` is the
  * pinned action row.
  */
-import { useCallback, useEffect, useMemo, useReducer, useRef, useState } from 'react';
-import {
-  AccessibilityInfo,
-  KeyboardAvoidingView,
-  Modal,
-  Platform,
-  Pressable,
-  StyleSheet,
-  View,
-} from 'react-native';
+import { useCallback, useEffect, useMemo, useReducer, useRef } from 'react';
+import { KeyboardAvoidingView, Modal, Platform, Pressable, StyleSheet, View } from 'react-native';
 import Animated, {
   runOnJS,
   useAnimatedStyle,
@@ -35,6 +27,7 @@ import {
   type SheetPhase,
 } from './sheetPresence';
 import { Text } from './Text';
+import { useReduceMotion } from './useReduceMotion';
 import { useTheme, type Theme } from './useTheme';
 
 export interface SheetProps {
@@ -62,18 +55,7 @@ export function Sheet({
   const theme = useTheme();
   const styles = useMemo(() => makeStyles(theme), [theme]);
 
-  const [reduceMotion, setReduceMotion] = useState(false);
-  useEffect(() => {
-    let active = true;
-    AccessibilityInfo.isReduceMotionEnabled()
-      .then((r) => {
-        if (active) setReduceMotion(r);
-      })
-      .catch(() => {});
-    return () => {
-      active = false;
-    };
-  }, []);
+  const reduceMotion = useReduceMotion();
 
   const reduceMotionRef = useRef(reduceMotion);
   reduceMotionRef.current = reduceMotion;

@@ -10,7 +10,13 @@
  *
  * Tuned off-spec for WCAG (see src/ui/__tests__/contrast.test.ts, the merge
  * gate for any change here):
- *   - dark inkTertiary #6E6E66 (spec #66665F was 2.72:1 on surface2, needs 3.0)
+ *   - dark inkTertiary #8E8E86 (spec #66665F was 2.72:1 on surface2; inkTertiary
+ *     paints 12pt body text, not large text, so it is held to the 4.5:1 body
+ *     ratio like every other ink — this value clears bg/surface/surface2 at
+ *     5.68/5.28/4.77:1, impeccable r2 #I1)
+ *   - light inkTertiary #5C5C55 (spec #66665F was 4.42:1 on bg and 3.99:1 on
+ *     surface2 — same 4.5:1 body-ratio gate; this value clears bg/surface/
+ *     surface2 at 5.80/6.23/5.24:1, impeccable r2 #I1)
  *   - light danger #AC3D2D (spec #B3402F was 4.42:1 on surface2, needs 4.5)
  */
 
@@ -42,7 +48,7 @@ export const darkPalette: PaletteTokens = {
   borderStrong: '#55554F',
   ink: '#F2F1ED',
   inkSecondary: '#A8A8A1',
-  inkTertiary: '#6E6E66',
+  inkTertiary: '#8E8E86',
   inkHero: '#FAF9F4',
   accent: '#D8FF3E',
   accentSoft: 'rgba(216, 255, 62, 0.12)',
@@ -63,7 +69,7 @@ export const lightPalette: PaletteTokens = {
   borderStrong: '#141414',
   ink: '#141414',
   inkSecondary: '#4F4F4A',
-  inkTertiary: '#6E6E66',
+  inkTertiary: '#5C5C55',
   inkHero: '#0C0C0C',
   accent: '#55650B',
   accentSoft: 'rgba(85, 101, 11, 0.12)',

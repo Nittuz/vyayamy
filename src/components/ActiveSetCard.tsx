@@ -6,11 +6,9 @@ import {
   useImperativeHandle,
   useMemo,
   useRef,
-  useState,
 } from 'react';
 import {
   type AccessibilityActionEvent,
-  AccessibilityInfo,
   Dimensions,
   Pressable,
   StyleSheet,
@@ -29,6 +27,7 @@ import { haptics } from '@/ui/haptics';
 import { Icon } from '@/ui/icons';
 import { motion } from '@/ui/motion';
 import { Text } from '@/ui/Text';
+import { useReduceMotion } from '@/ui/useReduceMotion';
 import { useTheme, type Theme } from '@/ui/useTheme';
 
 import {
@@ -120,34 +119,18 @@ const ActiveSetCardBase = forwardRef<ActiveSetCardHandle, Props>(function Active
   const screenHeight = Dimensions.get('window').height;
   const entryY = useSharedValue(screenHeight);
 
-  // Mount-read reduced-motion gate (FadeInView precedent): hold the entry
-  // until the async read RESOLVES, then either spring in or land settled
-  // instantly. (A ref read synchronously in the same-mount effect always saw
-  // the pre-read `false`, so the gate never suppressed the spring.)
-  const [reduceMotion, setReduceMotion] = useState<boolean | null>(null);
-  const reduceMotionSV = useSharedValue(false);
+  // Live reduced motion (impeccable r2 #I3), sourced from the shared hook.
+  // The hook caches the last resolved value across every mount app-wide, so
+  // once any consumer has resolved it once, a card that remounts on every
+  // logged set gets the correct value on this very first render — no
+  // per-mount async wait before deciding whether to spring the entry in.
+  const reduceMotion = useReduceMotion();
+  const reduceMotionSV = useSharedValue(reduceMotion);
   useEffect(() => {
-    let active = true;
-    AccessibilityInfo.isReduceMotionEnabled()
-      .then((r) => {
-        if (active) {
-          setReduceMotion(r);
-          reduceMotionSV.value = r;
-        }
-      })
-      .catch(() => {
-        if (active) {
-          setReduceMotion(false);
-          reduceMotionSV.value = false;
-        }
-      });
-    return () => {
-      active = false;
-    };
-  }, [reduceMotionSV]);
+    reduceMotionSV.value = reduceMotion;
+  }, [reduceMotion, reduceMotionSV]);
 
   useEffect(() => {
-    if (reduceMotion === null) return; // wait for the mount read
     entryY.value = reduceMotion ? 0 : withSpring(0, motion.spring.settle);
     // Reset translateY whenever a new set mounts
     translateY.value = 0;

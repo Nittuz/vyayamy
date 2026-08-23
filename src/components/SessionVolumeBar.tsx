@@ -11,7 +11,7 @@
  * still shows because it is state, not motion.
  */
 import { memo, useEffect, useMemo, useRef, useState } from 'react';
-import { AccessibilityInfo, StyleSheet, Text as RNText, View } from 'react-native';
+import { StyleSheet, Text as RNText, View } from 'react-native';
 import Animated, {
   Easing,
   interpolateColor,
@@ -25,6 +25,7 @@ import Animated, {
 import { Text } from '@/ui/Text';
 import { useCompleteSetAnimation } from '@/ui/useCompleteSetAnimation';
 import { motion } from '@/ui/motion';
+import { useReduceMotion } from '@/ui/useReduceMotion';
 import { useTheme, type Theme } from '@/ui/useTheme';
 
 const AnimatedText = Animated.createAnimatedComponent(RNText);
@@ -54,18 +55,14 @@ function SessionVolumeBarBase({
   const prevNonce = useRef(bankSignal?.nonce ?? 0);
   const [showPRPill, setShowPRPill] = useState(false);
 
-  // Mount-read reduced-motion gate (Sheet/FadeInView precedent) for the blink;
-  // the glow is gated inside useCompleteSetAnimation already.
-  const reduceMotionRef = useRef(false);
+  // Live reduced-motion for the blink (impeccable r2 #I3); the glow is gated
+  // inside useCompleteSetAnimation already. Only read inside the bank-signal
+  // effect below, never mid-render, so the sync can run in an effect too.
+  const reduceMotion = useReduceMotion();
+  const reduceMotionRef = useRef(reduceMotion);
   useEffect(() => {
-    AccessibilityInfo.isReduceMotionEnabled()
-      .then((r) => {
-        reduceMotionRef.current = r;
-      })
-      .catch(() => {
-        /* default: motion allowed */
-      });
-  }, []);
+    reduceMotionRef.current = reduceMotion;
+  }, [reduceMotion]);
 
   // Count the headline up whenever the cumulative volume changes.
   useEffect(() => {
