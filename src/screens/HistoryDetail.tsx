@@ -177,104 +177,112 @@ export default function HistoryDetailScreen() {
           </View>
         </FadeInView>
 
-        {exercises.map((we, exIndex) => (
-          <FadeInView key={we.id} delay={staggerDelay(exIndex + 1)}>
-            <Plate tone="ghost" style={styles.exBlock} faceStyle={styles.exFace}>
-              <View style={styles.exHeader}>
-                <Text
-                  variant="card"
-                  color={theme.color.ink}
-                  numberOfLines={1}
-                  style={styles.exName}
-                >
-                  {we.exercise?.name ?? 'Unknown exercise'}
-                </Text>
-                {/* When this exercise happened: its first completed set. */}
-                {(() => {
-                  const first = we.sets.find((s) => s.completed && s.completed_at);
-                  return first?.completed_at ? (
-                    <Text variant="strip" color={theme.color.inkTertiary}>
-                      {formatTimeOfDay(first.completed_at)}
-                    </Text>
-                  ) : null;
-                })()}
-              </View>
-              {we.note ? (
-                <Text variant="meta" color={theme.color.inkSecondary} style={styles.note}>
-                  {we.note}
-                </Text>
-              ) : null}
-              <View>
-                {we.sets.map((s, idx) => {
-                  const rowContent = (
-                    <>
-                      <Text
-                        variant="numeral"
-                        color={theme.color.inkTertiary}
-                        style={styles.setIndex}
-                      >
-                        {idx + 1}
+        {exercises.map((we, exIndex) => {
+          // A set-delete (undo spec §3) can empty an exercise's sets while
+          // leaving the exercise row itself in place — post-prune, that used
+          // to render a bare header block (name + nothing). Skip it entirely
+          // unless there's a note to show; a note is still content worth
+          // keeping even with zero sets.
+          if (we.sets.length === 0 && !we.note) return null;
+          return (
+            <FadeInView key={we.id} delay={staggerDelay(exIndex + 1)}>
+              <Plate tone="ghost" style={styles.exBlock} faceStyle={styles.exFace}>
+                <View style={styles.exHeader}>
+                  <Text
+                    variant="card"
+                    color={theme.color.ink}
+                    numberOfLines={1}
+                    style={styles.exName}
+                  >
+                    {we.exercise?.name ?? 'Unknown exercise'}
+                  </Text>
+                  {/* When this exercise happened: its first completed set. */}
+                  {(() => {
+                    const first = we.sets.find((s) => s.completed && s.completed_at);
+                    return first?.completed_at ? (
+                      <Text variant="strip" color={theme.color.inkTertiary}>
+                        {formatTimeOfDay(first.completed_at)}
                       </Text>
-                      <Text variant="numeral" color={theme.color.ink} style={styles.setCell}>
-                        {/* Each set shows the unit it was logged in (#131/#135); a
+                    ) : null;
+                  })()}
+                </View>
+                {we.note ? (
+                  <Text variant="meta" color={theme.color.inkSecondary} style={styles.note}>
+                    {we.note}
+                  </Text>
+                ) : null}
+                <View>
+                  {we.sets.map((s, idx) => {
+                    const rowContent = (
+                      <>
+                        <Text
+                          variant="numeral"
+                          color={theme.color.inkTertiary}
+                          style={styles.setIndex}
+                        >
+                          {idx + 1}
+                        </Text>
+                        <Text variant="numeral" color={theme.color.ink} style={styles.setCell}>
+                          {/* Each set shows the unit it was logged in (#131/#135); a
                             completed weightless set is bodyweight (spec §4). */}
-                        {s.completed && s.weight == null
-                          ? 'BW'
-                          : formatWeight(s.weight, s.units ?? DEFAULT_UNITS)}{' '}
-                        × {s.reps != null ? s.reps : '-'}
-                      </Text>
-                      <View style={styles.setDone}>
-                        {s.completed ? (
-                          // Ink, not volt: history is a record, not an act-now moment.
-                          <Icon name="check" size={18} color={theme.color.ink} stroke={2.5} />
-                        ) : (
-                          <Text variant="meta" color={theme.color.inkTertiary}>
-                            ·
-                          </Text>
-                        )}
-                      </View>
-                    </>
-                  );
-
-                  const exercise = we.exercise;
-                  if (!exercise) {
-                    // No exerciseId → no recompute target; leave un-pressable.
-                    return (
-                      <View key={s.id} style={[styles.setRow, idx > 0 && styles.setRowRuled]}>
-                        {rowContent}
-                      </View>
+                          {s.completed && s.weight == null
+                            ? 'BW'
+                            : formatWeight(s.weight, s.units ?? DEFAULT_UNITS)}{' '}
+                          × {s.reps != null ? s.reps : '-'}
+                        </Text>
+                        <View style={styles.setDone}>
+                          {s.completed ? (
+                            // Ink, not volt: history is a record, not an act-now moment.
+                            <Icon name="check" size={18} color={theme.color.ink} stroke={2.5} />
+                          ) : (
+                            <Text variant="meta" color={theme.color.inkTertiary}>
+                              ·
+                            </Text>
+                          )}
+                        </View>
+                      </>
                     );
-                  }
-                  return (
-                    <Pressable
-                      key={s.id}
-                      onPress={() =>
-                        onEditSet(setRowToShape(s), idx + 1, exercise.id, exercise.name)
-                      }
-                      accessibilityRole="button"
-                      accessibilityLabel={`Edit set ${idx + 1}, ${exercise.name}`}
-                      hitSlop={theme.space.s2}
-                      style={({ pressed }) => [
-                        styles.setRow,
-                        idx > 0 && styles.setRowRuled,
-                        pressed && styles.setRowPressed,
-                      ]}
-                    >
-                      {rowContent}
-                      {/* Record-quiet correction affordance (S3): only rows
+
+                    const exercise = we.exercise;
+                    if (!exercise) {
+                      // No exerciseId → no recompute target; leave un-pressable.
+                      return (
+                        <View key={s.id} style={[styles.setRow, idx > 0 && styles.setRowRuled]}>
+                          {rowContent}
+                        </View>
+                      );
+                    }
+                    return (
+                      <Pressable
+                        key={s.id}
+                        onPress={() =>
+                          onEditSet(setRowToShape(s), idx + 1, exercise.id, exercise.name)
+                        }
+                        accessibilityRole="button"
+                        accessibilityLabel={`Edit set ${idx + 1}, ${exercise.name}`}
+                        hitSlop={theme.space.s2}
+                        style={({ pressed }) => [
+                          styles.setRow,
+                          idx > 0 && styles.setRowRuled,
+                          pressed && styles.setRowPressed,
+                        ]}
+                      >
+                        {rowContent}
+                        {/* Record-quiet correction affordance (S3): only rows
                           that are actually pressable earn the chevron. */}
-                      <Icon
-                        name="chevron-right"
-                        size={Math.round(14 * fontScale)}
-                        color={theme.color.inkTertiary}
-                      />
-                    </Pressable>
-                  );
-                })}
-              </View>
-            </Plate>
-          </FadeInView>
-        ))}
+                        <Icon
+                          name="chevron-right"
+                          size={Math.round(14 * fontScale)}
+                          color={theme.color.inkTertiary}
+                        />
+                      </Pressable>
+                    );
+                  })}
+                </View>
+              </Plate>
+            </FadeInView>
+          );
+        })}
 
         {/* Demoted (P2, impeccable r2 wave 2 S3): a hairline rule + extra top
             margin stop Delete from reading as the screen's visual conclusion. */}

@@ -27,8 +27,13 @@ export const TOAST_HOLD_MS = 2200;
  * enough for a deliberate second look before the window closes. Both undo
  * call sites (EditSetSheet, HistoryDetail) MUST pass this explicitly as
  * `holdMs`; it is not applied automatically just because `onAction` is set.
+ *
+ * 15s, not the original 10s (live QA, 2026-08-23): the window was missed
+ * twice in practice when the toast rode a navigation pop — 10s reads as
+ * generous in isolation but is tight once a screen transition eats part of
+ * it before the user's attention lands back on the new screen.
  */
-export const UNDO_HOLD_MS = 10_000;
+export const UNDO_HOLD_MS = 15_000;
 
 export interface ToastTimingOpts {
   holdMs?: number;
@@ -95,6 +100,27 @@ export function attemptActionLatch(latch: { current: number | null }, id: number
  */
 export function resolveToastActionAccent(scheme: 'light' | 'dark'): string {
   return scheme === 'dark' ? lightPalette.accent : darkPalette.accent;
+}
+
+/**
+ * The message text color for the toast's self-inverted pill (see
+ * resolveToastActionAccent's doc comment above for the pill's fill:
+ * `theme.color.ink`, dark scheme -> near-white, light scheme -> near-black).
+ *
+ * Unlike the action accent, this does NOT need the opposite palette: `ink`
+ * and `bg` are already the app's two poles of a single high-contrast pair
+ * (proven by contrast.test.ts's `ink on bg` assertions, every scheme), and
+ * contrast is symmetric — swapping which one paints the surface and which
+ * paints the text (surface=ink, text=bg here, instead of the normal
+ * surface=bg, text=ink) yields the exact same ratio. So the SAME-scheme `bg`
+ * token is the correct, tokens-only pairing for text sitting on an
+ * ink-filled surface, in both schemes — this resolver exists to make that
+ * pairing explicit and regression-tested (mirroring
+ * resolveToastActionAccent's pattern) rather than left as a bare
+ * `theme.color.bg` a future edit could quietly point at the wrong token.
+ */
+export function resolveToastMessageColor(scheme: 'light' | 'dark'): string {
+  return scheme === 'dark' ? darkPalette.bg : lightPalette.bg;
 }
 
 /**

@@ -16,9 +16,9 @@ import { useFontScale } from '@/ui/useFontScale';
 import { useTheme, type Theme } from '@/ui/useTheme';
 import { haptics } from '@/ui/haptics';
 
-import { stripText, formatSeed } from './repeatCardFormat';
+import { stripText, formatSeed, selectDisplaySeeds } from './repeatCardFormat';
 
-export { stripText, formatSeed };
+export { stripText, formatSeed, selectDisplaySeeds };
 
 interface Props {
   title: string;
@@ -38,8 +38,11 @@ export function RepeatCard({ title, daysAgo, seeds, loading, onPress }: Props) {
   // Recommended foreground for the inverted tone (blacktop-on-chalk in dark,
   // chalk-on-black in light) — never hand-picked per scheme.
   const ink = useMemo(() => resolvePlateStyles(theme, { tone: 'inverted' }).ink, [theme]);
-  const displaySeeds = seeds.slice(0, 4);
-  const overflow = seeds.length - displaySeeds.length;
+  const {
+    seeds: displaySeeds,
+    overflow,
+    namesOnly,
+  } = useMemo(() => selectDisplaySeeds(seeds), [seeds]);
   // Past fontScale 2x, a title + 4 truncated rows + CTA no longer fit
   // legibly in a card — the card's job collapses to "here's the workout,
   // repeat it": drop the seed rows and keep title + strip + CTA only.
@@ -73,17 +76,24 @@ export function RepeatCard({ title, daysAgo, seeds, loading, onPress }: Props) {
             <View
               key={`${seed.exerciseId}-${i}`}
               style={styles.seedRow}
-              accessibilityLabel={`${seed.exerciseName}, ${formatSeed(seed)}`}
+              accessibilityLabel={
+                namesOnly ? seed.exerciseName : `${seed.exerciseName}, ${formatSeed(seed)}`
+              }
             >
               <Text variant="body" color={ink} numberOfLines={1} style={styles.seedName}>
                 {seed.exerciseName}
               </Text>
-              {/* The number is the payload, the name truncates: figures keep
+              {/* namesOnly: no seed in the list has weight/reps data, so every
+                  figure would read the same "- × -" — drop the column rather
+                  than show noise (impeccable batch, live QA). The number is
+                  otherwise the payload and the name truncates: figures keep
                   their intrinsic size (no flexShrink) so they're never the
                   thing that gives at accessibility sizes. */}
-              <Text variant="numeral" color={ink} numberOfLines={1} style={styles.seedFigures}>
-                {formatSeed(seed)}
-              </Text>
+              {namesOnly ? null : (
+                <Text variant="numeral" color={ink} numberOfLines={1} style={styles.seedFigures}>
+                  {formatSeed(seed)}
+                </Text>
+              )}
             </View>
           ))}
           {overflow > 0 ? (

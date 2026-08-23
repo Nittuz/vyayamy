@@ -1,4 +1,4 @@
-import { stripText, formatSeed } from '@/components/repeatCardFormat';
+import { stripText, formatSeed, selectDisplaySeeds } from '@/components/repeatCardFormat';
 import type { ExerciseSeed } from '@/queries/repeatLastWorkout';
 
 function seed(overrides: Partial<ExerciseSeed> = {}): ExerciseSeed {
@@ -59,5 +59,62 @@ describe('formatSeed', () => {
 
   test('weight present, reps null keeps the dash on the reps side', () => {
     expect(formatSeed(seed({ seedWeight: 40, seedReps: null, seedUnits: 'kg' }))).toBe('40 kg × -');
+  });
+});
+
+describe('selectDisplaySeeds', () => {
+  const valued = (n: number) => seed({ exerciseId: `v${n}`, seedWeight: n, seedReps: 5 });
+  const empty = (n: number) => seed({ exerciseId: `e${n}`, seedWeight: null, seedReps: null });
+
+  test('all valued, at or under the limit: shown as-is, no overflow', () => {
+    const seeds = [valued(1), valued(2), valued(3)];
+    expect(selectDisplaySeeds(seeds)).toEqual({ seeds, overflow: 0, namesOnly: false });
+  });
+
+  test('all valued, over the limit: first 4 shown, rest counted as overflow', () => {
+    const seeds = [valued(1), valued(2), valued(3), valued(4), valued(5), valued(6)];
+    const result = selectDisplaySeeds(seeds);
+    expect(result.seeds).toEqual(seeds.slice(0, 4));
+    expect(result.overflow).toBe(2);
+    expect(result.namesOnly).toBe(false);
+  });
+
+  test('a null/null seed is filtered out of the display, not shown as "- x -"', () => {
+    const seeds = [valued(1), empty(1), valued(2)];
+    const result = selectDisplaySeeds(seeds);
+    expect(result.seeds).toEqual([valued(1), valued(2)]);
+    expect(result.overflow).toBe(1);
+    expect(result.namesOnly).toBe(false);
+  });
+
+  test('overflow counts BOTH filtered null/null seeds and valued seeds pushed past the limit', () => {
+    // 6 valued + 2 null/null = 8 seeds; first 4 valued are shown.
+    const seeds = [
+      valued(1),
+      empty(1),
+      valued(2),
+      valued(3),
+      valued(4),
+      empty(2),
+      valued(5),
+      valued(6),
+    ];
+    const result = selectDisplaySeeds(seeds);
+    expect(result.seeds).toEqual([valued(1), valued(2), valued(3), valued(4)]);
+    // 2 valued-hidden (5, 6) + 2 filtered (the two null/null seeds) = 4.
+    expect(result.overflow).toBe(4);
+    expect(result.namesOnly).toBe(false);
+  });
+
+  test('no seed has any values: falls back to names-only, first 4 + overflow, nothing filtered', () => {
+    const seeds = [empty(1), empty(2), empty(3), empty(4), empty(5)];
+    const result = selectDisplaySeeds(seeds);
+    expect(result.seeds).toEqual(seeds.slice(0, 4));
+    expect(result.overflow).toBe(1);
+    expect(result.namesOnly).toBe(true);
+  });
+
+  test('empty seed list', () => {
+    expect(selectDisplaySeeds([])).toEqual({ seeds: [], overflow: 0, namesOnly: true });
   });
 });

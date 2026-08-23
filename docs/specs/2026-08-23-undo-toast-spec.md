@@ -12,8 +12,9 @@ action recoverable for a beat after it happens.
 
 ## Direction (approved)
 
-Soft-delete + 10-second undo toast for the two delete paths; Finish and Sign-out keep their
-conditional confirms (they are not deletes).
+Soft-delete + 15-second undo toast for the two delete paths; Finish and Sign-out keep their
+conditional confirms (they are not deletes). (Originally 10s; extended to 15s after live QA on
+2026-08-23 found the window twice missed when the toast rode a navigation pop.)
 
 ## Design sketch (validated and implemented, see plan `docs/superpowers/plans/2026-08-23-undo-toast-batch.md`)
 
@@ -35,14 +36,14 @@ conditional confirms (they are not deletes).
      stale tombstoned/live state over a delete or restore still in flight — the
      undo window can't be re-tombstoned mid-flight by a concurrent pull.
 2. **UI**: reuse the existing Toast surface with an action slot ("Set deleted · UNDO",
-   "Workout deleted · UNDO"); 10s presence; Reduce Motion honored (ToastContext already
+   "Workout deleted · UNDO"); 15s presence; Reduce Motion honored (ToastContext already
    does). Deleting from HistoryDetail then navigating back must keep the toast alive —
    toast context is app-level (verify mount point above the navigator).
 3. **Confirm sheets on the delete paths are REMOVED** (the whole point): delete is
    immediate + undoable. The `confirmDelete` prop on EditSetSheet and the
    delete-workout ConfirmSheet are gone; the r2 safe-path weighting stays for the
    remaining confirms (Finish with discards, Sign-out with unsynced, leave-set).
-4. **Recompute cost**: delete + undo within 10s triggers two recomputes per exercise —
+4. **Recompute cost**: delete + undo within 15s triggers two recomputes per exercise —
    acceptable (serialized, per-exercise).
 5. **Tests**: undo restores rows + child cascade + PR rows; outbox net effect after
    delete+undo; toast-expiry finalizes (no lingering restore path).

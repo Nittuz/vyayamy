@@ -12,8 +12,10 @@ import {
   actionAccessibilityLabel,
   attemptActionLatch,
   resolveToastActionAccent,
+  resolveToastMessageColor,
   resolveToastTiming,
   TOAST_HOLD_MS,
+  UNDO_HOLD_MS,
 } from '@/ui/toastLogic';
 
 describe('resolveToastTiming', () => {
@@ -105,6 +107,44 @@ describe('resolveToastActionAccent', () => {
     // "simplifies" it back to the same-scheme accent later.
     expect(contrast(darkPalette.accent, darkPalette.ink)).toBeLessThan(BODY_RATIO);
     expect(contrast(lightPalette.accent, lightPalette.ink)).toBeLessThan(BODY_RATIO);
+  });
+});
+
+describe('resolveToastMessageColor', () => {
+  // Same local WCAG helper as resolveToastActionAccent's describe block above
+  // (contrast.test.ts's own precedent: kept self-contained, not shared).
+  function luminance(hex: string): number {
+    const m = hex.replace('#', '');
+    const r = parseInt(m.slice(0, 2), 16) / 255;
+    const g = parseInt(m.slice(2, 4), 16) / 255;
+    const b = parseInt(m.slice(4, 6), 16) / 255;
+    const adj = (c: number) => (c <= 0.03928 ? c / 12.92 : Math.pow((c + 0.055) / 1.055, 2.4));
+    return 0.2126 * adj(r) + 0.7152 * adj(g) + 0.0722 * adj(b);
+  }
+  function contrast(a: string, b: string): number {
+    const L1 = luminance(a);
+    const L2 = luminance(b);
+    const [hi, lo] = L1 > L2 ? [L1, L2] : [L2, L1];
+    return (hi + 0.05) / (lo + 0.05);
+  }
+  const BODY_RATIO = 4.5;
+
+  test('dark scheme: resolves to darkPalette.bg, readable on the (near-white) pill', () => {
+    const messageColor = resolveToastMessageColor('dark');
+    expect(messageColor).toBe(darkPalette.bg);
+    expect(contrast(messageColor, darkPalette.ink)).toBeGreaterThanOrEqual(BODY_RATIO);
+  });
+
+  test('light scheme: resolves to lightPalette.bg, readable on the (near-black) pill', () => {
+    const messageColor = resolveToastMessageColor('light');
+    expect(messageColor).toBe(lightPalette.bg);
+    expect(contrast(messageColor, lightPalette.ink)).toBeGreaterThanOrEqual(BODY_RATIO);
+  });
+});
+
+describe('UNDO_HOLD_MS', () => {
+  test('the undo window is 15 seconds (extended from 10s — live QA: the shorter window was twice missed across a navigation pop)', () => {
+    expect(UNDO_HOLD_MS).toBe(15_000);
   });
 });
 

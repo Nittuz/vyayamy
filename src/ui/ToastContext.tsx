@@ -17,6 +17,7 @@ import Animated, {
   withSequence,
   withTiming,
 } from 'react-native-reanimated';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import { motion } from './motion';
 import { PRESS_DIP_OPACITY } from './plateStyles';
@@ -24,6 +25,7 @@ import {
   actionAccessibilityLabel,
   attemptActionLatch,
   resolveToastActionAccent,
+  resolveToastMessageColor,
   resolveToastTiming,
 } from './toastLogic';
 import { useReduceMotion } from './useReduceMotion';
@@ -61,7 +63,8 @@ export function useToast(): ToastContextValue {
 
 export function ToastProvider({ children }: { children: React.ReactNode }) {
   const theme = useTheme();
-  const styles = useMemo(() => makeStyles(theme), [theme]);
+  const insets = useSafeAreaInsets();
+  const styles = useMemo(() => makeStyles(theme, insets.bottom), [theme, insets.bottom]);
   const [toast, setToast] = useState<ToastItem | null>(null);
   const opacity = useSharedValue(0);
   const idRef = useRef(0);
@@ -208,18 +211,31 @@ export function useSyncAwareErrorToast() {
   );
 }
 
-const makeStyles = (theme: Theme) => {
+const makeStyles = (theme: Theme, bottomInset: number) => {
   // See resolveToastActionAccent's doc comment: the pill is self-inverted
   // (backgroundColor below is theme.color.ink, not theme.color.bg), so the
   // accent that reads on it is the OPPOSITE scheme's accent, not
   // theme.color.accent.
   const actionAccent = resolveToastActionAccent(theme.scheme);
+  // See resolveToastMessageColor's doc comment: same-scheme `bg` is the
+  // correct pairing against the ink-filled pill (unlike the accent above,
+  // which does need the opposite palette).
+  const messageColor = resolveToastMessageColor(theme.scheme);
   return StyleSheet.create({
     wrap: {
       position: 'absolute',
       left: 0,
       right: 0,
-      bottom: 100,
+      // True bottom anchor: safe-area inset + s4, not a guessed mid-content
+      // offset (was a fixed 100, which floated the pill over list content on
+      // screens without a tab bar — F2). ToastProvider mounts above the
+      // navigator (app/_layout.tsx), so it has no reach into the tab bar's
+      // own height; on tabbed screens (Today/Progress/Profile) this can sit
+      // the toast over the tab bar instead. Per owner priority that overlap
+      // is the acceptable tradeoff — floating mid-list on every non-tabbed
+      // screen (WorkoutActive, HistoryDetail, and every pushed route) was
+      // judged worse.
+      bottom: bottomInset + theme.space.s4,
       alignItems: 'center',
     },
     toast: {
@@ -239,7 +255,7 @@ const makeStyles = (theme: Theme) => {
       gap: theme.space.s3,
     },
     text: {
-      color: theme.color.bg,
+      color: messageColor,
       fontSize: theme.font.size.meta,
       fontFamily: theme.font.family.sansMedium,
       fontWeight: theme.font.weight.medium,

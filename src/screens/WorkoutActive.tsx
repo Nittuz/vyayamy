@@ -664,12 +664,19 @@ export default function WorkoutActiveScreen() {
           ) : null}
           {voice.available ? (
             // hitSlop pads the meta-line label (~19pt) up to the 44pt touch
-            // minimum without reflowing the voice row's layout.
+            // minimum without reflowing the voice row's layout. alignSelf
+            // shrinks the Pressable to its text content and centers it — the
+            // voiceArea column defaults to alignItems:'stretch', which was
+            // stretching this Pressable to the full row width and leaving
+            // its left-aligned text off-center under the Voice control above
+            // (VoiceMicButton reads centered because ITS content is
+            // justifyContent:'center' inside its own full-width button).
             <Pressable
               onPress={() => setVoiceHelpOpen(true)}
               hitSlop={14}
               accessibilityRole="button"
               accessibilityLabel="Voice command help"
+              style={styles.voiceHelpTrigger}
             >
               <Text variant="meta" color={theme.color.inkSecondary}>
                 What can I say
@@ -819,6 +826,7 @@ const styles = StyleSheet.create({
   scrollFlex: { flex: 1 },
   scroll: { paddingBottom: 24 },
   voiceArea: { marginTop: 16, gap: 12 },
+  voiceHelpTrigger: { alignSelf: 'center' },
   finishActions: { alignSelf: 'stretch', gap: 12 },
   fullBtn: { alignSelf: 'stretch' },
   bottomBar: {
