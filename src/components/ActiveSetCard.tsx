@@ -179,7 +179,12 @@ const ActiveSetCardBase = forwardRef<ActiveSetCardHandle, Props>(function Active
   );
 
   const pan = Gesture.Pan()
-    .activeOffsetY([-10, 10])
+    // Up-only activation: a swipe up past 10px activates the log gesture; a
+    // swipe down past 10px fails fast and hands the drag to the ScrollView,
+    // freeing vertical scroll instead of eating it into a dead completion
+    // gesture (impeccable batch 2).
+    .activeOffsetY(-10)
+    .failOffsetY(10)
     .onUpdate((event) => {
       const ty = event.translationY;
       if (!canComplete) {
@@ -328,7 +333,9 @@ const ActiveSetCardBase = forwardRef<ActiveSetCardHandle, Props>(function Active
         ) : null}
 
         <View style={styles.swipeHintRow}>
-          <Text variant="meta" color={theme.color.inkTertiary}>
+          {/* Signature interaction — must not be the faintest text on the
+              card, so inkSecondary rather than inkTertiary (impeccable batch 2). */}
+          <Text variant="meta" color={theme.color.inkSecondary}>
             {canComplete ? '↑ Swipe up to log' : 'Enter reps to log this set'}
           </Text>
         </View>

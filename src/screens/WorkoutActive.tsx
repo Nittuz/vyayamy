@@ -12,6 +12,7 @@ import {
   countIncompleteSets,
   type ExerciseShape,
   findNextExercise,
+  findPrevExercise,
   findSet,
   planStagedSet,
   type SetShape,
@@ -47,6 +48,8 @@ import { Button } from '@/ui/Button';
 import { ConfirmSheet } from '@/ui/ConfirmSheet';
 import { EmptyState } from '@/ui/EmptyState';
 import { haptics } from '@/ui/haptics';
+import { Icon } from '@/ui/icons';
+import { Plate } from '@/ui/Plate';
 import { SessionRecap } from '@/ui/SessionRecap';
 import { SettleSlam } from '@/ui/SettleSlam';
 import { SyncIndicator } from '@/ui/SyncIndicator';
@@ -312,6 +315,11 @@ export default function WorkoutActiveScreen() {
 
   const hasNextExercise = currentExForRest
     ? findNextExercise(exercises, currentExForRest.id) !== null
+    : false;
+  // Mirrors hasNextExercise (findPrevExercise/findNextExercise are already the
+  // tested pure pair in activeSet.ts) — feeds the prev control's disabled state.
+  const hasPrevExercise = currentExForRest
+    ? findPrevExercise(exercises, currentExForRest.id) !== null
     : false;
 
   const screenOptions = useMemo(
@@ -655,6 +663,23 @@ export default function WorkoutActiveScreen() {
       {/* LOG SET is the thumb-zone primary (spec §3): inverted plate, value echo.
           Volt stays reserved for the recap's finish CTA; Next/Finish is quiet. */}
       <View style={styles.bottomBar}>
+        {/* Icon-only, built on Plate directly rather than Button: an empty
+            Button label leaves a zero-width Text node in the label row's gap,
+            which visibly off-centers the icon. Plate gives the same ghost
+            fill/border, disabled dimming, and press dip Button uses, with no
+            new colors (batch 2 review). */}
+        <Plate
+          tone="ghost"
+          onPress={onPrevExercisePress}
+          disabled={!hasPrevExercise}
+          accessibilityRole="button"
+          accessibilityLabel="Previous exercise"
+          accessibilityHint="Move to the previous exercise"
+          style={styles.prevBtn}
+          faceStyle={styles.prevFace}
+        >
+          <Icon name="chevron-left" size={18} color={theme.color.ink} />
+        </Plate>
         <Button
           label={hasNextExercise ? 'Next ›' : 'Finish ›'}
           kind="ghost"
@@ -762,4 +787,8 @@ const styles = StyleSheet.create({
     paddingBottom: 8,
   },
   logBtn: { flex: 1 },
+  // Fixed width, no flex — Log set keeps its thumb-zone dominance and Next/
+  // Finish keeps its current flex (batch 2 spec).
+  prevBtn: { width: 44 },
+  prevFace: { alignItems: 'center', justifyContent: 'center' },
 });

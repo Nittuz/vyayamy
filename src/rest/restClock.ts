@@ -25,6 +25,9 @@ export function useRestClock(startedAt: number | null): number {
   const [elapsed, setElapsed] = useState(() => elapsedSecondsSince(startedAt, Date.now()));
   if (startedAt !== prevStartedAt) {
     setPrevStartedAt(startedAt);
+    // Accepted react-hooks/purity warning: this Date.now() read is the
+    // documented adjust-state-during-render pattern (see comment above) — the
+    // 250ms interval below self-corrects any skew from a replayed render.
     setElapsed(elapsedSecondsSince(startedAt, Date.now()));
   }
   useEffect(() => {
