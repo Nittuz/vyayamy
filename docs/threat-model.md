@@ -106,10 +106,15 @@ with this document's existing "SQLite at-rest is not encrypted
 (accepted)" posture; encrypting session storage does not change the
 device-attacker trust boundary, only the plain-fs-extraction case.
 Separately, the write is two steps (Keychain key, then AsyncStorage
-blob) and is not atomic: a crash between them leaves an AsyncStorage
-blob with no matching key. `decrypt()` treats a missing key as "no
-session" and returns `null`, so the failure mode is a forced re-login,
-not data exposure. This is inherent to the official Supabase RN
+blob) and is not atomic: a crash after the Keychain write but before
+the AsyncStorage write can either orphan a Keychain key with no blob
+(first write; next read finds no AsyncStorage entry and returns `null`
+cleanly) or, on a token-refresh rewrite, leave the stale AsyncStorage
+blob paired with the new Keychain key (next read decrypts old
+ciphertext under the wrong key — CTR has no integrity check — yielding
+garbage that surfaces as a session parse error rather than data
+exposure; recovery is re-login). Neither crash state exposes the
+session; this is inherent to the official Supabase RN
 "LargeSecureStore" pattern this adapter follows.
 
 ## Out of scope
