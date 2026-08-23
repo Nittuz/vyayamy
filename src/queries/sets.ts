@@ -7,7 +7,7 @@ import { useMutation, useQueryClient } from '@tanstack/react-query';
 import type { QueryClient } from '@tanstack/react-query';
 
 import { getDb } from '@/db/client';
-import { appendOutbox, enqueueMutation, upsertRowLocal } from '@/db/mutations';
+import { appendOutbox, enqueueMutation, upsertRowLocal, type TombstonedRow } from '@/db/mutations';
 import { withTransaction } from '@/db/transaction';
 import type { Set as SetRow } from '@/db/types';
 import { nowIso, uuidv4 } from '@/db/uuid';
@@ -90,9 +90,12 @@ export async function updateSet(
   emitMutationCommitted();
 }
 
-export async function deleteSet(setId: string): Promise<void> {
-  await enqueueMutation({ table: 'sets', op: 'delete', rowId: setId });
+/** Sets are cascade leaves (no children), so the capture is always exactly
+ *  [{table:'sets', id:setId}] — returned so callers can offer undo. */
+export async function deleteSet(setId: string): Promise<TombstonedRow[]> {
+  const rows = await enqueueMutation({ table: 'sets', op: 'delete', rowId: setId });
   emitMutationCommitted();
+  return rows;
 }
 
 // Lazy import keeps expo-constants (ESM) off the jest module graph — same

@@ -6,7 +6,7 @@
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 
 import { getDb } from '@/db/client';
-import { enqueueMutation } from '@/db/mutations';
+import { enqueueMutation, restoreRows, type TombstonedRow } from '@/db/mutations';
 import type { Workout } from '@/db/types';
 import { nowIso, uuidv4 } from '@/db/uuid';
 import { recomputeExercisePRs, recordWorkoutPRs } from '@/queries/personalRecords';
@@ -181,27 +181,55 @@ export async function maybeUpdateAutoTitle(workoutId: string): Promise<void> {
   await updateWorkoutTitle(workoutId, composed);
 }
 
-export async function deleteWorkoutLocal(workoutId: string): Promise<void> {
-  await enqueueMutation({ table: 'workouts', op: 'delete', rowId: workoutId });
+export async function deleteWorkoutLocal(workoutId: string): Promise<TombstonedRow[]> {
+  const rows = await enqueueMutation({ table: 'workouts', op: 'delete', rowId: workoutId });
   emitMutationCommitted();
+  return rows;
 }
 
 /**
  * Delete a finished workout and recompute records for every exercise it
  * touched (spec 2026-08-22 §2). Recompute is best-effort per exercise —
  * a records hiccup must never resurrect the workout.
+ *
+ * Returns the cascade capture (undo spec §1) — workout + workout_exercises +
+ * sets tombstoned by this call — so a caller can offer undo via
+ * undoWorkoutDelete. Existing callers that ignore the return value keep
+ * compiling unchanged.
  */
 export async function deleteWorkoutAndRecompute(
   userId: string,
   workoutId: string,
   exerciseIds: string[],
-): Promise<void> {
-  await deleteWorkoutLocal(workoutId);
+): Promise<TombstonedRow[]> {
+  const rows = await deleteWorkoutLocal(workoutId);
   for (const exerciseId of [...new Set(exerciseIds)]) {
     try {
       await recomputeExercisePRs(userId, exerciseId);
     } catch (err) {
       reportError(err, { workoutId, exerciseId, stage: 'deleteWorkoutAndRecompute' });
+    }
+  }
+  return rows;
+}
+
+/**
+ * Undo a workout delete within the toast window (undo spec §1): restore
+ * every captured row and recompute PRs per distinct touched exercise,
+ * best-effort — same idiom as deleteWorkoutAndRecompute's recompute loop, so
+ * a recompute hiccup never re-hides (or fails) the restored workout.
+ */
+export async function undoWorkoutDelete(
+  userId: string,
+  rows: TombstonedRow[],
+  exerciseIds: string[],
+): Promise<void> {
+  await restoreRows(rows);
+  for (const exerciseId of [...new Set(exerciseIds)]) {
+    try {
+      await recomputeExercisePRs(userId, exerciseId);
+    } catch (err) {
+      reportError(err, { exerciseId, stage: 'undoWorkoutDelete' });
     }
   }
 }

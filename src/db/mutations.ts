@@ -105,12 +105,24 @@ export async function appendOutbox(
   );
 }
 
-export async function enqueueMutation(args: EnqueueArgs): Promise<void> {
+/** A row tombstoned by a delete's cascade — see enqueueMutation + restoreRows. */
+export type TombstonedRow = { table: SyncedTable; id: string };
+
+export async function enqueueMutation(args: EnqueueArgs): Promise<TombstonedRow[]> {
   const db = await getDb();
   const now = nowIso();
+  // Populated ONLY for op:'delete' — the parent row (pushed first), then
+  // every row the cascade walk tombstones, captured at the exact point each
+  // is known dead. This is the only correct restore membership: cascadeSoft
+  // Delete only ever visits `deleted_at IS NULL` rows, so a row already dead
+  // BEFORE this delete (e.g. a set removed last week) is never visited and
+  // never enters this array — undo can never resurrect it (undo spec §1).
+  const tombstoned: TombstonedRow[] = [];
 
   await withTransaction(db, async () => {
     if (args.op === 'delete') {
+      tombstoned.push({ table: args.table, id: args.rowId });
+
       // Cascade-soft-delete children first so a fresh device's pull never
       // sees orphaned-yet-live rows. Walk depth-first.
       await cascadeSoftDelete(args.table, args.rowId, now);
@@ -146,6 +158,8 @@ export async function enqueueMutation(args: EnqueueArgs): Promise<void> {
   // longer call triggerPush themselves.
   emitMutationCommitted();
 
+  return tombstoned;
+
   async function cascadeSoftDelete(
     parent: SyncedTable,
     parentId: string,
@@ -166,8 +180,33 @@ export async function enqueueMutation(args: EnqueueArgs): Promise<void> {
           child.id,
         ]);
         await appendOutbox(db, table, 'delete', child.id, { id: child.id, deleted_at: ts });
+        tombstoned.push({ table, id: child.id });
       }
     }
+  }
+}
+
+/**
+ * Undo the effect of a captured soft-delete (undo spec §1): re-enqueue an
+ * update clearing `deleted_at` for each row, in capture order. NEVER
+ * re-derive which rows to restore by re-walking the cascade — the capture
+ * taken at delete time is the only correct membership (a row already dead
+ * before that delete must stay dead; see enqueueMutation's capture comment).
+ *
+ * Each row goes through its own enqueueMutation call — its own transaction —
+ * so if the app crashes mid-loop, rows already processed stay restored and
+ * the rest stay tombstoned. This partial-restore-on-crash is accepted: the
+ * undo window is a few seconds, and a stuck tombstone is recoverable (the
+ * row still exists, just still marked deleted), not a data-loss failure.
+ */
+export async function restoreRows(rows: TombstonedRow[]): Promise<void> {
+  for (const row of rows) {
+    await enqueueMutation({
+      table: row.table,
+      op: 'update',
+      rowId: row.id,
+      payload: { deleted_at: null },
+    });
   }
 }
 

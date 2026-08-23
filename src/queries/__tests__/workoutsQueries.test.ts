@@ -5,6 +5,7 @@ import {
   createWorkout,
   deleteWorkoutLocal,
   deleteWorkoutAndRecompute,
+  undoWorkoutDelete,
   finishWorkout,
 } from '@/queries/workouts';
 import { addExerciseToWorkout } from '@/queries/exercises';
@@ -172,8 +173,10 @@ describe('deleteWorkoutAndRecompute', () => {
     await addExerciseToWorkout({ workoutId: wId, exerciseId: 'ex' });
     await finishWorkout(wId, USER);
 
-    // Passing a duplicated exerciseId must not throw or double-run.
-    await expect(deleteWorkoutAndRecompute(USER, wId, ['ex', 'ex'])).resolves.toBeUndefined();
+    // Passing a duplicated exerciseId must not throw or double-run, and the
+    // call now returns the capture (contract: was void, now TombstonedRow[]).
+    const rows = await deleteWorkoutAndRecompute(USER, wId, ['ex', 'ex']);
+    expect(rows).toEqual(expect.arrayContaining([{ table: 'workouts', id: wId }]));
   });
 
   test('a recomputeExercisePRs rejection is isolated — the delete still commits', async () => {
@@ -193,9 +196,10 @@ describe('deleteWorkoutAndRecompute', () => {
       .spyOn(personalRecordsQueries, 'recomputeExercisePRs')
       .mockRejectedValueOnce(new Error('recompute boom'));
     try {
-      // (a) the orchestration call still resolves — a records hiccup must
-      // never resurrect (or fail) the delete.
-      await expect(deleteWorkoutAndRecompute(USER, wId, ['ex'])).resolves.toBeUndefined();
+      // (a) the orchestration call still resolves, with the capture — a
+      // records hiccup must never resurrect (or fail) the delete.
+      const rows = await deleteWorkoutAndRecompute(USER, wId, ['ex']);
+      expect(rows).toEqual(expect.arrayContaining([{ table: 'workouts', id: wId }]));
 
       // (b) the workout row was still soft-deleted.
       const workoutRow = await db.getFirstAsync<{ deleted_at: string | null }>(
@@ -206,5 +210,38 @@ describe('deleteWorkoutAndRecompute', () => {
     } finally {
       spy.mockRestore();
     }
+  });
+
+  test('undoWorkoutDelete round trip: the workout+cascade come back and the PR reappears', async () => {
+    const db = await getDb();
+    await db.runAsync(
+      'INSERT INTO exercises (id, name, muscle_group, user_id, created_at, updated_at) VALUES (?, ?, ?, ?, ?, ?)',
+      ['ex', 'Bench', 'Chest', null, T, T],
+    );
+    const wId = await createWorkout({ userId: USER, title: 'Push' });
+    const { weId } = await addExerciseToWorkout({ workoutId: wId, exerciseId: 'ex' });
+    const staged = await listSetsForWorkoutExercise(weId);
+    await updateSet(staged[0]!.id, { weight: 100, reps: 5, completed: true });
+    await finishWorkout(wId, USER);
+
+    const before = await getGroupedPRs(USER);
+    expect(before[0]?.records.some((r) => r.type === 'heaviest_weight')).toBe(true);
+
+    const rows = await deleteWorkoutAndRecompute(USER, wId, ['ex']);
+    expect(await getGroupedPRs(USER)).toHaveLength(0);
+
+    await undoWorkoutDelete(USER, rows, ['ex']);
+
+    // the workout and its cascade are alive again
+    const workoutRow = await db.getFirstAsync<{ deleted_at: string | null }>(
+      'SELECT deleted_at FROM workouts WHERE id = ?',
+      [wId],
+    );
+    expect(workoutRow!.deleted_at).toBeNull();
+    expect(await listSetsForWorkoutExercise(weId)).toHaveLength(1);
+
+    // and the PR reappears (recompute reran after the restore)
+    const after = await getGroupedPRs(USER);
+    expect(after[0]?.records.some((r) => r.type === 'heaviest_weight')).toBe(true);
   });
 });

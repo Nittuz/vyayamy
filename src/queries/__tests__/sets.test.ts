@@ -1,4 +1,5 @@
 import { getDb, initDb, resetDbForTests } from '@/db/client';
+import { restoreRows } from '@/db/mutations';
 import { createWorkout, finishWorkout } from '@/queries/workouts';
 import { addExerciseToWorkout } from '@/queries/exercises';
 import { addSet, updateSet, deleteSet, listSetsForWorkoutExercise } from '@/queries/sets';
@@ -127,4 +128,21 @@ test('deleteSet soft-deletes the row and queues an outbox delete', async () => {
   ]);
   // 1 insert (from auto-stage) + 1 delete
   expect(outbox.map((r) => r.op).sort()).toEqual(['delete', 'insert']);
+});
+
+test('deleteSet returns the tombstoned row, and restoreRows brings it back', async () => {
+  const wId = await createWorkout({ userId: USER_ID, title: 'Push' });
+  const { weId } = await addExerciseToWorkout({ workoutId: wId, exerciseId: EX });
+  const sets = await listSetsForWorkoutExercise(weId);
+  const setId = sets[0]!.id;
+
+  const rows = await deleteSet(setId);
+  expect(rows).toEqual([{ table: 'sets', id: setId }]);
+  expect(await listSetsForWorkoutExercise(weId)).toHaveLength(0);
+
+  await restoreRows(rows);
+
+  const restored = await listSetsForWorkoutExercise(weId);
+  expect(restored).toHaveLength(1);
+  expect(restored[0]!.id).toBe(setId);
 });
