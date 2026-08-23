@@ -8,15 +8,17 @@
  * PRs are passed in by the active flow now that live detection exists (#25):
  * the finish handler recomputes records and hands the labels here.
  */
-import { useEffect, useMemo, useRef } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import { StyleSheet, Text as RNText, View } from 'react-native';
 import Animated, {
   Easing,
+  runOnJS,
   useAnimatedProps,
   useSharedValue,
   withTiming,
 } from 'react-native-reanimated';
 
+import { settledCounterText } from './animatedCounterSync';
 import { FadeInView } from './FadeInView';
 import { motion } from './motion';
 import { Plate } from './Plate';
@@ -49,18 +51,35 @@ export function SessionRecap({
   const theme = useTheme();
   const styles = useMemo(() => makeStyles(theme), [theme]);
   const v = useSharedValue(0);
+  // Plain-React fallback for the digits, guaranteed correct once the count-up
+  // finishes — see the effect below for why the worklet-only path (the
+  // animated `text` prop) can't be trusted alone (live-QA #volume-tally).
+  // Starts '0' to match the choreography: the headline always counts up from
+  // zero on mount, never flashing the final number before the animation runs.
+  const [settleText, setSettleText] = useState('0');
 
+  // The headline is painted by the `volumeProps` worklet below — a UI-thread
+  // write to a native "text" prop that bypasses React's render cycle
+  // entirely (that's what lets it animate without re-rendering). Live-QA
+  // found that write can silently not land — if the recap mounts while a
+  // burst of complete/delete/undo writes is still settling, the worklet's
+  // OWN paint can simply never happen, and nothing in the worklet-only path
+  // ever repaints the headline afterward, even though `volume`/`setCount`
+  // (plain React reads of the same data) are correct the entire time. Settle
+  // the label through real React state once the animation genuinely
+  // finishes, so the headline can never get permanently stuck on '0'.
   useEffect(() => {
-    v.value = withTiming(volume, {
-      duration: motion.duration.counter,
-      easing: Easing.out(Easing.cubic),
-    });
+    v.value = withTiming(
+      volume,
+      { duration: motion.duration.counter, easing: Easing.out(Easing.cubic) },
+      (finished) => {
+        const next = settledCounterText(finished, volume);
+        if (next != null) runOnJS(setSettleText)(next);
+      },
+    );
   }, [volume, v]);
 
   const volumeProps = useAnimatedProps(() => ({ text: `${Math.round(v.value)}` }) as never);
-  // Static first-paint content so the headline never flashes blank before
-  // Reanimated applies the animated text; the count-up runs from 0.
-  const mountText = useRef('0').current;
 
   return (
     <View style={styles.wrap}>
@@ -77,7 +96,7 @@ export function SessionRecap({
             accessible
             accessibilityLabel={`${Math.round(volume)} ${units} total volume`}
           >
-            {mountText}
+            {settleText}
           </AnimatedText>
           <RNText style={styles.headlineUnit}> {units}</RNText>
         </View>

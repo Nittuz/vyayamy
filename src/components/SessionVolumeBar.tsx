@@ -15,6 +15,7 @@ import { StyleSheet, Text as RNText, View } from 'react-native';
 import Animated, {
   Easing,
   interpolateColor,
+  runOnJS,
   useAnimatedProps,
   useAnimatedStyle,
   useSharedValue,
@@ -22,6 +23,7 @@ import Animated, {
   withTiming,
 } from 'react-native-reanimated';
 
+import { formatCounterText, settledCounterText } from '@/ui/animatedCounterSync';
 import { Text } from '@/ui/Text';
 import { useCompleteSetAnimation } from '@/ui/useCompleteSetAnimation';
 import { motion } from '@/ui/motion';
@@ -54,6 +56,10 @@ function SessionVolumeBarBase({
   const prevVolume = useRef(volume);
   const prevNonce = useRef(bankSignal?.nonce ?? 0);
   const [showPRPill, setShowPRPill] = useState(false);
+  // Plain-React fallback for the digits — see the count-up effect below.
+  // Starts already correct (no mount-time animation needed to reach it), and
+  // only ever moves when a count-up actually finishes.
+  const [settleText, setSettleText] = useState(() => formatCounterText(volume));
 
   // Live reduced-motion for the blink (impeccable r2 #I3); the glow is gated
   // inside useCompleteSetAnimation already. Only read inside the bank-signal
@@ -64,13 +70,26 @@ function SessionVolumeBarBase({
     reduceMotionRef.current = reduceMotion;
   }, [reduceMotion]);
 
-  // Count the headline up whenever the cumulative volume changes.
+  // Count the headline up whenever the cumulative volume changes. The digits
+  // are painted by the `counterProps` worklet below — a UI-thread write that
+  // bypasses React's render cycle entirely, which is what lets it animate
+  // without re-rendering. Live-QA found that write can silently not land (a
+  // fresh mount racing a burst of complete/delete/undo writes): once that
+  // happens NOTHING in the worklet-only path ever repaints the label, even
+  // though `volume` keeps updating correctly the whole time (#volume-tally).
+  // `settleText` is the guaranteed fallback — set from a real completion
+  // callback, so it can never freeze the label on a stale value either.
   useEffect(() => {
     if (volume !== prevVolume.current) {
-      v.value = withTiming(volume, {
-        duration: motion.duration.counter,
-        easing: Easing.out(Easing.cubic),
-      });
+      const target = volume;
+      v.value = withTiming(
+        target,
+        { duration: motion.duration.counter, easing: Easing.out(Easing.cubic) },
+        (finished) => {
+          const next = settledCounterText(finished, target);
+          if (next != null) runOnJS(setSettleText)(next);
+        },
+      );
       prevVolume.current = volume;
     }
   }, [volume, v]);
@@ -116,12 +135,6 @@ function SessionVolumeBarBase({
     color: interpolateColor(blink.value, [0, 1], [theme.color.inkTertiary, theme.color.bg]),
   }));
 
-  // Reanimated only applies the animated `text` prop after the first frame, so
-  // a cold-opened in-progress workout would flash a blank tally. Freeze the
-  // mount value as static children for the first paint; the worklet's native
-  // text takes over for the count-up (children never re-renders, so no flicker).
-  const mountText = useRef(`${Math.round(volume)}`).current;
-
   return (
     <Animated.View style={[styles.wrap, blinkFace]}>
       <Animated.View
@@ -141,7 +154,7 @@ function SessionVolumeBarBase({
       </View>
       <View style={styles.valueRow}>
         <AnimatedText animatedProps={counterProps} style={[styles.value, blinkValueInk]}>
-          {mountText}
+          {settleText}
         </AnimatedText>
         <AnimatedText style={[styles.unit, blinkMetaInk]}> {units}</AnimatedText>
       </View>
