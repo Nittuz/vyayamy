@@ -1,6 +1,6 @@
 import { useQueryClient } from '@tanstack/react-query';
 import { router, useLocalSearchParams } from 'expo-router';
-import { useCallback, useMemo, useState } from 'react';
+import { useCallback, useMemo, useRef, useState } from 'react';
 import {
   ActivityIndicator,
   Pressable,
@@ -27,6 +27,7 @@ import { Icon } from '@/ui/icons';
 import { staggerDelay } from '@/ui/motion';
 import { Plate } from '@/ui/Plate';
 import { Text } from '@/ui/Text';
+import { useSyncAwareErrorToast } from '@/ui/ToastContext';
 import { useTheme, type Theme } from '@/ui/useTheme';
 
 export default function HistoryDetailScreen() {
@@ -35,6 +36,9 @@ export default function HistoryDetailScreen() {
   const theme = useTheme();
   const styles = useMemo(() => makeStyles(theme), [theme]);
   const qc = useQueryClient();
+  // Mirrors WorkoutActive's toastError construction exactly (WorkoutActive.tsx:63-64).
+  const syncAwareError = useSyncAwareErrorToast();
+  const toastError = useCallback((msg: string) => syncAwareError(msg), [syncAwareError]);
 
   // Correction path (spec 2026-08-22 §1/§2): set rows open the existing
   // EditSetSheet, and the whole workout can be deleted. userId/units mirror
@@ -58,6 +62,11 @@ export default function HistoryDetailScreen() {
   const [editOpen, setEditOpen] = useState(false);
   const [deleteConfirm, setDeleteConfirm] = useState(false);
   const [deleting, setDeleting] = useState(false);
+  // Ref latch, not the `deleting` state (Today quick-log precedent,
+  // quickLogStartingRef): ConfirmSheet's confirm button stays tappable
+  // through its ~220ms exit animation, so a second tap can land before a
+  // state update from the first has committed. A ref read is synchronous.
+  const deletingRef = useRef(false);
 
   const onEditSet = useCallback(
     (s: SetShape, setNumber: number, exerciseId: string, exerciseName: string) => {
@@ -68,7 +77,8 @@ export default function HistoryDetailScreen() {
   );
 
   const onDeleteWorkout = useCallback(async () => {
-    if (!userId || !detail.data) return;
+    if (!userId || !detail.data || deletingRef.current) return;
+    deletingRef.current = true;
     setDeleting(true);
     try {
       const { workout, exercises } = detail.data;
@@ -81,10 +91,16 @@ export default function HistoryDetailScreen() {
       void qc.invalidateQueries({ queryKey: queryKeys.personalRecords(userId) });
       void qc.invalidateQueries({ queryKey: queryKeys.workouts.all });
       router.back();
+    } catch {
+      // deleteWorkoutAndRecompute isn't a mutation hook, so this screen owns
+      // the failure surface (F2): toast + stay put, matching the tone of
+      // useFinishWorkout's onError copy. Don't pop the screen on failure.
+      toastError('Could not delete the workout. Please try again.');
     } finally {
       setDeleting(false);
+      deletingRef.current = false;
     }
-  }, [userId, detail.data, qc]);
+  }, [userId, detail.data, qc, toastError]);
 
   if (detail.isLoading) {
     return (
@@ -242,6 +258,7 @@ export default function HistoryDetailScreen() {
           weightUnit={weightUnit}
           confirmDelete
           onClose={() => setEditOpen(false)}
+          onError={toastError}
         />
       ) : null}
       <ConfirmSheet

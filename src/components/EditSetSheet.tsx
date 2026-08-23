@@ -119,6 +119,10 @@ export function EditSetSheet({
   };
 
   const handleDelete = () => {
+    // ConfirmSheet's confirm button stays tappable through its exit
+    // animation (same double-tap shape as onDeleteWorkout) — one-line guard,
+    // no API change.
+    if (deleteSet.isPending) return;
     haptics.medium();
     deleteSet.mutate(
       { setId: set.id, weId: set.weId },
