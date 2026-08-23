@@ -401,18 +401,15 @@ export default function ProgressScreen() {
                 // essential number — the full "N × weight kg" pairing lives in the
                 // stat tiles once this exercise is selected — so the strip fits at
                 // default text sizes instead of ellipsizing mid-number.
-                const rowStrip = [
-                  formatPrRowStrip(
-                    heaviestRec?.value?.type === 'heaviest_weight' ? heaviestRec.value : null,
-                    mostRepsRec?.value?.type === 'most_reps' ? mostRepsRec.value : null,
-                    units,
-                  ),
-                  // Visible echo of the recentDot (S4) — same dot-joined
-                  // strip, so it costs no new treatment.
-                  ...(g.hasRecent ? ['Recent'] : []),
-                ]
-                  .filter(Boolean)
-                  .join(' · ');
+                // No visible "Recent" echo here: the volt dot + the date
+                // column already carry recency, and the extra token was what
+                // pushed the longest strips into truncation (polish pass).
+                // Recency stays spoken via the a11y label below.
+                const rowStrip = formatPrRowStrip(
+                  heaviestRec?.value?.type === 'heaviest_weight' ? heaviestRec.value : null,
+                  mostRepsRec?.value?.type === 'most_reps' ? mostRepsRec.value : null,
+                  units,
+                );
                 // A11y keeps the full, untruncated values (craft floor) even
                 // though the visual strip above shortens them.
                 const a11yRecords = g.records
