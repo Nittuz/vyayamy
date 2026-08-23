@@ -2,7 +2,9 @@ import { router } from 'expo-router';
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import {
   AppState,
+  KeyboardAvoidingView,
   Linking,
+  Platform,
   SafeAreaView,
   ScrollView,
   StyleSheet,
@@ -144,114 +146,122 @@ export default function ProfileScreen() {
 
   return (
     <SafeAreaView style={styles.container}>
-      <ScrollView contentContainerStyle={styles.scroll}>
-        <View style={styles.headerRow}>
-          <SettleSlam style={styles.title}>
-            <Text variant="displayXL" color={theme.color.inkHero}>
-              Profile
-            </Text>
-          </SettleSlam>
-          <SyncIndicator />
-        </View>
-
-        <View style={styles.identity}>
-          <View style={styles.avatar}>
-            <Text variant="title" color={theme.color.ink}>
-              {initials}
-            </Text>
+      {/* Keyboard avoidance mirrors Login — the display-name field must not
+          hide behind the keyboard (impeccable batch 4). */}
+      <KeyboardAvoidingView
+        behavior={Platform.OS === 'ios' ? 'padding' : undefined}
+        style={styles.kav}
+      >
+        <ScrollView contentContainerStyle={styles.scroll}>
+          <View style={styles.headerRow}>
+            <SettleSlam style={styles.title}>
+              <Text variant="displayXL" color={theme.color.inkHero}>
+                Profile
+              </Text>
+            </SettleSlam>
+            <SyncIndicator />
           </View>
-          <Text variant="numeral" color={theme.color.inkSecondary}>
-            {user?.email}
-          </Text>
-          {memberSince ? (
-            <Text variant="strip" color={theme.color.inkTertiary}>
-              Member since {memberSince}
+
+          <View style={styles.identity}>
+            <View style={styles.avatar}>
+              <Text variant="title" color={theme.color.ink}>
+                {initials}
+              </Text>
+            </View>
+            <Text variant="numeral" color={theme.color.inkSecondary}>
+              {user?.email}
             </Text>
-          ) : null}
-        </View>
-
-        <Plate faceStyle={styles.fieldFace}>
-          <Text variant="meta" color={theme.color.inkTertiary}>
-            Display name
-          </Text>
-          <TextInput
-            value={displayName}
-            onChangeText={setDisplayName}
-            onBlur={() => {
-              if (displayName !== (profileQuery.data?.display_name ?? '')) {
-                updateProfile.mutate({ display_name: displayName || null });
-              }
-            }}
-            placeholder="Your name"
-            placeholderTextColor={theme.color.inkTertiary}
-            style={styles.input}
-          />
-        </Plate>
-
-        <Plate faceStyle={styles.fieldFace}>
-          <Text variant="meta" color={theme.color.inkTertiary}>
-            Units
-          </Text>
-          <Segment
-            options={[
-              { value: 'kg', label: 'KG', accessibilityLabel: 'Use kilograms' },
-              { value: 'lb', label: 'LB', accessibilityLabel: 'Use pounds' },
-            ]}
-            value={currentUnits}
-            onChange={(u) => updateProfile.mutate({ units: u })}
-          />
-        </Plate>
-
-        <Plate
-          tone="ghost"
-          border="soft"
-          onPress={() => void onRestAlertsPress()}
-          accessibilityRole="button"
-          accessibilityLabel={
-            restCopy ? `Rest alerts, ${restCopy.value.toLowerCase()}` : 'Rest alerts'
-          }
-          accessibilityHint={restCopy?.a11yHint}
-          faceStyle={styles.navFace}
-        >
-          <View style={styles.navText}>
-            <Text variant="card" color={theme.color.ink}>
-              Rest alerts
-            </Text>
-            {restCopy ? (
-              <Text variant="meta" color={theme.color.inkTertiary}>
-                {restCopy.hint}
+            {memberSince ? (
+              <Text variant="strip" color={theme.color.inkTertiary}>
+                Member since {memberSince}
               </Text>
             ) : null}
           </View>
-          <Text variant="numeral" color={theme.color.inkSecondary}>
-            {restCopy?.value ?? ''}
-          </Text>
-        </Plate>
 
-        <Plate
-          tone="ghost"
-          border="soft"
-          onPress={() => router.push('/profile/plan')}
-          accessibilityRole="button"
-          accessibilityLabel="Training plan"
-          faceStyle={styles.navFace}
-        >
-          <Text variant="card" color={theme.color.ink} style={styles.navText}>
-            Training plan
-          </Text>
-          <Icon name="chevron-right" size={20} color={theme.color.inkTertiary} />
-        </Plate>
+          <Plate faceStyle={styles.fieldFace}>
+            <Text variant="meta" color={theme.color.inkTertiary}>
+              Display name
+            </Text>
+            <TextInput
+              value={displayName}
+              onChangeText={setDisplayName}
+              onBlur={() => {
+                if (displayName !== (profileQuery.data?.display_name ?? '')) {
+                  updateProfile.mutate({ display_name: displayName || null });
+                }
+              }}
+              placeholder="Your name"
+              placeholderTextColor={theme.color.inkTertiary}
+              accessibilityLabel="Display name"
+              style={styles.input}
+            />
+          </Plate>
 
-        <Button
-          label="Sign out"
-          kind="danger"
-          size="row"
-          loading={signingOut}
-          onPress={handleSignOut}
-          accessibilityLabel="Sign out"
-          style={styles.signOut}
-        />
-      </ScrollView>
+          <Plate faceStyle={styles.fieldFace}>
+            <Text variant="meta" color={theme.color.inkTertiary}>
+              Units
+            </Text>
+            <Segment
+              options={[
+                { value: 'kg', label: 'KG', accessibilityLabel: 'Use kilograms' },
+                { value: 'lb', label: 'LB', accessibilityLabel: 'Use pounds' },
+              ]}
+              value={currentUnits}
+              onChange={(u) => updateProfile.mutate({ units: u })}
+            />
+          </Plate>
+
+          <Plate
+            tone="ghost"
+            border="soft"
+            onPress={() => void onRestAlertsPress()}
+            accessibilityRole="button"
+            accessibilityLabel={
+              restCopy ? `Rest alerts, ${restCopy.value.toLowerCase()}` : 'Rest alerts'
+            }
+            accessibilityHint={restCopy?.a11yHint}
+            faceStyle={styles.navFace}
+          >
+            <View style={styles.navText}>
+              <Text variant="card" color={theme.color.ink}>
+                Rest alerts
+              </Text>
+              {restCopy ? (
+                <Text variant="meta" color={theme.color.inkTertiary}>
+                  {restCopy.hint}
+                </Text>
+              ) : null}
+            </View>
+            <Text variant="numeral" color={theme.color.inkSecondary}>
+              {restCopy?.value ?? ''}
+            </Text>
+          </Plate>
+
+          <Plate
+            tone="ghost"
+            border="soft"
+            onPress={() => router.push('/profile/plan')}
+            accessibilityRole="button"
+            accessibilityLabel="Training plan"
+            faceStyle={styles.navFace}
+          >
+            <Text variant="card" color={theme.color.ink} style={styles.navText}>
+              Training plan
+            </Text>
+            <Icon name="chevron-right" size={20} color={theme.color.inkTertiary} />
+          </Plate>
+
+          <Button
+            label="Sign out"
+            kind="danger"
+            size="row"
+            loading={signingOut}
+            onPress={handleSignOut}
+            accessibilityLabel="Sign out"
+            style={styles.signOut}
+          />
+        </ScrollView>
+      </KeyboardAvoidingView>
       <ConfirmSheet
         visible={pendingCount != null}
         onClose={() => setPendingCount(null)}
@@ -268,6 +278,7 @@ export default function ProfileScreen() {
 const makeStyles = (theme: Theme) =>
   StyleSheet.create({
     container: { flex: 1, backgroundColor: theme.color.bg },
+    kav: { flex: 1 },
     scroll: {
       padding: theme.space.page,
       gap: theme.space.s4,

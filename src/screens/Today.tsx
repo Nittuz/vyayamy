@@ -41,6 +41,7 @@ import { SettleSlam } from '@/ui/SettleSlam';
 import { Text } from '@/ui/Text';
 import { useToast } from '@/ui/ToastContext';
 import { useTheme, type Theme } from '@/ui/useTheme';
+import { useFontScale } from '@/ui/useFontScale';
 
 export default function TodayScreen() {
   const { user } = useAuth();
@@ -50,6 +51,9 @@ export default function TodayScreen() {
 
   const theme = useTheme();
   const styles = useMemo(() => makeStyles(theme), [theme]);
+  // Clamped to the same 1.5x ceiling as the strip/label text variants — the
+  // History-link arrow sits inline with `meta` text and must never outgrow it.
+  const fontScale = useFontScale();
   const qc = useQueryClient();
   const activeQuery = useActiveWorkout(userId);
   const lastFinishedQuery = useLastFinishedWorkoutWithSeeds(userId);
@@ -309,7 +313,11 @@ export default function TodayScreen() {
             <Text variant="meta" color={theme.color.inkTertiary}>
               History
             </Text>
-            <Icon name="arrow-right" size={14} color={theme.color.inkTertiary} />
+            <Icon
+              name="arrow-right"
+              size={Math.round(14 * fontScale)}
+              color={theme.color.inkTertiary}
+            />
           </Pressable>
         </View>
 

@@ -166,6 +166,7 @@ export default function LoginScreen() {
                 autoCorrect={false}
                 textContentType="emailAddress"
                 editable={!sending}
+                accessibilityLabel="Email address"
                 style={styles.input}
               />
               {usePassword ? (
@@ -183,6 +184,7 @@ export default function LoginScreen() {
                     autoCorrect={false}
                     textContentType="password"
                     editable={!signingIn}
+                    accessibilityLabel="Password"
                     style={styles.input}
                   />
                 </>

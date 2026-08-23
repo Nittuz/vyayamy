@@ -88,6 +88,7 @@ export function ExercisePicker({ userId, visible, onClose, onPick }: Props) {
         placeholder="Search, or type to create"
         placeholderTextColor={theme.color.inkTertiary}
         autoFocus
+        accessibilityLabel="Search or create exercise"
         style={styles.search}
       />
       {createError ? (

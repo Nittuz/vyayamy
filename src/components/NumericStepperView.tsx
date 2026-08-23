@@ -332,5 +332,9 @@ const makeStyles = (theme: Theme) =>
       paddingHorizontal: theme.space.s4,
       paddingVertical: theme.space.s2,
     },
-    accessoryKey: { minHeight: 36, justifyContent: 'center', paddingHorizontal: theme.space.s3 },
+    accessoryKey: {
+      minHeight: theme.touch.min,
+      justifyContent: 'center',
+      paddingHorizontal: theme.space.s3,
+    },
   });

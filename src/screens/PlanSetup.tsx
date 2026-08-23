@@ -2,6 +2,8 @@ import { router } from 'expo-router';
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import {
   ActivityIndicator,
+  KeyboardAvoidingView,
+  Platform,
   SafeAreaView,
   ScrollView,
   StyleSheet,
@@ -211,138 +213,146 @@ export default function PlanSetupScreen() {
 
   return (
     <SafeAreaView style={styles.container}>
-      <ScrollView contentContainerStyle={styles.scroll}>
-        {showPresetPicker ? (
-          <PresetPicker
-            isLoading={presets.isLoading}
-            presets={presets.data ?? []}
-            onPick={stagePreset}
-          />
-        ) : null}
-
-        {stagedPreset ? (
-          <Plate border="strong" faceStyle={styles.stagedFace}>
-            <View style={styles.stagedText}>
-              <Text variant="meta" color={theme.color.inkTertiary}>
-                Starting from preset
-              </Text>
-              <Text variant="card" color={theme.color.ink} style={styles.stagedName}>
-                {stagedPreset.preset.name}
-              </Text>
-            </View>
-            <Button label="Clear" kind="secondary" size="row" onPress={clearPreset} />
-          </Plate>
-        ) : null}
-
-        <Plate faceStyle={styles.cardFace}>
-          <Text variant="meta" color={theme.color.inkTertiary}>
-            Plan name
-          </Text>
-          <TextInput
-            value={name}
-            onChangeText={setName}
-            placeholder="My plan"
-            placeholderTextColor={theme.color.inkTertiary}
-            style={styles.input}
-          />
-        </Plate>
-
-        <Plate faceStyle={styles.cardFace}>
-          <Text variant="meta" color={theme.color.inkTertiary}>
-            Schedule type
-          </Text>
-          <Segment
-            options={[
-              { value: 'weekly', label: 'Weekly', accessibilityLabel: 'Weekly schedule' },
-              { value: 'cycle', label: 'Cycle', accessibilityLabel: 'Rotating cycle' },
-            ]}
-            value={planType}
-            onChange={setPlanTypeAndReset}
-          />
-        </Plate>
-
-        <View style={styles.section}>
-          <Text variant="label" color={theme.color.inkTertiary} style={styles.sectionTitle}>
-            Days
-          </Text>
-          {slots.map((slot, idx) => (
-            // Training days are inverted plates (the emphasis state, matching
-            // TrainingPlan); rest days stay quiet ghost rows.
-            <Plate
-              key={slot.key}
-              tone={slot.isRestDay ? 'ghost' : 'inverted'}
-              border={slot.isRestDay ? 'soft' : 'none'}
-              faceStyle={styles.slotFace}
-            >
-              <View style={styles.slotHeader}>
-                <Text
-                  variant="card"
-                  color={slot.isRestDay ? theme.color.inkTertiary : invertedInk}
-                  style={styles.slotHeaderText}
-                >
-                  {planType === 'weekly'
-                    ? DAY_LABELS[slot.dayOfWeek ?? idx]
-                    : `Day ${(slot.cyclePosition ?? idx) + 1}`}
-                </Text>
-                {/* Selection is inversion, never a heavier border: the toggle
-                    flips to the inverted chip when ON; OFF sits ghost on the
-                    inverted training row, so invertedInk is right either way. */}
-                <Plate
-                  tone={slot.isRestDay ? 'inverted' : 'ghost'}
-                  border={slot.isRestDay ? 'none' : 'soft'}
-                  onPress={() => setSlotAt(idx, { isRestDay: !slot.isRestDay })}
-                  accessibilityLabel="Rest day"
-                  accessibilityState={{ selected: slot.isRestDay }}
-                  faceStyle={styles.toggleFace}
-                >
-                  <Text variant="meta" color={invertedInk}>
-                    Rest day
-                  </Text>
-                </Plate>
-              </View>
-              {!slot.isRestDay ? (
-                <View style={styles.templatePicker}>
-                  <TemplatePill
-                    label="None"
-                    accessibilityLabel="No template"
-                    active={slot.templateId === null}
-                    onPress={() => setSlotAt(idx, { templateId: null })}
-                  />
-                  {templateOptions.map((tpl) => (
-                    <TemplatePill
-                      key={tpl.id}
-                      label={tpl.name}
-                      active={slot.templateId === tpl.id}
-                      onPress={() => setSlotAt(idx, { templateId: tpl.id })}
-                    />
-                  ))}
-                </View>
-              ) : null}
-            </Plate>
-          ))}
-
-          {planType === 'cycle' ? (
-            <Button
-              label="Add day"
-              kind="ghost"
-              size="row"
-              icon="plus"
-              onPress={addCycleDay}
-              style={styles.addDay}
+      {/* Keyboard avoidance mirrors Login — the plan-name field must not hide
+          behind the keyboard (impeccable batch 4). */}
+      <KeyboardAvoidingView
+        behavior={Platform.OS === 'ios' ? 'padding' : undefined}
+        style={styles.kav}
+      >
+        <ScrollView contentContainerStyle={styles.scroll}>
+          {showPresetPicker ? (
+            <PresetPicker
+              isLoading={presets.isLoading}
+              presets={presets.data ?? []}
+              onPick={stagePreset}
             />
           ) : null}
-        </View>
 
-        <Button
-          label="Save plan"
-          kind="primary"
-          size="cta"
-          loading={isSaving}
-          disabled={isSaving}
-          onPress={() => void onSave()}
-          style={styles.saveBtn}
-        />
-      </ScrollView>
+          {stagedPreset ? (
+            <Plate border="strong" faceStyle={styles.stagedFace}>
+              <View style={styles.stagedText}>
+                <Text variant="meta" color={theme.color.inkTertiary}>
+                  Starting from preset
+                </Text>
+                <Text variant="card" color={theme.color.ink} style={styles.stagedName}>
+                  {stagedPreset.preset.name}
+                </Text>
+              </View>
+              <Button label="Clear" kind="secondary" size="row" onPress={clearPreset} />
+            </Plate>
+          ) : null}
+
+          <Plate faceStyle={styles.cardFace}>
+            <Text variant="meta" color={theme.color.inkTertiary}>
+              Plan name
+            </Text>
+            <TextInput
+              value={name}
+              onChangeText={setName}
+              placeholder="My plan"
+              placeholderTextColor={theme.color.inkTertiary}
+              accessibilityLabel="Plan name"
+              style={styles.input}
+            />
+          </Plate>
+
+          <Plate faceStyle={styles.cardFace}>
+            <Text variant="meta" color={theme.color.inkTertiary}>
+              Schedule type
+            </Text>
+            <Segment
+              options={[
+                { value: 'weekly', label: 'Weekly', accessibilityLabel: 'Weekly schedule' },
+                { value: 'cycle', label: 'Cycle', accessibilityLabel: 'Rotating cycle' },
+              ]}
+              value={planType}
+              onChange={setPlanTypeAndReset}
+            />
+          </Plate>
+
+          <View style={styles.section}>
+            <Text variant="label" color={theme.color.inkTertiary} style={styles.sectionTitle}>
+              Days
+            </Text>
+            {slots.map((slot, idx) => (
+              // Training days are inverted plates (the emphasis state, matching
+              // TrainingPlan); rest days stay quiet ghost rows.
+              <Plate
+                key={slot.key}
+                tone={slot.isRestDay ? 'ghost' : 'inverted'}
+                border={slot.isRestDay ? 'soft' : 'none'}
+                faceStyle={styles.slotFace}
+              >
+                <View style={styles.slotHeader}>
+                  <Text
+                    variant="card"
+                    color={slot.isRestDay ? theme.color.inkTertiary : invertedInk}
+                    style={styles.slotHeaderText}
+                  >
+                    {planType === 'weekly'
+                      ? DAY_LABELS[slot.dayOfWeek ?? idx]
+                      : `Day ${(slot.cyclePosition ?? idx) + 1}`}
+                  </Text>
+                  {/* Selection is inversion, never a heavier border: the toggle
+                    flips to the inverted chip when ON; OFF sits ghost on the
+                    inverted training row, so invertedInk is right either way. */}
+                  <Plate
+                    tone={slot.isRestDay ? 'inverted' : 'ghost'}
+                    border={slot.isRestDay ? 'none' : 'soft'}
+                    onPress={() => setSlotAt(idx, { isRestDay: !slot.isRestDay })}
+                    accessibilityLabel="Rest day"
+                    accessibilityState={{ selected: slot.isRestDay }}
+                    faceStyle={styles.toggleFace}
+                  >
+                    <Text variant="meta" color={invertedInk}>
+                      Rest day
+                    </Text>
+                  </Plate>
+                </View>
+                {!slot.isRestDay ? (
+                  <View style={styles.templatePicker}>
+                    <TemplatePill
+                      label="None"
+                      accessibilityLabel="No template"
+                      active={slot.templateId === null}
+                      onPress={() => setSlotAt(idx, { templateId: null })}
+                    />
+                    {templateOptions.map((tpl) => (
+                      <TemplatePill
+                        key={tpl.id}
+                        label={tpl.name}
+                        active={slot.templateId === tpl.id}
+                        onPress={() => setSlotAt(idx, { templateId: tpl.id })}
+                      />
+                    ))}
+                  </View>
+                ) : null}
+              </Plate>
+            ))}
+
+            {planType === 'cycle' ? (
+              <Button
+                label="Add day"
+                kind="ghost"
+                size="row"
+                icon="plus"
+                onPress={addCycleDay}
+                style={styles.addDay}
+              />
+            ) : null}
+          </View>
+
+          <Button
+            label="Save plan"
+            kind="primary"
+            size="cta"
+            loading={isSaving}
+            disabled={isSaving}
+            onPress={() => void onSave()}
+            style={styles.saveBtn}
+          />
+        </ScrollView>
+      </KeyboardAvoidingView>
     </SafeAreaView>
   );
 }
@@ -530,6 +540,7 @@ function buildCycleDraft(n: number): SlotDraft[] {
 const makeStyles = (theme: Theme) =>
   StyleSheet.create({
     container: { flex: 1, backgroundColor: theme.color.bg },
+    kav: { flex: 1 },
     scroll: { padding: theme.space.page, gap: theme.space.s4, paddingBottom: theme.space.s12 },
     cardFace: { padding: theme.space.s4, gap: theme.space.s2 },
     input: {

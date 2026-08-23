@@ -44,6 +44,12 @@ export const TEXT_VARIANTS: TextVariant[] = [
  * Display-class variants cap Dynamic Type scaling: Anton at 34–44pt with
  * unlimited scaling overflows headers long before it helps legibility.
  * Body-class variants scale freely.
+ *
+ * `strip` and `label` are metadata, not content: at accessibility-XXXL,
+ * uncapped metadata outgrows the content it labels (a strip like
+ * "TODAY · 5 EXERCISES" consuming a whole card while its title shrinks to
+ * fit). They get the same treatment, looser — some Dynamic Type growth is
+ * still earned, just bounded so metadata can never outgrow content.
  */
 export function resolveMaxFontSizeMultiplier(variant: TextVariant): number | undefined {
   switch (variant) {
@@ -52,6 +58,9 @@ export function resolveMaxFontSizeMultiplier(variant: TextVariant): number | und
     case 'displayXL':
     case 'display':
       return 1.2;
+    case 'strip':
+    case 'label':
+      return 1.5;
     default:
       return undefined;
   }

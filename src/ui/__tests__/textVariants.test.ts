@@ -86,3 +86,16 @@ test('display-class variants cap Dynamic Type scaling; body-class scales freely'
   expect(resolveMaxFontSizeMultiplier('body')).toBeUndefined();
   expect(resolveMaxFontSizeMultiplier('meta')).toBeUndefined();
 });
+
+// Impeccable batch 4 / P1: at accessibility-XXXL, uncapped metadata (strip,
+// label) outgrew the content it labels ("TODAY · 5 EXERCISES" consuming the
+// whole card). Mirrors the display-class cap mechanism above, but looser —
+// metadata still earns some Dynamic Type growth, just not unbounded growth.
+test('metadata variants (strip, label) cap at 1.5x; body/meta stay uncapped', () => {
+  expect(resolveMaxFontSizeMultiplier('strip')).toBe(1.5);
+  expect(resolveMaxFontSizeMultiplier('label')).toBe(1.5);
+  expect(resolveMaxFontSizeMultiplier('body')).toBeUndefined();
+  expect(resolveMaxFontSizeMultiplier('meta')).toBeUndefined();
+  expect(resolveMaxFontSizeMultiplier('numeral')).toBeUndefined();
+  expect(resolveMaxFontSizeMultiplier('numeralLg')).toBeUndefined();
+});
