@@ -12,7 +12,13 @@ import {
 
 import { ExercisePicker } from '@/components/ExercisePicker';
 import { useAuth } from '@/auth/useAuth';
-import { formatRelativeDate, formatShortDate, humanizeEnum } from '@/core/format';
+import {
+  chartYAxisUnitSuffix,
+  formatPrRowStrip,
+  formatRelativeDate,
+  formatShortDate,
+  humanizeEnum,
+} from '@/core/format';
 import { DEFAULT_UNITS } from '@/core/units';
 import { getKv, registerUserScopedKv, setKv } from '@/lib/kvStore';
 import { queryKeys } from '@/queries/keys';
@@ -194,6 +200,12 @@ export default function ProgressScreen() {
   const activeGroup = prs?.find((p) => p.exerciseId === active) ?? null;
   const heaviest = activeGroup?.records.find((r) => r.type === 'heaviest_weight') ?? null;
   const mostReps = activeGroup?.records.find((r) => r.type === 'most_reps') ?? null;
+  // Structured numeric payload (impeccable polish C) — lets the tiles compose
+  // numeral + unit strip instead of shrink-fitting one combined string.
+  // Falls back to null (→ the old combined displayValue rendering) only if a
+  // stored value fails to parse, which formatRecord already guards.
+  const heaviestValue = heaviest?.value?.type === 'heaviest_weight' ? heaviest.value : null;
+  const mostRepsValue = mostReps?.value?.type === 'most_reps' ? mostReps.value : null;
   const invertedInk = resolvePlateStyles(theme, { tone: 'inverted' }).ink;
 
   // A bodyweight-only exercise has nothing to plot on the weight or volume
@@ -253,7 +265,12 @@ export default function ProgressScreen() {
             </Pressable>
 
             {/* 2-col stat tiles: inverted panels, mono numerals, mono-caps
-                strip captions (panel ink at 0.65 — the inverted exception) */}
+                strip captions (panel ink at 0.65 — the inverted exception).
+                Structured numeral + unit strip (impeccable polish C) — the
+                query layer now exposes raw value/reps/weight (GroupedPRRecordValue)
+                alongside displayValue, so each tile composes its own layout
+                instead of shrink-fitting one combined string. adjustsFontSizeToFit
+                stays on the primary numeral as belt-and-braces. */}
             {heaviest || mostReps ? (
               <View style={[styles.pad, styles.tileRow]}>
                 {heaviest ? (
@@ -261,19 +278,20 @@ export default function ProgressScreen() {
                     <Text variant="strip" color={invertedInk} style={styles.tileCaption}>
                       Heaviest
                     </Text>
-                    {/* GroupedPR only exposes a formatted displayValue string
-                        (no raw weight/reps fields to compose structurally), so
-                        the guard against mid-unit wrap is a single-line clamp
-                        rather than a numeral+strip split (owner review). */}
-                    <Text
-                      variant="numeralLg"
-                      color={invertedInk}
-                      numberOfLines={1}
-                      adjustsFontSizeToFit
-                      minimumFontScale={0.6}
-                    >
-                      {heaviest.displayValue} {units}
-                    </Text>
+                    <View style={styles.tileValue}>
+                      <Text
+                        variant="numeralLg"
+                        color={invertedInk}
+                        numberOfLines={1}
+                        adjustsFontSizeToFit
+                        minimumFontScale={0.6}
+                      >
+                        {heaviestValue ? trim(heaviestValue.weight) : heaviest.displayValue}
+                      </Text>
+                      <Text variant="strip" color={invertedInk} style={styles.tileCaption}>
+                        {units}
+                      </Text>
+                    </View>
                     <Text variant="strip" color={invertedInk} style={styles.tileCaption}>
                       {formatRelativeDate(heaviest.achievedAt)}
                     </Text>
@@ -284,20 +302,24 @@ export default function ProgressScreen() {
                     <Text variant="strip" color={invertedInk} style={styles.tileCaption}>
                       Most reps
                     </Text>
-                    {/* displayValue is self-contained ("15 BW" / "12 × 80 kg") — no
-                        extra suffix. numberOfLines={1} + adjustsFontSizeToFit is
-                        the fallback the data model forces here: "3 × 52.5 kg" was
-                        wrapping mid-unit onto a second line, which both grew this
-                        tile taller than its sibling AND broke the unit apart. */}
-                    <Text
-                      variant="numeralLg"
-                      color={invertedInk}
-                      numberOfLines={1}
-                      adjustsFontSizeToFit
-                      minimumFontScale={0.6}
-                    >
-                      {mostReps.displayValue}
-                    </Text>
+                    <View style={styles.tileValue}>
+                      <Text
+                        variant="numeralLg"
+                        color={invertedInk}
+                        numberOfLines={1}
+                        adjustsFontSizeToFit
+                        minimumFontScale={0.6}
+                      >
+                        {mostRepsValue ? mostRepsValue.reps : mostReps.displayValue}
+                      </Text>
+                      {mostRepsValue ? (
+                        <Text variant="strip" color={invertedInk} style={styles.tileCaption}>
+                          {mostRepsValue.weight == null
+                            ? 'BW'
+                            : `× ${trim(mostRepsValue.weight)} ${units}`}
+                        </Text>
+                      ) : null}
+                    </View>
                     <Text variant="strip" color={invertedInk} style={styles.tileCaption}>
                       {formatRelativeDate(mostReps.achievedAt)}
                     </Text>
@@ -324,6 +346,9 @@ export default function ProgressScreen() {
               xTickFormatter={(v) =>
                 new Date(v).toLocaleDateString(undefined, { month: 'short', day: 'numeric' })
               }
+              // Top y-tick unit suffix (impeccable polish B) — LineChart has
+              // always supported this prop, it just never got passed.
+              unitSuffix={chartYAxisUnitSuffix(metric, units)}
               accessibilityLabel={chartAccessibilityLabel}
             />
 
@@ -370,6 +395,34 @@ export default function ProgressScreen() {
                 const isActive = g.exerciseId === active;
                 const rowInk = isActive ? invertedInk : theme.color.ink;
                 const rowMeta = isActive ? invertedInk : theme.color.inkTertiary;
+                const heaviestRec = g.records.find((r) => r.type === 'heaviest_weight') ?? null;
+                const mostRepsRec = g.records.find((r) => r.type === 'most_reps') ?? null;
+                // Grammar fix (impeccable polish A): each record collapses to its
+                // essential number — the full "N × weight kg" pairing lives in the
+                // stat tiles once this exercise is selected — so the strip fits at
+                // default text sizes instead of ellipsizing mid-number.
+                const rowStrip = [
+                  formatPrRowStrip(
+                    heaviestRec?.value?.type === 'heaviest_weight' ? heaviestRec.value : null,
+                    mostRepsRec?.value?.type === 'most_reps' ? mostRepsRec.value : null,
+                    units,
+                  ),
+                  // Visible echo of the recentDot (S4) — same dot-joined
+                  // strip, so it costs no new treatment.
+                  ...(g.hasRecent ? ['Recent'] : []),
+                ]
+                  .filter(Boolean)
+                  .join(' · ');
+                // A11y keeps the full, untruncated values (craft floor) even
+                // though the visual strip above shortens them.
+                const a11yRecords = g.records
+                  .map(
+                    // Honest fallback: an unrecognized record type (e.g. a
+                    // retired type not yet swept) humanizes rather than
+                    // showing the raw snake_case enum (impeccable batch 5).
+                    (r) => `${PR_LABEL[r.type] ?? humanizeEnum(r.type)} ${r.displayValue}`,
+                  )
+                  .join(', ');
                 return (
                   <FadeInView key={g.exerciseId} delay={staggerDelay(i)}>
                     <Plate
@@ -383,7 +436,7 @@ export default function ProgressScreen() {
                       // Plate's `accessible` grouping means the recentDot below
                       // is never independently announced — the row's own label
                       // is the only place "recent" can be said (S4).
-                      accessibilityLabel={`${g.exerciseName} records. Tap to chart.${g.hasRecent ? ' Recent.' : ''}`}
+                      accessibilityLabel={`${g.exerciseName} records. ${a11yRecords}.${g.hasRecent ? ' Recent.' : ''} Tap to chart.`}
                       accessibilityState={{ selected: isActive }}
                       faceStyle={styles.prFace}
                     >
@@ -397,18 +450,7 @@ export default function ProgressScreen() {
                           numberOfLines={1}
                           style={[styles.prStrip, isActive && styles.softInk]}
                         >
-                          {[
-                            // Honest fallback: an unrecognized record type (e.g. a
-                            // retired type not yet swept) humanizes rather than
-                            // showing the raw snake_case enum (impeccable batch 5).
-                            ...g.records.map(
-                              (r) =>
-                                `${PR_LABEL[r.type] ?? humanizeEnum(r.type)} ${r.displayValue}`,
-                            ),
-                            // Visible echo of the recentDot (S4) — same dot-joined
-                            // strip, so it costs no new treatment.
-                            ...(g.hasRecent ? ['Recent'] : []),
-                          ].join(' · ')}
+                          {rowStrip}
                         </Text>
                       </View>
                       {g.hasRecent ? (
@@ -416,7 +458,11 @@ export default function ProgressScreen() {
                           style={[styles.recentDot, isActive && { backgroundColor: invertedInk }]}
                         />
                       ) : null}
-                      <Text variant="strip" color={rowMeta} style={isActive && styles.softInk}>
+                      <Text
+                        variant="strip"
+                        color={rowMeta}
+                        style={[styles.prDate, isActive && styles.softInk]}
+                      >
                         {/* records are precedence-ordered, so take the latest date explicitly */}
                         {g.records.length
                           ? formatRelativeDate(
@@ -528,6 +574,9 @@ const makeStyles = (theme: Theme) =>
       justifyContent: 'space-between',
     },
     tileCaption: { opacity: 0.65 },
+    // Numeral + unit strip pairing (impeccable polish C) — the middle
+    // caption/value/caption slot, now itself numeral-over-strip.
+    tileValue: { gap: theme.space.half },
 
     controls: { gap: theme.space.s2 },
     // Tight token spacing between a group's caption and its Segment row —
@@ -548,7 +597,12 @@ const makeStyles = (theme: Theme) =>
       gap: theme.space.s3,
       padding: theme.space.s4,
     },
-    prStrip: { marginTop: theme.space.s1 },
+    // flexShrink pairing (row-squaring idiom, mirrors History's titleText/
+    // dateText split) — the strip is free to shrink under numberOfLines={1},
+    // the trailing date column never does, so truncation is structurally
+    // confined to the strip rather than fighting the date for space.
+    prStrip: { marginTop: theme.space.s1, flexShrink: 1 },
+    prDate: { flexShrink: 0 },
     recentDot: {
       width: 7,
       height: 7,

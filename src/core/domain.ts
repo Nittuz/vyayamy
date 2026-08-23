@@ -72,6 +72,18 @@ export type WorkoutSummary = {
   duration: string;
 };
 
+/**
+ * A record's numeric payload, already converted to the caller's display unit
+ * (impeccable polish C) — the structured sibling of `displayValue`. Callers
+ * that need to compose their own layout (stat tiles, the row-list strip) read
+ * this instead of re-parsing the formatted string; `displayValue` stays for
+ * callers that just want the ready-made text. `weight` is null on a
+ * bodyweight `most_reps` record, matching PRValue's convention.
+ */
+export type GroupedPRRecordValue =
+  | { type: 'heaviest_weight'; weight: number }
+  | { type: 'most_reps'; reps: number; weight: number | null };
+
 export type GroupedPR = {
   exerciseId: string;
   exerciseName: string;
@@ -80,11 +92,15 @@ export type GroupedPR = {
     id: string;
     type: PRType;
     displayValue: string;
+    /** Null only if the stored value fails to parse (corrupt row) — displayValue still degrades gracefully in that case. */
+    value: GroupedPRRecordValue | null;
     achievedAt: string;
     isRecent: boolean;
   }[];
   hasRecent: boolean;
 };
+
+export type GroupedPRRecord = GroupedPR['records'][number];
 
 export type SyncState = 'idle' | 'saving' | 'saved' | 'error' | 'offline';
 

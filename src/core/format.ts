@@ -184,3 +184,45 @@ export function formatClock(totalSeconds: number): string {
   const rem = s % 60;
   return `${m}:${String(rem).padStart(2, '0')}`;
 }
+
+/** Round to one decimal and trim a trailing ".0" (e.g. 300.0 → "300", 227.349 → "227.3"). */
+function trimNum(n: number): string {
+  return String(Math.round(n * 10) / 10);
+}
+
+/**
+ * Progress screen's Personal Records row strip (impeccable polish A). Each
+ * record collapses to its essential number so the strip fits at default text
+ * sizes instead of ellipsizing mid-number — the full "N × weight kg" pairing
+ * still lives in the stat tiles once an exercise is selected. A bodyweight
+ * reps record keeps its "BW" token so the meaning survives the trim. Either
+ * record may be absent (a group can hold just one PR type); passing both as
+ * null yields an empty string.
+ */
+export function formatPrRowStrip(
+  heaviest: { weight: number } | null,
+  mostReps: { reps: number; weight: number | null } | null,
+  units: 'kg' | 'lb',
+): string {
+  const parts: string[] = [];
+  if (heaviest) parts.push(`Heaviest ${trimNum(heaviest.weight)} ${units}`);
+  if (mostReps) {
+    parts.push(mostReps.weight == null ? `${mostReps.reps} BW reps` : `${mostReps.reps} reps`);
+  }
+  return parts.join(' · ');
+}
+
+/**
+ * The Progress chart's y-axis unit suffix (impeccable polish B), e.g. " kg"
+ * for LineChart's `unitSuffix` prop — weight-based metrics (heaviest weight,
+ * best volume) read out in the profile's unit; reps carry no unit. Isolated
+ * as a pure function so the axis-suffix wiring — previously just missing,
+ * Progress.tsx never passed the prop LineChart already supported — has a
+ * test the render tree can't easily give it.
+ */
+export function chartYAxisUnitSuffix(
+  metric: 'heaviest' | 'volume' | 'reps',
+  units: 'kg' | 'lb',
+): string | undefined {
+  return metric === 'reps' ? undefined : ` ${units}`;
+}

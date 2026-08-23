@@ -18,7 +18,7 @@ import { localDayKey } from '@/core/format';
 import { getDb } from '@/db/client';
 import { withTransaction } from '@/db/transaction';
 import { nowIso, uuidv4 } from '@/db/uuid';
-import { parsePRValue, type GroupedPR, type Units } from '@/core/domain';
+import { parsePRValue, type GroupedPR, type GroupedPRRecordValue, type Units } from '@/core/domain';
 import { convertWeight, DEFAULT_UNITS } from '@/core/units';
 import type { PersonalRecord } from '@/db/types';
 
@@ -187,26 +187,45 @@ function decodePRValue(raw: unknown): unknown {
   }
 }
 
-function show(n: number): string {
-  return String(Math.round(n * 10) / 10);
+function round1(n: number): number {
+  return Math.round(n * 10) / 10;
 }
 
-/** Format a stored (kg) PR value for display in the user's unit. */
-function formatDisplay(type: string, value: unknown, units: Units): string {
+function show(n: number): string {
+  return String(round1(n));
+}
+
+interface FormattedRecord {
+  display: string;
+  /** Same value the display string was built from, kept structured (impeccable polish C)
+   *  so callers that compose their own layout (stat tiles, row-list strip) don't have to
+   *  re-parse `display`. Null only when the stored value fails to parse. */
+  structured: GroupedPRRecordValue | null;
+}
+
+/** Format a stored (kg) PR value for display in the user's unit, alongside its structured form. */
+function formatRecord(type: string, value: unknown, units: Units): FormattedRecord {
   const parsed = parsePRValue(type, decodePRValue(value) as never);
-  if (!parsed) return String(decodePRValue(value));
+  if (!parsed) return { display: String(decodePRValue(value)), structured: null };
   switch (parsed.type) {
-    case 'heaviest_weight':
-      return show(convertWeight(parsed.value, 'kg', units));
-    case 'most_reps':
+    case 'heaviest_weight': {
+      const weight = round1(convertWeight(parsed.value, 'kg', units));
+      return { display: String(weight), structured: { type: 'heaviest_weight', weight } };
+    }
+    case 'most_reps': {
       // Reps lead — they ARE this record. "15 BW" for a bodyweight record
       // (weight NULL, never 0); "12 × 80 kg" for a loaded one — the unit is
       // spelled out because the weight is converted to the display unit and a
       // bare converted number beside the unit-suffixed Heaviest tile would be
       // ambiguous.
-      return parsed.value.weight == null
-        ? `${parsed.value.reps} BW`
-        : `${parsed.value.reps} × ${show(convertWeight(parsed.value.weight, 'kg', units))} ${units}`;
+      const { reps } = parsed.value;
+      const weight =
+        parsed.value.weight == null
+          ? null
+          : round1(convertWeight(parsed.value.weight, 'kg', units));
+      const display = weight == null ? `${reps} BW` : `${reps} × ${show(weight)} ${units}`;
+      return { display, structured: { type: 'most_reps', reps, weight } };
+    }
   }
 }
 
@@ -245,10 +264,12 @@ export async function getGroupedPRs(
       grouped.set(r.exercise_id, bucket);
     }
     const isRecent = new Date(r.achieved_at).getTime() > recentCutoff;
+    const formatted = formatRecord(r.type, r.value, units);
     const rec: GroupedPRItem = {
       id: r.id,
       type: r.type as GroupedPRItem['type'],
-      displayValue: formatDisplay(r.type, r.value, units),
+      displayValue: formatted.display,
+      value: formatted.structured,
       achievedAt: r.achieved_at,
       isRecent,
     };

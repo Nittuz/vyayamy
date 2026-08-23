@@ -200,6 +200,78 @@ describe('getGroupedPRs', () => {
     expect(group!.records.find((r) => r.id === 'old')!.isRecent).toBe(false);
   });
 
+  test('exposes a structured value alongside displayValue (impeccable polish C)', async () => {
+    await insertExercise('ex-dl', 'Deadlift', 'Back');
+    await insertExercise('ex-pu', 'Pull-up', 'Back');
+    await insertPR({
+      id: 'a',
+      exerciseId: 'ex-dl',
+      type: 'heaviest_weight',
+      value: 405,
+      achievedAt: oldIso(),
+    });
+    await insertPR({
+      id: 'b',
+      exerciseId: 'ex-dl',
+      type: 'most_reps',
+      value: { reps: 12, weight: 100 },
+      achievedAt: oldIso(),
+    });
+    await insertPR({
+      id: 'c',
+      exerciseId: 'ex-pu',
+      type: 'most_reps',
+      value: { reps: 15, weight: null },
+      achievedAt: oldIso(),
+    });
+
+    const groups = await getGroupedPRs(USER);
+    const dl = groups.find((g) => g.exerciseId === 'ex-dl')!;
+    const heaviest = dl.records.find((r) => r.type === 'heaviest_weight')!;
+    expect(heaviest.value).toEqual({ type: 'heaviest_weight', weight: 405 });
+    const mostReps = dl.records.find((r) => r.type === 'most_reps')!;
+    expect(mostReps.value).toEqual({ type: 'most_reps', reps: 12, weight: 100 });
+
+    const pu = groups.find((g) => g.exerciseId === 'ex-pu')!;
+    // Bodyweight: weight stays null in the structured form too (never 0).
+    expect(pu.records[0]!.value).toEqual({ type: 'most_reps', reps: 15, weight: null });
+  });
+
+  test('converts the structured weight to the requested display unit', async () => {
+    await insertExercise('ex', 'Bench', 'Chest');
+    await insertPR({
+      id: 'a',
+      exerciseId: 'ex',
+      type: 'heaviest_weight',
+      value: 100, // stored in kg
+      achievedAt: oldIso(),
+    });
+
+    const [group] = await getGroupedPRs(USER, 'lb');
+    const heaviest = group!.records.find((r) => r.type === 'heaviest_weight')!;
+    expect(heaviest.value).not.toBeNull();
+    expect(heaviest.displayValue).toBe(String(heaviest.value!.weight));
+    expect(heaviest.value!.type === 'heaviest_weight' && heaviest.value!.weight).toBeGreaterThan(
+      200,
+    );
+  });
+
+  test('structured value is null when the stored value fails to parse (corrupt row)', async () => {
+    await insertExercise('ex', 'Bench', 'Chest');
+    await insertPR({
+      id: 'bad',
+      exerciseId: 'ex',
+      type: 'heaviest_weight',
+      value: 'not-a-number' as unknown as number,
+      achievedAt: oldIso(),
+    });
+
+    const [group] = await getGroupedPRs(USER);
+    expect(group!.records[0]!.value).toBeNull();
+    // displayValue still degrades gracefully rather than throwing.
+    expect(typeof group!.records[0]!.displayValue).toBe('string');
+  });
+
   test('falls back to "Unknown" when the exercise row is missing', async () => {
     await insertPR({
       id: 'pr',

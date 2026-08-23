@@ -1,7 +1,9 @@
 import {
   ageLabel,
+  chartYAxisUnitSuffix,
   formatRelativeDate,
   formatDuration,
+  formatPrRowStrip,
   formatRowDate,
   formatShortDate,
   formatStartLabel,
@@ -252,6 +254,61 @@ describe('formatWeight', () => {
   test('appends the unit', () => {
     expect(formatWeight(100, 'kg')).toBe('100 kg');
     expect(formatWeight(45, 'lb')).toBe('45 lb');
+  });
+});
+
+describe('formatPrRowStrip (impeccable polish A)', () => {
+  test('drops the "x weight" tail from a loaded reps record so the row never truncates', () => {
+    expect(formatPrRowStrip({ weight: 52.5 }, { reps: 13, weight: 52.5 }, 'kg')).toBe(
+      'Heaviest 52.5 kg · 13 reps',
+    );
+  });
+
+  test('a bodyweight reps record keeps the BW token', () => {
+    expect(formatPrRowStrip({ weight: 100 }, { reps: 15, weight: null }, 'kg')).toBe(
+      'Heaviest 100 kg · 15 BW reps',
+    );
+  });
+
+  test('renders lb units on the heaviest segment', () => {
+    expect(formatPrRowStrip({ weight: 225 }, { reps: 5, weight: 185 }, 'lb')).toBe(
+      'Heaviest 225 lb · 5 reps',
+    );
+  });
+
+  test('missing the heaviest record: only the reps segment renders', () => {
+    expect(formatPrRowStrip(null, { reps: 8, weight: 60 }, 'kg')).toBe('8 reps');
+  });
+
+  test('missing the reps record: only the heaviest segment renders', () => {
+    expect(formatPrRowStrip({ weight: 405 }, null, 'kg')).toBe('Heaviest 405 kg');
+  });
+
+  test('neither record present renders an empty string', () => {
+    expect(formatPrRowStrip(null, null, 'kg')).toBe('');
+  });
+
+  test('trims a trailing ".0" but keeps a real decimal, even for large values', () => {
+    expect(formatPrRowStrip({ weight: 300.0 }, { reps: 1, weight: 300.0 }, 'kg')).toBe(
+      'Heaviest 300 kg · 1 reps',
+    );
+    expect(formatPrRowStrip({ weight: 1234.5 }, null, 'kg')).toBe('Heaviest 1234.5 kg');
+  });
+
+  test('rounds a long decimal to one place', () => {
+    expect(formatPrRowStrip({ weight: 227.349 }, null, 'kg')).toBe('Heaviest 227.3 kg');
+  });
+});
+
+describe('chartYAxisUnitSuffix (impeccable polish B)', () => {
+  test('appends the unit for weight-based metrics', () => {
+    expect(chartYAxisUnitSuffix('heaviest', 'kg')).toBe(' kg');
+    expect(chartYAxisUnitSuffix('volume', 'kg')).toBe(' kg');
+    expect(chartYAxisUnitSuffix('heaviest', 'lb')).toBe(' lb');
+  });
+
+  test('reps carry no unit', () => {
+    expect(chartYAxisUnitSuffix('reps', 'kg')).toBeUndefined();
   });
 });
 
