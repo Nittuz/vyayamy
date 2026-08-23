@@ -20,7 +20,12 @@ import Animated, {
 
 import { motion } from './motion';
 import { PRESS_DIP_OPACITY } from './plateStyles';
-import { attemptActionLatch, resolveToastActionAccent, resolveToastTiming } from './toastLogic';
+import {
+  actionAccessibilityLabel,
+  attemptActionLatch,
+  resolveToastActionAccent,
+  resolveToastTiming,
+} from './toastLogic';
 import { useReduceMotion } from './useReduceMotion';
 import { useTheme, type Theme } from './useTheme';
 import { isSyncError } from './syncErrors';
@@ -167,7 +172,11 @@ export function ToastProvider({ children }: { children: React.ReactNode }) {
                     right: theme.space.s2,
                   }}
                   accessibilityRole="button"
-                  accessibilityLabel={toast.opts?.actionLabel}
+                  accessibilityLabel={
+                    toast.opts?.actionLabel
+                      ? actionAccessibilityLabel(toast.opts.actionLabel, toast.message)
+                      : undefined
+                  }
                   style={({ pressed }) => [
                     styles.action,
                     pressed && { opacity: PRESS_DIP_OPACITY },

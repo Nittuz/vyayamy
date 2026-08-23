@@ -79,7 +79,25 @@ export function attemptActionLatch(latch: { current: number | null }, id: number
  * tuned for a surface this light/dark, which is exactly colors.ts's existing
  * rule that volt "appears in light mode only inside inverted black panels" —
  * this just applies that rule the one place a toast needs it.
+ *
+ * This resolves against the pill's NORMAL (`kind: 'info'`/`'success'`) fill
+ * only. No caller currently pairs an action with `kind: 'error'` (the danger
+ * fill), so the resulting accent-on-danger combination is latent and
+ * untested — worth a contrast check here if an error+action toast ever ships.
  */
 export function resolveToastActionAccent(scheme: 'light' | 'dark'): string {
   return scheme === 'dark' ? lightPalette.accent : darkPalette.accent;
+}
+
+/**
+ * VoiceOver/TalkBack label for the action button. A bare `actionLabel`
+ * ("Undo") is ambiguous under rotor navigation once more than one toast
+ * shape exists in the app ("Set deleted" vs "Workout deleted" both show an
+ * "Undo" button) — the label needs to carry which toast it belongs to, the
+ * same way this repo's other accessibilityLabels fold in their subject
+ * rather than staying generic (e.g. HistoryDetail's `Edit set ${idx + 1},
+ * ${exercise.name}`, EditSetSheet's `Delete set ${setNumber}`).
+ */
+export function actionAccessibilityLabel(actionLabel: string, message: string): string {
+  return `${actionLabel}: ${message}`;
 }

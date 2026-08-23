@@ -1,13 +1,15 @@
 /**
  * Pure toast decision logic (undo spec §2). ToastContext.tsx itself can't be
  * rendered under this repo's jest harness — see toastLogic.ts's file header
- * for the judgment call — so this pins the three extracted pieces: the
- * withSequence timing math, the action-button double-tap latch, and the
- * cross-palette accent used on the toast's self-inverted pill.
+ * for the judgment call — so this pins the four extracted pieces: the
+ * withSequence timing math, the action-button double-tap latch, the
+ * cross-palette accent used on the toast's self-inverted pill, and the
+ * action button's VoiceOver label composition.
  */
 import { darkPalette, lightPalette } from '@/ui/colors';
 import { motion } from '@/ui/motion';
 import {
+  actionAccessibilityLabel,
   attemptActionLatch,
   resolveToastActionAccent,
   resolveToastTiming,
@@ -103,5 +105,22 @@ describe('resolveToastActionAccent', () => {
     // "simplifies" it back to the same-scheme accent later.
     expect(contrast(darkPalette.accent, darkPalette.ink)).toBeLessThan(BODY_RATIO);
     expect(contrast(lightPalette.accent, lightPalette.ink)).toBeLessThan(BODY_RATIO);
+  });
+});
+
+describe('actionAccessibilityLabel', () => {
+  test('folds the toast message in, so two "Undo" buttons read differently', () => {
+    expect(actionAccessibilityLabel('Undo', 'Set deleted')).toBe('Undo: Set deleted');
+    expect(actionAccessibilityLabel('Undo', 'Workout deleted')).toBe('Undo: Workout deleted');
+  });
+
+  test('the two labels above are themselves distinct (the whole point)', () => {
+    expect(actionAccessibilityLabel('Undo', 'Set deleted')).not.toBe(
+      actionAccessibilityLabel('Undo', 'Workout deleted'),
+    );
+  });
+
+  test('composes generically for a non-"Undo" action label too', () => {
+    expect(actionAccessibilityLabel('Retry', 'Sync failed')).toBe('Retry: Sync failed');
   });
 });
