@@ -326,8 +326,11 @@ Supabase GoTrue with two supported sign-in paths: email **magic-link OTP** (PKCE
 flow, the primary path) and **email + password** as a fallback. Both go through
 the auth facade ([src/auth/authActions.ts](src/auth/authActions.ts)); the
 Supabase client is import-restricted to `src/auth` + `src/sync`. Session tokens
-persist in `AsyncStorage` (see the threat model for the accepted risk); deep-link
-callbacks are handled by `expo-linking`.
+are AES-CTR-256 encrypted at rest, with a fresh key per write held in the iOS
+Keychain and the ciphertext in `AsyncStorage` (see
+[src/auth/secureSessionStorage.ts](src/auth/secureSessionStorage.ts) and the
+threat model's "Session JWT encrypted at rest" entry); deep-link callbacks are
+handled by `expo-linking`.
 
 ```mermaid
 sequenceDiagram
@@ -346,7 +349,7 @@ sequenceDiagram
 
 Supabase client config ([src/auth/supabase.ts](src/auth/supabase.ts)):
 
-- `storage: AsyncStorage`
+- `storage: secureSessionStorage` (AES-encrypted adapter, not raw `AsyncStorage` — see [src/auth/secureSessionStorage.ts](src/auth/secureSessionStorage.ts))
 - `autoRefreshToken: true`
 - `persistSession: true`
 - `detectSessionInUrl: false` (Expo handles URLs)
@@ -451,7 +454,7 @@ Every table has RLS enabled; policies scope rows to `auth.uid()`. Tombstoned row
 
 ### Token handling
 
-The Supabase JS client manages JWT storage in `AsyncStorage` and handles refresh automatically. The anon key is safe to ship in the client bundle; it only grants access permitted by RLS policies.
+The Supabase JS client manages JWT storage through `secureSessionStorage` ([src/auth/secureSessionStorage.ts](src/auth/secureSessionStorage.ts)), which AES-encrypts the session before it touches `AsyncStorage` and keeps the per-write key in the iOS Keychain, and handles refresh automatically. The anon key is safe to ship in the client bundle; it only grants access permitted by RLS policies.
 
 ### Data isolation
 

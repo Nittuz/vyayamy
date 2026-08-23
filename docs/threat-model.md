@@ -80,8 +80,6 @@ real DB-corruption issues.
 
 **Revisit if:** Sentry breadcrumbs show recurring transient SQLite errors.
 
-## Open risks
-
 ### Session JWT encrypted at rest (#88, closed 2026-08-22)
 
 The Supabase auth session (including the refresh token) is stored via
@@ -112,10 +110,16 @@ the AsyncStorage write can either orphan a Keychain key with no blob
 cleanly) or, on a token-refresh rewrite, leave the stale AsyncStorage
 blob paired with the new Keychain key (next read decrypts old
 ciphertext under the wrong key — CTR has no integrity check — yielding
-garbage that surfaces as a session parse error rather than data
-exposure; recovery is re-login). Neither crash state exposes the
-session; this is inherent to the official Supabase RN
-"LargeSecureStore" pattern this adapter follows.
+garbage rather than data exposure; auth-js's `JSON.parse` on that garbage
+throws internally and is caught, so the session is treated as absent — a
+silent sign-out (the user lands on Login) rather than a visible parse
+error; recovery is re-login). Neither crash state exposes the session;
+this is inherent to the official Supabase RN "LargeSecureStore" pattern
+this adapter follows.
+
+## Open risks
+
+None currently tracked.
 
 ## Out of scope
 

@@ -72,12 +72,13 @@ npx expo run:ios
 ```
 
 > **After any icon/splash/branding change, run `npm run prebuild:clean` once.**
-> `expo run:ios` reuses an existing `ios/` directory as-is, and a plain `expo
-prebuild` does not overwrite its xcassets — so native branding (app icon,
-> launch splash) silently stays stale until a `--clean` prebuild regenerates
-> `ios/` from `app.config.ts`. (`scripts/build-ipa.sh` already does this.)
-> A clean prebuild wipes Xcode-side signing selection; `build-ipa.sh` re-applies
-> the team from `.env`, and simulator builds need no signing.
+> `expo run:ios` reuses an existing `ios/` directory as-is, and a plain
+> `expo prebuild` does not overwrite its xcassets — so native branding (app
+> icon, launch splash) silently stays stale until a `--clean` prebuild
+> regenerates `ios/` from `app.config.ts`. (`scripts/build-ipa.sh` already
+> does this.) A clean prebuild wipes Xcode-side signing selection;
+> `build-ipa.sh` re-applies the team from `.env`, and simulator builds need
+> no signing.
 
 ## Implementation status
 
@@ -93,7 +94,6 @@ A 16-dimension deep review ran in June 2026 (115 confirmed findings), followed b
 
 - **Plan-to-Today loop**: plans are created and viewable, but the day's scheduled workout does not yet feed the Today start flow.
 - **VoiceOver and Dynamic Type passes**: need on-device QA.
-- **SecureStore session encryption**: the Supabase session currently persists in plaintext AsyncStorage; moving it to `expo-secure-store` needs a device test.
 - **iOS privacy manifest**: needs an EAS build and store-side verification.
 
 ## Tech stack
@@ -239,7 +239,6 @@ A full EAS build has not been exercised in the latest verification pass (it need
 
 ## Known limitations
 
-- The Supabase session JWT persists in plaintext AsyncStorage; SecureStore migration is pending.
 - The Apple privacy manifest has not been verified against a store build.
 - The pull path assumes the server schema matches local expectations; schema skew between devices on different app versions is not defended yet, and local SQLite migration handling is minimal.
 - The sync collision sheet is a blocking modal.
