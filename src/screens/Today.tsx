@@ -269,6 +269,31 @@ export default function TodayScreen() {
 
   if (!userId) return null;
 
+  // Read once — reused by both the slotState derivation and the skeleton's
+  // render below, instead of re-touching the snapshot ref at each site.
+  const snapshotRepeatSeeds = initialSnapshot?.repeatSeeds;
+
+  // Discriminant for the primary-card slot below — computed once so the
+  // poster predicate (headline) can never disagree with what the slot
+  // actually renders. Branch order matches the JSX exactly.
+  const slotState: 'resume' | 'plan' | 'repeatSkeleton' | 'loading' | 'repeat' | 'empty' =
+    activeQuery.data
+      ? 'resume'
+      : schedule?.kind === 'workout'
+        ? 'plan'
+        : lastFinishedQuery.isLoading && initialSnapshot?.state === 'repeat' && snapshotRepeatSeeds
+          ? 'repeatSkeleton'
+          : lastFinishedQuery.isLoading && !initialSnapshot
+            ? 'loading'
+            : lastFinishedQuery.data
+              ? 'repeat'
+              : 'empty';
+  // Poster mode (the two-line display headline) is earned only by the quiet
+  // states — nothing else competing for attention: an empty slot with
+  // nothing to act on, or a rest day (its own breathing moment, spec
+  // 2026-08-10). Every other state yields to the act-now card below.
+  const isPoster = slotState === 'empty' || schedule?.kind === 'rest';
+
   return (
     <SafeAreaView style={styles.container}>
       <ScrollView contentContainerStyle={styles.scroll}>
@@ -311,37 +336,50 @@ export default function TodayScreen() {
           {greeting}
         </Text>
         <SettleSlam style={styles.headline}>
-          {activeQuery.data ? (
-            <>
-              <Text
-                variant="displayXXL"
-                color={theme.color.inkHero}
-                numberOfLines={1}
-                adjustsFontSizeToFit
-              >
-                Back to
-              </Text>
-              <Text
-                variant="displayXXL"
-                color={theme.color.inkHero}
-                numberOfLines={1}
-                adjustsFontSizeToFit
-              >
-                Work.
-              </Text>
-            </>
+          {isPoster ? (
+            activeQuery.data ? (
+              <>
+                <Text
+                  variant="displayXXL"
+                  color={theme.color.inkHero}
+                  numberOfLines={1}
+                  adjustsFontSizeToFit
+                >
+                  Back to
+                </Text>
+                <Text
+                  variant="displayXXL"
+                  color={theme.color.inkHero}
+                  numberOfLines={1}
+                  adjustsFontSizeToFit
+                >
+                  Work.
+                </Text>
+              </>
+            ) : (
+              <>
+                <Text
+                  variant="displayXXL"
+                  color={theme.color.inkHero}
+                  numberOfLines={1}
+                  adjustsFontSizeToFit
+                >
+                  Ready to
+                </Text>
+                <OutlineDisplay size="displayXXL">Lift.</OutlineDisplay>
+              </>
+            )
           ) : (
-            <>
-              <Text
-                variant="displayXXL"
-                color={theme.color.inkHero}
-                numberOfLines={1}
-                adjustsFontSizeToFit
-              >
-                Ready to
-              </Text>
-              <OutlineDisplay size="displayXXL">Lift.</OutlineDisplay>
-            </>
+            // Collapsed: the act-now card below owns the moment — one quiet
+            // line, no poster (spec impeccable batch 3).
+            <Text
+              variant="displayXL"
+              color={theme.color.inkHero}
+              numberOfLines={1}
+              adjustsFontSizeToFit
+            >
+              {activeQuery.data ? 'Back to work.' : 'Ready to lift.'}
+            </Text>
           )}
         </SettleSlam>
 
@@ -351,9 +389,9 @@ export default function TodayScreen() {
         />
 
         <FadeInView>
-          {activeQuery.data ? (
+          {slotState === 'resume' ? (
             <ResumeCard onPress={onResume} />
-          ) : schedule?.kind === 'workout' ? (
+          ) : slotState === 'plan' && schedule?.kind === 'workout' ? (
             // The plan owns the primary slot on scheduled days (spec
             // 2026-08-10) — one act-now moment per screen; Repeat yields.
             <PlanCard
@@ -363,23 +401,21 @@ export default function TodayScreen() {
               loading={startPlanned.isPending}
               onPress={() => void onStartPlanned()}
             />
-          ) : lastFinishedQuery.isLoading &&
-            initialSnapshot?.state === 'repeat' &&
-            initialSnapshot.repeatSeeds ? (
+          ) : slotState === 'repeatSkeleton' && snapshotRepeatSeeds ? (
             <RepeatCard
-              title={initialSnapshot.repeatTitle ?? 'Workout'}
-              daysAgo={initialSnapshot.repeatDaysAgo ?? 0}
-              seeds={initialSnapshot.repeatSeeds}
+              title={initialSnapshot?.repeatTitle ?? 'Workout'}
+              daysAgo={initialSnapshot?.repeatDaysAgo ?? 0}
+              seeds={snapshotRepeatSeeds}
               loading
               onPress={() => {
                 /* no-op until live data lands */
               }}
             />
-          ) : lastFinishedQuery.isLoading && !initialSnapshot ? (
+          ) : slotState === 'loading' ? (
             <View style={styles.cardSkeleton}>
               <ActivityIndicator color={theme.color.inkSecondary} />
             </View>
-          ) : lastFinishedQuery.data ? (
+          ) : slotState === 'repeat' && lastFinishedQuery.data ? (
             <RepeatCard
               title={lastFinishedQuery.data.workout.title}
               daysAgo={daysSince(lastFinishedQuery.data.workout.ended_at)}
@@ -579,7 +615,12 @@ function recentMeta(w: { started_at: string; ended_at: string | null }): string 
 const makeStyles = (theme: Theme) =>
   StyleSheet.create({
     container: { flex: 1, backgroundColor: theme.color.bg },
-    scroll: { paddingTop: theme.space.s2, paddingBottom: theme.space.section * 2 },
+    // Bottom padding clears the floating tab bar (critique P1: "Training
+    // plan" / RECENT were hidden under it at default type size).
+    scroll: {
+      paddingTop: theme.space.s2,
+      paddingBottom: theme.touch.navHeight + theme.space.section,
+    },
     topRow: {
       flexDirection: 'row',
       alignItems: 'center',
