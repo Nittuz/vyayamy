@@ -362,9 +362,9 @@ PR logic runs client-side in [src/core/pr-detection.ts](src/core/pr-detection.ts
 
 Record types (2026-08-09 spec — see [docs/specs/2026-08-09-pr-semantics-spec.md](docs/specs/2026-08-09-pr-semantics-spec.md)):
 
-| Type              | Value shape                                                                                                                       |
-| ----------------- | --------------------------------------------------------------------------------------------------------------------------------- |
-| `heaviest_weight` | `number`: max weight in any completed set                                                                                          |
+| Type              | Value shape                                                                                                                           |
+| ----------------- | ------------------------------------------------------------------------------------------------------------------------------------- |
+| `heaviest_weight` | `number`: max weight in any completed set                                                                                             |
 | `most_reps`       | `{ reps, weight }`: most reps in a single completed set; bodyweight sets count (`weight: null`) and a rep tie goes to the heavier set |
 
 `best_volume` and `most_reps_at_weight` are retired types; recompute hard-deletes their cached rows. Upserts use the unique index `(user_id, exercise_id, type)` on the `personal_records` table.

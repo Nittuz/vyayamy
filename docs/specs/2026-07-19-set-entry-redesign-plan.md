@@ -15,6 +15,7 @@
 ### Task 1: Edit-session pure logic (replaces the debounce buffer)
 
 **Files:**
+
 - Modify: `src/components/numericStepper.ts`
 - Test: `src/components/__tests__/numericStepper.test.ts`
 
@@ -150,6 +151,7 @@ git commit -m "feat(set-entry): edit-session commit logic — one session, one w
 ### Task 2: `minus` icon + `inverted` Button kind
 
 **Files:**
+
 - Modify: `src/ui/icons.tsx`
 - Modify: `src/ui/Button.tsx`
 
@@ -219,6 +221,7 @@ git commit -m "feat(ui): minus icon + inverted Button kind for the LOG SET bar"
 ### Task 3: Rewrite `NumericStepperView`
 
 **Files:**
+
 - Modify: `src/components/NumericStepperView.tsx` (full rewrite)
 
 The component is not unit-testable (RN mocked); its logic lives in Task 1's tested functions. Gate: `npx tsc --noEmit` + `npx jest` (Task 4/5 wire consumers; the app builds again after Task 6).
@@ -456,7 +459,9 @@ export const NumericStepper = forwardRef<NumericStepperHandle, Props>(function N
             onPress={openKeypad}
             accessibilityRole="button"
             accessibilityLabel={
-              value == null ? `${unit}: empty. Tap to enter.` : `${unit}: ${formatValue(value)}. Tap to edit.`
+              value == null
+                ? `${unit}: empty. Tap to enter.`
+                : `${unit}: ${formatValue(value)}. Tap to edit.`
             }
             style={({ pressed }) => [pressed && { opacity: PRESS_DIP_OPACITY }]}
           >
@@ -466,7 +471,11 @@ export const NumericStepper = forwardRef<NumericStepperHandle, Props>(function N
               <Text
                 variant={numeralVariant}
                 color={theme.color.inkTertiary}
-                style={[styles.numeral, styles.emptyUnderline, { borderBottomColor: theme.color.borderStrong }]}
+                style={[
+                  styles.numeral,
+                  styles.emptyUnderline,
+                  { borderBottomColor: theme.color.borderStrong },
+                ]}
               >
                 0
               </Text>
@@ -496,7 +505,11 @@ export const NumericStepper = forwardRef<NumericStepperHandle, Props>(function N
             accessibilityLabel={`Decrease ${unit.toLowerCase()} by ${step}`}
             style={({ pressed }) => [
               styles.stepKey,
-              { borderColor: theme.color.border, minWidth: theme.touch.min, minHeight: theme.touch.min },
+              {
+                borderColor: theme.color.border,
+                minWidth: theme.touch.min,
+                minHeight: theme.touch.min,
+              },
               pressed && { opacity: PRESS_DIP_OPACITY },
             ]}
           >
@@ -510,7 +523,11 @@ export const NumericStepper = forwardRef<NumericStepperHandle, Props>(function N
             accessibilityLabel={`Increase ${unit.toLowerCase()} by ${step}`}
             style={({ pressed }) => [
               styles.stepKey,
-              { borderColor: theme.color.border, minWidth: theme.touch.min, minHeight: theme.touch.min },
+              {
+                borderColor: theme.color.border,
+                minWidth: theme.touch.min,
+                minHeight: theme.touch.min,
+              },
               pressed && { opacity: PRESS_DIP_OPACITY },
             ]}
           >
@@ -548,6 +565,7 @@ const makeStyles = (theme: Theme) =>
 ```
 
 Notes for the implementer:
+
 - `theme.depth.rule` / `theme.depth.hairline`: if `depth.rule` does not exist post-Blacktop, use the token the codebase uses for 2px structural rules (grep `depth.` in `src/ui/useTheme.ts` and match; `ActiveSetCard` uses `theme.depth.hairline` for 1.5px). The underline wants the 2px rule token.
 - If `resolveTextStyle('numeralLg').fontSize` is typed optional, the `minWidth` computation already guards with `!`. Keep it.
 
@@ -566,6 +584,7 @@ git commit -m "feat(set-entry): session-commit NumericStepper — always-visible
 ### Task 4: Pure helpers — `canCompleteSet`, BW labels, `planFirstSet`
 
 **Files:**
+
 - Modify: `src/components/activeSet.ts`
 - Test: `src/components/__tests__/activeSetCursor.test.ts`
 
@@ -714,7 +733,7 @@ function topLastSessionSet(lastSets: LastSessionSet[]): LastSessionSet | null {
 
 function roundToNearest(value: number, step: number): number {
   // Kill FP dust the same way roundToStep does in numericStepper.ts.
-  return Math.round((Math.round(value / step) * step) * 1000) / 1000;
+  return Math.round(Math.round(value / step) * step * 1000) / 1000;
 }
 ```
 
@@ -760,6 +779,7 @@ git commit -m "feat(set-entry): canCompleteSet (BW), setValuesLabel, planFirstSe
 ### Task 5: History query + staging function
 
 **Files:**
+
 - Modify: `src/queries/sets.ts`
 
 The SQL layer has no jest harness for real queries (expo-sqlite is mocked); the planner it feeds is tested in Task 4. Gate: `npx tsc --noEmit` + device QA (Task 12).
@@ -867,6 +887,7 @@ git commit -m "feat(set-entry): last-session query + stageFirstSet prefill stagi
 ### Task 6: `ActiveSetCard` — flush handle, LOG SET-era card, rubber-band, LAST TIME
 
 **Files:**
+
 - Modify: `src/components/ActiveSetCard.tsx`
 
 Gate: `npx tsc --noEmit` clean for this file once Task 8 updates `WorkoutActive` (they change in lockstep; commit together with Task 8 if needed).
@@ -878,12 +899,27 @@ Changes to `src/components/ActiveSetCard.tsx` (keep everything not mentioned —
 1. New imports/exports:
 
 ```tsx
-import { forwardRef, useCallback, useEffect, useImperativeHandle, useMemo, useRef, useState } from 'react';
+import {
+  forwardRef,
+  useCallback,
+  useEffect,
+  useImperativeHandle,
+  useMemo,
+  useRef,
+  useState,
+} from 'react';
 ```
 
 ```tsx
 import { NumericStepper, type NumericStepperHandle } from '@/components/NumericStepperView';
-import { canCompleteSet, exerciseSetStrip, ghostSetStrip, setValuesLabel, type ExerciseShape, type SetShape } from './activeSet';
+import {
+  canCompleteSet,
+  exerciseSetStrip,
+  ghostSetStrip,
+  setValuesLabel,
+  type ExerciseShape,
+  type SetShape,
+} from './activeSet';
 ```
 
 ```tsx
@@ -924,15 +960,15 @@ export const ActiveSetCard = forwardRef<ActiveSetCardHandle, Props>(function Act
 4. Completion gate becomes reps-only, and completion flushes first:
 
 ```tsx
-  const canComplete = canCompleteSet(set);
+const canComplete = canCompleteSet(set);
 
-  const handleComplete = useCallback(() => {
-    const values = flushEdits();
-    if (!canCompleteSet({ reps: values.reps })) return;
-    // Medium = "set banked" — the signature complete-set moment's haptic half.
-    haptics.medium();
-    onComplete(values);
-  }, [flushEdits, onComplete]);
+const handleComplete = useCallback(() => {
+  const values = flushEdits();
+  if (!canCompleteSet({ reps: values.reps })) return;
+  // Medium = "set banked" — the signature complete-set moment's haptic half.
+  haptics.medium();
+  onComplete(values);
+}, [flushEdits, onComplete]);
 ```
 
 5. Rubber-band on the gated swipe (replace the early-return in `pan.onUpdate`). Capture `reduceMotion` for the worklet via a shared value updated in the existing reduced-motion effect (`const reduceMotionSV = useSharedValue(false);` set alongside `setReduceMotion`):
@@ -955,40 +991,53 @@ export const ActiveSetCard = forwardRef<ActiveSetCardHandle, Props>(function Act
 6. Hero row: steppers get refs, accessory labels, and the NEXT hand-off; the LAST TIME strip renders beneath:
 
 ```tsx
-        <View style={styles.heroRow}>
-          <NumericStepper
-            ref={weightRef}
-            value={set.weight}
-            step={weightStep}
-            unit={weightUnit}
-            onChange={onChangeWeight}
-            accessoryLabel="NEXT → REPS"
-            onAccessoryPress={() => repsRef.current?.openKeypad()}
-            size="hero"
-            testID="weight-stepper"
-          />
-          <Text style={[styles.heroX, { color: theme.color.inkTertiary, fontFamily: theme.font.family.mono, fontSize: theme.font.size.hero * 0.7, lineHeight: theme.font.size.hero * theme.font.lineHeightMul.hero }]}>
-            ×
-          </Text>
-          <NumericStepper
-            ref={repsRef}
-            value={set.reps}
-            step={1}
-            unit="REPS"
-            onChange={onChangeReps}
-            accessoryLabel="DONE"
-            size="hero"
-            testID="reps-stepper"
-          />
-        </View>
-        {lastTime ? (
-          <Text variant="strip" color={theme.color.inkTertiary}>
-            {`LAST TIME · ${setValuesLabel(lastTime.weight, lastTime.reps)}`}
-          </Text>
-        ) : null}
+<View style={styles.heroRow}>
+  <NumericStepper
+    ref={weightRef}
+    value={set.weight}
+    step={weightStep}
+    unit={weightUnit}
+    onChange={onChangeWeight}
+    accessoryLabel="NEXT → REPS"
+    onAccessoryPress={() => repsRef.current?.openKeypad()}
+    size="hero"
+    testID="weight-stepper"
+  />
+  <Text
+    style={[
+      styles.heroX,
+      {
+        color: theme.color.inkTertiary,
+        fontFamily: theme.font.family.mono,
+        fontSize: theme.font.size.hero * 0.7,
+        lineHeight: theme.font.size.hero * theme.font.lineHeightMul.hero,
+      },
+    ]}
+  >
+    ×
+  </Text>
+  <NumericStepper
+    ref={repsRef}
+    value={set.reps}
+    step={1}
+    unit="REPS"
+    onChange={onChangeReps}
+    accessoryLabel="DONE"
+    size="hero"
+    testID="reps-stepper"
+  />
+</View>;
+{
+  lastTime ? (
+    <Text variant="strip" color={theme.color.inkTertiary}>
+      {`LAST TIME · ${setValuesLabel(lastTime.weight, lastTime.reps)}`}
+    </Text>
+  ) : null;
+}
 ```
 
 7. Copy + a11y updates:
+
 - Card `accessibilityLabel`: `` `Set ${setIndex}, ${set.weight ?? 'bodyweight'} by ${set.reps ?? 'no reps'} reps. Swipe up to complete.` ``
 - Hint line: `{canComplete ? '↑ Swipe up to log' : 'Enter reps to log this set'}`
 - `styles.heroRow` keeps `flexDirection: 'row'`, `alignItems: 'baseline'` — it is a `View` now, not a `Pressable`.
@@ -1000,6 +1049,7 @@ export const ActiveSetCard = forwardRef<ActiveSetCardHandle, Props>(function Act
 ### Task 7: `EditSetSheet` — new stepper API + flush-before-save
 
 **Files:**
+
 - Modify: `src/components/EditSetSheet.tsx`
 
 - [ ] **Step 1: Migrate**
@@ -1008,25 +1058,30 @@ export const ActiveSetCard = forwardRef<ActiveSetCardHandle, Props>(function Act
 2. Add refs and flush both steppers at the top of `handleSave`, using the returned effective values for the patch (fixes the save race):
 
 ```tsx
-  const weightRef = useRef<NumericStepperHandle>(null);
-  const repsRef = useRef<NumericStepperHandle>(null);
+const weightRef = useRef<NumericStepperHandle>(null);
+const repsRef = useRef<NumericStepperHandle>(null);
 
-  const handleSave = () => {
-    haptics.light();
-    const weight = weightRef.current?.flushEdit() ?? null;
-    const reps = repsRef.current?.flushEdit() ?? null;
-    setWeight(weight);
-    setReps(reps);
-    updateSet.mutate(
-      {
-        setId: set.id,
-        weId: set.weId,
-        // Unit stamped only when a weight is present (per-set provenance, #131).
-        patch: { weight, reps, units: weight != null ? units : set.units },
+const handleSave = () => {
+  haptics.light();
+  const weight = weightRef.current?.flushEdit() ?? null;
+  const reps = repsRef.current?.flushEdit() ?? null;
+  setWeight(weight);
+  setReps(reps);
+  updateSet.mutate(
+    {
+      setId: set.id,
+      weId: set.weId,
+      // Unit stamped only when a weight is present (per-set provenance, #131).
+      patch: { weight, reps, units: weight != null ? units : set.units },
+    },
+    {
+      onSuccess: () => {
+        recompute();
+        onClose();
       },
-      { onSuccess: () => { recompute(); onClose(); } },
-    );
-  };
+    },
+  );
+};
 ```
 
 Note: `flushEdit()` returns the current prop value when no edit is open — and the stepper's `value` prop here is the local draft state, so `?? null` never actually masks a value; it only satisfies the ref's nullability.
@@ -1034,17 +1089,17 @@ Note: `flushEdit()` returns the current prop value when no edit is open — and 
 3. Stepper JSX (both fields — weight shown; reps mirrors with `step={1}` `unit="REPS"` `accessoryLabel="DONE"` and no `onAccessoryPress`):
 
 ```tsx
-        <NumericStepper
-          ref={weightRef}
-          value={weight}
-          step={weightStep}
-          unit={weightUnit}
-          onChange={setWeight}
-          accessoryLabel="NEXT → REPS"
-          onAccessoryPress={() => repsRef.current?.openKeypad()}
-          size="inline"
-          testID="edit-weight-stepper"
-        />
+<NumericStepper
+  ref={weightRef}
+  value={weight}
+  step={weightStep}
+  unit={weightUnit}
+  onChange={setWeight}
+  accessoryLabel="NEXT → REPS"
+  onAccessoryPress={() => repsRef.current?.openKeypad()}
+  size="inline"
+  testID="edit-weight-stepper"
+/>
 ```
 
 4. Delete the now-unused `noop` function. Update imports: `import { NumericStepper, type NumericStepperHandle } from '@/components/NumericStepperView';` and add `useRef` to the react import.
@@ -1061,6 +1116,7 @@ git commit -m "fix(set-entry): EditSetSheet saves flushed values — kills the s
 ### Task 8: `WorkoutActive` + `useWorkoutCursor` — bottom bar, wiring, prefill call sites
 
 **Files:**
+
 - Modify: `src/screens/WorkoutActive.tsx`
 - Modify: `src/screens/workoutActive/useWorkoutCursor.ts`
 - Modify: `src/queries/exercises.ts:119-121`
@@ -1090,49 +1146,49 @@ export function useWorkoutCursor({
 3. `onNextExercise` and `onPrevExercise` accept the flushed values and stage with prefill. Full new `onNextExercise` (apply the same two changes to `onPrevExercise`):
 
 ```ts
-  const onNextExercise = useCallback(
-    (flushed?: { weight: number | null; reps: number | null } | null) => {
-      if (!cursor || !currentExercise) return;
-      const nextEx = findNextExercise(exercises, cursor.weId);
-      const rawSet = findSet(currentExercise, cursor.setId);
-      // Overlay just-flushed keypad edits — query data may be a tick stale.
-      const currentSet = rawSet && flushed ? { ...rawSet, ...flushed } : rawSet;
-      const needsConfirm = shouldConfirmLeavingSet(currentSet, autoStaged.current);
-      const advance = async () => {
-        if (nextEx) {
-          let nextSetId = firstIncompleteSet(nextEx)?.id;
-          if (!nextSetId) {
-            if (userId) {
-              // First set of this exercise → never-empty prefill (spec §2).
-              const staged = await stageFirstSet(nextEx.id, nextEx.exerciseId, {
-                userId,
-                units,
-                weightStep,
-              });
-              nextSetId = staged.setId;
-              autoStaged.current = {
-                id: staged.setId,
-                weight: staged.plan.weight,
-                reps: staged.plan.reps,
-                source: staged.fromHistory ? 'history' : 'carry',
-              };
-            } else {
-              nextSetId = await addSet(nextEx.id);
-            }
-            refreshDetail();
+const onNextExercise = useCallback(
+  (flushed?: { weight: number | null; reps: number | null } | null) => {
+    if (!cursor || !currentExercise) return;
+    const nextEx = findNextExercise(exercises, cursor.weId);
+    const rawSet = findSet(currentExercise, cursor.setId);
+    // Overlay just-flushed keypad edits — query data may be a tick stale.
+    const currentSet = rawSet && flushed ? { ...rawSet, ...flushed } : rawSet;
+    const needsConfirm = shouldConfirmLeavingSet(currentSet, autoStaged.current);
+    const advance = async () => {
+      if (nextEx) {
+        let nextSetId = firstIncompleteSet(nextEx)?.id;
+        if (!nextSetId) {
+          if (userId) {
+            // First set of this exercise → never-empty prefill (spec §2).
+            const staged = await stageFirstSet(nextEx.id, nextEx.exerciseId, {
+              userId,
+              units,
+              weightStep,
+            });
+            nextSetId = staged.setId;
+            autoStaged.current = {
+              id: staged.setId,
+              weight: staged.plan.weight,
+              reps: staged.plan.reps,
+              source: staged.fromHistory ? 'history' : 'carry',
+            };
+          } else {
+            nextSetId = await addSet(nextEx.id);
           }
-          setCursor({ weId: nextEx.id, setId: nextSetId });
-          haptics.medium();
-        } else {
-          setCursor(null); // → finish summary
-          haptics.medium();
+          refreshDetail();
         }
-      };
-      if (!needsConfirm) void advance();
-      else setLeaveConfirm(() => () => void advance());
-    },
-    [cursor, currentExercise, exercises, refreshDetail, userId, units, weightStep],
-  );
+        setCursor({ weId: nextEx.id, setId: nextSetId });
+        haptics.medium();
+      } else {
+        setCursor(null); // → finish summary
+        haptics.medium();
+      }
+    };
+    if (!needsConfirm) void advance();
+    else setLeaveConfirm(() => () => void advance());
+  },
+  [cursor, currentExercise, exercises, refreshDetail, userId, units, weightStep],
+);
 ```
 
 (Keep the `addSet` import too — the `userId`-missing fallback uses it. `firstIncompleteSet` short-circuits staging when the exercise already has an open set, exactly as today.)
@@ -1151,15 +1207,15 @@ export async function addExerciseToWorkout(args: {
 ```
 
 ```ts
-  // Phase 3: every exercise starts with one set staged so the user never
-  // sees an empty card — now prefilled from history (spec §2).
-  let staged: FirstSetStage | null = null;
-  if (args.prefill) {
-    staged = await stageFirstSet(id, args.exerciseId, args.prefill);
-  } else {
-    await addSet(id);
-  }
-  return { weId: id, staged };
+// Phase 3: every exercise starts with one set staged so the user never
+// sees an empty card — now prefilled from history (spec §2).
+let staged: FirstSetStage | null = null;
+if (args.prefill) {
+  staged = await stageFirstSet(id, args.exerciseId, args.prefill);
+} else {
+  await addSet(id);
+}
+return { weId: id, staged };
 ```
 
 Import `stageFirstSet, type FirstSetStage` from `@/queries/sets`. Update ALL call sites of `addExerciseToWorkout` / `useAddExerciseToWorkout` to the new return shape (`grep -rn addExerciseToWorkout src/` — known: `WorkoutActive.onAddExercise`, the mutation hook in `exercises.ts`, possibly `PlanSetup`). The mutation hook's `mutationFn` passes through unchanged; callers that only need the id use `.weId`.
@@ -1169,41 +1225,58 @@ Import `stageFirstSet, type FirstSetStage` from `@/queries/sets`. Update ALL cal
 1. Hook call:
 
 ```ts
-  const { cursor, setCursor, currentExercise: currentExForRest, autoStaged, targetExercise,
-    onNextExercise, onPrevExercise, leaveConfirm, setLeaveConfirm } = useWorkoutCursor({
-    exercises, refreshDetail, userId, units, weightStep,
-  });
+const {
+  cursor,
+  setCursor,
+  currentExercise: currentExForRest,
+  autoStaged,
+  targetExercise,
+  onNextExercise,
+  onPrevExercise,
+  leaveConfirm,
+  setLeaveConfirm,
+} = useWorkoutCursor({
+  exercises,
+  refreshDetail,
+  userId,
+  units,
+  weightStep,
+});
 ```
 
 2. Card ref + flush-then-gate log action (place after `onComplete`):
 
 ```ts
-  const cardRef = useRef<ActiveSetCardHandle>(null);
+const cardRef = useRef<ActiveSetCardHandle>(null);
 
-  const onLogSet = useCallback(() => {
-    const values = cardRef.current?.flushEdits() ?? null;
-    if (!values || !canCompleteSet({ reps: values.reps })) return;
-    void onComplete(values);
-  }, [onComplete]);
+const onLogSet = useCallback(() => {
+  const values = cardRef.current?.flushEdits() ?? null;
+  if (!values || !canCompleteSet({ reps: values.reps })) return;
+  void onComplete(values);
+}, [onComplete]);
 ```
 
 3. `onComplete` receives the flushed values and overlays them for staging/PRs (signature `async (values?: { weight: number | null; reps: number | null })`); inside, replace the `currentSetData` usage:
 
 ```ts
-      const rawSetData = currentExForRest && findSet(currentExForRest, cursor.setId);
-      const currentSetData = rawSetData ? { ...rawSetData, ...(values ?? {}) } : null;
+const rawSetData = currentExForRest && findSet(currentExForRest, cursor.setId);
+const currentSetData = rawSetData ? { ...rawSetData, ...(values ?? {}) } : null;
 ```
 
 …and stamp the staged marker's source:
 
 ```ts
-      autoStaged.current = { id: newSetId, weight: staged.weight, reps: staged.reps, source: 'carry' };
+autoStaged.current = { id: newSetId, weight: staged.weight, reps: staged.reps, source: 'carry' };
 ```
 
 4. Unit provenance on clear (spec §5 / #131): in `onChangeWeight`, the patch becomes
 
 ```ts
-      updateSet.mutate({ setId: cursor.setId, weId: cursor.weId, patch: { weight: next, units: next != null ? units : null } });
+updateSet.mutate({
+  setId: cursor.setId,
+  weId: cursor.weId,
+  patch: { weight: next, units: next != null ? units : null },
+});
 ```
 
 5. Voice: `onCompleteSet: () => onLogSet(),` — voice `done` now flushes and respects the reps gate.
@@ -1211,12 +1284,12 @@ Import `stageFirstSet, type FirstSetStage` from `@/queries/sets`. Update ALL cal
 6. Navigation flush: the bottom-bar next control and any `onNextExercise`/`onPrevExercise` invocation (voice included) go through wrappers:
 
 ```ts
-  const onNextExercisePress = useCallback(() => {
-    onNextExercise(cardRef.current?.flushEdits() ?? null);
-  }, [onNextExercise]);
-  const onPrevExercisePress = useCallback(() => {
-    onPrevExercise(cardRef.current?.flushEdits() ?? null);
-  }, [onPrevExercise]);
+const onNextExercisePress = useCallback(() => {
+  onNextExercise(cardRef.current?.flushEdits() ?? null);
+}, [onNextExercise]);
+const onPrevExercisePress = useCallback(() => {
+  onPrevExercise(cardRef.current?.flushEdits() ?? null);
+}, [onPrevExercise]);
 ```
 
 Voice session props: `onNextExercise: onNextExercisePress, onPrevExercise: onPrevExercisePress`.
@@ -1224,12 +1297,15 @@ Voice session props: `onNextExercise: onNextExercisePress, onPrevExercise: onPre
 7. LAST TIME provenance for the card (computed above the JSX return, after `currentSet` resolves):
 
 ```ts
-  const staged = autoStaged.current;
-  const lastTime =
-    staged && staged.source === 'history' && staged.id === currentSet.id &&
-    currentSet.weight === staged.weight && currentSet.reps === staged.reps
-      ? { weight: staged.weight, reps: staged.reps }
-      : null;
+const staged = autoStaged.current;
+const lastTime =
+  staged &&
+  staged.source === 'history' &&
+  staged.id === currentSet.id &&
+  currentSet.weight === staged.weight &&
+  currentSet.reps === staged.reps
+    ? { weight: staged.weight, reps: staged.reps }
+    : null;
 ```
 
 8. Card JSX: `ref={cardRef}`, `lastTime={lastTime}`, `onComplete={(values) => void onComplete(values)}`.
@@ -1239,30 +1315,30 @@ Voice session props: `onNextExercise: onNextExercisePress, onPrevExercise: onPre
 10. The bottom bar (replace the current single-Button bar):
 
 ```tsx
-      <View style={styles.bottomBar}>
-        <Button
-          label={hasNextExercise ? 'Next ›' : 'Finish ›'}
-          kind="ghost"
-          size="cta"
-          onPress={onNextExercisePress}
-          accessibilityLabel={hasNextExercise ? 'Next exercise' : 'Go to workout summary'}
-          accessibilityHint={hasNextExercise ? 'Move to the next exercise' : 'Shows the finish summary'}
-        />
-        <Button
-          label={
-            canCompleteSet(currentSet)
-              ? `Log set · ${setValuesLabel(currentSet.weight, currentSet.reps)}`
-              : 'Enter reps'
-          }
-          kind="inverted"
-          size="cta"
-          disabled={!canCompleteSet(currentSet)}
-          onPress={onLogSet}
-          accessibilityLabel={`Log set ${currentSetIdx + 1}`}
-          accessibilityHint="Completes this set and stages the next one"
-          style={styles.logBtn}
-        />
-      </View>
+<View style={styles.bottomBar}>
+  <Button
+    label={hasNextExercise ? 'Next ›' : 'Finish ›'}
+    kind="ghost"
+    size="cta"
+    onPress={onNextExercisePress}
+    accessibilityLabel={hasNextExercise ? 'Next exercise' : 'Go to workout summary'}
+    accessibilityHint={hasNextExercise ? 'Move to the next exercise' : 'Shows the finish summary'}
+  />
+  <Button
+    label={
+      canCompleteSet(currentSet)
+        ? `Log set · ${setValuesLabel(currentSet.weight, currentSet.reps)}`
+        : 'Enter reps'
+    }
+    kind="inverted"
+    size="cta"
+    disabled={!canCompleteSet(currentSet)}
+    onPress={onLogSet}
+    accessibilityLabel={`Log set ${currentSetIdx + 1}`}
+    accessibilityHint="Completes this set and stages the next one"
+    style={styles.logBtn}
+  />
+</View>
 ```
 
 Styles: `bottomBar` becomes `{ flexDirection: 'row', gap: theme.space.s2, ... }` (keep its existing padding), add `logBtn: { flex: 1 }`. The recap screen's volt `Finish workout` CTA is unchanged — volt stays reserved (spec §3).
@@ -1287,6 +1363,7 @@ git commit -m "feat(set-entry): LOG SET bar, flush-before-consume, history prefi
 ### Task 9: Voice values through the sanitize choke point (backlog 2.2/#137)
 
 **Files:**
+
 - Modify: `src/voice/dispatch.ts:28-57` (the `setValues` case)
 
 - [ ] **Step 1: Clamp parsed numbers**
@@ -1296,16 +1373,16 @@ Add import: `import { sanitizeNumber } from '@/components/numericStepper';`
 In the `setValues` case, replace the patch assembly:
 
 ```ts
-      const patch: { weight?: number; reps?: number; units?: 'kg' | 'lb' } = {};
-      if (command.weight != null) {
-        // Same clamp as the keypad/steppers (#19) — a misheard "bench 9999"
-        // must not write an unbounded value (backlog 2.2/#137).
-        patch.weight = sanitizeNumber(command.weight, { min: 0, max: 1500 });
-        patch.units = command.unit ?? ctx.units; // spoken unit overrides profile pref (#133)
-      }
-      if (command.reps != null) {
-        patch.reps = sanitizeNumber(command.reps, { min: 0, max: 200, integer: true });
-      }
+const patch: { weight?: number; reps?: number; units?: 'kg' | 'lb' } = {};
+if (command.weight != null) {
+  // Same clamp as the keypad/steppers (#19) — a misheard "bench 9999"
+  // must not write an unbounded value (backlog 2.2/#137).
+  patch.weight = sanitizeNumber(command.weight, { min: 0, max: 1500 });
+  patch.units = command.unit ?? ctx.units; // spoken unit overrides profile pref (#133)
+}
+if (command.reps != null) {
+  patch.reps = sanitizeNumber(command.reps, { min: 0, max: 200, integer: true });
+}
 ```
 
 If `src/voice/__tests__/` has a dispatch test file, add a case asserting `setValues` with `weight: 9999` patches `1500`; if none exists, `sanitizeNumber` itself is already covered — do not build a new harness for this.
@@ -1325,6 +1402,7 @@ git commit -m "fix(voice): route spoken weight/reps through sanitizeNumber (back
 ### Task 10: BW in history
 
 **Files:**
+
 - Modify: `src/screens/HistoryDetail.tsx:62-82` (the set row)
 
 - [ ] **Step 1: Render completed weightless sets as BW**
@@ -1332,14 +1410,12 @@ git commit -m "fix(voice): route spoken weight/reps through sanitizeNumber (back
 The set-row value text becomes (imports unchanged; `formatWeight` keeps its `'-'` for incomplete rows):
 
 ```tsx
-              <Text variant="numeral" color={theme.color.ink} style={styles.setCell}>
-                {/* Each set shows the unit it was logged in (#131/#135); a
+<Text variant="numeral" color={theme.color.ink} style={styles.setCell}>
+  {/* Each set shows the unit it was logged in (#131/#135); a
                     completed weightless set is bodyweight (spec §4). */}
-                {s.completed && s.weight == null
-                  ? 'BW'
-                  : formatWeight(s.weight, s.units ?? DEFAULT_UNITS)}{' '}
-                × {s.reps != null ? s.reps : '-'}
-              </Text>
+  {s.completed && s.weight == null ? 'BW' : formatWeight(s.weight, s.units ?? DEFAULT_UNITS)} ×{' '}
+  {s.reps != null ? s.reps : '-'}
+</Text>
 ```
 
 - [ ] **Step 2: Gates + commit**
@@ -1356,6 +1432,7 @@ git commit -m "feat(set-entry): bodyweight sets display as BW in history (spec �
 ### Task 11: Delete the debounce buffer
 
 **Files:**
+
 - Modify: `src/components/numericStepper.ts` (remove `useDebouncedCommit`, `DebouncedCommit`, and the now-unused `react` import if nothing else needs it)
 - Modify: `src/components/__tests__/numericStepper.test.ts` (remove the `useDebouncedCommit` describe block and its `renderHook` import if unused elsewhere)
 
@@ -1376,6 +1453,7 @@ git commit -m "refactor(set-entry): retire useDebouncedCommit — the session mo
 ### Task 12: Backlog bookkeeping + device QA checklist
 
 **Files:**
+
 - Modify: `docs/UX_POLISH_BACKLOG.md`
 - Modify: `docs/TESTING.md`
 

@@ -16,10 +16,10 @@ of any kind because every record branch requires weight > 0.
 
 Two persisted record types per exercise (was three):
 
-| type | value | semantics |
-| --- | --- | --- |
-| `heaviest_weight` | `{ weightKg }` | max weight across completed sets (kg-normalized). Unchanged. |
-| `most_reps` | `{ reps, weightKg \| null }` | max reps in a single completed set, **including bodyweight (null-weight) sets**; ties broken by heavier weight (null loses to any weight). |
+| type              | value                        | semantics                                                                                                                                  |
+| ----------------- | ---------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------ |
+| `heaviest_weight` | `{ weightKg }`               | max weight across completed sets (kg-normalized). Unchanged.                                                                               |
+| `most_reps`       | `{ reps, weightKg \| null }` | max reps in a single completed set, **including bodyweight (null-weight) sets**; ties broken by heavier weight (null loses to any weight). |
 
 Removed: `best_volume`. Renamed/reshaped: `most_reps_at_weight` → `most_reps`
 (old type keys become unknown). The recompute loop deletes any cached row whose

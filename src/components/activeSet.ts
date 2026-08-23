@@ -185,7 +185,7 @@ function topLastSessionSet(lastSets: LastSessionSet[]): LastSessionSet | null {
 
 function roundToNearest(value: number, step: number): number {
   // Kill FP dust the same way roundToStep does in numericStepper.ts.
-  return Math.round((Math.round(value / step) * step) * 1000) / 1000;
+  return Math.round(Math.round(value / step) * step * 1000) / 1000;
 }
 
 export function findInitialCursor(exercises: ExerciseShape[]): ActiveCursor | null {

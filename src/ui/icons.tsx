@@ -83,9 +83,7 @@ export function Icon({ name, size = 22, color, stroke = 2 }: IconProps) {
           <Line x1={5} y1={12} x2={19} y2={12} {...common} />
         </>
       )}
-      {name === 'minus' && (
-        <Line x1={5} y1={12} x2={19} y2={12} {...common} />
-      )}
+      {name === 'minus' && <Line x1={5} y1={12} x2={19} y2={12} {...common} />}
       {name === 'x' && (
         <>
           <Line x1={6} y1={6} x2={18} y2={18} {...common} />

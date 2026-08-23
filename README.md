@@ -73,7 +73,7 @@ npx expo run:ios
 
 > **After any icon/splash/branding change, run `npm run prebuild:clean` once.**
 > `expo run:ios` reuses an existing `ios/` directory as-is, and a plain `expo
-> prebuild` does not overwrite its xcassets — so native branding (app icon,
+prebuild` does not overwrite its xcassets — so native branding (app icon,
 > launch splash) silently stays stale until a `--clean` prebuild regenerates
 > `ios/` from `app.config.ts`. (`scripts/build-ipa.sh` already does this.)
 > A clean prebuild wipes Xcode-side signing selection; `build-ipa.sh` re-applies

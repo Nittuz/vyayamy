@@ -14,6 +14,7 @@ written, and `training_plans.cycle_cursor` never advances.
 ## Resolver (pure, `src/core/planResolver.ts`)
 
 `resolveTodaySlot(plan, slots, todayDow)` → one of:
+
 - `{ kind: 'workout', slot, templateId }` — a scheduled template
 - `{ kind: 'rest', slot }` — an explicit rest-day slot
 - `{ kind: 'none' }` — nothing scheduled
@@ -46,6 +47,7 @@ existing behavior.
 
 `startPlannedWorkout({ userId, templateId, title })`, following the
 `repeatLastWorkout` transaction pattern — ONE transaction containing:
+
 - the workout (`title` from slot label/template name, **`template_id`
   stamped** — first real writer of that column),
 - one `workout_exercises` row per entry of `templates.exercise_order`, order
