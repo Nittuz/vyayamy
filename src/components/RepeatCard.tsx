@@ -15,6 +15,10 @@ import { Text } from '@/ui/Text';
 import { useTheme, type Theme } from '@/ui/useTheme';
 import { haptics } from '@/ui/haptics';
 
+import { stripText, formatSeed } from './repeatCardFormat';
+
+export { stripText, formatSeed };
+
 interface Props {
   title: string;
   daysAgo: number;
@@ -30,6 +34,7 @@ export function RepeatCard({ title, daysAgo, seeds, loading, onPress }: Props) {
   // chalk-on-black in light) — never hand-picked per scheme.
   const ink = useMemo(() => resolvePlateStyles(theme, { tone: 'inverted' }).ink, [theme]);
   const displaySeeds = seeds.slice(0, 4);
+  const overflow = seeds.length - displaySeeds.length;
 
   const handlePress = () => {
     haptics.light();
@@ -68,6 +73,11 @@ export function RepeatCard({ title, daysAgo, seeds, loading, onPress }: Props) {
             </Text>
           </View>
         ))}
+        {overflow > 0 ? (
+          <Text variant="meta" color={ink} style={styles.strip}>
+            +{overflow} more
+          </Text>
+        ) : null}
       </View>
       <View style={styles.ctaRow}>
         {loading ? (
@@ -83,18 +93,6 @@ export function RepeatCard({ title, daysAgo, seeds, loading, onPress }: Props) {
       </View>
     </Plate>
   );
-}
-
-function stripText(daysAgo: number, exerciseCount: number): string {
-  // Sentence case — the strip variant handles the uppercasing.
-  const ago = daysAgo === 0 ? 'Today' : daysAgo === 1 ? '1 day ago' : `${daysAgo} days ago`;
-  const ex = exerciseCount === 1 ? '1 exercise' : `${exerciseCount} exercises`;
-  return `${ago} · ${ex}`;
-}
-
-function formatSeed(seed: ExerciseSeed): string {
-  if (seed.seedWeight == null || seed.seedReps == null) return '- × -';
-  return `${seed.seedWeight} × ${seed.seedReps}`;
 }
 
 const makeStyles = (theme: Theme) =>
