@@ -6,6 +6,7 @@
  */
 import { dayOfWeek } from '@/lib/dayOfWeek';
 import { convertWeight, DEFAULT_UNITS } from '@/core/units';
+import type { Set as SetRow } from '@/db/types';
 
 export interface SetShape {
   id: string;
@@ -25,6 +26,28 @@ export interface ExerciseShape {
   orderIndex: number;
   muscleGroup?: string | null; // optional for backwards-compat; Phase 3+ populates it
   sets: SetShape[];
+}
+
+/**
+ * DB row → sheet shape (HistoryDetail reuses EditSetSheet, spec 2026-08-22
+ * §1). `completed` comes back 0/1 through the sqlite driver despite the `Set`
+ * type claiming boolean (see sets.test.ts) — coerce it for real.
+ */
+export function setRowToShape(s: SetRow): SetShape {
+  return {
+    id: s.id,
+    weId: s.workout_exercise_id,
+    orderIndex: s.order_index,
+    weight: s.weight,
+    reps: s.reps,
+    units: s.units,
+    completed: !!s.completed,
+  };
+}
+
+/** Incomplete sets a Finish would prune (confirm gate, spec 2026-08-22 §3). */
+export function countIncompleteSets(exercises: ExerciseShape[]): number {
+  return exercises.reduce((n, ex) => n + ex.sets.filter((s) => !s.completed).length, 0);
 }
 
 export interface ActiveCursor {

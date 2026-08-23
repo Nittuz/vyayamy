@@ -27,6 +27,16 @@ export async function getOutboxPreview(limit = 5): Promise<OutboxPreviewRow[]> {
   );
 }
 
+/** Pending-outbox count at call time (sign-out gate, spec 2026-08-22 §4). */
+export async function getOutboxCount(): Promise<number> {
+  const db = await getDb();
+  const row = await db.getFirstAsync<{ n: number }>(
+    `SELECT COUNT(*) AS n FROM outbox WHERE attempts < ?`,
+    [MAX_ATTEMPTS],
+  );
+  return row?.n ?? 0;
+}
+
 export function relativeAge(iso: string, now: number = Date.now()): string {
   const ms = now - new Date(iso).getTime();
   if (!Number.isFinite(ms) || ms < 0) return 'just now';

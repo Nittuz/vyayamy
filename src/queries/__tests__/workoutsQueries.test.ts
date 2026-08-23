@@ -4,9 +4,12 @@ import {
   getRecentWorkouts,
   createWorkout,
   deleteWorkoutLocal,
+  deleteWorkoutAndRecompute,
+  finishWorkout,
 } from '@/queries/workouts';
 import { addExerciseToWorkout } from '@/queries/exercises';
-import { listSetsForWorkoutExercise } from '@/queries/sets';
+import { listSetsForWorkoutExercise, updateSet } from '@/queries/sets';
+import { getGroupedPRs } from '@/queries/personalRecords';
 import { setSyncState } from '@/sync/state';
 
 jest.mock('@/auth/supabase', () => ({
@@ -116,5 +119,53 @@ describe('deleteWorkoutLocal', () => {
     expect(tables).toContain('workouts');
     expect(tables).toContain('workout_exercises');
     expect(tables).toContain('sets');
+  });
+});
+
+describe('deleteWorkoutAndRecompute', () => {
+  test('cascades the soft-delete and recomputes PRs so a deleted workout stops counting', async () => {
+    const db = await getDb();
+    await db.runAsync(
+      'INSERT INTO exercises (id, name, muscle_group, user_id, created_at, updated_at) VALUES (?, ?, ?, ?, ?, ?)',
+      ['ex', 'Bench', 'Chest', null, T, T],
+    );
+    const wId = await createWorkout({ userId: USER, title: 'Push' });
+    const { weId } = await addExerciseToWorkout({ workoutId: wId, exerciseId: 'ex' });
+    const staged = await listSetsForWorkoutExercise(weId);
+    await updateSet(staged[0]!.id, { weight: 100, reps: 5, completed: true });
+    await finishWorkout(wId, USER);
+
+    // Sanity: finishing recorded a heaviest-weight PR for the exercise.
+    const before = await getGroupedPRs(USER);
+    expect(before[0]?.records.some((r) => r.type === 'heaviest_weight')).toBe(true);
+
+    await deleteWorkoutAndRecompute(USER, wId, ['ex']);
+
+    // (a) workout row deleted, cascade reached the set
+    const workoutRow = await db.getFirstAsync<{ deleted_at: string | null }>(
+      'SELECT deleted_at FROM workouts WHERE id = ?',
+      [wId],
+    );
+    expect(workoutRow!.deleted_at).not.toBeNull();
+    expect(await listSetsForWorkoutExercise(weId)).toHaveLength(0);
+
+    // (b) the exercise's heaviest_weight PR no longer reflects the deleted set
+    // — recompute's SQL only counts w.deleted_at IS NULL, so the PR is dropped.
+    const after = await getGroupedPRs(USER);
+    expect(after).toHaveLength(0);
+  });
+
+  test('dedupes exerciseIds so recompute only runs once per exercise', async () => {
+    const db = await getDb();
+    await db.runAsync(
+      'INSERT INTO exercises (id, name, muscle_group, user_id, created_at, updated_at) VALUES (?, ?, ?, ?, ?, ?)',
+      ['ex', 'Bench', 'Chest', null, T, T],
+    );
+    const wId = await createWorkout({ userId: USER, title: 'Push' });
+    await addExerciseToWorkout({ workoutId: wId, exerciseId: 'ex' });
+    await finishWorkout(wId, USER);
+
+    // Passing a duplicated exerciseId must not throw or double-run.
+    await expect(deleteWorkoutAndRecompute(USER, wId, ['ex', 'ex'])).resolves.toBeUndefined();
   });
 });

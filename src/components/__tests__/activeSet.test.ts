@@ -1,5 +1,7 @@
 import {
+  countIncompleteSets,
   findNextExercise,
+  setRowToShape,
   shouldConfirmLeavingSet,
   type AutoStagedSet,
   type ExerciseShape,
@@ -116,5 +118,43 @@ describe('shouldConfirmLeavingSet', () => {
         reps: 9,
       }),
     ).toBe(true);
+  });
+});
+
+describe('setRowToShape', () => {
+  it('maps DB row fields to sheet shape', () => {
+    const shape = setRowToShape({
+      id: 's1',
+      workout_exercise_id: 'we1',
+      order_index: 2,
+      weight: 80,
+      reps: 5,
+      units: 'kg',
+      completed: true,
+    } as never);
+    expect(shape).toEqual({
+      id: 's1',
+      weId: 'we1',
+      orderIndex: 2,
+      weight: 80,
+      reps: 5,
+      units: 'kg',
+      completed: true,
+    });
+  });
+});
+
+describe('countIncompleteSets', () => {
+  it('counts only incomplete sets across exercises', () => {
+    const ex = (sets: Partial<SetShape>[]): ExerciseShape =>
+      ({ id: 'we', exerciseId: 'e', exerciseName: 'X', orderIndex: 0, sets }) as never;
+    expect(
+      countIncompleteSets([
+        ex([{ completed: true }, { completed: false }]),
+        ex([{ completed: false }]),
+      ]),
+    ).toBe(2);
+    expect(countIncompleteSets([ex([{ completed: true }])])).toBe(0);
+    expect(countIncompleteSets([])).toBe(0);
   });
 });

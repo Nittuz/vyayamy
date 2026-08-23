@@ -9,7 +9,7 @@ import { getDb } from '@/db/client';
 import { enqueueMutation } from '@/db/mutations';
 import type { Workout } from '@/db/types';
 import { nowIso, uuidv4 } from '@/db/uuid';
-import { recordWorkoutPRs } from '@/queries/personalRecords';
+import { recomputeExercisePRs, recordWorkoutPRs } from '@/queries/personalRecords';
 import { advanceCycleCursor } from '@/queries/plans';
 import { emitMutationCommitted } from '@/db/mutationEvents';
 import { compositionTitle } from '@/lib/compositionTitle';
@@ -184,6 +184,26 @@ export async function maybeUpdateAutoTitle(workoutId: string): Promise<void> {
 export async function deleteWorkoutLocal(workoutId: string): Promise<void> {
   await enqueueMutation({ table: 'workouts', op: 'delete', rowId: workoutId });
   emitMutationCommitted();
+}
+
+/**
+ * Delete a finished workout and recompute records for every exercise it
+ * touched (spec 2026-08-22 §2). Recompute is best-effort per exercise —
+ * a records hiccup must never resurrect the workout.
+ */
+export async function deleteWorkoutAndRecompute(
+  userId: string,
+  workoutId: string,
+  exerciseIds: string[],
+): Promise<void> {
+  await deleteWorkoutLocal(workoutId);
+  for (const exerciseId of [...new Set(exerciseIds)]) {
+    try {
+      await recomputeExercisePRs(userId, exerciseId);
+    } catch (err) {
+      reportError(err, { workoutId, exerciseId, stage: 'deleteWorkoutAndRecompute' });
+    }
+  }
 }
 
 // Toasts never carry raw err.message (backlog 8.5): internals like "fetch
