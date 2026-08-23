@@ -129,6 +129,23 @@ export function resolvePlateStyles(theme: Theme, options: PlateStyleOptions = {}
   return { container: {}, slab: null, face, ink: appearance.ink };
 }
 
+/**
+ * Honest disabled face for FILLED tones (Button's primary/inverted kinds) —
+ * replaces Plate's generic 0.5-opacity dim, which smears a filled face's
+ * text down to the same translucency as its background and reads as a
+ * rendering glitch rather than a state (owner review finding, dark Login
+ * CTA). A flat surface2 fill, hairline border, inkTertiary ink: real colors,
+ * no opacity on anything. Ghost/secondary kinds keep the generic Plate dim —
+ * it still reads as intentional there, since it's only muting an
+ * already-quiet tone.
+ */
+export function resolveDisabledFaceStyles(theme: Theme): { face: ViewStyle; ink: string } {
+  return {
+    face: { backgroundColor: theme.color.surface2, ...borderStyle(theme, 'soft') },
+    ink: theme.color.inkTertiary,
+  };
+}
+
 /** Press feedback targets: a 60ms dip (see motion.duration.press). */
 export const PRESS_DIP_OPACITY = 0.8;
 export const PRESS_DIP_SCALE = 0.985;

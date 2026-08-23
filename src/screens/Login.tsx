@@ -1,5 +1,6 @@
 import * as Linking from 'expo-linking';
 import { Redirect } from 'expo-router';
+import { StatusBar } from 'expo-status-bar';
 import { useMemo, useState } from 'react';
 import {
   KeyboardAvoidingView,
@@ -19,7 +20,7 @@ import { OutlineDisplay } from '@/ui/OutlineDisplay';
 import { Plate } from '@/ui/Plate';
 import { SettleSlam } from '@/ui/SettleSlam';
 import { Text } from '@/ui/Text';
-import { useTheme, type Theme } from '@/ui/useTheme';
+import { ThemeScope, useTheme, type Theme } from '@/ui/useTheme';
 
 // Copy is path-specific but generic enough not to leak whether an account
 // exists (#92). The link error covers expired, used, and malformed codes with
@@ -33,7 +34,21 @@ const LINK_FAILED_ERROR =
 const WORDMARK_SOLID = brand.name.slice(0, 4);
 const WORDMARK_OUTLINE = brand.name.slice(4);
 
+// Login pins to the dark Blacktop palette regardless of the system scheme —
+// it's brand chrome, not content (owner decision after the wordmark render
+// broke and the disabled CTA read as a smear). ThemeScope forces every
+// useTheme() call under this subtree (this screen's own + every primitive it
+// renders — Button, Plate, OutlineDisplay, SettleSlam, FBarMark) to the dark
+// palette; unmounting on navigation reverts everything to normal automatically.
 export default function LoginScreen() {
+  return (
+    <ThemeScope scheme="dark">
+      <LoginScreenInner />
+    </ThemeScope>
+  );
+}
+
+function LoginScreenInner() {
   const { session, loading, authError, clearAuthError } = useAuth();
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
@@ -86,12 +101,27 @@ export default function LoginScreen() {
 
   return (
     <SafeAreaView style={styles.container}>
+      {/* Login is pinned dark (ThemeScope above) regardless of system scheme,
+          so its status bar must match — light content against the dark bg —
+          independent of the root layout's scheme-driven StatusBar. Mounted
+          after the root one, expo-status-bar merges the two and this one wins
+          for as long as this screen is on screen; unmounting on navigation
+          hands control straight back to the root bar (#5, must not leak). */}
+      <StatusBar style="light" />
       <KeyboardAvoidingView
         behavior={Platform.OS === 'ios' ? 'padding' : undefined}
         style={styles.kav}
       >
+        {/* Poster header (Today's grammar): mark, kicker, then the wordmark
+            stacked on two lines — solid FLEX, outlined YUG. on its own line.
+            OutlineDisplay's knockout only reads clean inline with a solid
+            line when it owns the whole line (the old single-row layout was
+            the broken render the owner review flagged). */}
         <SettleSlam style={styles.header}>
           <FBarMark size={96} />
+          <Text variant="label" color={theme.color.inkTertiary}>
+            {brand.tagline}
+          </Text>
           <View
             style={styles.wordmark}
             accessible
@@ -103,9 +133,6 @@ export default function LoginScreen() {
             </Text>
             <OutlineDisplay size="displayXL">{WORDMARK_OUTLINE}</OutlineDisplay>
           </View>
-          <Text variant="label" color={theme.color.inkTertiary}>
-            {brand.tagline}
-          </Text>
         </SettleSlam>
 
         <Plate faceStyle={styles.cardFace}>
@@ -237,9 +264,20 @@ export default function LoginScreen() {
 const makeStyles = (theme: Theme) =>
   StyleSheet.create({
     container: { flex: 1, backgroundColor: theme.color.bg },
-    kav: { flex: 1, justifyContent: 'center', padding: theme.space.page, gap: theme.space.s8 },
+    // Upper-third anchor for the header instead of a dead-centered stack:
+    // a fixed top offset plus one comfortable gap before the card, so the
+    // two form one rhythm instead of floating in independent whitespace.
+    kav: {
+      flex: 1,
+      paddingHorizontal: theme.space.page,
+      paddingTop: theme.space.s12,
+      paddingBottom: theme.space.page,
+      gap: theme.space.section,
+    },
     header: { alignItems: 'center', gap: theme.space.s3 },
-    wordmark: { flexDirection: 'row', alignItems: 'flex-end' },
+    // Stacked, not inlined: OutlineDisplay's knockout only holds up when it
+    // owns its own line (see the SettleSlam comment above).
+    wordmark: { alignItems: 'center' },
     cardFace: { padding: theme.space.s6, gap: theme.space.s5 },
     centerText: { textAlign: 'center' },
     form: { gap: theme.space.s3 },

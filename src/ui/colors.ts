@@ -2,7 +2,7 @@
  * Blacktop color tokens (Direction C overhaul, 2026-07-11 spec).
  * Two coordinated palettes — blacktop dark (default) and chalk light.
  * True mono plus one volt signal; inversion is elevation, so everything else
- * is neutral blacktop and chalk. Consumed via `src/ui/useTheme.ts`.
+ * is neutral blacktop and chalk. Consumed via `src/ui/useTheme.tsx`.
  *
  * Volt only ever sits on blacktop: raw volt fails as text on chalk, so the
  * light accent is pressed-volt #55650B (same dark-olive-volt family), and volt

@@ -15,7 +15,7 @@ import type { StyleProp, ViewStyle } from 'react-native';
 
 import { Icon, type IconName } from './icons';
 import { Plate } from './Plate';
-import type { PlateTone } from './plateStyles';
+import { resolveDisabledFaceStyles, type PlateTone } from './plateStyles';
 import { Text } from './Text';
 import { useTheme, type Theme } from './useTheme';
 
@@ -58,8 +58,19 @@ export function Button({
   const theme = useTheme();
   const styles = useMemo(() => makeStyles(theme), [theme]);
 
-  const textColor =
-    kind === 'primary'
+  // Honest disabled face (Button primitive fix, dark-poster Login review):
+  // only the FILLED kinds — primary's volt, inverted's ink — get the opacity
+  // smear replaced. A smeared translucent volt/ink face reads as a broken
+  // render; a flat surface2 face with real inkTertiary text reads as a state.
+  // Ghost/secondary/danger keep Plate's stock dim — already-quiet tones where
+  // dimming still reads as intentional.
+  const isFilledKind = kind === 'primary' || kind === 'inverted';
+  const honestDisabled = disabled && isFilledKind;
+  const disabledStyles = useMemo(() => resolveDisabledFaceStyles(theme), [theme]);
+
+  const textColor = honestDisabled
+    ? disabledStyles.ink
+    : kind === 'primary'
       ? theme.color.onAccent
       : kind === 'inverted'
         ? theme.color.bg
@@ -90,6 +101,7 @@ export function Button({
       border={kind === 'danger' ? 'soft' : undefined}
       onPress={onPress}
       disabled={disabled || loading}
+      dimWhenDisabled={!honestDisabled}
       accessibilityRole="button"
       accessibilityLabel={accessibilityLabel ?? label}
       accessibilityHint={accessibilityHint}
@@ -98,6 +110,7 @@ export function Button({
         styles.face,
         size === 'cta' ? styles.cta : styles.row,
         kind === 'danger' && styles.dangerFace,
+        honestDisabled && disabledStyles.face,
       ]}
     >
       {content}

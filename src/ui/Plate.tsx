@@ -40,6 +40,13 @@ export interface PlateProps {
   onPress?: () => void;
   onLongPress?: () => void;
   disabled?: boolean;
+  /**
+   * Set false to skip the automatic 0.5-opacity dim while `disabled` — for a
+   * caller (Button's filled kinds) that supplies its own honest disabled
+   * face/ink via `faceStyle` instead of a translucency smear. Defaults true,
+   * so every existing Plate caller keeps today's dim untouched.
+   */
+  dimWhenDisabled?: boolean;
   accessibilityRole?: AccessibilityRole;
   accessibilityLabel?: string;
   accessibilityHint?: string;
@@ -57,6 +64,7 @@ export function Plate({
   onPress,
   onLongPress,
   disabled = false,
+  dimWhenDisabled = true,
   accessibilityRole,
   accessibilityLabel,
   accessibilityHint,
@@ -67,7 +75,7 @@ export function Plate({
 }: PlateProps) {
   const theme = useTheme();
   const s = resolvePlateStyles(theme, { tone, border });
-  const dim = disabled ? { opacity: 0.5 } : null;
+  const dim = disabled && dimWhenDisabled ? { opacity: 0.5 } : null;
 
   // A ref, not state, so the press handlers keep stable identities — synced
   // from the live hook. Only read from event handlers (never mid-render), so

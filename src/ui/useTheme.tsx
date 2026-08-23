@@ -1,3 +1,4 @@
+import { createContext, useContext, type ReactNode } from 'react';
 import { useColorScheme } from 'react-native';
 
 import { darkPalette, lightPalette, type PaletteTokens } from './colors';
@@ -71,8 +72,33 @@ export function buildTheme(scheme: 'light' | 'dark'): Theme {
   return theme;
 }
 
+// Scoped scheme override — `null` (the default, no Provider mounted) means
+// "no override": useTheme falls back to the system color scheme exactly as
+// before. Every existing useTheme() call site is unaffected unless it renders
+// under a <ThemeScope> ancestor, so this is additive: it can't disturb any
+// caller that doesn't opt in.
+const ThemeSchemeContext = createContext<'light' | 'dark' | null>(null);
+
+/**
+ * Pins every useTheme() call under this subtree to `scheme`, regardless of
+ * the system setting. For brand chrome that must render as a fixed skin
+ * rather than adapt to content preference — e.g. Login's dark poster — not a
+ * general per-screen dark-mode toggle. Unmounting (navigating away) reverts
+ * every descendant to the normal system-driven scheme with no extra cleanup.
+ */
+export function ThemeScope({
+  scheme,
+  children,
+}: {
+  scheme: 'light' | 'dark';
+  children: ReactNode;
+}) {
+  return <ThemeSchemeContext.Provider value={scheme}>{children}</ThemeSchemeContext.Provider>;
+}
+
 export function useTheme(): Theme {
   const raw = useColorScheme();
-  const scheme: 'light' | 'dark' = raw === 'light' ? 'light' : 'dark';
+  const override = useContext(ThemeSchemeContext);
+  const scheme: 'light' | 'dark' = override ?? (raw === 'light' ? 'light' : 'dark');
   return buildTheme(scheme);
 }
