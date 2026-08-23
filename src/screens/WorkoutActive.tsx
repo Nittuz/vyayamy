@@ -9,6 +9,7 @@ import { ActiveSetCard, type ActiveSetCardHandle } from '@/components/ActiveSetC
 import {
   canCompleteSet,
   completedSetsBeforeCursor,
+  countIncompleteSets,
   type ExerciseShape,
   findNextExercise,
   findSet,
@@ -86,6 +87,10 @@ export default function WorkoutActiveScreen() {
 
   const [pickerOpen, setPickerOpen] = useState(false);
   const [discardConfirm, setDiscardConfirm] = useState(false);
+  // Recap branch only (spec 2026-08-22 §3): destructive confirm when Finish
+  // would prune incomplete sets. Declared here, not inside the `!cursor`
+  // branch, per the file's unconditional-hooks convention.
+  const [finishConfirm, setFinishConfirm] = useState(false);
 
   // Session-capture notes (spec 2026-08-09): one sheet, session + current
   // exercise. The exercise target is SNAPSHOTTED when the sheet opens, so a
@@ -415,6 +420,7 @@ export default function WorkoutActiveScreen() {
 
   // Cursor is null → all exercises complete → show Finish summary
   if (!cursor) {
+    const incomplete = countIncompleteSets(exercises);
     return (
       <SafeAreaView style={[styles.container, { backgroundColor: theme.color.bg }]}>
         <Stack.Screen options={screenOptions} />
@@ -445,7 +451,7 @@ export default function WorkoutActiveScreen() {
               label="Finish workout"
               size="cta"
               loading={finishWorkout.isPending}
-              onPress={onFinish}
+              onPress={() => (incomplete > 0 ? setFinishConfirm(true) : onFinish())}
               accessibilityLabel="Finish workout"
               style={styles.fullBtn}
             />
@@ -483,6 +489,15 @@ export default function WorkoutActiveScreen() {
           exercise={noteTarget}
           saving={setWorkoutNoteMut.isPending || setExerciseNoteMut.isPending}
           onSave={(changes) => onSaveNotes(changes, noteTarget?.weId)}
+        />
+        <ConfirmSheet
+          visible={finishConfirm}
+          onClose={() => setFinishConfirm(false)}
+          title="Finish workout?"
+          message={`${incomplete} incomplete ${incomplete === 1 ? 'set' : 'sets'} will be discarded.`}
+          confirmLabel="Finish"
+          destructive
+          onConfirm={onFinish}
         />
       </SafeAreaView>
     );

@@ -1,5 +1,5 @@
 import { router } from 'expo-router';
-import { useCallback, useEffect, useMemo, useState } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import {
   AppState,
   Linking,
@@ -16,7 +16,9 @@ import { formatMemberSince, getInitials } from '@/core/format';
 import type { RestAlertStatus } from '@/lib/notificationStatus';
 import { useProfile, useUpdateProfile } from '@/queries/profile';
 import { getRestAlertStatus, primeRestAlerts } from '@/rest/notifications';
+import { getOutboxCount } from '@/sync/outboxPreview';
 import { Button } from '@/ui/Button';
+import { ConfirmSheet } from '@/ui/ConfirmSheet';
 import { Icon } from '@/ui/icons';
 import { Plate } from '@/ui/Plate';
 import { Segment } from '@/ui/Segment';
@@ -62,6 +64,14 @@ export default function ProfileScreen() {
 
   const [displayName, setDisplayName] = useState('');
   const [signingOut, setSigningOut] = useState(false);
+  // Sign-out gate (spec 2026-08-22 §4): null = no confirm pending, a number
+  // (including 0, though 0 signs out immediately below) is the pending
+  // outbox count named in the confirm copy.
+  const [pendingCount, setPendingCount] = useState<number | null>(null);
+  // Ref latch against a double-tap landing mid-await of getOutboxCount()
+  // (HistoryDetail's deletingRef precedent) — a state flag alone can't stop
+  // a second tap that lands before the first render commits.
+  const checkingOutboxRef = useRef(false);
   useEffect(() => {
     setDisplayName(profileQuery.data?.display_name ?? '');
   }, [profileQuery.data?.display_name]);
@@ -96,7 +106,7 @@ export default function ProfileScreen() {
     setRestStatus(await primeRestAlerts());
   }, [restStatus]);
 
-  const handleSignOut = useCallback(async () => {
+  const doSignOut = useCallback(async () => {
     setSigningOut(true);
     try {
       await signOut();
@@ -104,6 +114,25 @@ export default function ProfileScreen() {
       setSigningOut(false);
     }
   }, []);
+
+  // Gate (spec 2026-08-22 §4): query the outbox directly at tap time (no
+  // reliance on possibly-stale sync state). Zero pending signs out
+  // immediately — fully recoverable via pull after re-login — otherwise a
+  // destructive confirm names the cost.
+  const handleSignOut = useCallback(async () => {
+    if (checkingOutboxRef.current) return;
+    checkingOutboxRef.current = true;
+    try {
+      const pending = await getOutboxCount();
+      if (pending > 0) {
+        setPendingCount(pending);
+      } else {
+        await doSignOut();
+      }
+    } finally {
+      checkingOutboxRef.current = false;
+    }
+  }, [doSignOut]);
 
   if (!userId) return null;
 
@@ -223,6 +252,15 @@ export default function ProfileScreen() {
           style={styles.signOut}
         />
       </ScrollView>
+      <ConfirmSheet
+        visible={pendingCount != null}
+        onClose={() => setPendingCount(null)}
+        title="Sign out?"
+        message={`${pendingCount} unsynced ${pendingCount === 1 ? 'change' : 'changes'} will be lost.`}
+        confirmLabel="Sign out anyway"
+        destructive
+        onConfirm={doSignOut}
+      />
     </SafeAreaView>
   );
 }
