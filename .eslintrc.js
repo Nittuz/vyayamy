@@ -1,6 +1,6 @@
 module.exports = {
   root: true,
-  extends: ['expo'],
+  extends: ['expo', 'plugin:react-native-a11y/ios'],
   ignorePatterns: ['node_modules', 'dist', '.expo'],
   rules: {
     'import/order': [
@@ -10,6 +10,20 @@ module.exports = {
         'newlines-between': 'always',
       },
     ],
+    // react-native-a11y/ios: two rules have pre-existing repo-wide violations
+    // outside this batch's touched files — downgraded to warn rather than a
+    // mass refactor (per the batch-4 severity policy). All other ios/basic
+    // rules pass repo-wide and stay at error.
+    // has-accessibility-hint: 47 elements have accessibilityLabel with no
+    // accessibilityHint. RN/Apple guidance is to use hints sparingly (only
+    // when the outcome isn't obvious from the label alone), so blanket
+    // hint-everything is itself questionable — not a trivial fix.
+    'react-native-a11y/has-accessibility-hint': 'warn',
+    // has-valid-accessibility-descriptors: 2 TextInputs (EditableTitle.tsx,
+    // RestOverrideSheet.tsx) lack a role/label pair; neither file is in this
+    // batch's scope (Login/Profile/PlanSetup/ExercisePicker/Today/
+    // NumericStepperView/RepeatCard/PlanCard).
+    'react-native-a11y/has-valid-accessibility-descriptors': 'warn',
     // React Compiler rules (eslint-plugin-react-hooks v6, newly enabled by
     // eslint-config-expo in SDK 56). They false-positive on legitimate
     // Reanimated/gesture patterns (reading shared values / refs during render,
