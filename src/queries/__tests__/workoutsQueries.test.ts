@@ -10,11 +10,18 @@ import {
 import { addExerciseToWorkout } from '@/queries/exercises';
 import { listSetsForWorkoutExercise, updateSet } from '@/queries/sets';
 import { getGroupedPRs } from '@/queries/personalRecords';
+import * as personalRecordsQueries from '@/queries/personalRecords';
 import { setSyncState } from '@/sync/state';
 
 jest.mock('@/auth/supabase', () => ({
   supabase: { from: () => ({ insert: () => Promise.resolve({ error: null }) }) },
 }));
+
+// deleteWorkoutAndRecompute's failure-isolation test drives the module's
+// reportError() catch path for real, which lazily imports errorReporting —
+// and that pulls in expo-constants (ESM), which jest can't parse off its
+// own import graph (see errorReporting.ts's lazy-import idiom note).
+jest.mock('@/lib/errorReporting', () => ({ captureException: jest.fn() }));
 
 const USER = 'wq-user';
 const T = '2026-01-01T00:00:00.000Z';
@@ -167,5 +174,37 @@ describe('deleteWorkoutAndRecompute', () => {
 
     // Passing a duplicated exerciseId must not throw or double-run.
     await expect(deleteWorkoutAndRecompute(USER, wId, ['ex', 'ex'])).resolves.toBeUndefined();
+  });
+
+  test('a recomputeExercisePRs rejection is isolated — the delete still commits', async () => {
+    const db = await getDb();
+    await db.runAsync(
+      'INSERT INTO exercises (id, name, muscle_group, user_id, created_at, updated_at) VALUES (?, ?, ?, ?, ?, ?)',
+      ['ex', 'Bench', 'Chest', null, T, T],
+    );
+    const wId = await createWorkout({ userId: USER, title: 'Push' });
+    await addExerciseToWorkout({ workoutId: wId, exerciseId: 'ex' });
+    await finishWorkout(wId, USER);
+
+    // Only this test gets the failing recompute — spyOn + mockRejectedValueOnce
+    // + restore, NOT a module-wide jest.mock, so the other tests in this file
+    // keep exercising the real recompute (and its PR-dropping assertions).
+    const spy = jest
+      .spyOn(personalRecordsQueries, 'recomputeExercisePRs')
+      .mockRejectedValueOnce(new Error('recompute boom'));
+    try {
+      // (a) the orchestration call still resolves — a records hiccup must
+      // never resurrect (or fail) the delete.
+      await expect(deleteWorkoutAndRecompute(USER, wId, ['ex'])).resolves.toBeUndefined();
+
+      // (b) the workout row was still soft-deleted.
+      const workoutRow = await db.getFirstAsync<{ deleted_at: string | null }>(
+        'SELECT deleted_at FROM workouts WHERE id = ?',
+        [wId],
+      );
+      expect(workoutRow!.deleted_at).not.toBeNull();
+    } finally {
+      spy.mockRestore();
+    }
   });
 });

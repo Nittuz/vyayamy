@@ -142,6 +142,46 @@ describe('setRowToShape', () => {
       completed: true,
     });
   });
+
+  it('coerces a raw sqlite 0/1 to a strict boolean, not a passthrough', () => {
+    const zero = setRowToShape({
+      id: 's2',
+      workout_exercise_id: 'we1',
+      order_index: 0,
+      weight: 80,
+      reps: 5,
+      units: 'kg',
+      completed: 0,
+    } as never);
+    // toBe (Object.is) — a regression to `completed: s.completed` would leave
+    // this `0`, which is loosely-equal-false but not strictly `false`.
+    expect(zero.completed).toBe(false);
+
+    const one = setRowToShape({
+      id: 's3',
+      workout_exercise_id: 'we1',
+      order_index: 0,
+      weight: 80,
+      reps: 5,
+      units: 'kg',
+      completed: 1,
+    } as never);
+    expect(one.completed).toBe(true);
+  });
+
+  it('leaves null weight/reps unmapped', () => {
+    const shape = setRowToShape({
+      id: 's4',
+      workout_exercise_id: 'we1',
+      order_index: 0,
+      weight: null,
+      reps: null,
+      units: null,
+      completed: false,
+    } as never);
+    expect(shape.weight).toBeNull();
+    expect(shape.reps).toBeNull();
+  });
 });
 
 describe('countIncompleteSets', () => {
