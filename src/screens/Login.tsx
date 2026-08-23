@@ -113,10 +113,11 @@ function LoginScreenInner() {
         style={styles.kav}
       >
         {/* Poster header (Today's grammar): mark, kicker, then the wordmark
-            stacked on two lines — solid FLEX, outlined YUG. on its own line.
-            OutlineDisplay's knockout only reads clean inline with a solid
-            line when it owns the whole line (the old single-row layout was
-            the broken render the owner review flagged). */}
+            as ONE word on one line — solid FLEX flowing into outlined YUG
+            (owner call: stacked lines read awkward). Same variant on both
+            halves keeps the line boxes identical, so bottom-aligning the row
+            aligns the glyphs; the outline's stroke copies extend one hairline
+            past its box, which reads as the natural inter-glyph gap. */}
         <SettleSlam style={styles.header}>
           <FBarMark size={96} />
           <Text variant="label" color={theme.color.inkTertiary}>
@@ -277,7 +278,7 @@ const makeStyles = (theme: Theme) =>
     header: { alignItems: 'center', gap: theme.space.s3 },
     // Stacked, not inlined: OutlineDisplay's knockout only holds up when it
     // owns its own line (see the SettleSlam comment above).
-    wordmark: { alignItems: 'center' },
+    wordmark: { flexDirection: 'row', alignItems: 'flex-end' },
     cardFace: { padding: theme.space.s6, gap: theme.space.s5 },
     centerText: { textAlign: 'center' },
     form: { gap: theme.space.s3 },
