@@ -47,14 +47,24 @@ export function formatRelativeDate(dateStr: string): string {
  * placeholder like "-", which callers were joining into strips as a bare
  * "· -". Callers drop the segment (or substitute their own "in progress"
  * copy where a value is required).
+ *
+ * Layout polish (row-squaring fix): floors sub-minute sessions to "<1m"
+ * rather than a placeholder-looking "0m", and switches to day-aware
+ * formatting ("Xd Yh", no minutes) once the session runs 24h+ — a forgotten
+ * "end workout" tap used to render something like "301h 48m".
  */
 export function formatDuration(startedAt: string, endedAt: string | null): string | null {
   if (!endedAt) return null;
   const start = new Date(startedAt).getTime();
   const end = new Date(endedAt).getTime();
   const mins = Math.round((end - start) / 60000);
+  if (mins < 1) return '<1m';
   if (mins < 60) return `${mins}m`;
   const h = Math.floor(mins / 60);
+  if (h >= 24) {
+    const days = Math.floor(h / 24);
+    return `${days}d ${h % 24}h`;
+  }
   const m = mins % 60;
   return m ? `${h}h ${m}m` : `${h}h`;
 }
@@ -70,6 +80,18 @@ export function formatTimeOfDay(dateStr: string): string {
 export function formatShortDate(dateStr: string): string {
   return new Date(dateStr).toLocaleDateString(undefined, {
     weekday: 'short',
+    month: 'short',
+    day: 'numeric',
+  });
+}
+
+/**
+ * "Aug 10" — a short row-anchoring date for History (row-squaring fix).
+ * Deliberately drops weekday/year: rows are already grouped into month
+ * sections, so both would be redundant noise on every row.
+ */
+export function formatRowDate(dateStr: string): string {
+  return new Date(dateStr).toLocaleDateString(undefined, {
     month: 'short',
     day: 'numeric',
   });

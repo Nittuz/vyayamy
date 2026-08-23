@@ -10,7 +10,7 @@ import {
 } from 'react-native';
 
 import { useAuth } from '@/auth/useAuth';
-import { formatDuration, getDateGroup } from '@/core/format';
+import { formatDuration, formatRowDate, getDateGroup } from '@/core/format';
 import { useHistoryInfinite, workoutDayAnchor, type HistoryRow } from '@/queries/history';
 import { triggerPull } from '@/sync/engine';
 import { EmptyState } from '@/ui/EmptyState';
@@ -139,6 +139,9 @@ function HistoryItem({ row, first, delay }: { row: HistoryRow; first: boolean; d
   const setNoun = row.set_count === 1 ? 'set' : 'sets';
   const exerciseNoun = row.exercise_count === 1 ? 'exercise' : 'exercises';
   const duration = formatDuration(row.started_at, row.ended_at);
+  // #155: same started_at anchor the month sections group by — the row date
+  // and its section can never disagree.
+  const rowDate = formatRowDate(row.started_at);
   const strip = [
     `${row.completed_set_count}/${row.set_count} ${setNoun}`,
     `${row.exercise_count} ${exerciseNoun}`,
@@ -159,9 +162,14 @@ function HistoryItem({ row, first, delay }: { row: HistoryRow; first: boolean; d
         style={[styles.row, first && styles.rowFirst]}
         faceStyle={styles.rowFace}
       >
-        <Text variant="card" color={theme.color.ink}>
-          {row.title}
-        </Text>
+        <View style={styles.titleRow}>
+          <Text variant="card" color={theme.color.ink} style={styles.titleText} numberOfLines={1}>
+            {row.title}
+          </Text>
+          <Text variant="strip" color={theme.color.inkTertiary} style={styles.dateText}>
+            {rowDate}
+          </Text>
+        </View>
         <Text variant="strip" color={theme.color.inkTertiary}>
           {strip}
         </Text>
@@ -198,6 +206,17 @@ const makeStyles = (theme: Theme) =>
       paddingVertical: theme.space.s3,
       gap: theme.space.s1,
     },
+    // Title + anchored date (row-squaring fix): the date pins the right edge
+    // of line 1 so rows read as equal-width bands even though the strip
+    // below still varies in length.
+    titleRow: {
+      flexDirection: 'row',
+      justifyContent: 'space-between',
+      alignItems: 'baseline',
+      gap: theme.space.s3,
+    },
+    titleText: { flexShrink: 1 },
+    dateText: { flexShrink: 0 },
     loading: { marginTop: theme.space.s10 },
     footerLoading: { marginVertical: theme.space.s4 },
     empty: {

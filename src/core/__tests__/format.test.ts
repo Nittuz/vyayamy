@@ -2,6 +2,7 @@ import {
   ageLabel,
   formatRelativeDate,
   formatDuration,
+  formatRowDate,
   formatShortDate,
   formatStartLabel,
   formatTimeOfDay,
@@ -94,6 +95,35 @@ describe('formatDuration', () => {
 
   test('formats hours and minutes', () => {
     expect(formatDuration('2026-01-01T10:00:00.000Z', '2026-01-01T12:05:00.000Z')).toBe('2h 5m');
+  });
+
+  // Layout polish (owner feedback: rows read as unequal rectangles): a
+  // sub-minute workout used to render the placeholder-looking "0m" — floor
+  // it to an honest "<1m" instead.
+  test('floors sub-minute durations to "<1m" instead of "0m"', () => {
+    expect(formatDuration('2026-01-01T10:00:00.000Z', '2026-01-01T10:00:20.000Z')).toBe('<1m');
+  });
+
+  test('formats hours and minutes for a 3h5m session', () => {
+    expect(formatDuration('2026-01-01T10:00:00.000Z', '2026-01-01T13:05:00.000Z')).toBe('3h 5m');
+  });
+
+  // Day-scale sessions (e.g. a forgotten "end workout" tap) used to render
+  // an absurd "301h 48m" — switch to day-aware formatting with no minutes.
+  test('formats day-scale durations as "Xd Yh", dropping minutes', () => {
+    expect(formatDuration('2026-01-01T00:00:00.000Z', '2026-01-13T13:48:00.000Z')).toBe('12d 13h');
+  });
+
+  test('formats the exact 24h boundary as "1d 0h"', () => {
+    expect(formatDuration('2026-01-01T00:00:00.000Z', '2026-01-02T00:00:00.000Z')).toBe('1d 0h');
+  });
+});
+
+describe('formatRowDate', () => {
+  test('formats a month-short + day label with no weekday or year', () => {
+    // 2026-08-10T16:00:00.000Z is noon on Aug 10 in America/New_York (the
+    // jest.globalSetup TZ pin), so this is unambiguous under the fixed offset.
+    expect(formatRowDate('2026-08-10T16:00:00.000Z')).toBe('Aug 10');
   });
 });
 
