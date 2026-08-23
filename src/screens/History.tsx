@@ -17,6 +17,7 @@ import { EmptyState } from '@/ui/EmptyState';
 import { FadeInView } from '@/ui/FadeInView';
 import { staggerDelay } from '@/ui/motion';
 import { Plate } from '@/ui/Plate';
+import { SettleSlam } from '@/ui/SettleSlam';
 import { SyncIndicator } from '@/ui/SyncIndicator';
 import { Text } from '@/ui/Text';
 import { useTheme, type Theme } from '@/ui/useTheme';
@@ -90,7 +91,15 @@ export default function HistoryScreen() {
           />
         }
         ListHeaderComponent={
-          <View style={styles.syncRow}>
+          // Chrome title moved in-screen (Anton display, matching Progress/
+          // Profile) — the nav header now carries only the back chevron
+          // (impeccable batch 5).
+          <View style={styles.headerRow}>
+            <SettleSlam style={styles.title}>
+              <Text variant="displayXL" color={theme.color.inkHero}>
+                History
+              </Text>
+            </SettleSlam>
             <SyncIndicator />
           </View>
         }
@@ -129,11 +138,15 @@ function HistoryItem({ row, first, delay }: { row: HistoryRow; first: boolean; d
 
   const setNoun = row.set_count === 1 ? 'set' : 'sets';
   const exerciseNoun = row.exercise_count === 1 ? 'exercise' : 'exercises';
+  const duration = formatDuration(row.started_at, row.ended_at);
   const strip = [
     `${row.completed_set_count}/${row.set_count} ${setNoun}`,
     `${row.exercise_count} ${exerciseNoun}`,
     ...(row.volume > 0 ? [`${Math.round(row.volume)} vol`] : []),
-    formatDuration(row.started_at, row.ended_at),
+    // Every row here comes from a finished workout (the query filters
+    // ended_at IS NOT NULL), so duration is always present — the null case
+    // is only a type-level honesty, not a reachable path (impeccable batch 5).
+    ...(duration ? [duration] : []),
   ].join(' · ');
 
   return (
@@ -161,7 +174,13 @@ const makeStyles = (theme: Theme) =>
   StyleSheet.create({
     container: { flex: 1, backgroundColor: theme.color.bg },
     scroll: { padding: theme.space.page, paddingBottom: theme.space.s12 },
-    syncRow: { flexDirection: 'row', justifyContent: 'flex-end' },
+    headerRow: {
+      flexDirection: 'row',
+      alignItems: 'flex-end',
+      gap: theme.space.s3,
+      marginBottom: theme.space.s4,
+    },
+    title: { flex: 1 },
     // The ONE section-header treatment: strip caps + a single hairline below.
     sectionHeader: {
       marginTop: theme.space.s6,

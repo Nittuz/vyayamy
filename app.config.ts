@@ -47,6 +47,9 @@ const config: ExpoConfig = {
       // plugin below (microphonePermission / speechRecognitionPermission).
     },
   },
+  // iOS-only stance for now (no `android` npm script, no Android build
+  // pipeline) — kept, not deleted, so Android stays a config-only flip if we
+  // ever pick it back up (impeccable batch 5).
   android: {
     package: 'com.mokshlabs.flexyug',
     backgroundColor: darkPalette.bg,

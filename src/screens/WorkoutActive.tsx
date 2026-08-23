@@ -156,6 +156,25 @@ export default function WorkoutActiveScreen() {
     }));
   }, [detail.data]);
 
+  // First-run de-nesting (impeccable batch 5): a workout that starts genuinely
+  // blank (no template/plan/voice seed — those always land here with at least
+  // one exercise already) would otherwise strand the user one tap away from
+  // "Add exercise" in the empty state. Auto-open the picker once the workout
+  // has actually loaded with zero exercises. Latched via render-time state
+  // adjustment, not a useEffect: this file's own neighborhood precedent
+  // (useRestClock's stale-frame fix, commit 62fb8b1) is that syncing state
+  // off arriving data from inside an effect paints one stale frame first and
+  // trips `react-hooks/set-state-in-effect`; adjusting during render (React's
+  // documented "storing information from previous renders" recipe) opens the
+  // picker the instant the zero-exercise data is seen, and the flag flipping
+  // permanently on the very next line means it can never re-fire — no re-open
+  // loop from a picker closed without picking.
+  const [autoOpenedPicker, setAutoOpenedPicker] = useState(false);
+  if (!autoOpenedPicker && activeQuery.data && detail.data && exercises.length === 0) {
+    setAutoOpenedPicker(true);
+    setPickerOpen(true);
+  }
+
   // Cursor state machine (init/reposition #21/#77, leave-confirm #12, add-
   // exercise targeting #13) — see useWorkoutCursor.
   const {

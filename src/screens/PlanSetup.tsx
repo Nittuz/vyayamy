@@ -25,6 +25,7 @@ import { Button } from '@/ui/Button';
 import { Plate } from '@/ui/Plate';
 import { resolvePlateStyles } from '@/ui/plateStyles';
 import { Segment } from '@/ui/Segment';
+import { SettleSlam } from '@/ui/SettleSlam';
 import { Text } from '@/ui/Text';
 import { useToast } from '@/ui/ToastContext';
 import { useTheme, type Theme } from '@/ui/useTheme';
@@ -220,6 +221,15 @@ export default function PlanSetupScreen() {
         style={styles.kav}
       >
         <ScrollView contentContainerStyle={styles.scroll}>
+          {/* Chrome title moved in-screen (Anton display, matching Progress/
+              Profile) — the nav header now carries only the back chevron
+              (impeccable batch 5). */}
+          <SettleSlam>
+            <Text variant="displayXL" color={theme.color.inkHero}>
+              Plan setup
+            </Text>
+          </SettleSlam>
+
           {showPresetPicker ? (
             <PresetPicker
               isLoading={presets.isLoading}

@@ -41,8 +41,15 @@ export function formatRelativeDate(dateStr: string): string {
   return new Date(dateStr).toLocaleDateString();
 }
 
-export function formatDuration(startedAt: string, endedAt: string | null): string {
-  if (!endedAt) return '-';
+/**
+ * Honest fallback (impeccable batch 5): a workout with no `ended_at` hasn't
+ * finished, so it has no duration to report — return null rather than a
+ * placeholder like "-", which callers were joining into strips as a bare
+ * "· -". Callers drop the segment (or substitute their own "in progress"
+ * copy where a value is required).
+ */
+export function formatDuration(startedAt: string, endedAt: string | null): string | null {
+  if (!endedAt) return null;
   const start = new Date(startedAt).getTime();
   const end = new Date(endedAt).getTime();
   const mins = Math.round((end - start) / 60000);
@@ -125,6 +132,16 @@ export function getInitials(
   }
   if (email) return email.charAt(0).toUpperCase();
   return '?';
+}
+
+/**
+ * Honest fallback for a snake_case enum with no curated label ("best_volume"
+ * → "Best volume") — used when a lookup table like Progress's PR_LABEL
+ * doesn't recognize a value, instead of showing the raw enum to the user.
+ */
+export function humanizeEnum(value: string): string {
+  const spaced = value.replace(/_/g, ' ');
+  return spaced.charAt(0).toUpperCase() + spaced.slice(1);
 }
 
 export function formatWeight(weight: number | null, units: 'kg' | 'lb'): string {

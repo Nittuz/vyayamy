@@ -10,6 +10,7 @@ import { FadeInView } from '@/ui/FadeInView';
 import { staggerDelay } from '@/ui/motion';
 import { Plate } from '@/ui/Plate';
 import { resolvePlateStyles } from '@/ui/plateStyles';
+import { SettleSlam } from '@/ui/SettleSlam';
 import { Text } from '@/ui/Text';
 import { useTheme, type Theme } from '@/ui/useTheme';
 
@@ -37,6 +38,15 @@ export default function TrainingPlanScreen() {
   return (
     <SafeAreaView style={styles.container}>
       <ScrollView contentContainerStyle={styles.scroll}>
+        {/* Chrome title moved in-screen (Anton display, matching Progress/
+            Profile) — the nav header now carries only the back chevron
+            (impeccable batch 5). */}
+        <SettleSlam>
+          <Text variant="displayXL" color={theme.color.inkHero}>
+            Training plan
+          </Text>
+        </SettleSlam>
+
         {!plan ? (
           <View style={styles.emptyWrap}>
             <EmptyState

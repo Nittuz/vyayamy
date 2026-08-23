@@ -10,6 +10,7 @@ import {
   formatMemberSince,
   getInitials,
   formatWeight,
+  humanizeEnum,
   localDayKey,
   localDaysBetween,
 } from '@/core/format';
@@ -76,8 +77,11 @@ describe('formatRelativeDate', () => {
 });
 
 describe('formatDuration', () => {
-  test('returns em-dash when not ended', () => {
-    expect(formatDuration('2026-01-01T10:00:00.000Z', null)).toBe('-');
+  // Honest fallback (impeccable batch 5): a still-running workout has no
+  // duration to report. Returning null lets every caller drop the segment
+  // instead of rendering a bare "· -" next to real data.
+  test('returns null when not ended, never a placeholder string', () => {
+    expect(formatDuration('2026-01-01T10:00:00.000Z', null)).toBeNull();
   });
 
   test('formats sub-hour durations as minutes', () => {
@@ -90,6 +94,17 @@ describe('formatDuration', () => {
 
   test('formats hours and minutes', () => {
     expect(formatDuration('2026-01-01T10:00:00.000Z', '2026-01-01T12:05:00.000Z')).toBe('2h 5m');
+  });
+});
+
+describe('humanizeEnum', () => {
+  test('replaces underscores with spaces and capitalizes the first letter', () => {
+    expect(humanizeEnum('best_volume')).toBe('Best volume');
+    expect(humanizeEnum('most_reps_at_weight')).toBe('Most reps at weight');
+  });
+
+  test('leaves an already-single word capitalized', () => {
+    expect(humanizeEnum('reps')).toBe('Reps');
   });
 });
 

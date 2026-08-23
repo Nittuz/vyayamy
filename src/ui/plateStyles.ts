@@ -12,8 +12,15 @@
  *
  * Legacy Forged Iron tone values are mapped so pre-overhaul call sites keep
  * compiling with sensible appearance until the per-screen phase migrates them:
- * surface→panel, surface2→panel, bg→ghost, accent→volt. `danger` keeps its
- * filled look (QuarantineBanner) until screens move to ghost-destructive.
+ * surface→panel, surface2→panel, bg→ghost, accent→volt.
+ *
+ * One destructive treatment (impeccable batch 5): every screen now speaks
+ * danger the same quiet way — a `panel` Plate with a danger hairline and
+ * danger text, no fill (QuarantineBanner, Today's sync row, every `Button
+ * kind="danger"` via TONE_FOR_KIND's 'ghost' mapping). The filled `danger`
+ * tone below has no remaining consumer; it is kept only so the PlateTone API
+ * surface doesn't shrink out from under any direct `tone="danger"` caller —
+ * retire it outright if that's ever confirmed dead for good.
  */
 import type { ViewStyle } from 'react-native';
 

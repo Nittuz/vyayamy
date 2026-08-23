@@ -42,15 +42,20 @@ const queryClient = new QueryClient({
   },
 });
 
-// Every pushed route carries a real title — an unlisted route would render its
-// raw route name in the header (the old "history/index" bug).
+// Every pushed route is given an explicit title — even an empty one — so it
+// never falls back to rendering its raw route name in the header (the old
+// "history/index" bug). History/TrainingPlan/PlanSetup have no user-authored
+// title to show here: their chrome title moved in-screen (Anton display,
+// mirroring Progress/Profile) with an empty header, so this bar shows only
+// the back chevron. WorkoutActive and HistoryDetail keep real header text —
+// a workout's name IS user text (see the headerTitleStyle comment below).
 const tabsScreenOpts = { headerShown: false };
 const loginScreenOpts = { headerShown: false };
 const workoutActiveOpts = { title: 'Workout' };
-const historyIndexOpts = { title: 'History' };
+const historyIndexOpts = { title: '' };
 const historyDetailOpts = { title: 'Workout' };
-const planIndexOpts = { title: 'Training plan' };
-const planSetupOpts = { title: 'Plan setup' };
+const planIndexOpts = { title: '' };
+const planSetupOpts = { title: '' };
 
 export default function RootLayout() {
   const [fontsLoaded] = useGeist({
@@ -110,10 +115,14 @@ function AppNavigator() {
 
   const screenOptions = {
     headerStyle: { backgroundColor: theme.color.bg },
-    // Header titles are user/workout text, so they stay in the Geist voice
-    // (not the Anton display face used for chrome screen titles).
+    // Header titles are user/workout text, so where they're shown (Workout,
+    // HistoryDetail) they stay in the Geist voice, not the Anton display face
+    // used for chrome screen titles.
     headerTitleStyle: { fontFamily: theme.font.family.sansSemibold, color: theme.color.inkHero },
-    headerTintColor: theme.color.accent,
+    // The back chevron is a utility affordance, not an act-now/achievement
+    // moment — volt is reserved for those, so the chevron reads in plain ink
+    // (matching the in-content chevron-left precedent in WorkoutActive).
+    headerTintColor: theme.color.ink,
     headerShadowVisible: false,
     headerBackButtonDisplayMode: 'minimal' as const,
     contentStyle: { backgroundColor: theme.color.bg },

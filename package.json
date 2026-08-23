@@ -16,7 +16,6 @@
   "scripts": {
     "start": "expo start",
     "ios": "expo run:ios",
-    "android": "expo run:android",
     "prebuild": "expo prebuild",
     "prebuild:clean": "expo prebuild --clean",
     "build:ipa": "bash scripts/build-ipa.sh",

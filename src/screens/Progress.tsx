@@ -12,7 +12,7 @@ import {
 
 import { ExercisePicker } from '@/components/ExercisePicker';
 import { useAuth } from '@/auth/useAuth';
-import { formatRelativeDate, formatShortDate } from '@/core/format';
+import { formatRelativeDate, formatShortDate, humanizeEnum } from '@/core/format';
 import { DEFAULT_UNITS } from '@/core/units';
 import { getKv, registerUserScopedKv, setKv } from '@/lib/kvStore';
 import { queryKeys } from '@/queries/keys';
@@ -352,7 +352,13 @@ export default function ProgressScreen() {
                           style={[styles.prStrip, isActive && styles.softInk]}
                         >
                           {g.records
-                            .map((r) => `${PR_LABEL[r.type] ?? r.type} ${r.displayValue}`)
+                            // Honest fallback: an unrecognized record type (e.g. a
+                            // retired type not yet swept) humanizes rather than
+                            // showing the raw snake_case enum (impeccable batch 5).
+                            .map(
+                              (r) =>
+                                `${PR_LABEL[r.type] ?? humanizeEnum(r.type)} ${r.displayValue}`,
+                            )
                             .join(' · ')}
                         </Text>
                       </View>

@@ -129,9 +129,16 @@ export default function HistoryDetailScreen() {
               {workout.title}
             </Text>
             <Text variant="strip" color={theme.color.inkTertiary}>
-              {/* Time of day answers "when did I train" (spec 2026-08-09) */}
-              {formatShortDate(workout.started_at)} · {formatTimeOfDay(workout.started_at)} ·{' '}
-              {formatDuration(workout.started_at, workout.ended_at)}
+              {/* Time of day answers "when did I train" (spec 2026-08-09).
+                  Duration drops out honestly if the workout never ended,
+                  rather than rendering a bare "· -" (impeccable batch 5). */}
+              {[
+                formatShortDate(workout.started_at),
+                formatTimeOfDay(workout.started_at),
+                formatDuration(workout.started_at, workout.ended_at),
+              ]
+                .filter(Boolean)
+                .join(' · ')}
             </Text>
             {workout.note ? (
               <Text variant="meta" color={theme.color.inkSecondary} style={styles.note}>
