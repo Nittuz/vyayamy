@@ -7,8 +7,9 @@ import {
   useRef,
   useState,
 } from 'react';
-import { StyleSheet, Text, View } from 'react-native';
+import { Pressable, StyleSheet, Text, View } from 'react-native';
 import Animated, {
+  cancelAnimation,
   runOnJS,
   useAnimatedStyle,
   useSharedValue,
@@ -18,22 +19,31 @@ import Animated, {
 } from 'react-native-reanimated';
 
 import { motion } from './motion';
+import { PRESS_DIP_OPACITY } from './plateStyles';
+import { attemptActionLatch, resolveToastActionAccent, resolveToastTiming } from './toastLogic';
 import { useReduceMotion } from './useReduceMotion';
 import { useTheme, type Theme } from './useTheme';
 import { isSyncError } from './syncErrors';
 
-/** How long the toast holds fully visible between fade-in and fade-out. */
-const TOAST_HOLD_MS = 2200;
-
 type ToastKind = 'info' | 'success' | 'error';
+
+/** Optional action slot (undo spec §2) — omitting it keeps showToast byte-compatible. */
+export interface ToastActionOpts {
+  actionLabel?: string;
+  onAction?: () => void;
+  /** Overrides the default hold (TOAST_HOLD_MS in toastLogic.ts) for this toast. */
+  holdMs?: number;
+}
+
 interface ToastItem {
   id: number;
   message: string;
   kind: ToastKind;
+  opts?: ToastActionOpts;
 }
 
 interface ToastContextValue {
-  showToast: (message: string, kind?: ToastKind) => void;
+  showToast: (message: string, kind?: ToastKind, opts?: ToastActionOpts) => void;
 }
 
 const ToastContext = createContext<ToastContextValue | null>(null);
@@ -65,18 +75,24 @@ export function ToastProvider({ children }: { children: React.ReactNode }) {
     setToast((current) => (current?.id === id ? null : current));
   }, []);
 
+  // Guards the action button against firing onAction twice on a rapid
+  // double-tap during the fast-dismiss window (see toastLogic.ts). Scoped by
+  // toast id, so a fresh toast always gets its own attempt.
+  const actionLatchRef = useRef<number | null>(null);
+
   const showToast = useCallback(
-    (message: string, kind: ToastKind = 'info') => {
+    (message: string, kind: ToastKind = 'info', opts?: ToastActionOpts) => {
       idRef.current += 1;
       const id = idRef.current;
-      setToast({ id, message, kind });
-      // Reduced motion: same lifecycle, but appear/disappear are instant.
-      const inMs = reduceMotionRef.current ? 0 : motion.duration.fast;
-      const outMs = reduceMotionRef.current ? 0 : motion.duration.base;
+      // A newer toast always replaces an active one, action slot or not —
+      // including one mid-hold with a pending Undo. Rare, and an undo lost to
+      // a replacing toast is a known/accepted edge (undo spec §2).
+      setToast({ id, message, kind, opts });
+      const { inMs, holdMs, outMs } = resolveToastTiming(opts, reduceMotionRef.current);
       opacity.value = withSequence(
         withTiming(1, { duration: inMs }),
         withDelay(
-          TOAST_HOLD_MS,
+          holdMs,
           withTiming(0, { duration: outMs }, (finished) => {
             // A newer toast cancels this chain (finished false) and owns the fade.
             if (finished) runOnJS(retire)(id);
@@ -87,19 +103,84 @@ export function ToastProvider({ children }: { children: React.ReactNode }) {
     [opacity, retire],
   );
 
+  // Action press: cancel the pending hold/fade chain, kick off a fast
+  // dismiss (Reduce Motion-aware), THEN call onAction — a straight-line
+  // sequence in this handler, not deferred to the dismiss animation's
+  // `finished` callback. Deferring it would race a *different* showToast
+  // landing inside the dismiss window (it cancels this animation too,
+  // finished=false, and the already-latched tap would silently never fire).
+  // Calling onAction here is safe even if it shows its own toast (e.g. an
+  // undo failure) — retire() below is id-guarded, so it can't clobber a toast
+  // onAction just created.
+  const handleActionPress = useCallback(
+    (item: ToastItem) => {
+      if (!attemptActionLatch(actionLatchRef, item.id)) return;
+      cancelAnimation(opacity);
+      const outMs = reduceMotionRef.current ? 0 : motion.duration.fast;
+      opacity.value = withTiming(0, { duration: outMs }, (finished) => {
+        if (finished) runOnJS(retire)(item.id);
+      });
+      item.opts?.onAction?.();
+    },
+    [opacity, retire],
+  );
+
   const value = useMemo(() => ({ showToast }), [showToast]);
 
   const animatedStyle = useAnimatedStyle(() => ({ opacity: opacity.value }));
+
+  const hasAction = Boolean(toast?.opts?.actionLabel);
 
   return (
     <ToastContext.Provider value={value}>
       {children}
       {toast ? (
-        <Animated.View pointerEvents="none" style={[styles.wrap, animatedStyle]}>
+        // box-none only when an action is present, so the Pressable below
+        // stays tappable without changing the no-action path's hit-testing
+        // at all (that path keeps the original pointerEvents="none").
+        <Animated.View
+          pointerEvents={hasAction ? 'box-none' : 'none'}
+          style={[styles.wrap, animatedStyle]}
+        >
           <View style={[styles.toast, toast.kind === 'error' && styles.error]}>
-            <Text style={[styles.text, toast.kind === 'error' && styles.errorText]}>
-              {toast.message}
-            </Text>
+            {hasAction ? (
+              <View style={styles.row}>
+                <Text
+                  style={[
+                    styles.text,
+                    styles.messageInRow,
+                    toast.kind === 'error' && styles.errorText,
+                  ]}
+                  numberOfLines={2}
+                >
+                  {toast.message}
+                </Text>
+                <Pressable
+                  onPress={() => handleActionPress(toast)}
+                  // Pads the compact label up to the 44pt touch minimum
+                  // without inflating the pill's visual height (same idiom
+                  // as WorkoutActive's voice-help link).
+                  hitSlop={{
+                    top: theme.space.s3,
+                    bottom: theme.space.s3,
+                    left: theme.space.s2,
+                    right: theme.space.s2,
+                  }}
+                  accessibilityRole="button"
+                  accessibilityLabel={toast.opts?.actionLabel}
+                  style={({ pressed }) => [
+                    styles.action,
+                    pressed && { opacity: PRESS_DIP_OPACITY },
+                  ]}
+                >
+                  <Text style={styles.actionText}>{toast.opts?.actionLabel}</Text>
+                </Pressable>
+              </View>
+            ) : (
+              <Text style={[styles.text, toast.kind === 'error' && styles.errorText]}>
+                {toast.message}
+              </Text>
+            )}
           </View>
         </Animated.View>
       ) : null}
@@ -118,8 +199,13 @@ export function useSyncAwareErrorToast() {
   );
 }
 
-const makeStyles = (theme: Theme) =>
-  StyleSheet.create({
+const makeStyles = (theme: Theme) => {
+  // See resolveToastActionAccent's doc comment: the pill is self-inverted
+  // (backgroundColor below is theme.color.ink, not theme.color.bg), so the
+  // accent that reads on it is the OPPOSITE scheme's accent, not
+  // theme.color.accent.
+  const actionAccent = resolveToastActionAccent(theme.scheme);
+  return StyleSheet.create({
     wrap: {
       position: 'absolute',
       left: 0,
@@ -138,6 +224,11 @@ const makeStyles = (theme: Theme) =>
     error: {
       backgroundColor: theme.color.danger,
     },
+    row: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      gap: theme.space.s3,
+    },
     text: {
       color: theme.color.bg,
       fontSize: theme.font.size.meta,
@@ -145,7 +236,28 @@ const makeStyles = (theme: Theme) =>
       fontWeight: theme.font.weight.medium,
       lineHeight: 20,
     },
+    // Only applied alongside an action (see `row` above) — the no-action path
+    // never mixes this in, so its layout stays exactly as it was.
+    messageInRow: {
+      flex: 1,
+    },
     errorText: {
       color: theme.color.onAccent, // reads on the danger fill in both schemes
     },
+    action: {
+      paddingHorizontal: theme.space.s1,
+    },
+    // monoMedium, not the message's sansMedium: TEXT_VARIANTS has no compact
+    // monoMedium variant to reach for (hero/numeralLg are the only
+    // monoMedium variants and both are display-scale), and this toast
+    // already styles its own <Text> directly rather than through the shared
+    // variant component — so the mono "action" read stays inline here too.
+    actionText: {
+      color: actionAccent,
+      fontSize: theme.font.size.meta,
+      fontFamily: theme.font.family.monoMedium,
+      fontWeight: theme.font.weight.medium,
+      lineHeight: 20,
+    },
   });
+};
