@@ -165,14 +165,14 @@ npx expo run:ios        # development build, required for voice and other native
 
 Optional local Supabase: `npx supabase start` uses [supabase/config.toml](supabase/config.toml) (API 54321, DB 54322, Studio 54323).
 
-| Command                           | Description                               |
-| --------------------------------- | ----------------------------------------- |
-| `npm run start`                   | Expo dev server                           |
-| `npm run ios` / `npm run android` | Build and run natively                    |
-| `npm run typecheck`               | `tsc --noEmit`                            |
-| `npm run lint`                    | ESLint                                    |
-| `npm test`                        | Jest once (`npm run test:watch` to watch) |
-| `npm run format`                  | Prettier write (`format:check` to check)  |
+| Command             | Description                               |
+| ------------------- | ----------------------------------------- |
+| `npm run start`     | Expo dev server                           |
+| `npm run ios`       | Build and run natively (iOS)              |
+| `npm run typecheck` | `tsc --noEmit`                            |
+| `npm run lint`      | ESLint                                    |
+| `npm test`          | Jest once (`npm run test:watch` to watch) |
+| `npm run format`    | Prettier write (`format:check` to check)  |
 
 ### Project structure
 

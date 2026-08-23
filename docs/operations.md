@@ -24,14 +24,12 @@ npm install --legacy-peer-deps
 ```bash
 npm run start       # Metro bundler
 npm run ios         # + boot iOS simulator
-npm run android     # + boot Android emulator
 ```
 
 **Expo Go vs. development build.** Expo Go ships its own Expo runtime and does not include our native modules (`expo-sqlite`, `expo-notifications`, Sentry). For anything beyond cosmetic UI work, build a development client:
 
 ```bash
 npx expo run:ios     # local native build (simulator or device)
-npx expo run:android
 ```
 
 (The eas.json `development` dev-client profile was removed — `expo-dev-client`
