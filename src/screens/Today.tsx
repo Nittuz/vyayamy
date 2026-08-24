@@ -13,6 +13,7 @@ import { QuarantineBanner } from '@/components/QuarantineBanner';
 import { QuarantineSheet } from '@/components/QuarantineSheet';
 import { RepeatCard } from '@/components/RepeatCard';
 import { SyncDiagnosticsSheet } from '@/components/SyncDiagnosticsSheet';
+import { stashSeedMarkers } from '@/screens/workoutActive/pendingSeedMarkers';
 import { useLastFinishedWorkoutWithSeeds, useRepeatLastWorkout } from '@/queries/repeatLastWorkout';
 import { finishOtherActiveWorkouts, useActiveWorkoutCollisions } from '@/queries/activeWorkouts';
 import { queryKeys } from '@/queries/keys';
@@ -148,11 +149,14 @@ export default function TodayScreen() {
     try {
       const existing = await getActiveWorkout(userId);
       if (!existing) {
-        await startPlanned.mutateAsync({
+        const result = await startPlanned.mutateAsync({
           userId,
           templateId: schedule.templateId,
           title: schedule.title,
         });
+        // Stash BEFORE navigating (see onRepeat) — same raw-transaction
+        // handoff, this time for the plan-started path.
+        stashSeedMarkers(result.workoutId, result.markers);
       }
       router.push('/workout/active');
     } catch {
@@ -222,8 +226,14 @@ export default function TodayScreen() {
   ]);
 
   const onRepeat = useCallback(async () => {
-    const id = await repeat.mutateAsync();
-    if (id) router.push('/workout/active');
+    const result = await repeat.mutateAsync();
+    if (result) {
+      // Stash BEFORE navigating — the seeded sets were inserted by a raw
+      // transaction with no screen mounted, so this is the only place their
+      // provenance can reach WorkoutActive's per-mount marker map (task-1).
+      stashSeedMarkers(result.workoutId, result.markers);
+      router.push('/workout/active');
+    }
   }, [repeat]);
 
   const onResume = useCallback(() => {

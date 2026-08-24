@@ -1,6 +1,6 @@
 import { useQueryClient } from '@tanstack/react-query';
 import { router, Stack } from 'expo-router';
-import { useCallback, useMemo, useRef, useState } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { ActivityIndicator, Pressable, ScrollView, StyleSheet, View } from 'react-native';
 import { SafeAreaView, type Edge } from 'react-native-safe-area-context';
 
@@ -61,6 +61,7 @@ import { useTheme } from '@/ui/useTheme';
 import { useWorkoutCursor } from './workoutActive/useWorkoutCursor';
 import { useSessionPRs } from './workoutActive/useSessionPRs';
 import { useRestOverrides } from './workoutActive/useRestOverrides';
+import { takeSeedMarkers } from './workoutActive/pendingSeedMarkers';
 
 // This route always shows a native header (workoutActiveOpts/screenOptions
 // below never set headerShown:false), so the header itself already clears
@@ -198,12 +199,29 @@ export default function WorkoutActiveScreen() {
     stagedMarkers,
     markStaged,
     markCarried,
+    adoptSeedMarkers,
     targetExercise,
     onNextExercise,
     onPrevExercise,
     leaveConfirm,
     setLeaveConfirm,
   } = useWorkoutCursor({ exercises, refreshDetail, userId, units, weightStep });
+
+  // Adopt any provenance descriptors a creation-time seed (repeatLastWorkout /
+  // startPlannedWorkout) left waiting for THIS workout id — those mutations
+  // run as raw transactions before this screen ever mounts, so they can't
+  // call markStaged/markCarried themselves (pendingSeedMarkers bridges the
+  // gap). Keyed on the workout id, not run-once-on-mount: takeSeedMarkers is
+  // itself one-shot (the handoff clears after the first take), so a second
+  // pass over the same id is a harmless no-op, not a re-adoption risk. Lives
+  // above every early return below, per this file's unconditional-hooks
+  // convention.
+  useEffect(() => {
+    const workoutId = activeQuery.data?.id;
+    if (!workoutId) return;
+    const markers = takeSeedMarkers(workoutId);
+    if (markers) adoptSeedMarkers(markers);
+  }, [activeQuery.data?.id, adoptSeedMarkers]);
 
   const { overrides, reloadOverrides, restSeconds, overrideSheetOpen, setOverrideSheetOpen } =
     useRestOverrides(currentExForRest);
@@ -394,13 +412,28 @@ export default function WorkoutActiveScreen() {
     const set = findSet(currentExForRest, cursor.setId);
     if (!set) return null;
     const seedMarker = stagedMarkers.get(set.id) ?? null;
-    return seedMarker &&
-      seedMarker.source === 'history' &&
-      set.weight === seedMarker.weight &&
-      set.reps === seedMarker.reps
-      ? { weight: seedMarker.weight, reps: seedMarker.reps }
-      : null;
-  }, [currentExForRest, cursor, stagedMarkers]);
+    if (
+      !seedMarker ||
+      seedMarker.source !== 'history' ||
+      set.weight !== seedMarker.weight ||
+      set.reps !== seedMarker.reps
+    ) {
+      return null;
+    }
+    // Units honesty (task-1 §5): the strip renders the bare number
+    // (setValuesLabel has no unit suffix) — safe ONLY because every in-
+    // session staged set (stageFirstSet/planStagedSet) is seeded in the
+    // CURRENT profile unit, so the number reads correctly under the weight
+    // stepper's ambient KG/LB badge above it. Repeat/plan-created seeds break
+    // that invariant: repeatLastWorkout and startPlannedWorkout copy the
+    // source set's weight+units straight from history, unconverted, so the
+    // SET ROW's own `units` (not the marker, which carries no unit) may
+    // differ from the active profile unit. Reading `set.units` here — not
+    // extending AutoStagedSet — keeps this the single source of truth.
+    // Suppress the strip rather than show a kg value under an LB badge.
+    if (set.weight != null && set.units !== units) return null;
+    return { weight: seedMarker.weight, reps: seedMarker.reps };
+  }, [currentExForRest, cursor, stagedMarkers, units]);
 
   // The voice card prop changes on every speech partial — narrow the three
   // fields ActiveSetCard reads first (VoiceUiState is a discriminated union;

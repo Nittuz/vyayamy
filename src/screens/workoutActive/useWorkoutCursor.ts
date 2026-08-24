@@ -81,6 +81,19 @@ export function useWorkoutCursor({
     [remember],
   );
 
+  // Adopts descriptors handed off from a creation-time seed (repeatLastWorkout
+  // / startPlannedWorkout's raw transactions, which run with no screen mounted
+  // and so can't call remember() themselves) — see pendingSeedMarkers. Each
+  // marker keeps the source its descriptor already carries (always 'history'
+  // for these two callers) rather than being stamped here, so this stays a
+  // generic bulk-remember, not a repeat/plan-specific one.
+  const adoptSeedMarkers = useCallback(
+    (markers: AutoStagedSet[]) => {
+      for (const marker of markers) remember(marker);
+    },
+    [remember],
+  );
+
   // Initialize cursor when exercises first load, or reposition when the cursor
   // points at a set that no longer exists / is already completed. The decision
   // lives in resolveCursor (pure, characterization-tested, #21/#77); this
@@ -207,6 +220,7 @@ export function useWorkoutCursor({
     stagedMarkers,
     markStaged,
     markCarried,
+    adoptSeedMarkers,
     targetExercise,
     onNextExercise,
     onPrevExercise,

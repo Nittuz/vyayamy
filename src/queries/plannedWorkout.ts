@@ -11,6 +11,7 @@
  */
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 
+import type { AutoStagedSet } from '@/components/activeSet';
 import { resolveTodaySlot } from '@/core/planResolver';
 import { getDb } from '@/db/client';
 import { insertRowInTx } from '@/db/mutations';
@@ -99,11 +100,20 @@ interface SeedValues {
   units: 'kg' | 'lb' | null;
 }
 
+/** startPlannedWorkout's outcome: the new workout id, plus one provenance
+ * descriptor per seeded set that actually carries a value (repeatLastWorkout
+ * precedent) — the screen stashes these (pendingSeedMarkers) so the active-
+ * workout mount can adopt them into its stagedMarkers map. */
+export interface StartPlannedWorkoutResult {
+  workoutId: string;
+  markers: AutoStagedSet[];
+}
+
 export async function startPlannedWorkout(args: {
   userId: string;
   templateId: string;
   title: string;
-}): Promise<string> {
+}): Promise<StartPlannedWorkoutResult> {
   const db = await getDb();
   const tpl = await db.getFirstAsync<{ exercise_order: string }>(
     'SELECT exercise_order FROM templates WHERE id = ? AND deleted_at IS NULL',
@@ -142,6 +152,7 @@ export async function startPlannedWorkout(args: {
 
   const workoutId = uuidv4();
   const now = nowIso();
+  const markers: AutoStagedSet[] = [];
   await withTransaction(db, async () => {
     await insertRowInTx(
       db,
@@ -166,10 +177,11 @@ export async function startPlannedWorkout(args: {
         now,
       );
       const seed = seeds.get(exId) ?? null;
+      const setId = uuidv4();
       await insertRowInTx(
         db,
         'sets',
-        uuidv4(),
+        setId,
         {
           workout_exercise_id: weId,
           order_index: 0,
@@ -181,11 +193,17 @@ export async function startPlannedWorkout(args: {
         },
         now,
       );
+      // Only a set actually seeded with a value carries provenance — a
+      // never-done exercise seeds empty and needs no marker (see
+      // repeatLastWorkout precedent).
+      if (seed && (seed.weight != null || seed.reps != null)) {
+        markers.push({ id: setId, weight: seed.weight, reps: seed.reps, source: 'history' });
+      }
     }
   });
 
   emitMutationCommitted();
-  return workoutId;
+  return { workoutId, markers };
 }
 
 export function useStartPlannedWorkout(onError?: (msg: string) => void) {

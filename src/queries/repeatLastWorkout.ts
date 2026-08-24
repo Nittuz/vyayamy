@@ -6,6 +6,7 @@
  */
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 
+import type { AutoStagedSet } from '@/components/activeSet';
 import { getDb } from '@/db/client';
 import { insertRowInTx } from '@/db/mutations';
 import { withTransaction } from '@/db/transaction';
@@ -108,13 +109,23 @@ export function useLastFinishedWorkoutWithSeeds(userId: string | undefined) {
   });
 }
 
-export async function repeatLastWorkout(userId: string): Promise<string | null> {
+/** repeatLastWorkout's outcome: the new workout id, plus one provenance
+ * descriptor per seeded set that actually carries a value — the screen
+ * stashes these (pendingSeedMarkers) so the active-workout mount can adopt
+ * them into its stagedMarkers map (honest confirms + LAST TIME, spec §2/§3). */
+export interface RepeatWorkoutResult {
+  workoutId: string;
+  markers: AutoStagedSet[];
+}
+
+export async function repeatLastWorkout(userId: string): Promise<RepeatWorkoutResult | null> {
   const source = await getLastFinishedWorkoutWithSeeds(userId);
   if (!source) return null;
 
   const db = await getDb();
   const newWorkoutId = uuidv4();
   const now = nowIso();
+  const markers: AutoStagedSet[] = [];
 
   // Clone the whole workout (workout + exercises + seeded sets + their outbox
   // rows) in ONE transaction, so a crash mid-clone can't leave a half-built —
@@ -148,10 +159,11 @@ export async function repeatLastWorkout(userId: string): Promise<string | null> 
         now,
       );
 
+      const setId = uuidv4();
       await insertRowInTx(
         db,
         'sets',
-        uuidv4(),
+        setId,
         {
           workout_exercise_id: weId,
           order_index: 0,
@@ -163,11 +175,24 @@ export async function repeatLastWorkout(userId: string): Promise<string | null> 
         },
         now,
       );
+
+      // Only a set actually seeded with a value carries provenance — an
+      // empty seed (never-done exercise) needs no marker: it can't trip the
+      // leave-confirm gate (shouldConfirmLeavingSet bails on all-null sets)
+      // and has no LAST TIME to show.
+      if (seed.seedWeight != null || seed.seedReps != null) {
+        markers.push({
+          id: setId,
+          weight: seed.seedWeight,
+          reps: seed.seedReps,
+          source: 'history',
+        });
+      }
     }
   });
 
   emitMutationCommitted();
-  return newWorkoutId;
+  return { workoutId: newWorkoutId, markers };
 }
 
 export function useRepeatLastWorkout(userId: string | undefined, onError?: (msg: string) => void) {

@@ -96,8 +96,9 @@ test('repeatLastWorkout clones exercises in order with seeded sets', async () =>
   await finishWorkout(wPrev);
 
   // Act: repeat
-  const newWorkoutId = await repeatLastWorkout(USER_ID);
-  expect(newWorkoutId).not.toBeNull();
+  const result = await repeatLastWorkout(USER_ID);
+  expect(result).not.toBeNull();
+  const newWorkoutId = result!.workoutId;
 
   // Assert: new workout exists, has the same exercise in order 0, with one seeded set
   const db = await getDb();
@@ -117,17 +118,48 @@ test('repeatLastWorkout clones exercises in order with seeded sets', async () =>
   expect(newWes[0]!.exercise_id).toBe(EX_BENCH);
 
   const newSets = await db.getAllAsync<{
+    id: string;
     weight: number | null;
     reps: number | null;
     completed: number;
   }>(
-    'SELECT weight, reps, completed FROM sets WHERE workout_exercise_id = ? AND deleted_at IS NULL ORDER BY order_index',
+    'SELECT id, weight, reps, completed FROM sets WHERE workout_exercise_id = ? AND deleted_at IS NULL ORDER BY order_index',
     [newWes[0]!.id],
   );
   expect(newSets).toHaveLength(1);
   expect(newSets[0]!.weight).toBe(185);
   expect(newSets[0]!.reps).toBe(5);
   expect(newSets[0]!.completed).toBe(0); // not completed yet
+
+  // The returned marker is the provenance handoff (task-1 / pendingSeedMarkers)
+  // — it must point at the SAME row just inserted, with the SAME values, or a
+  // resumed screen would mismatch it against the wrong set.
+  expect(result!.markers).toEqual([
+    { id: newSets[0]!.id, weight: 185, reps: 5, source: 'history' },
+  ]);
+});
+
+test('repeatLastWorkout seeds no marker for an exercise with no completed history', async () => {
+  // Previous workout has an exercise with a set that was never completed —
+  // getLastFinishedWorkoutWithSeeds only reads completed sets, so this
+  // exercise clones with an all-null seed and must get no marker (task-1 §2).
+  const wPrev = await createWorkout({ userId: USER_ID, title: 'Push' });
+  const { weId: we } = await addExerciseToWorkout({ workoutId: wPrev, exerciseId: EX_BENCH });
+  await addSet(we); // left incomplete, no weight/reps
+  await finishWorkout(wPrev);
+
+  const result = await repeatLastWorkout(USER_ID);
+  expect(result).not.toBeNull();
+  expect(result!.markers).toEqual([]);
+
+  const db = await getDb();
+  const newSet = await db.getFirstAsync<{ weight: number | null; reps: number | null }>(
+    `SELECT s.weight, s.reps FROM sets s
+       JOIN workout_exercises we ON we.id = s.workout_exercise_id
+      WHERE we.workout_id = ?`,
+    [result!.workoutId],
+  );
+  expect(newSet).toEqual({ weight: null, reps: null });
 });
 
 test('repeatLastWorkout is atomic — a mid-clone failure leaves no partial workout (#20)', async () => {

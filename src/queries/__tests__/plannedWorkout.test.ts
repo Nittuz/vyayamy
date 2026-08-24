@@ -99,11 +99,12 @@ describe('startPlannedWorkout', () => {
     await insertHistory('ex-a', { weight: null, reps: 12, units: null }); // BW history
     await insertHistory('ex-b', { weight: 60, reps: 8, units: 'kg' });
 
-    const workoutId = await startPlannedWorkout({
+    const result = await startPlannedWorkout({
       userId: USER,
       templateId: 'tpl',
       title: 'Push Day',
     });
+    const workoutId = result.workoutId;
 
     const db = await getDb();
     const workout = await db.getFirstAsync<{
@@ -125,27 +126,41 @@ describe('startPlannedWorkout', () => {
     // Seeds: one incomplete set per exercise, prefilled from history with unit
     // provenance; bodyweight history seeds null weight.
     const sets = await db.getAllAsync<{
+      id: string;
       weight: number | null;
       reps: number | null;
       units: string | null;
       completed: number;
     }>(
-      `SELECT s.weight, s.reps, s.units, s.completed FROM sets s
+      `SELECT s.id, s.weight, s.reps, s.units, s.completed FROM sets s
          JOIN workout_exercises we ON we.id = s.workout_exercise_id
         WHERE we.workout_id = ? ORDER BY we.order_index`,
       [workoutId],
     );
-    expect(sets).toEqual([
+    expect(
+      sets.map((s) => ({ weight: s.weight, reps: s.reps, units: s.units, completed: s.completed })),
+    ).toEqual([
       { weight: 60, reps: 8, units: 'kg', completed: 0 },
       { weight: null, reps: 12, units: null, completed: 0 },
     ]);
+
+    // Returned descriptors are the provenance handoff (task-1 /
+    // pendingSeedMarkers) — must exactly match the inserted rows' ids+values,
+    // in the same order, including the bodyweight (null-weight) seed: reps
+    // alone is still a value worth confirming/last-timing on.
+    expect(result.markers).toEqual([
+      { id: sets[0]!.id, weight: 60, reps: 8, source: 'history' },
+      { id: sets[1]!.id, weight: null, reps: 12, source: 'history' },
+    ]);
   });
 
-  test('a never-done exercise seeds an empty set', async () => {
+  test('a never-done exercise seeds an empty set with no marker', async () => {
     await insertExercise('ex-new', 'Dips');
     await insertTemplate('tpl', 'Day', ['ex-new']);
 
-    const workoutId = await startPlannedWorkout({ userId: USER, templateId: 'tpl', title: 'Day' });
+    const result = await startPlannedWorkout({ userId: USER, templateId: 'tpl', title: 'Day' });
+    const workoutId = result.workoutId;
+    expect(result.markers).toEqual([]);
 
     const db = await getDb();
     const set = await db.getFirstAsync<{ weight: number | null; reps: number | null }>(
@@ -161,7 +176,11 @@ describe('startPlannedWorkout', () => {
     await insertExercise('ex-live', 'Row');
     await insertTemplate('tpl', 'Day', ['ghost', 'ex-live']);
 
-    const workoutId = await startPlannedWorkout({ userId: USER, templateId: 'tpl', title: 'Day' });
+    const { workoutId } = await startPlannedWorkout({
+      userId: USER,
+      templateId: 'tpl',
+      title: 'Day',
+    });
 
     const db = await getDb();
     const wes = await db.getAllAsync<{ exercise_id: string; order_index: number }>(
@@ -293,8 +312,12 @@ describe('cycle cursor advancement', () => {
       ],
     });
 
-    const workoutId = await startPlannedWorkout({ userId: USER, templateId: 'tpl-b', title: 'B' });
-    await finishWorkout(workoutId!, USER);
+    const { workoutId } = await startPlannedWorkout({
+      userId: USER,
+      templateId: 'tpl-b',
+      title: 'B',
+    });
+    await finishWorkout(workoutId, USER);
 
     const db = await getDb();
     const plan = await db.getFirstAsync<{ cycle_cursor: number }>(
@@ -319,8 +342,12 @@ describe('cycle cursor advancement', () => {
     });
 
     // The user starts slot B's template out of order.
-    const workoutId = await startPlannedWorkout({ userId: USER, templateId: 'tpl-b', title: 'B' });
-    await finishWorkout(workoutId!, USER);
+    const { workoutId } = await startPlannedWorkout({
+      userId: USER,
+      templateId: 'tpl-b',
+      title: 'B',
+    });
+    await finishWorkout(workoutId, USER);
 
     const db = await getDb();
     const plan = await db.getFirstAsync<{ cycle_cursor: number }>(
@@ -348,8 +375,12 @@ describe('cycle cursor advancement', () => {
     await finishWorkout('w-adhoc', USER);
 
     // Weekly plan finish with matching template.
-    const workoutId = await startPlannedWorkout({ userId: USER, templateId: 'tpl-a', title: 'A' });
-    await finishWorkout(workoutId!, USER);
+    const { workoutId } = await startPlannedWorkout({
+      userId: USER,
+      templateId: 'tpl-a',
+      title: 'A',
+    });
+    await finishWorkout(workoutId, USER);
 
     const plan = await db.getFirstAsync<{ cycle_cursor: number }>(
       'SELECT cycle_cursor FROM training_plans WHERE id = ?',
