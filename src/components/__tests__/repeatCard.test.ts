@@ -32,6 +32,12 @@ describe('stripText', () => {
   test('exerciseCount n is plural "n exercises"', () => {
     expect(stripText(2, 7)).toBe('2 days ago · 7 exercises');
   });
+
+  // Copy review Batch B: real plurals via the shared pluralize() helper,
+  // never a literal "(s)" — 0 reads plural, same as any n !== 1.
+  test('exerciseCount 0 is plural "0 exercises"', () => {
+    expect(stripText(2, 0)).toBe('2 days ago · 0 exercises');
+  });
 });
 
 describe('formatSeed', () => {

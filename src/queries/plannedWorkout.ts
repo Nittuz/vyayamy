@@ -230,7 +230,7 @@ export function useStartPlannedWorkout(onError?: (msg: string) => void) {
       void import('@/lib/errorReporting').then(({ captureException }) =>
         captureException(err, { mutation: 'startPlannedWorkout' }),
       );
-      onError?.('Could not start the scheduled workout. Please try again.');
+      onError?.("Couldn't start the scheduled workout. Try again.");
     },
   });
 }

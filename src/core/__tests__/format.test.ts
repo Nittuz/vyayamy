@@ -17,6 +17,7 @@ import {
   humanizeEnum,
   localDayKey,
   localDaysBetween,
+  pluralize,
 } from '@/core/format';
 
 /** Build an ISO string `days` whole days before now (noon-anchored to dodge DST/midnight edges). */
@@ -357,5 +358,29 @@ describe('formatTimeOfDay', () => {
     const local = new Date(2026, 0, 15, 19, 42, 0);
     const out = formatTimeOfDay(local.toISOString());
     expect(out).toMatch(/^(7:42(\s?PM)?|19:42)$/i);
+  });
+});
+
+/**
+ * Copy review Batch B: the shared "N noun(s)" helper — real plurals, never
+ * a literal "(s)". Reused by TrainingPlan's day rows, PlanCard's strip,
+ * repeatCardFormat's stripText, and CollisionSheet's metaStrip (both nouns).
+ */
+describe('pluralize', () => {
+  test('n === 1 is singular, no trailing s', () => {
+    expect(pluralize(1, 'exercise')).toBe('1 exercise');
+  });
+
+  test('n === 0 is plural', () => {
+    expect(pluralize(0, 'exercise')).toBe('0 exercises');
+  });
+
+  test('n > 1 is plural', () => {
+    expect(pluralize(3, 'exercise')).toBe('3 exercises');
+  });
+
+  test('a second noun pluralizes independently of the first', () => {
+    expect(pluralize(1, 'set')).toBe('1 set');
+    expect(pluralize(2, 'set')).toBe('2 sets');
   });
 });

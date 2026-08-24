@@ -6,14 +6,13 @@
  * numericStepper.ts.
  */
 import { convertAndRoundWeight } from '@/components/activeSet';
-import { formatWeight } from '@/core/format';
+import { formatWeight, pluralize } from '@/core/format';
 import type { ExerciseSeed } from '@/queries/repeatLastWorkout';
 
 export function stripText(daysAgo: number, exerciseCount: number): string {
   // Sentence case — the strip variant handles the uppercasing.
   const ago = daysAgo === 0 ? 'Today' : daysAgo === 1 ? '1 day ago' : `${daysAgo} days ago`;
-  const ex = exerciseCount === 1 ? '1 exercise' : `${exerciseCount} exercises`;
-  return `${ago} · ${ex}`;
+  return `${ago} · ${pluralize(exerciseCount, 'exercise')}`;
 }
 
 /**

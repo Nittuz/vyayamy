@@ -7,6 +7,7 @@
 import { useMemo } from 'react';
 import { ActivityIndicator, StyleSheet, useWindowDimensions, View } from 'react-native';
 
+import { pluralize } from '@/core/format';
 import { Icon } from '@/ui/icons';
 import { Plate } from '@/ui/Plate';
 import { resolvePlateStyles } from '@/ui/plateStyles';
@@ -91,8 +92,7 @@ export function PlanCard({ title, planName, exerciseNames, loading, onPress }: P
 }
 
 function stripText(planName: string, exerciseCount: number): string {
-  const ex = exerciseCount === 1 ? '1 exercise' : `${exerciseCount} exercises`;
-  return `Scheduled today · ${planName} · ${ex}`;
+  return `Scheduled today · ${planName} · ${pluralize(exerciseCount, 'exercise')}`;
 }
 
 const makeStyles = (theme: Theme) =>

@@ -237,7 +237,7 @@ export function useRepeatLastWorkout(
     // for the user, the real error to error reporting.
     onError: (err) => {
       reportError(err, { mutation: 'repeatLastWorkout' });
-      onError?.('Could not repeat the workout. Please try again.');
+      onError?.("Couldn't repeat the workout. Try again.");
     },
   });
 }

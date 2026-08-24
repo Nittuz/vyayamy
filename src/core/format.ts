@@ -190,6 +190,16 @@ export function humanizeEnum(value: string): string {
   return spaced.charAt(0).toUpperCase() + spaced.slice(1);
 }
 
+/**
+ * "1 exercise" / "3 exercises" / "0 exercises" — real English plurals, never
+ * the placeholder-looking "exercise(s)" (copy review Batch B). No irregular
+ * nouns needed for this app's vocabulary (exercise/set), so a plain
+ * trailing-s rule covers every call site.
+ */
+export function pluralize(n: number, noun: string): string {
+  return `${n} ${n === 1 ? noun : `${noun}s`}`;
+}
+
 export function formatWeight(weight: number | null, units: 'kg' | 'lb'): string {
   if (weight == null) return '-';
   return `${weight} ${units}`;

@@ -244,7 +244,7 @@ export function useCreateWorkout(onError?: (msg: string) => void) {
     onSuccess: () => qc.invalidateQueries({ queryKey: queryKeys.workouts.all }),
     onError: (err) => {
       reportError(err, { mutation: 'createWorkout' });
-      onError?.('Could not start the workout. Please try again.');
+      onError?.("Couldn't start the workout. Try again.");
     },
   });
 }
@@ -264,7 +264,7 @@ export function useFinishWorkout(userId: string | undefined, onError?: (msg: str
     },
     onError: (err) => {
       reportError(err, { mutation: 'finishWorkout' });
-      onError?.('Could not finish the workout. Please try again.');
+      onError?.("Couldn't finish the workout. Try again.");
     },
   });
 }
@@ -303,7 +303,7 @@ export function useSetWorkoutNote(onError?: (msg: string) => void) {
     onSuccess: () => qc.invalidateQueries({ queryKey: queryKeys.workouts.all }),
     onError: (err) => {
       reportError(err, { mutation: 'setWorkoutNote' });
-      onError?.('Could not save the note. Please try again.');
+      onError?.("Couldn't save the note. Try again.");
     },
   });
 }
@@ -316,7 +316,7 @@ export function useSetExerciseNote(onError?: (msg: string) => void) {
     onSuccess: () => qc.invalidateQueries({ queryKey: queryKeys.workouts.all }),
     onError: (err) => {
       reportError(err, { mutation: 'setExerciseNote' });
-      onError?.('Could not save the note. Please try again.');
+      onError?.("Couldn't save the note. Try again.");
     },
   });
 }
@@ -329,7 +329,7 @@ export function useUpdateWorkoutTitle(onError?: (msg: string) => void) {
     onSuccess: () => qc.invalidateQueries({ queryKey: queryKeys.workouts.all }),
     onError: (err) => {
       reportError(err, { mutation: 'updateWorkoutTitle' });
-      onError?.('Could not rename the workout. Please try again.');
+      onError?.("Couldn't rename the workout. Try again.");
     },
   });
 }

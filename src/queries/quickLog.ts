@@ -54,7 +54,7 @@ export function useQuickLog(onError?: (msg: string) => void) {
       void import('@/lib/errorReporting').then(({ captureException }) =>
         captureException(err, { mutation: 'startQuickLog' }),
       );
-      onError?.('Could not start the quick log. Please try again.');
+      onError?.("Couldn't start the quick log. Try again.");
     },
   });
 }

@@ -111,7 +111,7 @@ export default function HistoryDetailScreen() {
               void qc.invalidateQueries({ queryKey: queryKeys.workouts.all });
             })
             .catch(() => {
-              toastError('Could not undo the delete. Please try again.');
+              toastError("Couldn't undo the delete. Try again.");
             });
         },
       });
@@ -119,7 +119,7 @@ export default function HistoryDetailScreen() {
       // deleteWorkoutAndRecompute isn't a mutation hook, so this screen owns
       // the failure surface (F2): toast + stay put, matching the tone of
       // useFinishWorkout's onError copy. Don't pop the screen on failure.
-      toastError('Could not delete the workout. Please try again.');
+      toastError("Couldn't delete the workout. Try again.");
     } finally {
       setDeleting(false);
       deletingRef.current = false;

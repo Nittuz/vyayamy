@@ -1,7 +1,7 @@
 import { useMemo } from 'react';
 import { ScrollView, StyleSheet, View } from 'react-native';
 
-import { formatStartLabel } from '@/core/format';
+import { formatStartLabel, pluralize } from '@/core/format';
 import type { Workout } from '@/db/types';
 import { Button } from '@/ui/Button';
 import { Plate } from '@/ui/Plate';
@@ -87,9 +87,7 @@ export function CollisionSheet({
 function metaStrip(w: Workout, d: { setCount: number; exerciseCount: number } | undefined): string {
   const exercises = d?.exerciseCount ?? 0;
   const sets = d?.setCount ?? 0;
-  const exWord = exercises === 1 ? 'exercise' : 'exercises';
-  const setWord = sets === 1 ? 'set' : 'sets';
-  return `${formatStartLabel(w.started_at)} · ${exercises} ${exWord} · ${sets} ${setWord}`;
+  return `${formatStartLabel(w.started_at)} · ${pluralize(exercises, 'exercise')} · ${pluralize(sets, 'set')}`;
 }
 
 const makeStyles = (theme: Theme) =>

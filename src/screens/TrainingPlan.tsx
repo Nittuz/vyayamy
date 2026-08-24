@@ -3,6 +3,7 @@ import { useMemo } from 'react';
 import { ActivityIndicator, SafeAreaView, ScrollView, StyleSheet, View } from 'react-native';
 
 import { useAuth } from '@/auth/useAuth';
+import { pluralize } from '@/core/format';
 import { resolveTodaySlot } from '@/core/planResolver';
 import { parseExerciseOrder, useActivePlan } from '@/queries/plans';
 import { Button } from '@/ui/Button';
@@ -150,7 +151,7 @@ export default function TrainingPlanScreen() {
                               color={invertedInk}
                               style={[styles.slotMeta, styles.slotDaySoft]}
                             >
-                              {exerciseCount} {exerciseCount === 1 ? 'exercise' : 'exercises'}
+                              {pluralize(exerciseCount, 'exercise')}
                             </Text>
                           ) : null}
                         </View>
