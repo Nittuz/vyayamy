@@ -482,7 +482,8 @@ export default function TodayScreen() {
         {!activeQuery.data && (schedule?.kind === 'rest' || schedule?.kind === 'gap') ? (
           <Plate tone="panel" style={styles.restStrip} faceStyle={styles.restFace}>
             <Text variant="meta" color={theme.color.inkSecondary} style={styles.flexText}>
-              {schedule.kind === 'rest' ? 'Rest day' : 'Nothing scheduled'} · {schedule.planName}
+              {schedule.kind === 'rest' ? 'Rest day' : 'Nothing scheduled today'} ·{' '}
+              {schedule.planName}
             </Text>
             {schedule.planType === 'cycle' ? (
               <Button

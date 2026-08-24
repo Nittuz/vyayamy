@@ -77,7 +77,7 @@ export function SyncDiagnosticsSheet({ visible, onClose, onOpenQuarantine }: Pro
       }
     >
       <Text variant="body" color={theme.color.inkSecondary} style={styles.intro}>
-        Read-only view of the sync engine's state.
+        A read-only look at sync.
       </Text>
 
       <ScrollView style={styles.content}>

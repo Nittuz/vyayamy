@@ -599,14 +599,16 @@ export default function WorkoutActiveScreen() {
               style={styles.fullBtn}
             />
             <Button
-              label={activeQuery.data.note ? 'Edit session note' : 'Session note'}
+              // Unified with the active-screen "Notes" trigger below — both
+              // open the same sheet, titled "Notes" (copy review Batch C).
+              label={activeQuery.data.note ? 'Edit notes' : 'Notes'}
               kind="ghost"
               size="row"
               onPress={() => {
                 setNoteTarget(null); // recap annotates the session only
                 setNoteSheetOpen(true);
               }}
-              accessibilityLabel="Session note"
+              accessibilityLabel={activeQuery.data.note ? 'Edit notes' : 'Notes'}
               style={styles.fullBtn}
             />
           </View>

@@ -78,7 +78,9 @@ export function RestOverrideSheet({
       }
     >
       <Text variant="body" color={theme.color.inkSecondary}>
-        Default for {muscleGroup ?? 'this'}: {defaultSeconds}s
+        {muscleGroup
+          ? `Default for ${muscleGroup}: ${defaultSeconds}s`
+          : `Default: ${defaultSeconds}s`}
       </Text>
       <ScrollView
         horizontal

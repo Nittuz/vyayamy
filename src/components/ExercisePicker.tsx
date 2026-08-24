@@ -85,7 +85,7 @@ export function ExercisePicker({ userId, visible, onClose, onPick }: Props) {
       <TextInput
         value={query}
         onChangeText={setQuery}
-        placeholder="Search, or type to create"
+        placeholder="Search or type to create"
         placeholderTextColor={theme.color.inkTertiary}
         autoFocus
         // Synthesized: this field has no adjacent visible label (sheet title +

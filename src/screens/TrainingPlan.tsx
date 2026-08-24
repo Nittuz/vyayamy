@@ -89,9 +89,12 @@ export default function TrainingPlanScreen() {
                 const template = slot.template_id
                   ? plan.templates.get(slot.template_id)
                   : undefined;
-                const templateName = slot.template_id
-                  ? (template?.name ?? 'No template')
-                  : 'No template';
+                // Matches PlanSetup's own "None" display for this state
+                // (copy review Batch C) — the control the user set, not a
+                // developer-ish "No template". template is already undefined
+                // when there's no template_id, so this single fallback covers
+                // both the unset and deleted-template cases.
+                const templateName = template?.name ?? 'None';
                 const exerciseCount = template
                   ? parseExerciseOrder(template.exercise_order).length
                   : 0;
