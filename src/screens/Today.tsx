@@ -476,26 +476,32 @@ export default function TodayScreen() {
           </Plate>
         ) : null}
 
-        <View style={styles.ghostRow}>
-          <Button
-            label="Quick log"
-            kind="ghost"
-            size="row"
-            icon="plus"
-            onPress={() => setQuickLogOpen(true)}
-            disabled={quickLog.isPending || !!activeQuery.data}
-            accessibilityLabel="Quick log an exercise"
-            accessibilityHint="Pick one exercise and start logging it immediately"
-          />
-          <Button
-            label="Blank workout"
-            kind="ghost"
-            size="row"
-            onPress={onBlankStart}
-            disabled={createWorkout.isPending || !!activeQuery.data}
-            accessibilityLabel="Start a blank workout"
-            accessibilityHint="Begin a new workout with no exercises"
-          />
+        {/* One launcher group, not three scattered ghosts (impeccable polish
+            fix A): the icon registry has no sensible glyph for "Blank
+            workout" or "Training plan" (file/calendar), so Quick log drops
+            its lone `plus` too — bare labels all round instead of an
+            icon/no-icon split. */}
+        <View style={styles.launcherGroup}>
+          <View style={styles.launcherRow}>
+            <Button
+              label="Quick log"
+              kind="ghost"
+              size="row"
+              onPress={() => setQuickLogOpen(true)}
+              disabled={quickLog.isPending || !!activeQuery.data}
+              accessibilityLabel="Quick log an exercise"
+              accessibilityHint="Pick one exercise and start logging it immediately"
+            />
+            <Button
+              label="Blank workout"
+              kind="ghost"
+              size="row"
+              onPress={onBlankStart}
+              disabled={createWorkout.isPending || !!activeQuery.data}
+              accessibilityLabel="Start a blank workout"
+              accessibilityHint="Begin a new workout with no exercises"
+            />
+          </View>
           <Button
             label="Training plan"
             kind="ghost"
@@ -514,11 +520,24 @@ export default function TodayScreen() {
           {recentQuery.data?.length ? (
             recentQuery.data.map((w, i) => (
               <FadeInView key={w.id} delay={staggerDelay(i)}>
+                {/* History row anatomy (impeccable polish fix B): hairline
+                    top rule, skipped on the first row since the section
+                    header's own rule above already separates it — same
+                    rowFirst idiom as HistoryItem. No metadata strip: the
+                    recent-workouts query (getRecentWorkouts, `SELECT *`) has
+                    none of the set/exercise/volume aggregates History's
+                    query computes, and adding them is a new query, out of
+                    polish scope (HARD RULE). */}
                 <View
-                  style={styles.recentRow}
+                  style={[styles.recentRow, i === 0 && styles.recentRowFirst]}
                   accessibilityLabel={`${w.title || 'Workout'}, ${recentMeta(w).toLowerCase()}`}
                 >
-                  <Text variant="card" color={theme.color.ink}>
+                  <Text
+                    variant="card"
+                    color={theme.color.ink}
+                    numberOfLines={1}
+                    style={styles.flexText}
+                  >
                     {w.title || 'Workout'}
                   </Text>
                   <Text variant="strip" color={theme.color.inkTertiary}>
@@ -719,17 +738,24 @@ const makeStyles = (theme: Theme) =>
       paddingVertical: theme.space.s2,
     },
     flexText: { flexShrink: 1 },
-    ghostRow: {
+    // The three secondary launchers as ONE visible group (impeccable polish
+    // fix A): Training plan sits below the paired row at the same s4 step
+    // used inside that row, not a section-scale gap — the group reads as one
+    // cluster, not scattered afterthoughts.
+    launcherGroup: {
+      paddingHorizontal: theme.space.s4,
+      marginTop: theme.space.s2,
+      gap: theme.space.s4,
+    },
+    launcherRow: {
       flexDirection: 'row',
-      // Three ghost actions no longer fit one line on narrow devices; Yoga's
+      // Two ghost actions can still outrun narrow-device width; Yoga's
       // default flexShrink:0 would overflow rather than compress (review
-      // finding), so let the row wrap.
+      // finding precedent), so let the pair wrap.
       flexWrap: 'wrap',
       alignItems: 'center',
       justifyContent: 'flex-start',
       gap: theme.space.s4,
-      paddingHorizontal: theme.space.s4,
-      marginTop: theme.space.s2,
     },
     recentSection: {
       marginTop: theme.space.section,
@@ -745,7 +771,13 @@ const makeStyles = (theme: Theme) =>
       justifyContent: 'space-between',
       alignItems: 'baseline',
       paddingVertical: theme.space.s4,
+      // History row anatomy: hairline top rule per row (impeccable polish fix B).
+      borderTopWidth: theme.depth.hairline,
+      borderTopColor: theme.color.border,
     },
+    // The header's rule below already separates the first row — matches
+    // HistoryItem's rowFirst exactly.
+    recentRowFirst: { borderTopWidth: 0 },
     recentEmpty: {
       paddingVertical: theme.space.s4,
     },
