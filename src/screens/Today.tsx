@@ -738,14 +738,23 @@ const makeStyles = (theme: Theme) =>
       paddingVertical: theme.space.s2,
     },
     flexText: { flexShrink: 1 },
-    // The three secondary launchers as ONE visible group (impeccable polish
-    // fix A): Training plan sits below the paired row at the same s4 step
-    // used inside that row, not a section-scale gap — the group reads as one
-    // cluster, not scattered afterthoughts.
+    // The three secondary launchers as ONE visible, left-anchored group
+    // (impeccable polish fix A, follow-up). alignItems: 'flex-start' is load
+    // bearing, not decorative: without it this column's default
+    // alignItems:'stretch' stretches the lone Training Plan button's Plate
+    // to the full container width, and Button's face is
+    // alignItems/justifyContent:'center' — so a stretched face centers its
+    // label. That's what put "Training plan" dead-center instead of on
+    // Quick log's left edge. flex-start makes every child (the row, and
+    // Training Plan) size to its own content and sit flush against the
+    // group's left inset. gap is a small, even step (s3) shared by both
+    // axes — the row's own internal gap and the vertical gap to Training
+    // Plan read as one tight rhythm, not the section-scale gap before RECENT.
     launcherGroup: {
+      alignItems: 'flex-start',
       paddingHorizontal: theme.space.s4,
       marginTop: theme.space.s2,
-      gap: theme.space.s4,
+      gap: theme.space.s3,
     },
     launcherRow: {
       flexDirection: 'row',
@@ -755,7 +764,7 @@ const makeStyles = (theme: Theme) =>
       flexWrap: 'wrap',
       alignItems: 'center',
       justifyContent: 'flex-start',
-      gap: theme.space.s4,
+      gap: theme.space.s3,
     },
     recentSection: {
       marginTop: theme.space.section,
