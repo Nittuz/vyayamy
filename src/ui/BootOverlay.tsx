@@ -25,8 +25,21 @@ export function BootOverlay({
   if (bootError) {
     return (
       <SafeAreaView style={styles.overlay} edges={['top', 'bottom', 'left', 'right']}>
-        <Text style={styles.title}>Cannot start</Text>
-        <Text style={styles.body}>{bootError}</Text>
+        <Text style={styles.title}>{"FlexYug can't start"}</Text>
+        <Text style={styles.body}>
+          Close and reopen the app. If this keeps happening, reinstall — synced workouts are safe on
+          your account.
+        </Text>
+        {/* Raw thrown-error text, demoted to a small mono detail line for
+            support/screenshots — never the user-facing message. Honesty
+            guard: useAppBoot only surfaces bootError when initDb() itself
+            fails or times out, before startSyncEngine ever runs, so no sync
+            state is knowable here — the body copy above deliberately stays
+            neutral ("synced workouts are safe") rather than claiming
+            anything about THIS session's sync state. */}
+        <Text style={styles.detail} selectable>
+          {bootError}
+        </Text>
       </SafeAreaView>
     );
   }
@@ -65,6 +78,15 @@ const bootStyles = (c: PaletteTokens) =>
       fontSize: typography.size.body,
       color: c.inkSecondary,
       lineHeight: 22,
+      textAlign: 'center',
+    },
+    // Demoted raw-error line (copy review Batch D): mono to read as data
+    // rather than prose, inkTertiary so it recedes behind the body copy.
+    detail: {
+      fontFamily: typography.family.mono,
+      fontSize: typography.size.meta,
+      color: c.inkTertiary,
+      marginTop: space.s4,
       textAlign: 'center',
     },
   });
