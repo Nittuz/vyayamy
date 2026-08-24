@@ -345,6 +345,11 @@ export interface AutoStagedSet {
  * user edited and left un-completed. The empty first set and the untouched
  * auto-staged set carry no intent, so they advance silently (the trailing staged
  * set is pruned on finish regardless).
+ *
+ * Deliberately units-blind: raw weight/reps numbers are compared, never their
+ * unit. An untouched kg-seeded value under an lb profile still counts as
+ * untouched — the number genuinely did not change (display honesty for that
+ * case lives in the LAST TIME strip's own unit gate, not here).
  */
 export function shouldConfirmLeavingSet(
   set: SetShape | null,
