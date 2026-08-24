@@ -90,6 +90,10 @@ exceeded 8000ms" — developer text as the primary message). Becomes:
   "reinstalling won't lose synced workouts" if we cannot know sync state at boot-fail time —
   implementer verifies what's knowable there.
 
+**Final text (execution + review, shipped):** "Something blocked the app from loading your
+data. Close and reopen the app. If this keeps happening, reinstall — synced workouts are safe
+on your account." — opening sentence per plan, tail smoothed at execution — reviewed.
+
 ## Explicitly reviewed and left alone
 
 - All destructive confirm copy (names action + cost everywhere) — the app's best writing.

@@ -27,8 +27,8 @@ export function BootOverlay({
       <SafeAreaView style={styles.overlay} edges={['top', 'bottom', 'left', 'right']}>
         <Text style={styles.title}>{"FlexYug can't start"}</Text>
         <Text style={styles.body}>
-          Close and reopen the app. If this keeps happening, reinstall — synced workouts are safe on
-          your account.
+          Something blocked the app from loading your data. Close and reopen the app. If this keeps
+          happening, reinstall — synced workouts are safe on your account.
         </Text>
         {/* Raw thrown-error text, demoted to a small mono detail line for
             support/screenshots — never the user-facing message. Honesty
