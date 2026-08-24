@@ -5,8 +5,8 @@
  * @/ui/icons) in this project's setup. Same precedent as activeSet.ts /
  * numericStepper.ts.
  */
+import { convertAndRoundWeight } from '@/components/activeSet';
 import { formatWeight } from '@/core/format';
-import { DEFAULT_UNITS } from '@/core/units';
 import type { ExerciseSeed } from '@/queries/repeatLastWorkout';
 
 export function stripText(daysAgo: number, exerciseCount: number): string {
@@ -16,12 +16,26 @@ export function stripText(daysAgo: number, exerciseCount: number): string {
   return `${ago} · ${ex}`;
 }
 
-export function formatSeed(seed: ExerciseSeed): string {
+/**
+ * `displayUnits`/`weightStep` are the CURRENT profile's — the preview must
+ * show the same converted+rounded number Start will actually seed (task-1
+ * §(d)): repeatLastWorkout/startPlannedWorkout convert each seed's raw
+ * historical weight into the profile unit at creation time, so a preview
+ * that kept showing the raw historical unit would quietly disagree with the
+ * workout it's a preview of. Reuses the exact convert+round helper those
+ * creation paths (and planFirstSet) use — never reimplemented here.
+ */
+export function formatSeed(
+  seed: ExerciseSeed,
+  displayUnits: 'kg' | 'lb',
+  weightStep: number,
+): string {
   const { seedWeight, seedReps, seedUnits } = seed;
   if (seedWeight == null) {
     return seedReps == null ? '- × -' : `BW × ${seedReps}`;
   }
-  const weightStr = formatWeight(seedWeight, seedUnits ?? DEFAULT_UNITS);
+  const displayWeight = convertAndRoundWeight(seedWeight, seedUnits, displayUnits, weightStep);
+  const weightStr = formatWeight(displayWeight, displayUnits);
   return `${weightStr} × ${seedReps ?? '-'}`;
 }
 

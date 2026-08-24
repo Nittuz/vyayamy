@@ -2,11 +2,14 @@
  * Repeat-last-workout — reads the user's most recent finished workout
  * and produces (a) a summary for the Today Repeat card, and (b) a
  * mutation that clones the workout's exercises with one pre-seeded set
- * per exercise (weight + reps from the most recent COMPLETED set).
+ * per exercise (weight + reps from the most recent COMPLETED set), the
+ * weight converted to the CURRENT profile unit and rounded to its step at
+ * creation time (task-1: the seeded stepper must never lie about its unit —
+ * same convention planFirstSet uses for in-session prefill).
  */
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 
-import type { AutoStagedSet } from '@/components/activeSet';
+import { convertAndRoundWeight, type AutoStagedSet } from '@/components/activeSet';
 import { getDb } from '@/db/client';
 import { insertRowInTx } from '@/db/mutations';
 import { withTransaction } from '@/db/transaction';
@@ -91,7 +94,10 @@ export async function getLastFinishedWorkoutWithSeeds(
       exerciseName: row.exercise_name,
       seedWeight: lastSet?.weight ?? null,
       seedReps: lastSet?.reps ?? null,
-      // Carry provenance so a repeated set keeps the unit it was logged in.
+      // Raw historical unit — RepeatCard's preview reads it as-is (formatSeed),
+      // and repeatLastWorkout uses it as the FROM unit when converting into
+      // the current profile unit at creation time (task-1); the row it
+      // inserts carries the converted unit, not this one.
       seedUnits: lastSet?.units ?? null,
     });
   }
@@ -118,7 +124,11 @@ export interface RepeatWorkoutResult {
   markers: AutoStagedSet[];
 }
 
-export async function repeatLastWorkout(userId: string): Promise<RepeatWorkoutResult | null> {
+export async function repeatLastWorkout(
+  userId: string,
+  units: 'kg' | 'lb',
+  weightStep: number,
+): Promise<RepeatWorkoutResult | null> {
   const source = await getLastFinishedWorkoutWithSeeds(userId);
   if (!source) return null;
 
@@ -159,6 +169,14 @@ export async function repeatLastWorkout(userId: string): Promise<RepeatWorkoutRe
         now,
       );
 
+      // Convert the historical seed into the CURRENT profile unit, rounded to
+      // its step — the same convert+round convention planFirstSet uses for
+      // in-session prefill (task-1: the seeded stepper must never lie about
+      // its unit). weight stays null for a BW/never-done seed; units follows
+      // weight (null iff weight is null), matching planFirstSet's contract.
+      const weight = convertAndRoundWeight(seed.seedWeight, seed.seedUnits, units, weightStep);
+      const seedUnits = weight != null ? units : null;
+
       const setId = uuidv4();
       await insertRowInTx(
         db,
@@ -167,9 +185,9 @@ export async function repeatLastWorkout(userId: string): Promise<RepeatWorkoutRe
         {
           workout_exercise_id: weId,
           order_index: 0,
-          weight: seed.seedWeight,
+          weight,
           reps: seed.seedReps,
-          units: seed.seedUnits,
+          units: seedUnits,
           completed: 0,
           completed_at: null,
         },
@@ -179,11 +197,12 @@ export async function repeatLastWorkout(userId: string): Promise<RepeatWorkoutRe
       // Only a set actually seeded with a value carries provenance — an
       // empty seed (never-done exercise) needs no marker: it can't trip the
       // leave-confirm gate (shouldConfirmLeavingSet bails on all-null sets)
-      // and has no LAST TIME to show.
-      if (seed.seedWeight != null || seed.seedReps != null) {
+      // and has no LAST TIME to show. Marker carries the CONVERTED weight —
+      // it must match the row just inserted (spec §3).
+      if (weight != null || seed.seedReps != null) {
         markers.push({
           id: setId,
-          weight: seed.seedWeight,
+          weight,
           reps: seed.seedReps,
           source: 'history',
         });
@@ -195,12 +214,23 @@ export async function repeatLastWorkout(userId: string): Promise<RepeatWorkoutRe
   return { workoutId: newWorkoutId, markers };
 }
 
-export function useRepeatLastWorkout(userId: string | undefined, onError?: (msg: string) => void) {
+/** The subset of the active profile repeatLastWorkout needs to convert
+ * historical seeds into the current unit at creation time (task-1). */
+export interface RepeatWorkoutProfile {
+  units: 'kg' | 'lb';
+  weightStep: number;
+}
+
+export function useRepeatLastWorkout(
+  userId: string | undefined,
+  profile: RepeatWorkoutProfile,
+  onError?: (msg: string) => void,
+) {
   const qc = useQueryClient();
   return useMutation({
     mutationFn: () => {
       if (!userId) throw new Error('Not signed in');
-      return repeatLastWorkout(userId);
+      return repeatLastWorkout(userId, profile.units, profile.weightStep);
     },
     onSuccess: () => qc.invalidateQueries({ queryKey: queryKeys.workouts.all }),
     // Never surface raw err.message in the toast (backlog 8.5) — friendly copy

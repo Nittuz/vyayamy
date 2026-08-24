@@ -10,6 +10,9 @@ jest.mock('@/auth/supabase', () => ({
 
 const USER = 'plan-user';
 const T = '2026-01-01T00:00:00.000Z';
+// Default profile for tests that don't care about unit conversion — kg at the
+// standard 2.5 step, which is a no-op for every kg-sourced literal below.
+const KG_PROFILE = { units: 'kg' as const, weightStep: 2.5 };
 
 async function insertExercise(id: string, name: string) {
   const db = await getDb();
@@ -103,6 +106,7 @@ describe('startPlannedWorkout', () => {
       userId: USER,
       templateId: 'tpl',
       title: 'Push Day',
+      ...KG_PROFILE,
     });
     const workoutId = result.workoutId;
 
@@ -154,11 +158,98 @@ describe('startPlannedWorkout', () => {
     ]);
   });
 
+  test('converts seeds into the CURRENT profile unit at creation, mixed units (task-1)', async () => {
+    // Bug: the seeded row used to carry the RAW historical weight/units — a
+    // kg seed under an lb profile rendered as e.g. "52.5 LB" (wrong number
+    // under the right-looking badge). The fix converts+rounds into the
+    // CURRENT profile unit at creation time, same convention planFirstSet
+    // uses for in-session prefill.
+    await insertExercise('ex-a', 'Pull-up');
+    await insertExercise('ex-b', 'Row');
+    await insertTemplate('tpl-lb', 'Push Day', ['ex-b', 'ex-a']);
+    await insertHistory('ex-a', { weight: null, reps: 12, units: null }); // BW history
+    await insertHistory('ex-b', { weight: 52.5, reps: 3, units: 'kg' });
+
+    const result = await startPlannedWorkout({
+      userId: USER,
+      templateId: 'tpl-lb',
+      title: 'Push Day',
+      units: 'lb',
+      weightStep: 5,
+    });
+    const workoutId = result.workoutId;
+
+    const db = await getDb();
+    const sets = await db.getAllAsync<{
+      id: string;
+      weight: number | null;
+      reps: number | null;
+      units: string | null;
+      completed: number;
+    }>(
+      `SELECT s.id, s.weight, s.reps, s.units, s.completed FROM sets s
+         JOIN workout_exercises we ON we.id = s.workout_exercise_id
+        WHERE we.workout_id = ? ORDER BY we.order_index`,
+      [workoutId],
+    );
+    // 52.5 kg -> lb = 115.7426...; nearest 5 = 115 (computed from the real
+    // convertWeight/round helpers, not hand-picked — see activeSet.ts). The
+    // BW seed stays null/null-units — no conversion applies to it.
+    expect(
+      sets.map((s) => ({ weight: s.weight, reps: s.reps, units: s.units, completed: s.completed })),
+    ).toEqual([
+      { weight: 115, reps: 3, units: 'lb', completed: 0 },
+      { weight: null, reps: 12, units: null, completed: 0 },
+    ]);
+
+    // Descriptor-pinning, extended to a MIXED-unit case (task-1 §3): markers
+    // must carry the CONVERTED values, matching the rows just inserted.
+    expect(result.markers).toEqual([
+      { id: sets[0]!.id, weight: 115, reps: 3, source: 'history' },
+      { id: sets[1]!.id, weight: null, reps: 12, source: 'history' },
+    ]);
+  });
+
+  test('same-unit seed still rounds to the profile step (rounding matters vs not)', async () => {
+    await insertExercise('ex-c', 'Squat');
+    await insertExercise('ex-d', 'Deadlift');
+    await insertTemplate('tpl-round', 'Legs', ['ex-c', 'ex-d']);
+    // Already an exact multiple of the 2.5 step — rounding is a no-op.
+    await insertHistory('ex-c', { weight: 52.5, reps: 5, units: 'kg' });
+    // NOT a multiple of 2.5 — rounding must actually change the value (53 -> 52.5).
+    await insertHistory('ex-d', { weight: 53, reps: 5, units: 'kg' });
+
+    const result = await startPlannedWorkout({
+      userId: USER,
+      templateId: 'tpl-round',
+      title: 'Legs',
+      units: 'kg',
+      weightStep: 2.5,
+    });
+
+    const db = await getDb();
+    const sets = await db.getAllAsync<{ weight: number | null; units: string | null }>(
+      `SELECT s.weight, s.units FROM sets s
+         JOIN workout_exercises we ON we.id = s.workout_exercise_id
+        WHERE we.workout_id = ? ORDER BY we.order_index`,
+      [result.workoutId],
+    );
+    expect(sets).toEqual([
+      { weight: 52.5, units: 'kg' }, // unchanged: already on-step
+      { weight: 52.5, units: 'kg' }, // rounded: 53 -> 52.5
+    ]);
+  });
+
   test('a never-done exercise seeds an empty set with no marker', async () => {
     await insertExercise('ex-new', 'Dips');
     await insertTemplate('tpl', 'Day', ['ex-new']);
 
-    const result = await startPlannedWorkout({ userId: USER, templateId: 'tpl', title: 'Day' });
+    const result = await startPlannedWorkout({
+      userId: USER,
+      templateId: 'tpl',
+      title: 'Day',
+      ...KG_PROFILE,
+    });
     const workoutId = result.workoutId;
     expect(result.markers).toEqual([]);
 
@@ -180,6 +271,7 @@ describe('startPlannedWorkout', () => {
       userId: USER,
       templateId: 'tpl',
       title: 'Day',
+      ...KG_PROFILE,
     });
 
     const db = await getDb();
@@ -194,7 +286,7 @@ describe('startPlannedWorkout', () => {
     await insertTemplate('tpl-empty', 'Empty', ['ghost-1', 'ghost-2']);
 
     await expect(
-      startPlannedWorkout({ userId: USER, templateId: 'tpl-empty', title: 'Empty' }),
+      startPlannedWorkout({ userId: USER, templateId: 'tpl-empty', title: 'Empty', ...KG_PROFILE }),
     ).rejects.toThrow();
 
     const db = await getDb();
@@ -316,6 +408,7 @@ describe('cycle cursor advancement', () => {
       userId: USER,
       templateId: 'tpl-b',
       title: 'B',
+      ...KG_PROFILE,
     });
     await finishWorkout(workoutId, USER);
 
@@ -346,6 +439,7 @@ describe('cycle cursor advancement', () => {
       userId: USER,
       templateId: 'tpl-b',
       title: 'B',
+      ...KG_PROFILE,
     });
     await finishWorkout(workoutId, USER);
 
@@ -379,6 +473,7 @@ describe('cycle cursor advancement', () => {
       userId: USER,
       templateId: 'tpl-a',
       title: 'A',
+      ...KG_PROFILE,
     });
     await finishWorkout(workoutId, USER);
 

@@ -20,6 +20,10 @@ jest.mock('@/auth/supabase', () => ({
 const USER_ID = 'user-repeat-test';
 const EX_BENCH = '11111111-1111-1111-1111-111111111111';
 const EX_OHP = '22222222-2222-2222-2222-222222222222';
+// Default profile for tests that don't care about unit conversion — kg at the
+// standard 2.5 step, which is a no-op for every kg-sourced literal below.
+const KG_UNITS = 'kg' as const;
+const KG_STEP = 2.5;
 
 beforeEach(async () => {
   await resetDbForTests();
@@ -96,7 +100,7 @@ test('repeatLastWorkout clones exercises in order with seeded sets', async () =>
   await finishWorkout(wPrev);
 
   // Act: repeat
-  const result = await repeatLastWorkout(USER_ID);
+  const result = await repeatLastWorkout(USER_ID, KG_UNITS, KG_STEP);
   expect(result).not.toBeNull();
   const newWorkoutId = result!.workoutId;
 
@@ -139,6 +143,97 @@ test('repeatLastWorkout clones exercises in order with seeded sets', async () =>
   ]);
 });
 
+test('repeatLastWorkout converts a kg-history seed into an lb profile at creation (task-1)', async () => {
+  // Bug: the seeded row used to carry the RAW historical weight/units — a kg
+  // seed under an lb profile rendered as e.g. "52.5 LB" (wrong number under
+  // the right-looking badge). The fix converts+rounds into the CURRENT
+  // profile unit at creation time, same convention planFirstSet uses.
+  const wPrev = await createWorkout({ userId: USER_ID, title: 'Push' });
+  const { weId: we } = await addExerciseToWorkout({ workoutId: wPrev, exerciseId: EX_BENCH });
+  const s1 = await addSet(we);
+  await updateSet(s1, { weight: 52.5, reps: 3, units: 'kg', completed: true });
+  await finishWorkout(wPrev);
+
+  // 52.5 kg -> lb = 115.7426...; nearest 5 = 115 (computed from the real
+  // convertWeight/round helpers, not hand-picked — see activeSet.ts).
+  const result = await repeatLastWorkout(USER_ID, 'lb', 5);
+  expect(result).not.toBeNull();
+
+  const db = await getDb();
+  const newSet = await db.getFirstAsync<{
+    weight: number | null;
+    reps: number | null;
+    units: string | null;
+  }>(
+    `SELECT s.weight, s.reps, s.units FROM sets s
+       JOIN workout_exercises we ON we.id = s.workout_exercise_id
+      WHERE we.workout_id = ?`,
+    [result!.workoutId],
+  );
+  expect(newSet).toEqual({ weight: 115, reps: 3, units: 'lb' });
+
+  // The marker mirrors the row EXACTLY — it must carry the CONVERTED value,
+  // not the raw historical one, or WorkoutActive's LAST TIME strip and
+  // leave-confirm gate would compare against a number the row never held.
+  const newSetRow = await db.getFirstAsync<{ id: string }>(
+    `SELECT s.id FROM sets s
+       JOIN workout_exercises we ON we.id = s.workout_exercise_id
+      WHERE we.workout_id = ?`,
+    [result!.workoutId],
+  );
+  expect(result!.markers).toEqual([{ id: newSetRow!.id, weight: 115, reps: 3, source: 'history' }]);
+});
+
+test('repeatLastWorkout same-unit seed still rounds to the profile step (rounding matters vs not)', async () => {
+  const wPrev = await createWorkout({ userId: USER_ID, title: 'Push' });
+  const { weId: we1 } = await addExerciseToWorkout({ workoutId: wPrev, exerciseId: EX_BENCH });
+  // Already an exact multiple of the 2.5 step — rounding is a no-op.
+  await updateSet(await addSet(we1), { weight: 52.5, reps: 3, units: 'kg', completed: true });
+  const { weId: we2 } = await addExerciseToWorkout({ workoutId: wPrev, exerciseId: EX_OHP });
+  // NOT a multiple of 2.5 — rounding must actually change the value (53 -> 52.5).
+  await updateSet(await addSet(we2), { weight: 53, reps: 5, units: 'kg', completed: true });
+  await finishWorkout(wPrev);
+
+  const result = await repeatLastWorkout(USER_ID, 'kg', 2.5);
+  expect(result).not.toBeNull();
+
+  const db = await getDb();
+  const newSets = await db.getAllAsync<{ weight: number | null; units: string | null }>(
+    `SELECT s.weight, s.units FROM sets s
+       JOIN workout_exercises we ON we.id = s.workout_exercise_id
+      WHERE we.workout_id = ? ORDER BY we.order_index`,
+    [result!.workoutId],
+  );
+  expect(newSets).toEqual([
+    { weight: 52.5, units: 'kg' }, // unchanged: already on-step
+    { weight: 52.5, units: 'kg' }, // rounded: 53 -> 52.5
+  ]);
+});
+
+test('repeatLastWorkout leaves a bodyweight (null-weight) seed unconverted', async () => {
+  const wPrev = await createWorkout({ userId: USER_ID, title: 'Push' });
+  const { weId: we } = await addExerciseToWorkout({ workoutId: wPrev, exerciseId: EX_BENCH });
+  await updateSet(await addSet(we), { reps: 12, completed: true }); // weight/units stay null
+  await finishWorkout(wPrev);
+
+  const result = await repeatLastWorkout(USER_ID, 'lb', 5);
+  expect(result).not.toBeNull();
+
+  const db = await getDb();
+  const newSet = await db.getFirstAsync<{
+    weight: number | null;
+    reps: number | null;
+    units: string | null;
+  }>(
+    `SELECT s.weight, s.reps, s.units FROM sets s
+       JOIN workout_exercises we ON we.id = s.workout_exercise_id
+      WHERE we.workout_id = ?`,
+    [result!.workoutId],
+  );
+  expect(newSet).toEqual({ weight: null, reps: 12, units: null });
+  expect(result!.markers[0]).toMatchObject({ weight: null, reps: 12, source: 'history' });
+});
+
 test('repeatLastWorkout seeds no marker for an exercise with no completed history', async () => {
   // Previous workout has an exercise with a set that was never completed —
   // getLastFinishedWorkoutWithSeeds only reads completed sets, so this
@@ -148,7 +243,7 @@ test('repeatLastWorkout seeds no marker for an exercise with no completed histor
   await addSet(we); // left incomplete, no weight/reps
   await finishWorkout(wPrev);
 
-  const result = await repeatLastWorkout(USER_ID);
+  const result = await repeatLastWorkout(USER_ID, KG_UNITS, KG_STEP);
   expect(result).not.toBeNull();
   expect(result!.markers).toEqual([]);
 
@@ -182,7 +277,7 @@ test('repeatLastWorkout is atomic — a mid-clone failure leaves no partial work
     return realRun(sql, params as never);
   });
 
-  await expect(repeatLastWorkout(USER_ID)).rejects.toThrow('boom');
+  await expect(repeatLastWorkout(USER_ID, KG_UNITS, KG_STEP)).rejects.toThrow('boom');
   spy.mockRestore();
 
   // The whole clone must have rolled back — no half-built active workout remains.
@@ -193,6 +288,6 @@ test('repeatLastWorkout is atomic — a mid-clone failure leaves no partial work
 });
 
 test('repeatLastWorkout returns null when there is no last workout', async () => {
-  const result = await repeatLastWorkout(USER_ID);
+  const result = await repeatLastWorkout(USER_ID, KG_UNITS, KG_STEP);
   expect(result).toBeNull();
 });

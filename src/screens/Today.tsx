@@ -6,6 +6,7 @@ import { useQueryClient } from '@tanstack/react-query';
 
 import { useAuth } from '@/auth/useAuth';
 import { greetingFor, localDaysBetween } from '@/core/format';
+import { DEFAULT_UNITS } from '@/core/units';
 import { CollisionSheet } from '@/components/CollisionSheet';
 import { ExercisePicker } from '@/components/ExercisePicker';
 import { PlanCard } from '@/components/PlanCard';
@@ -19,6 +20,7 @@ import { finishOtherActiveWorkouts, useActiveWorkoutCollisions } from '@/queries
 import { queryKeys } from '@/queries/keys';
 import { useStartPlannedWorkout, useTodaySchedule } from '@/queries/plannedWorkout';
 import { advanceCycleCursor } from '@/queries/plans';
+import { useProfile } from '@/queries/profile';
 import { useQuickLog } from '@/queries/quickLog';
 import {
   getActiveWorkout,
@@ -59,7 +61,13 @@ export default function TodayScreen() {
   const activeQuery = useActiveWorkout(userId);
   const lastFinishedQuery = useLastFinishedWorkoutWithSeeds(userId);
   const recentQuery = useRecentWorkouts(userId, 3);
-  const repeat = useRepeatLastWorkout(userId, toastError);
+  // Creation-time unit conversion (task-1): repeat/plan seeds must land in the
+  // CURRENT profile unit, not whatever unit the source history happened to be
+  // logged in — same units/weightStep sourcing as WorkoutActive's own prefill.
+  const profileQuery = useProfile(userId);
+  const units: 'kg' | 'lb' = profileQuery.data?.units ?? DEFAULT_UNITS;
+  const weightStep = units === 'kg' ? 2.5 : 5;
+  const repeat = useRepeatLastWorkout(userId, { units, weightStep }, toastError);
   const createWorkout = useCreateWorkout(toastError);
   const collisionsQuery = useActiveWorkoutCollisions(userId);
   const hasCollision = (collisionsQuery.data?.workouts.length ?? 0) >= 2;
@@ -153,6 +161,8 @@ export default function TodayScreen() {
           userId,
           templateId: schedule.templateId,
           title: schedule.title,
+          units,
+          weightStep,
         });
         // Stash BEFORE navigating (see onRepeat) — same raw-transaction
         // handoff, this time for the plan-started path.
@@ -164,7 +174,7 @@ export default function TodayScreen() {
     } finally {
       planStartingRef.current = false;
     }
-  }, [userId, schedule, startPlanned]);
+  }, [userId, schedule, startPlanned, units, weightStep]);
 
   // Skip wears the same double-fire latch as the start handlers, plus a
   // pending state — a second tap while the refetch is in flight must not skip
@@ -440,6 +450,8 @@ export default function TodayScreen() {
               title={initialSnapshot?.repeatTitle ?? 'Workout'}
               daysAgo={initialSnapshot?.repeatDaysAgo ?? 0}
               seeds={snapshotRepeatSeeds}
+              units={units}
+              weightStep={weightStep}
               loading
               onPress={() => {
                 /* no-op until live data lands */
@@ -454,6 +466,8 @@ export default function TodayScreen() {
               title={lastFinishedQuery.data.workout.title}
               daysAgo={daysSince(lastFinishedQuery.data.workout.ended_at)}
               seeds={lastFinishedQuery.data.seeds}
+              units={units}
+              weightStep={weightStep}
               loading={repeat.isPending}
               onPress={onRepeat}
             />

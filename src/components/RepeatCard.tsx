@@ -24,11 +24,16 @@ interface Props {
   title: string;
   daysAgo: number;
   seeds: ExerciseSeed[];
+  /** Current profile unit/step — the figures preview converts+rounds each
+   * seed into these before display (task-1 §(d)), matching what Start will
+   * actually seed. */
+  units: 'kg' | 'lb';
+  weightStep: number;
   loading?: boolean;
   onPress: () => void;
 }
 
-export function RepeatCard({ title, daysAgo, seeds, loading, onPress }: Props) {
+export function RepeatCard({ title, daysAgo, seeds, units, weightStep, loading, onPress }: Props) {
   const theme = useTheme();
   const fontScale = useFontScale();
   // Raw (uncapped) scale — the seed rows' own decision of whether they fit at
@@ -77,7 +82,9 @@ export function RepeatCard({ title, daysAgo, seeds, loading, onPress }: Props) {
               key={`${seed.exerciseId}-${i}`}
               style={styles.seedRow}
               accessibilityLabel={
-                namesOnly ? seed.exerciseName : `${seed.exerciseName}, ${formatSeed(seed)}`
+                namesOnly
+                  ? seed.exerciseName
+                  : `${seed.exerciseName}, ${formatSeed(seed, units, weightStep)}`
               }
             >
               <Text variant="body" color={ink} numberOfLines={1} style={styles.seedName}>
@@ -91,7 +98,7 @@ export function RepeatCard({ title, daysAgo, seeds, loading, onPress }: Props) {
                   thing that gives at accessibility sizes. */}
               {namesOnly ? null : (
                 <Text variant="numeral" color={ink} numberOfLines={1} style={styles.seedFigures}>
-                  {formatSeed(seed)}
+                  {formatSeed(seed, units, weightStep)}
                 </Text>
               )}
             </View>

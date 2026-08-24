@@ -195,6 +195,27 @@ export interface LastSessionSet {
 }
 
 /**
+ * Convert a weight from the unit it was logged in to the target unit and
+ * round to the target weightStep (kills FP dust the same way roundToStep
+ * does in numericStepper.ts). The ONE place this convert+round math lives —
+ * every creation path that seeds a set from history (in-session first-set
+ * prefill via planFirstSet, plus repeatLastWorkout / startPlannedWorkout,
+ * task-1) must stamp the same number the profile's unit badge will show, so
+ * they all funnel through here rather than each re-deriving it. `null` in
+ * (no historical weight) → `null` out.
+ */
+export function convertAndRoundWeight(
+  weight: number | null,
+  fromUnits: 'kg' | 'lb' | null,
+  toUnits: 'kg' | 'lb',
+  weightStep: number,
+): number | null {
+  if (weight == null) return null;
+  const converted = convertWeight(weight, fromUnits ?? DEFAULT_UNITS, toUnits);
+  return roundToNearest(converted, weightStep);
+}
+
+/**
  * Prefill for the FIRST set of an exercise (spec §2): last session's first
  * set, falling back to its top set; weight converted to the current unit and
  * rounded to the current step. Empty history → truly empty stage.
@@ -208,11 +229,7 @@ export function planFirstSet(
   const pick =
     first && (first.weight != null || first.reps != null) ? first : topLastSessionSet(lastSets);
   if (!pick) return { weight: null, reps: null, units: null };
-  let weight: number | null = null;
-  if (pick.weight != null) {
-    const converted = convertWeight(pick.weight, pick.units ?? DEFAULT_UNITS, units);
-    weight = roundToNearest(converted, weightStep);
-  }
+  const weight = convertAndRoundWeight(pick.weight, pick.units, units, weightStep);
   return { weight, reps: pick.reps ?? null, units: weight != null ? units : null };
 }
 

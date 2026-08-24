@@ -5,13 +5,15 @@
  * writer), one workout_exercise per template entry, one set per exercise —
  * commits in ONE transaction (repeatLastWorkout pattern, #20), so a crash
  * mid-seed can't strand a half-built active workout. Seeds are prefilled from
- * each exercise's most recent COMPLETED set anywhere in history (unit
- * provenance carried); a never-done exercise seeds empty, keeping the
- * never-empty contract.
+ * each exercise's most recent COMPLETED set anywhere in history, converted to
+ * the CURRENT profile unit and rounded to its step at creation time (task-1:
+ * the seeded stepper must never lie about its unit — same convention
+ * planFirstSet uses for in-session prefill); a never-done exercise seeds
+ * empty, keeping the never-empty contract.
  */
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 
-import type { AutoStagedSet } from '@/components/activeSet';
+import { convertAndRoundWeight, type AutoStagedSet } from '@/components/activeSet';
 import { resolveTodaySlot } from '@/core/planResolver';
 import { getDb } from '@/db/client';
 import { insertRowInTx } from '@/db/mutations';
@@ -19,6 +21,7 @@ import { withTransaction } from '@/db/transaction';
 import { nowIso, uuidv4 } from '@/db/uuid';
 import { emitMutationCommitted } from '@/db/mutationEvents';
 import { getActivePlan, parseExerciseOrder } from '@/queries/plans';
+import type { PrefillContext } from '@/queries/sets';
 
 import { queryKeys } from './keys';
 
@@ -109,11 +112,12 @@ export interface StartPlannedWorkoutResult {
   markers: AutoStagedSet[];
 }
 
-export async function startPlannedWorkout(args: {
-  userId: string;
-  templateId: string;
-  title: string;
-}): Promise<StartPlannedWorkoutResult> {
+/** PrefillContext (userId, units, weightStep) rides along on top of the
+ * template identity — same convert-at-creation contract as repeatLastWorkout
+ * and the in-session prefill it was carved from (task-1). */
+export async function startPlannedWorkout(
+  args: { templateId: string; title: string } & PrefillContext,
+): Promise<StartPlannedWorkoutResult> {
   const db = await getDb();
   const tpl = await db.getFirstAsync<{ exercise_order: string }>(
     'SELECT exercise_order FROM templates WHERE id = ? AND deleted_at IS NULL',
@@ -177,6 +181,16 @@ export async function startPlannedWorkout(args: {
         now,
       );
       const seed = seeds.get(exId) ?? null;
+      // Convert the historical seed into the CURRENT profile unit, rounded to
+      // its step — same convert+round convention planFirstSet uses for
+      // in-session prefill (task-1: the seeded stepper must never lie about
+      // its unit). weight stays null for a BW/never-done seed; units follows
+      // weight (null iff weight is null), matching planFirstSet's contract.
+      const weight = seed
+        ? convertAndRoundWeight(seed.weight, seed.units, args.units, args.weightStep)
+        : null;
+      const seedUnits = weight != null ? args.units : null;
+      const reps = seed?.reps ?? null;
       const setId = uuidv4();
       await insertRowInTx(
         db,
@@ -185,9 +199,9 @@ export async function startPlannedWorkout(args: {
         {
           workout_exercise_id: weId,
           order_index: 0,
-          weight: seed?.weight ?? null,
-          reps: seed?.reps ?? null,
-          units: seed?.units ?? null,
+          weight,
+          reps,
+          units: seedUnits,
           completed: 0,
           completed_at: null,
         },
@@ -195,9 +209,10 @@ export async function startPlannedWorkout(args: {
       );
       // Only a set actually seeded with a value carries provenance — a
       // never-done exercise seeds empty and needs no marker (see
-      // repeatLastWorkout precedent).
-      if (seed && (seed.weight != null || seed.reps != null)) {
-        markers.push({ id: setId, weight: seed.weight, reps: seed.reps, source: 'history' });
+      // repeatLastWorkout precedent). Marker carries the CONVERTED weight —
+      // it must match the row just inserted (spec §3).
+      if (weight != null || reps != null) {
+        markers.push({ id: setId, weight, reps, source: 'history' });
       }
     }
   });

@@ -424,13 +424,17 @@ export default function WorkoutActiveScreen() {
     // (setValuesLabel has no unit suffix) — safe ONLY because every in-
     // session staged set (stageFirstSet/planStagedSet) is seeded in the
     // CURRENT profile unit, so the number reads correctly under the weight
-    // stepper's ambient KG/LB badge above it. Repeat/plan-created seeds break
-    // that invariant: repeatLastWorkout and startPlannedWorkout copy the
-    // source set's weight+units straight from history, unconverted, so the
-    // SET ROW's own `units` (not the marker, which carries no unit) may
-    // differ from the active profile unit. Reading `set.units` here — not
-    // extending AutoStagedSet — keeps this the single source of truth.
-    // Suppress the strip rather than show a kg value under an LB badge.
+    // stepper's ambient KG/LB badge above it. This guard is now near-dead for
+    // FRESH repeat/plan seeds: repeatLastWorkout and startPlannedWorkout also
+    // convert into the current profile unit at creation time (task-1 seed-
+    // conversion fix), so a just-created set's `units` already equals
+    // `units` and this branch never fires for it. It stays in place on
+    // purpose — it still guards a workout RESUMED from before this fix
+    // shipped (its seeded rows were stamped with the raw historical unit) and
+    // any future drift that reintroduces a mismatch between a set's stamped
+    // unit and the active profile. Reading `set.units` here — not extending
+    // AutoStagedSet — keeps this the single source of truth. Suppress the
+    // strip rather than show a kg value under an LB badge.
     if (set.weight != null && set.units !== units) return null;
     return { weight: seedMarker.weight, reps: seedMarker.reps };
   }, [currentExForRest, cursor, stagedMarkers, units]);
