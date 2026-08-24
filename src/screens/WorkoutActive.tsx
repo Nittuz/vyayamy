@@ -727,11 +727,11 @@ export default function WorkoutActiveScreen() {
             // hitSlop pads the meta-line label (~19pt) up to the 44pt touch
             // minimum without reflowing the voice row's layout. alignSelf
             // shrinks the Pressable to its text content and centers it — the
-            // voiceArea column defaults to alignItems:'stretch', which was
-            // stretching this Pressable to the full row width and leaving
-            // its left-aligned text off-center under the Voice control above
-            // (VoiceMicButton reads centered because ITS content is
-            // justifyContent:'center' inside its own full-width button).
+            // voiceArea column defaults to alignItems:'stretch', which would
+            // otherwise stretch this Pressable to the full row width and
+            // leave its left-aligned text off-center under the icon-only mic
+            // control above (VoiceMicButton centers itself via its own
+            // alignSelf, at a fixed compact width, not a full-width button).
             <Pressable
               onPress={() => setVoiceHelpOpen(true)}
               hitSlop={14}
@@ -740,7 +740,7 @@ export default function WorkoutActiveScreen() {
               style={styles.voiceHelpTrigger}
             >
               <Text variant="meta" color={theme.color.inkSecondary}>
-                What can I say
+                What can I say?
               </Text>
             </Pressable>
           ) : null}

@@ -1,11 +1,10 @@
-import { useEffect, useMemo, useRef } from 'react';
+import { useEffect, useRef } from 'react';
 import { Pressable, StyleSheet } from 'react-native';
 
 import { Icon } from '@/ui/icons';
 import { resolvePlateStyles, resolvePressedStyle } from '@/ui/plateStyles';
-import { Text } from '@/ui/Text';
 import { useReduceMotion } from '@/ui/useReduceMotion';
-import { useTheme, type Theme } from '@/ui/useTheme';
+import { useTheme } from '@/ui/useTheme';
 
 interface Props {
   phase: 'idle' | 'listening' | 'disabled';
@@ -18,13 +17,20 @@ interface Props {
  * Mic control for the active-set card. Tap toggles a hands-free listening
  * session; long-press is the hold-to-talk fallback for noisy moments.
  *
+ * Icon-only (copy review Batch V): no visible label. The mic glyph is one of
+ * the few universally-read icons, the "What can I say?" trigger directly
+ * beneath already names the modality, and the LISTENING state is narrated on
+ * the set card itself ("Listening…", live partials, "Heard X. Say yes to
+ * confirm") — a status word on the button itself would just duplicate the
+ * card. A11y labels stay unabridged ("Start/Stop voice logging") since a
+ * screen-reader user never sees the mic glyph or the adjacent copy.
+ *
  * Volt is the act-now state: it appears ONLY while actively listening.
  * Idle is a ghost. (Plate itself can't host this control - hold-to-talk
  * needs onPressOut - so the tone maths come from resolvePlateStyles.)
  */
 export function VoiceMicButton({ phase, onTap, onHoldStart, onHoldEnd }: Props) {
   const theme = useTheme();
-  const styles = useMemo(() => makeStyles(theme), [theme]);
   const listening = phase === 'listening';
 
   // Live reduced-motion (Plate precedent): the press dip drops its scale
@@ -55,23 +61,23 @@ export function VoiceMicButton({ phase, onTap, onHoldStart, onHoldEnd }: Props) 
         phase === 'disabled' && styles.disabled,
       ]}
     >
-      <Icon name="mic" size={16} color={plate.ink} />
-      <Text variant="meta" color={plate.ink}>
-        {listening ? 'Listening · tap to stop' : 'Voice'}
-      </Text>
+      <Icon name="mic" size={24} color={plate.ink} />
     </Pressable>
   );
 }
 
-const makeStyles = (theme: Theme) =>
-  StyleSheet.create({
-    btn: {
-      height: 44,
-      flexDirection: 'row',
-      alignItems: 'center',
-      justifyContent: 'center',
-      gap: theme.space.s2,
-      marginHorizontal: theme.space.s5,
-    },
-    disabled: { opacity: 0.4 },
-  });
+// No theme dependency — fixed geometry, no tokenized color/spacing — so this
+// is a plain module-level StyleSheet rather than a per-render makeStyles.
+const styles = StyleSheet.create({
+  // Compact and centered, not a full-width row — the voiceArea column
+  // stretches children by default, so this control must self-center via
+  // alignSelf rather than filling the row like the old label button did.
+  btn: {
+    alignSelf: 'center',
+    width: 56,
+    height: 56,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  disabled: { opacity: 0.4 },
+});
