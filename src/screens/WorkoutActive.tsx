@@ -2,7 +2,7 @@ import { useQueryClient } from '@tanstack/react-query';
 import { router, Stack } from 'expo-router';
 import { useCallback, useMemo, useRef, useState } from 'react';
 import { ActivityIndicator, Pressable, ScrollView, StyleSheet, View } from 'react-native';
-import { SafeAreaView } from 'react-native-safe-area-context';
+import { SafeAreaView, type Edge } from 'react-native-safe-area-context';
 
 import { useAuth } from '@/auth/useAuth';
 import { ActiveSetCard, type ActiveSetCardHandle } from '@/components/ActiveSetCard';
@@ -61,6 +61,14 @@ import { useTheme } from '@/ui/useTheme';
 import { useWorkoutCursor } from './workoutActive/useWorkoutCursor';
 import { useSessionPRs } from './workoutActive/useSessionPRs';
 import { useRestOverrides } from './workoutActive/useRestOverrides';
+
+// This route always shows a native header (workoutActiveOpts/screenOptions
+// below never set headerShown:false), so the header itself already clears
+// the top safe area — SafeAreaView's own top inset would double it, opening
+// a dead gap between the header and this screen's first content (impeccable
+// polish, item B). Bottom (+ left/right, for landscape/notch-corner devices)
+// still need SafeAreaView's insets since nothing else claims them.
+const SCREEN_EDGES: Edge[] = ['left', 'right', 'bottom'];
 
 export default function WorkoutActiveScreen() {
   const { user } = useAuth();
@@ -417,7 +425,10 @@ export default function WorkoutActiveScreen() {
 
   if (activeQuery.isLoading || detail.isLoading) {
     return (
-      <SafeAreaView style={[styles.container, styles.center, { backgroundColor: theme.color.bg }]}>
+      <SafeAreaView
+        edges={SCREEN_EDGES}
+        style={[styles.container, styles.center, { backgroundColor: theme.color.bg }]}
+      >
         <ActivityIndicator color={theme.color.inkSecondary} />
       </SafeAreaView>
     );
@@ -428,6 +439,7 @@ export default function WorkoutActiveScreen() {
     // never copy floating in a void.
     return (
       <SafeAreaView
+        edges={SCREEN_EDGES}
         style={[
           styles.container,
           styles.center,
@@ -449,7 +461,10 @@ export default function WorkoutActiveScreen() {
   // No exercises yet
   if (exercises.length === 0) {
     return (
-      <SafeAreaView style={[styles.container, { backgroundColor: theme.color.bg }]}>
+      <SafeAreaView
+        edges={SCREEN_EDGES}
+        style={[styles.container, { backgroundColor: theme.color.bg }]}
+      >
         <Stack.Screen options={screenOptions} />
         <View
           style={[
@@ -501,7 +516,10 @@ export default function WorkoutActiveScreen() {
   if (!cursor) {
     const incomplete = countDiscardableSets(exercises, stagedMarkers);
     return (
-      <SafeAreaView style={[styles.container, { backgroundColor: theme.color.bg }]}>
+      <SafeAreaView
+        edges={SCREEN_EDGES}
+        style={[styles.container, { backgroundColor: theme.color.bg }]}
+      >
         <Stack.Screen options={screenOptions} />
         <View
           style={[
@@ -590,7 +608,10 @@ export default function WorkoutActiveScreen() {
     // lands. The cursor-reset effect repositions it on the next tick; render a
     // placeholder until then instead of dereferencing null.
     return (
-      <SafeAreaView style={[styles.container, styles.center, { backgroundColor: theme.color.bg }]}>
+      <SafeAreaView
+        edges={SCREEN_EDGES}
+        style={[styles.container, styles.center, { backgroundColor: theme.color.bg }]}
+      >
         <ActivityIndicator color={theme.color.inkSecondary} />
         {/* Keep the note sheet mounted through this one-tick placeholder so a
             cursor transition can't unmount it and drop typed text. */}
@@ -608,7 +629,10 @@ export default function WorkoutActiveScreen() {
   const currentSetIdx = currentEx.sets.findIndex((s) => s.id === currentSet.id);
 
   return (
-    <SafeAreaView style={[styles.container, { backgroundColor: theme.color.bg }]}>
+    <SafeAreaView
+      edges={SCREEN_EDGES}
+      style={[styles.container, { backgroundColor: theme.color.bg }]}
+    >
       <SyncErrorStripe />
       <Stack.Screen options={screenOptions} />
       <RestProgressBar
@@ -838,7 +862,15 @@ const styles = StyleSheet.create({
   },
   logBtn: { flex: 1 },
   // Fixed width, no flex — Log set keeps its thumb-zone dominance and Next/
-  // Finish keeps its current flex (batch 2 spec).
-  prevBtn: { width: 44 },
+  // Finish keeps its current flex (batch 2 spec). Height is layout-derived:
+  // bottomBar's default alignItems:'stretch' grows this Plate's container to
+  // match the row's tallest sibling (the cta Buttons' 52pt minHeight), which
+  // is what keeps it well above the 44pt touch minimum — do not add a fixed
+  // height/alignItems here, that would fight the stretch instead of using it.
+  // justifyContent centers the face (a short, unpadded box) within that
+  // stretched-tall container; without it the face packs to the container's
+  // top (default flex-start), reading as a chevron floating above the
+  // Next/Log set centerline (impeccable polish, item C).
+  prevBtn: { width: 44, justifyContent: 'center' },
   prevFace: { alignItems: 'center', justifyContent: 'center' },
 });
