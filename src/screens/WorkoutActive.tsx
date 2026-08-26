@@ -711,10 +711,17 @@ export default function WorkoutActiveScreen() {
         />
         <View style={styles.voiceArea}>
           <VoiceMicButton
-            phase={!voice.available ? 'disabled' : voice.ui.phase === 'idle' ? 'idle' : 'listening'}
-            onTap={() => (voice.ui.phase === 'idle' ? void voice.start() : voice.stop())}
+            // Volt tracks the MIC, not the card narration: 'pending'/'error'
+            // can persist after a hold release with the engine stopped, and
+            // 'applied'/'pending' also occur mid-session with it live — so
+            // the button keys on engineOn (VoiceMicButton's "volt only while
+            // actively listening" contract, review minor 2).
+            phase={!voice.available ? 'disabled' : voice.engineOn ? 'listening' : 'idle'}
+            onTap={() => (voice.engineOn ? voice.stop() : void voice.start())}
             onHoldStart={() => void voice.start()}
-            onHoldEnd={() => voice.stop()}
+            // release, not stop: onPressOut fires on every lift, and stop()
+            // would wipe an 'error'/'pending' ui surfaced mid-hold.
+            onHoldEnd={() => voice.release()}
           />
           {voice.ui.phase === 'pending' ? (
             <Button

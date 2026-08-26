@@ -110,6 +110,128 @@ test('a failed dispatch surfaces an error (#104)', async () => {
   if (result.current.ui.phase === 'error') expect(result.current.ui.label).toBe('No active set');
 });
 
+test('hold release keeps a start-failure error on the card', async () => {
+  const fake = makeFakeEngine();
+  let errCb: ((msg: string) => void) | null = null;
+  fake.engine.start = ((_: unknown, onError: (msg: string) => void) => {
+    errCb = onError;
+  }) as unknown as SpeechEngine['start'];
+  const { result } = renderHook(() => useVoiceSession(deps(fake.engine)));
+
+  await act(async () => {
+    await result.current.start(); // hold begins
+  });
+  act(() => {
+    errCb?.('boom'); // engine dies mid-hold
+  });
+  act(() => {
+    result.current.release(); // finger lifts
+  });
+
+  expect(result.current.ui.phase).toBe('error'); // stop() here would read 'idle'
+});
+
+test('hold release keeps a pending command and confirmPending still applies it', async () => {
+  dispatchCommand.mockResolvedValue({ ok: true, message: '225 × 5' });
+  const fake = makeFakeEngine();
+  const { result } = renderHook(() => useVoiceSession(deps(fake.engine)));
+
+  await act(async () => {
+    await result.current.start();
+  });
+  await act(async () => {
+    fake.emit('add bench press'); // low-confidence → pending
+  });
+  expect(result.current.ui.phase).toBe('pending');
+
+  act(() => {
+    result.current.release(); // finger lifts — must NOT discard the command
+  });
+  expect(result.current.ui.phase).toBe('pending');
+  expect(fake.stop).toHaveBeenCalled(); // engine off, ui preserved
+
+  await act(async () => {
+    await result.current.confirmPending();
+  });
+  expect(dispatchCommand).toHaveBeenCalled();
+});
+
+test('a preserved pending survives the silence timeout after release (timer cleared)', async () => {
+  jest.useFakeTimers();
+  try {
+    dispatchCommand.mockResolvedValue({ ok: true, message: '225 × 5' });
+    const fake = makeFakeEngine();
+    const { result } = renderHook(() =>
+      useVoiceSession(deps(fake.engine, { silenceTimeoutMs: 1000 })),
+    );
+
+    await act(async () => {
+      await result.current.start();
+    });
+    await act(async () => {
+      fake.emit('add bench press'); // low-confidence → pending
+    });
+    act(() => {
+      result.current.release();
+    });
+    expect(result.current.ui.phase).toBe('pending');
+
+    act(() => {
+      jest.advanceTimersByTime(5000); // a leaked silence timer would stop() here
+    });
+    expect(result.current.ui.phase).toBe('pending');
+  } finally {
+    jest.useRealTimers();
+  }
+});
+
+test('a silent release discards the pending command (no invisible apply later)', async () => {
+  dispatchCommand.mockResolvedValue({ ok: true, message: 'Add Bench Press' });
+  const fake = makeFakeEngine();
+  const { result } = renderHook(() => useVoiceSession(deps(fake.engine)));
+
+  await act(async () => {
+    await result.current.start();
+  });
+  await act(async () => {
+    fake.emit('add bench press'); // pending
+  });
+  act(() => {
+    result.current.release(); // preserved — the say-"yes"/Confirm flow lives on
+  });
+  await act(async () => {
+    await result.current.start(); // re-hold: pendingRef intentionally survives
+  });
+  act(() => {
+    result.current.release(); // ...but a silent release ends at idle
+  });
+  expect(result.current.ui.phase).toBe('idle');
+
+  await act(async () => {
+    await result.current.confirmPending(); // must be a no-op now
+  });
+  expect(dispatchCommand).not.toHaveBeenCalled(); // pending was discarded, never applied
+  expect(result.current.ui.phase).toBe('idle'); // no invisible applied state
+});
+
+test('hold release from plain listening returns to idle and allows a fresh start', async () => {
+  const fake = makeFakeEngine();
+  const { result } = renderHook(() => useVoiceSession(deps(fake.engine)));
+
+  await act(async () => {
+    await result.current.start();
+  });
+  act(() => {
+    result.current.release();
+  });
+  expect(result.current.ui.phase).toBe('idle');
+
+  await act(async () => {
+    await result.current.start(); // listeningRef must have been reset
+  });
+  expect(fake.start).toHaveBeenCalledTimes(2);
+});
+
 test('re-entrant start() does not re-subscribe the engine (#97)', async () => {
   const fake = makeFakeEngine();
   const { result } = renderHook(() => useVoiceSession(deps(fake.engine)));

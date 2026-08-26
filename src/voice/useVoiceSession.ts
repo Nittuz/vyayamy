@@ -43,6 +43,12 @@ export interface VoiceSessionDeps {
 export function useVoiceSession(deps: VoiceSessionDeps) {
   const engine = deps.engine ?? onDeviceEngine;
   const [ui, setUi] = useState<VoiceUiState>({ phase: 'idle' });
+  // Whether the speech engine is actually capturing audio. ui.phase alone
+  // can't answer that: 'pending'/'applied'/'error' occur both mid-session
+  // (engine live, continuous listening) and preserved after a hold release
+  // (engine stopped) — and the mic button's volt state must track the mic,
+  // not the card narration (review minor 2).
+  const [engineOn, setEngineOn] = useState(false);
   const lastUndo = useRef<null | (() => Promise<void>)>(null);
   const pendingRef = useRef<Command | null>(null);
   const timeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
@@ -52,6 +58,7 @@ export function useVoiceSession(deps: VoiceSessionDeps) {
     timeoutRef.current = null;
     pendingRef.current = null;
     engine.stop();
+    setEngineOn(false);
     setUi({ phase: 'idle' });
   }, [engine]);
 
@@ -156,6 +163,7 @@ export function useVoiceSession(deps: VoiceSessionDeps) {
       return;
     }
     listeningRef.current = true;
+    setEngineOn(true);
     setUi({ phase: 'listening', partial: '' });
     resetSilence();
     engine.start(
@@ -169,6 +177,30 @@ export function useVoiceSession(deps: VoiceSessionDeps) {
       },
     );
   }, [engine, onFinal, resetSilence, stop]);
+
+  // Hold-to-talk release. stop() is the tap-toggle reset — using it on hold
+  // release also wiped whatever the session surfaced mid-hold, so a failed
+  // start ('error') or a low-confidence command awaiting the Confirm button
+  // ('pending') vanished the instant the finger lifted (2026-08-25 regression
+  // run). Release stops the engine but only resets a LISTENING ui; surfaced
+  // outcomes stay on the card, and pendingRef survives for confirmPending.
+  // When the release DOES land as idle (nothing was surfaced), the pending
+  // command must die with the session — otherwise a re-hold that goes silent
+  // leaves a stale command that a later "yes" would apply with no card
+  // narrating it (review minor 1).
+  const phaseRef = useRef(ui.phase);
+  useEffect(() => {
+    phaseRef.current = ui.phase;
+  }, [ui.phase]);
+  const release = useCallback(() => {
+    if (timeoutRef.current) clearTimeout(timeoutRef.current);
+    timeoutRef.current = null;
+    engine.stop();
+    setEngineOn(false);
+    listeningRef.current = false;
+    if (phaseRef.current === 'listening') pendingRef.current = null;
+    setUi((prev) => (prev.phase === 'listening' ? { phase: 'idle' } : prev));
+  }, [engine]);
 
   // Keep the listening flag in sync when stop() runs (silence timeout, command, etc.).
   useEffect(() => {
@@ -189,7 +221,7 @@ export function useVoiceSession(deps: VoiceSessionDeps) {
 
   const available = engine.isAvailable();
 
-  return { ui, available, start, stop, confirmPending: applyPending };
+  return { ui, engineOn, available, start, stop, release, confirmPending: applyPending };
 }
 
 function describe(c: Command): string {
