@@ -1,14 +1,8 @@
 import { useQueryClient } from '@tanstack/react-query';
 import { router, useLocalSearchParams } from 'expo-router';
 import { useCallback, useMemo, useRef, useState } from 'react';
-import {
-  ActivityIndicator,
-  Pressable,
-  SafeAreaView,
-  ScrollView,
-  StyleSheet,
-  View,
-} from 'react-native';
+import { ActivityIndicator, Pressable, ScrollView, StyleSheet, View } from 'react-native';
+import { SafeAreaView, type Edge } from 'react-native-safe-area-context';
 
 import { useAuth } from '@/auth/useAuth';
 import { setRowToShape, type SetShape } from '@/components/activeSet';
@@ -30,6 +24,10 @@ import { useSyncAwareErrorToast, useToast } from '@/ui/ToastContext';
 import { UNDO_HOLD_MS } from '@/ui/toastLogic';
 import { useTheme, type Theme } from '@/ui/useTheme';
 import { useFontScale } from '@/ui/useFontScale';
+
+// Top inset is the nav header's job on this pushed screen (WorkoutActive
+// precedent) — the deprecated RN SafeAreaView this replaces added none here.
+const SCREEN_EDGES: Edge[] = ['left', 'right', 'bottom'];
 
 export default function HistoryDetailScreen() {
   const { id } = useLocalSearchParams<{ id: string }>();
@@ -128,7 +126,7 @@ export default function HistoryDetailScreen() {
 
   if (detail.isLoading) {
     return (
-      <SafeAreaView style={[styles.container, styles.center]}>
+      <SafeAreaView edges={SCREEN_EDGES} style={[styles.container, styles.center]}>
         <ActivityIndicator color={theme.color.inkSecondary} />
       </SafeAreaView>
     );
@@ -136,7 +134,7 @@ export default function HistoryDetailScreen() {
 
   if (!detail.data) {
     return (
-      <SafeAreaView style={[styles.container, styles.center]}>
+      <SafeAreaView edges={SCREEN_EDGES} style={[styles.container, styles.center]}>
         <EmptyState title="Workout not found." />
       </SafeAreaView>
     );
@@ -149,7 +147,7 @@ export default function HistoryDetailScreen() {
   const hasTappableSets = exercises.some((we) => we.sets.length > 0);
 
   return (
-    <SafeAreaView style={styles.container}>
+    <SafeAreaView edges={SCREEN_EDGES} style={styles.container}>
       <ScrollView contentContainerStyle={styles.scroll}>
         <FadeInView>
           <View style={styles.header}>

@@ -1,6 +1,7 @@
 import { router } from 'expo-router';
 import { useMemo } from 'react';
-import { ActivityIndicator, SafeAreaView, ScrollView, StyleSheet, View } from 'react-native';
+import { ActivityIndicator, ScrollView, StyleSheet, View } from 'react-native';
+import { SafeAreaView, type Edge } from 'react-native-safe-area-context';
 
 import { useAuth } from '@/auth/useAuth';
 import { pluralize } from '@/core/format';
@@ -17,6 +18,10 @@ import { Text } from '@/ui/Text';
 import { useTheme, type Theme } from '@/ui/useTheme';
 
 const DAY_LABELS = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
+
+// Top inset is the nav header's job on this pushed screen (WorkoutActive
+// precedent) — the deprecated RN SafeAreaView this replaces added none here.
+const SCREEN_EDGES: Edge[] = ['left', 'right', 'bottom'];
 
 export default function TrainingPlanScreen() {
   const { user } = useAuth();
@@ -37,7 +42,7 @@ export default function TrainingPlanScreen() {
     : null;
 
   return (
-    <SafeAreaView style={styles.container}>
+    <SafeAreaView edges={SCREEN_EDGES} style={styles.container}>
       <ScrollView contentContainerStyle={styles.scroll}>
         {/* Chrome title moved in-screen (Anton display, matching Progress/
             Profile) — the nav header now carries only the back chevron

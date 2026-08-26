@@ -1,5 +1,8 @@
 import { Component, type ReactNode, useMemo } from 'react';
-import { Pressable, SafeAreaView, StyleSheet, Text, View } from 'react-native';
+import { Pressable, StyleSheet, Text, View } from 'react-native';
+// The context SafeAreaView is a native component that works without a
+// SafeAreaProvider — required here, since this boundary wraps the provider.
+import { SafeAreaView } from 'react-native-safe-area-context';
 
 import { captureException } from '@/lib/errorReporting';
 

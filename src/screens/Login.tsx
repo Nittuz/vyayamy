@@ -2,14 +2,10 @@ import * as Linking from 'expo-linking';
 import { Redirect } from 'expo-router';
 import { StatusBar } from 'expo-status-bar';
 import { useMemo, useState } from 'react';
-import {
-  KeyboardAvoidingView,
-  Platform,
-  SafeAreaView,
-  StyleSheet,
-  TextInput,
-  View,
-} from 'react-native';
+import { KeyboardAvoidingView, Platform, StyleSheet, TextInput, View } from 'react-native';
+// Default edges (all): this screen is full-bleed with no header or tab bar,
+// so it owns every inset itself — same as the BootOverlay.
+import { SafeAreaView } from 'react-native-safe-area-context';
 
 import { signInWithOtp, signInWithPassword } from '@/auth/authActions';
 import { useAuth } from '@/auth/useAuth';

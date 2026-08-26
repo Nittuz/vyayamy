@@ -5,12 +5,14 @@ import {
   KeyboardAvoidingView,
   Linking,
   Platform,
-  SafeAreaView,
   ScrollView,
   StyleSheet,
   TextInput,
   View,
 } from 'react-native';
+// Default edges, matching Today: the tab navigator already consumes the
+// bottom inset for its bar, so no per-edge tuning is needed on tab screens.
+import { SafeAreaView } from 'react-native-safe-area-context';
 
 import { signOut } from '@/auth/authActions';
 import { useAuth } from '@/auth/useAuth';

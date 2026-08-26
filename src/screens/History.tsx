@@ -1,13 +1,7 @@
 import { router } from 'expo-router';
 import { useCallback, useMemo } from 'react';
-import {
-  ActivityIndicator,
-  RefreshControl,
-  SafeAreaView,
-  SectionList,
-  StyleSheet,
-  View,
-} from 'react-native';
+import { ActivityIndicator, RefreshControl, SectionList, StyleSheet, View } from 'react-native';
+import { SafeAreaView, type Edge } from 'react-native-safe-area-context';
 
 import { useAuth } from '@/auth/useAuth';
 import { formatDuration, formatRowDate, getDateGroup } from '@/core/format';
@@ -27,6 +21,10 @@ import { useTheme, type Theme } from '@/ui/useTheme';
  * by scrolling or pagination don't queue up ever-longer entrances.
  */
 const STAGGER_CAP = 8;
+
+// Top inset is the nav header's job on this pushed screen (WorkoutActive
+// precedent) — the deprecated RN SafeAreaView this replaces added none here.
+const SCREEN_EDGES: Edge[] = ['left', 'right', 'bottom'];
 
 export default function HistoryScreen() {
   const { user } = useAuth();
@@ -75,7 +73,7 @@ export default function HistoryScreen() {
   if (!userId) return null;
 
   return (
-    <SafeAreaView style={styles.container}>
+    <SafeAreaView edges={SCREEN_EDGES} style={styles.container}>
       <SectionList
         sections={sections}
         keyExtractor={(item) => item.id}

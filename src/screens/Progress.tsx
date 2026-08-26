@@ -3,12 +3,14 @@ import { useEffect, useMemo, useState } from 'react';
 import {
   ActivityIndicator,
   Pressable,
-  SafeAreaView,
   ScrollView,
   StyleSheet,
   useWindowDimensions,
   View,
 } from 'react-native';
+// Default edges, matching Today: the tab navigator already consumes the
+// bottom inset for its bar, so no per-edge tuning is needed on tab screens.
+import { SafeAreaView } from 'react-native-safe-area-context';
 
 import { ExercisePicker } from '@/components/ExercisePicker';
 import { useAuth } from '@/auth/useAuth';

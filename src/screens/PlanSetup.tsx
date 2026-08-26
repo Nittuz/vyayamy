@@ -4,12 +4,12 @@ import {
   ActivityIndicator,
   KeyboardAvoidingView,
   Platform,
-  SafeAreaView,
   ScrollView,
   StyleSheet,
   TextInput,
   View,
 } from 'react-native';
+import { SafeAreaView, type Edge } from 'react-native-safe-area-context';
 
 import { useAuth } from '@/auth/useAuth';
 import { buildDayChoiceOptions, dayChoicePatch, dayChoiceValue } from '@/core/dayChoice';
@@ -31,6 +31,10 @@ import { useToast } from '@/ui/ToastContext';
 import { useTheme, type Theme } from '@/ui/useTheme';
 
 const DAY_LABELS = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
+
+// Top inset is the nav header's job on this pushed screen (WorkoutActive
+// precedent) — the deprecated RN SafeAreaView this replaces added none here.
+const SCREEN_EDGES: Edge[] = ['left', 'right', 'bottom'];
 
 export default function PlanSetupScreen() {
   const { user } = useAuth();
@@ -211,7 +215,7 @@ export default function PlanSetupScreen() {
   const isSaving = save.isPending || apply.isPending;
 
   return (
-    <SafeAreaView style={styles.container}>
+    <SafeAreaView edges={SCREEN_EDGES} style={styles.container}>
       {/* Keyboard avoidance mirrors Login — the plan-name field must not hide
           behind the keyboard (impeccable batch 4). */}
       <KeyboardAvoidingView
