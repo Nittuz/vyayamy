@@ -55,9 +55,18 @@ export function formatRelativeDate(dateStr: string): string {
  */
 export function formatDuration(startedAt: string, endedAt: string | null): string | null {
   if (!endedAt) return null;
-  const start = new Date(startedAt).getTime();
-  const end = new Date(endedAt).getTime();
-  const mins = Math.round((end - start) / 60000);
+  return formatDurationMs(new Date(endedAt).getTime() - new Date(startedAt).getTime());
+}
+
+/**
+ * Millisecond variant for callers that hold an elapsed span rather than two
+ * timestamps (SessionRecap's duration stat). One implementation on purpose:
+ * the recap once carried its own copy without the `<1m` floor or the
+ * day-aware branch, so a resumed-then-forgotten workout recapped as
+ * "36h 48m" while its History row said "1d 12h".
+ */
+export function formatDurationMs(ms: number): string {
+  const mins = Math.round(ms / 60000);
   if (mins < 1) return '<1m';
   if (mins < 60) return `${mins}m`;
   const h = Math.floor(mins / 60);

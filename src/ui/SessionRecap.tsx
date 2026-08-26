@@ -18,6 +18,8 @@ import Animated, {
   withTiming,
 } from 'react-native-reanimated';
 
+import { formatDurationMs } from '@/core/format';
+
 import { settledCounterText } from './animatedCounterSync';
 import { FadeInView } from './FadeInView';
 import { motion } from './motion';
@@ -26,14 +28,6 @@ import { Text } from './Text';
 import { useTheme, type Theme } from './useTheme';
 
 const AnimatedText = Animated.createAnimatedComponent(RNText);
-
-function formatDuration(ms: number): string {
-  const totalMin = Math.max(0, Math.round(ms / 60000));
-  if (totalMin < 60) return `${totalMin}m`;
-  const h = Math.floor(totalMin / 60);
-  const m = totalMin % 60;
-  return `${h}h ${m}m`;
-}
 
 export function SessionRecap({
   volume,
@@ -113,7 +107,7 @@ export function SessionRecap({
         </FadeInView>
         <FadeInView delay={140} style={styles.stat}>
           <Text variant="numeralLg" color={theme.color.inkHero}>
-            {formatDuration(durationMs)}
+            {formatDurationMs(durationMs)}
           </Text>
           <Text variant="strip" color={theme.color.inkTertiary}>
             Duration

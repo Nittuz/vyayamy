@@ -3,6 +3,7 @@ import {
   chartYAxisUnitSuffix,
   formatRelativeDate,
   formatDuration,
+  formatDurationMs,
   formatPrRowStrip,
   formatRowDate,
   formatShortDate,
@@ -120,6 +121,27 @@ describe('formatDuration', () => {
 
   test('formats the exact 24h boundary as "1d 0h"', () => {
     expect(formatDuration('2026-01-01T00:00:00.000Z', '2026-01-02T00:00:00.000Z')).toBe('1d 0h');
+  });
+});
+
+// The ms variant backs SessionRecap, which once carried a private copy with
+// neither the `<1m` floor nor the day-aware branch — a resumed-then-forgotten
+// workout recapped as "36h 48m" while its History row said "1d 12h".
+describe('formatDurationMs', () => {
+  test('floors sub-minute spans to "<1m"', () => {
+    expect(formatDurationMs(20_000)).toBe('<1m');
+  });
+
+  test('formats sub-hour spans in minutes', () => {
+    expect(formatDurationMs(45 * 60_000)).toBe('45m');
+  });
+
+  test('formats hour-scale spans as "Xh Ym"', () => {
+    expect(formatDurationMs(125 * 60_000)).toBe('2h 5m');
+  });
+
+  test('matches the ISO variant day-aware branch (the recap drift case)', () => {
+    expect(formatDurationMs((36 * 60 + 48) * 60_000)).toBe('1d 12h');
   });
 });
 
