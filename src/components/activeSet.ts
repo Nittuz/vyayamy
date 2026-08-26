@@ -176,9 +176,14 @@ export function planStagedSet(currentSet: SetShape | null, units: 'kg' | 'lb'): 
   return { weight, reps, units: weight != null ? units : null };
 }
 
-/** Reps make a set loggable; weight is optional — bodyweight (spec §4). */
+/**
+ * Reps make a set loggable; weight is optional — bodyweight (spec §4).
+ * Zero is NOT loggable: the reps stepper's minus clamps an empty value to 0
+ * (applyStep's floor), which would otherwise arm LOG SET with "× 0" — and a
+ * set with no reps performed is not a set (2026-08-25 regression run).
+ */
 export function canCompleteSet(set: Pick<SetShape, 'reps'> | null): boolean {
-  return set?.reps != null;
+  return set?.reps != null && set.reps > 0;
 }
 
 /** `60 × 8` / `BW × 12` — the LOG SET echo and every logged-set value text. */

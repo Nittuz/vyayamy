@@ -286,6 +286,11 @@ describe('canCompleteSet — reps required, weight optional (spec §4)', () => {
   test('null set → not loggable', () => {
     expect(canCompleteSet(null)).toBe(false);
   });
+  // The reps stepper's minus clamps an empty value to 0 (applyStep floor) —
+  // that must not arm LOG SET with "× 0" (2026-08-25 regression run).
+  test('zero reps → not loggable', () => {
+    expect(canCompleteSet({ reps: 0 })).toBe(false);
+  });
 });
 
 describe('setValuesLabel — BW display (spec §4)', () => {
