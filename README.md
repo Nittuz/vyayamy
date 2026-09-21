@@ -227,7 +227,7 @@ What still needs a device or simulator: the voice native engine ([src/voice/spee
 
 Shipping to a tester's iPhone without the paid Apple program (sideload path) and the TestFlight runbook both live in [docs/TESTING.md](docs/TESTING.md).
 
-Build profiles carry no inline `env` blocks: runtime configuration lives in EAS environment variables created with `npx eas env:create` (the exact commands are in [docs/operations.md](docs/operations.md)). The submit profile is iOS-only and reads `APPLE_ID`, `ASC_APP_ID`, and `APPLE_TEAM_ID` from the environment; there is no Android submit profile.
+Build profiles carry no inline `env` blocks: runtime configuration lives in EAS environment variables created with `npx eas env:create` (the exact commands are in [docs/operations.md](docs/operations.md)). The submit profile is iOS-only and carries just the Apple team id (the Apple ID is prompted for at submit time); there is no Android submit profile.
 
 ```bash
 npx eas build --profile preview --platform ios

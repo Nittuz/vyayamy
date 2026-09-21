@@ -64,22 +64,19 @@ Copy `.env.example` to `.env` and fill as needed. All variables prefixed with `E
 | `SENTRY_PROJECT`                | Prod      | "                                                |
 | `SENTRY_AUTH_TOKEN`             | Prod      | "                                                |
 | `EAS_PROJECT_ID`                | EAS       | Links the app to the EAS project                 |
-| `APPLE_ID`                      | Submit    | Apple ID for EAS Submit → TestFlight             |
-| `ASC_APP_ID`                    | Submit    | App Store Connect app id                         |
-| `APPLE_TEAM_ID`                 | Submit    | Apple developer team id                          |
+| `APPLE_TEAM_ID`                 | Sideload  | Signing team for `scripts/build-ipa.sh`          |
 
 EAS builds read these from the **EAS environment-variable store**, not from
-`eas.json`. Create them once per project:
+`eas.json` or `.env` (which is gitignored and never uploaded). Push them from
+your `.env` once per project, and again whenever a value changes:
 
 ```bash
-npx eas env:create --name EXPO_PUBLIC_SUPABASE_URL --scope project --visibility plaintext
-npx eas env:create --name EXPO_PUBLIC_SUPABASE_ANON_KEY --scope project --visibility plaintext
-npx eas env:create --name EXPO_PUBLIC_SENTRY_DSN --scope project --visibility plaintext
-# Sentry source-map upload (production):
-npx eas env:create --name SENTRY_ORG --scope project
-npx eas env:create --name SENTRY_PROJECT --scope project
-npx eas env:create --name SENTRY_AUTH_TOKEN --scope project --visibility secret
+bash scripts/eas-env-sync.sh   # production environment; pass a name for another
 ```
+
+The script creates `EXPO_PUBLIC_SUPABASE_URL`, `EXPO_PUBLIC_SUPABASE_ANON_KEY`,
+`EXPO_PUBLIC_SENTRY_DSN`, `SENTRY_ORG`, `SENTRY_PROJECT` and `SENTRY_AUTH_TOKEN`
+(the token as a write-only secret) via `eas env:create --force`.
 
 > `eas.json` deliberately contains **no** `env` blocks. The previous `"$VAR"`
 > placeholders were NOT interpolated by EAS: they baked the literal string
@@ -161,10 +158,12 @@ above); `eas.json` has no `env` blocks.
 
 ```bash
 # iOS → TestFlight
-npx eas submit --profile production --platform ios
+npx eas submit --profile production --platform ios --latest
 ```
 
-iOS pulls `APPLE_ID`, `ASC_APP_ID`, `APPLE_TEAM_ID` from the EAS env store.
+The submit profile carries the Apple team id and the App Store Connect app
+id; uploads use the App Store Connect API key EAS generated on the first
+submit (stored on EAS servers), so no Apple password is needed.
 
 ## Data durability (Supabase backups)
 

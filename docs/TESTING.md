@@ -73,15 +73,32 @@ feels wrong (screenshot + one sentence) to the owner directly.
 ## Path 2 — TestFlight (after Apple Developer enrollment)
 
 1. Enroll at developer.apple.com ($99/yr; approval can take ~24–48 h).
-2. `npx eas init` — links the repo to an EAS project; paste the printed
-   project ID into `.env` as `EAS_PROJECT_ID` (the dynamic config reads it
-   from there).
-3. Fill `APPLE_ID`, `ASC_APP_ID`, `APPLE_TEAM_ID` in `.env`; create the app
-   record for `com.mokshlabs.flexyug` in App Store Connect.
-4. Per release: `npx eas build --profile production -p ios` then
-   `npx eas submit -p ios`.
-5. In App Store Connect → TestFlight, add the tester to an external group
+2. `npx eas-cli@latest login` (browser flow), then `npx eas-cli@latest init`
+   — links the repo to an EAS project; paste the printed project ID into
+   `.env` as `EAS_PROJECT_ID` (the dynamic config reads it from there; the
+   CLI cannot write to `app.config.ts` itself).
+3. `bash scripts/eas-env-sync.sh` — pushes the Supabase/Sentry values from
+   `.env` into the EAS `production` environment. Required: `.env` is
+   gitignored, so a cloud build never sees it and would otherwise ship with
+   no backend configured. Re-run whenever one of those values changes.
+4. Per release: `npx eas-cli@latest build --profile production -p ios`.
+   The first run signs in to your Apple ID, registers the bundle id, and
+   generates the distribution certificate + provisioning profile (let EAS
+   manage them). Build profiles pin Node 24: `app.config.ts` imports a `.ts`
+   module, which only loads on a Node with native type stripping (22.18+).
+   If the Apple login fails with "iTunes service key is empty" (Apple's
+   config endpoint 404s; expo/eas-cli#4392), prefix the command with
+   `EXPO_APP_STORE_AUTH_SERVICE_KEY=<key from the App Store Connect login
+page source>`. `appVersionSource: remote` + `autoIncrement` bump the build
+   number on EAS; `version` in `app.config.ts` stays the marketing version.
+5. `npx eas-cli@latest submit -p ios --latest`. The submit profile carries
+   the team id and the App Store Connect app id (6811438092, created by the
+   first submit on 2026-09-12); uploads authenticate with the App Store
+   Connect API key EAS generated and stores, so no Apple password prompt.
+6. In App Store Connect → TestFlight, add the tester to an external group
    (they install the TestFlight app; no expiry, no computer, no re-signing).
+   External groups need Apple's beta review once (~a day); an internal
+   tester (your own account) can install as soon as processing finishes.
 
 `eas.json` notes: the `preview` profile is **simulator-only** (local QA);
 iOS **device** builds via EAS require the paid program — that's why Path 1

@@ -45,6 +45,12 @@ const config: ExpoConfig = {
       // Review rejection risk (#122).
       // Mic + speech usage strings come from the expo-speech-recognition config
       // plugin below (microphonePermission / speechRecognitionPermission).
+      // FlexYug never reads the photo library, but expo-file-system links the
+      // Photos framework (ph:// asset URIs) and App Store Connect rejects any
+      // binary that references it without a purpose string (ITMS-90683, seen
+      // on build 6, 2026-09-12).
+      NSPhotoLibraryUsageDescription:
+        'FlexYug does not use your photos. This notice is required because a system library the app includes can reference them.',
     },
   },
   // iOS-only stance for now (no `android` npm script, no Android build
