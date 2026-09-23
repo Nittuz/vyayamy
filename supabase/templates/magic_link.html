@@ -74,7 +74,8 @@
                   Sign in to FlexYug
                 </h1>
                 <p style="margin: 0 0 28px; font-size: 15px; color: #78716c; line-height: 1.5">
-                  Tap the button below to securely sign in. This link expires in 10 minutes.
+                  Tap the button below on your phone to sign in, or use the code underneath. Both
+                  expire in 15 minutes.
                 </p>
               </td>
             </tr>
@@ -100,6 +101,28 @@
                   "
                   >Sign in</a
                 >
+              </td>
+            </tr>
+            <!-- Code fallback: the button's redirect into the app is dropped by
+                 some mail clients (Gmail's in-app browser, Chrome-hosted Gmail)
+                 and cannot work from another device. The code works everywhere. -->
+            <tr>
+              <td align="center" style="padding: 24px 32px 0">
+                <p style="margin: 0 0 8px; font-size: 13px; color: #78716c; line-height: 1.5">
+                  Or enter this code in the app:
+                </p>
+                <p
+                  style="
+                    margin: 0;
+                    font-family: 'SF Mono', SFMono-Regular, Menlo, Consolas, monospace;
+                    font-size: 28px;
+                    font-weight: 600;
+                    letter-spacing: 0.25em;
+                    color: #1c1917;
+                  "
+                >
+                  {{ .Token }}
+                </p>
               </td>
             </tr>
             <!-- Footer -->

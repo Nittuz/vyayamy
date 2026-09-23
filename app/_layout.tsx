@@ -21,6 +21,7 @@ import { SafeAreaProvider } from 'react-native-safe-area-context';
 import { AuthProvider } from '@/auth/AuthContext';
 import { useAuth } from '@/auth/useAuth';
 import { useMagicLinkHandler } from '@/auth/useMagicLinkHandler';
+import { canMountNavigator } from '@/lib/bootGate';
 import { initErrorReporting } from '@/lib/errorReporting';
 import { useAppBoot } from '@/lib/useAppBoot';
 import { useRestNotificationRouting } from '@/rest/useRestNotificationRouting';
@@ -58,7 +59,7 @@ const planIndexOpts = { title: '' };
 const planSetupOpts = { title: '' };
 
 export default function RootLayout() {
-  const [fontsLoaded] = useGeist({
+  const [fontsLoaded, fontError] = useGeist({
     Geist_400Regular,
     Geist_500Medium,
     Geist_600SemiBold,
@@ -66,14 +67,18 @@ export default function RootLayout() {
     GeistMono_500Medium,
     Anton_400Regular,
   });
+  const fontsReady = canMountNavigator(fontsLoaded, fontError);
 
   const { ready, bootError } = useAppBoot(queryClient);
-  useMagicLinkHandler();
-  useRestNotificationRouting();
 
-  // Always render the Stack so expo-router has a navigator from the start.
-  // Loading/error states are shown as overlays rather than replacing the navigator,
-  // which prevents the "no navigator in root layout" +not-found redirect.
+  // The navigator mounts only once the custom fonts are registered
+  // (canMountNavigator): a Text laid out before that keeps the system font
+  // for the life of the process, which is how TestFlight build 7 shipped a
+  // Login wordmark in SF on real iPhones while every simulator run looked
+  // right. Until then the tree is the providers plus the boot overlay — no
+  // non-navigator content is rendered in the Stack's place (that shape is
+  // what used to trigger the "no navigator in root layout" +not-found
+  // redirect). Loading/error states stay overlays on top of the navigator.
   return (
     <ErrorBoundary>
       <GestureHandlerRootView style={rootStyles.gestureRoot}>
@@ -81,8 +86,8 @@ export default function RootLayout() {
           <QueryClientProvider client={queryClient}>
             <AuthProvider>
               <ToastProvider>
-                <AppNavigator />
-                <BootOverlay ready={ready} fontsLoaded={fontsLoaded} bootError={bootError} />
+                {fontsReady ? <AppNavigator /> : null}
+                <BootOverlay ready={ready} fontsLoaded={fontsReady} bootError={bootError} />
               </ToastProvider>
             </AuthProvider>
           </QueryClientProvider>
@@ -102,6 +107,12 @@ function AppNavigator() {
   const theme = useTheme();
   const { session, loading } = useAuth();
   const segments = useSegments();
+  // Both hooks navigate through the router singleton; living here, inside the
+  // font gate and next to the Stack, guarantees the navigator is mounted
+  // before either can fire (the notification hook navigates on mount when
+  // the app was cold-launched from a rest-timer notification).
+  useMagicLinkHandler();
+  useRestNotificationRouting();
 
   // Single root-level auth gate. The (tabs) layout gated only the tabs, leaving
   // every sibling stack route (workout/active, history/[id], profile/plan/*)

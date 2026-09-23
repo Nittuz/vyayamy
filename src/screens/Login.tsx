@@ -7,7 +7,8 @@ import { KeyboardAvoidingView, Platform, StyleSheet, TextInput, View } from 'rea
 // so it owns every inset itself — same as the BootOverlay.
 import { SafeAreaView } from 'react-native-safe-area-context';
 
-import { signInWithOtp, signInWithPassword } from '@/auth/authActions';
+import { signInWithOtp, signInWithPassword, verifyEmailOtp } from '@/auth/authActions';
+import { isCompleteSignInCode, normalizeSignInCode, SIGN_IN_CODE_LENGTH } from '@/auth/signInCode';
 import { useAuth } from '@/auth/useAuth';
 import { brand } from '@/ui/brand';
 import { Button } from '@/ui/Button';
@@ -25,6 +26,8 @@ const MAGIC_LINK_ERROR = "Couldn't send your magic link. Check the email address
 const PASSWORD_ERROR = "Couldn't sign in. Check your email and password and try again.";
 const LINK_FAILED_ERROR =
   "That sign-in link didn't work. It may have expired. Send yourself a fresh link, or sign in with your password.";
+// Wrong, expired, and already-used codes all read the same (#92 posture).
+const CODE_FAILED_ERROR = "That code didn't work. Check it, or send yourself a fresh link.";
 
 // The wordmark carries this screen's one outlined word: solid FLEX, stroked YUG.
 const WORDMARK_SOLID = brand.name.slice(0, 4);
@@ -51,6 +54,11 @@ function LoginScreenInner() {
   const [usePassword, setUsePassword] = useState(false);
   const [sending, setSending] = useState(false);
   const [signingIn, setSigningIn] = useState(false);
+  // The emailed six-digit code: the sign-in path that survives mail clients
+  // which drop the link's custom-scheme redirect (Gmail in-app browser,
+  // Chrome-hosted Gmail) and works when the email is opened elsewhere.
+  const [code, setCode] = useState('');
+  const [verifyingCode, setVerifyingCode] = useState(false);
   const [sent, setSent] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const theme = useTheme();
@@ -75,7 +83,19 @@ function LoginScreenInner() {
       setError(MAGIC_LINK_ERROR);
       return;
     }
+    setCode('');
     setSent(true);
+  }
+
+  async function handleCodeSignIn() {
+    setError(null);
+    clearAuthError();
+    setVerifyingCode(true);
+    const { error: err } = await verifyEmailOtp(email.trim(), code);
+    setVerifyingCode(false);
+    // Success needs no navigation here: onAuthStateChange stores the session
+    // and the <Redirect href="/" /> above takes over.
+    if (err) setError(CODE_FAILED_ERROR);
   }
 
   async function handlePasswordSignIn() {
@@ -142,9 +162,22 @@ function LoginScreenInner() {
                 {email.trim()}
               </Text>
               <Text variant="meta" color={theme.color.inkSecondary} style={styles.centerText}>
-                Your sign-in link is on its way. Open it on this device and it will bring you
-                straight back here.
+                Your sign-in link is on its way. Open it on this phone, or enter the code from the
+                email here.
               </Text>
+              <TextInput
+                value={code}
+                onChangeText={(v) => setCode(normalizeSignInCode(v))}
+                placeholder="6-digit code"
+                placeholderTextColor={theme.color.inkTertiary}
+                keyboardType="number-pad"
+                textContentType="oneTimeCode"
+                autoComplete="one-time-code"
+                maxLength={SIGN_IN_CODE_LENGTH}
+                editable={!verifyingCode}
+                accessibilityLabel="Sign-in code"
+                style={[styles.input, styles.codeInput]}
+              />
               {error ? (
                 <Text
                   variant="meta"
@@ -155,6 +188,14 @@ function LoginScreenInner() {
                   {error}
                 </Text>
               ) : null}
+              <Button
+                label="Sign in with code"
+                size="cta"
+                loading={verifyingCode}
+                disabled={!isCompleteSignInCode(code)}
+                onPress={handleCodeSignIn}
+                style={styles.fullBtn}
+              />
               <View style={styles.rule} />
               <View style={styles.actions}>
                 <Button
@@ -289,6 +330,16 @@ const makeStyles = (theme: Theme) =>
       backgroundColor: theme.color.bg,
     },
     fullBtn: { alignSelf: 'stretch', marginTop: theme.space.s2 },
+    // The code is data, not prose: mono numerals, centered, tracked so six
+    // digits read as one token.
+    codeInput: {
+      alignSelf: 'stretch',
+      marginTop: theme.space.s2,
+      textAlign: 'center',
+      fontFamily: theme.font.family.mono,
+      fontSize: theme.font.size.title,
+      letterSpacing: theme.font.tracking.micro,
+    },
     sent: { alignItems: 'center', gap: theme.space.s2 },
     rule: {
       alignSelf: 'stretch',

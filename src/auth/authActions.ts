@@ -21,3 +21,12 @@ export function signOut() {
 export function exchangeCodeForSession(code: string) {
   return supabase.auth.exchangeCodeForSession(code);
 }
+
+/**
+ * The sign-in-code half of the magic-link email: the same email carries a
+ * link (works only in Safari/Apple Mail on the requesting phone) and a
+ * six-digit code that works from any mail client on any device.
+ */
+export function verifyEmailOtp(email: string, token: string) {
+  return supabase.auth.verifyOtp({ email, token, type: 'email' });
+}

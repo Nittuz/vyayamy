@@ -95,7 +95,11 @@ page source>`. `appVersionSource: remote` + `autoIncrement` bump the build
    the team id and the App Store Connect app id (6811438092, created by the
    first submit on 2026-09-12); uploads authenticate with the App Store
    Connect API key EAS generated and stores, so no Apple password prompt.
-6. In App Store Connect → TestFlight, add the tester to an external group
+6. The magic-link email must carry the sign-in code: paste
+   `supabase/templates/magic_link.html` into Supabase dashboard → Authentication →
+   Email Templates → Magic Link whenever the template changes (the hosted project
+   is never updated by `supabase config push`, see config.toml).
+7. In App Store Connect → TestFlight, add the tester to an external group
    (they install the TestFlight app; no expiry, no computer, no re-signing).
    External groups need Apple's beta review once (~a day); an internal
    tester (your own account) can install as soon as processing finishes.
@@ -108,7 +112,18 @@ doesn't use EAS at all.
 
 ## Release smoke-test checklist (run before every send)
 
+Run it on a **physical iPhone** (TestFlight internal build), not only the
+simulator. Build 7 shipped a Login wordmark in the system font that no
+simulator run ever showed: fonts register at runtime and a screen laid out
+before that keeps the fallback font, and the simulator always wins that race.
+
 - Password login with the tester account.
+- Magic link: request it, open the email in Gmail (in-app browser) — the button
+  may do nothing there, by design of that client; enter the six-digit code from
+  the same email instead → signed in. Wrong code → one neutral error line.
+- Magic link from Apple Mail → Safari → "Open in FlexYug" → signed in.
+- Cold start: Login (signed out) and Today (signed in) show the Anton wordmark /
+  display headline, not a wide system-font fallback.
 - Log a workout: add exercise, weight/reps steppers, complete sets.
 - Voice entry: hold mic, speak a set, confirm; "done" completes the set.
 - Rest timer runs between sets; skip works.
