@@ -2,19 +2,34 @@ import * as Linking from 'expo-linking';
 import { Redirect } from 'expo-router';
 import { StatusBar } from 'expo-status-bar';
 import { useMemo, useState } from 'react';
-import { KeyboardAvoidingView, Platform, StyleSheet, TextInput, View } from 'react-native';
+import {
+  InputAccessoryView,
+  Keyboard,
+  KeyboardAvoidingView,
+  Platform,
+  Pressable,
+  StyleSheet,
+  TextInput,
+  View,
+} from 'react-native';
 // Default edges (all): this screen is full-bleed with no header or tab bar,
 // so it owns every inset itself — same as the BootOverlay.
 import { SafeAreaView } from 'react-native-safe-area-context';
 
 import { signInWithOtp, signInWithPassword, verifyEmailOtp } from '@/auth/authActions';
-import { isCompleteSignInCode, normalizeSignInCode, SIGN_IN_CODE_LENGTH } from '@/auth/signInCode';
+import {
+  isCompleteSignInCode,
+  normalizeSignInCode,
+  shouldSubmitSignInCode,
+  SIGN_IN_CODE_LENGTH,
+} from '@/auth/signInCode';
 import { useAuth } from '@/auth/useAuth';
 import { brand } from '@/ui/brand';
 import { Button } from '@/ui/Button';
 import { FBarMark } from '@/ui/Logo';
 import { OutlineDisplay } from '@/ui/OutlineDisplay';
 import { Plate } from '@/ui/Plate';
+import { PRESS_DIP_OPACITY } from '@/ui/plateStyles';
 import { SettleSlam } from '@/ui/SettleSlam';
 import { Text } from '@/ui/Text';
 import { ThemeScope, useTheme, type Theme } from '@/ui/useTheme';
@@ -28,6 +43,9 @@ const LINK_FAILED_ERROR =
   "That sign-in link didn't work. It may have expired. Send yourself a fresh link, or sign in with your password.";
 // Wrong, expired, and already-used codes all read the same (#92 posture).
 const CODE_FAILED_ERROR = "That code didn't work. Check it, or send yourself a fresh link.";
+// The iOS number pad has no Done key, so the code field carries its own
+// accessory bar (same treatment as the set-entry keypad).
+const CODE_ACCESSORY_ID = 'sign-in-code-accessory';
 
 // The wordmark carries this screen's one outlined word: solid FLEX, stroked YUG.
 const WORDMARK_SOLID = brand.name.slice(0, 4);
@@ -87,11 +105,11 @@ function LoginScreenInner() {
     setSent(true);
   }
 
-  async function handleCodeSignIn() {
+  async function handleCodeSignIn(submitted: string = code) {
     setError(null);
     clearAuthError();
     setVerifyingCode(true);
-    const { error: err } = await verifyEmailOtp(email.trim(), code);
+    const { error: err } = await verifyEmailOtp(email.trim(), submitted);
     setVerifyingCode(false);
     // Success needs no navigation here: onAuthStateChange stores the session
     // and the <Redirect href="/" /> above takes over.
@@ -167,7 +185,19 @@ function LoginScreenInner() {
               </Text>
               <TextInput
                 value={code}
-                onChangeText={(v) => setCode(normalizeSignInCode(v))}
+                onChangeText={(v) => {
+                  const next = normalizeSignInCode(v);
+                  setCode(next);
+                  // The completing keystroke (or a one-time-code autofill) IS
+                  // the submit: the number pad covers the button and has no
+                  // Done key of its own.
+                  if (shouldSubmitSignInCode(code, next)) {
+                    Keyboard.dismiss();
+                    void handleCodeSignIn(next);
+                  }
+                }}
+                onSubmitEditing={() => void handleCodeSignIn()}
+                inputAccessoryViewID={Platform.OS === 'ios' ? CODE_ACCESSORY_ID : undefined}
                 placeholder="6-digit code"
                 placeholderTextColor={theme.color.inkTertiary}
                 keyboardType="number-pad"
@@ -178,6 +208,26 @@ function LoginScreenInner() {
                 accessibilityLabel="Sign-in code"
                 style={[styles.input, styles.codeInput]}
               />
+              {Platform.OS === 'ios' ? (
+                <InputAccessoryView nativeID={CODE_ACCESSORY_ID}>
+                  <View style={styles.accessoryBar}>
+                    <Pressable
+                      onPress={() => Keyboard.dismiss()}
+                      hitSlop={8}
+                      accessibilityRole="button"
+                      accessibilityLabel="Done"
+                      style={({ pressed }) => [
+                        styles.accessoryKey,
+                        pressed && { opacity: PRESS_DIP_OPACITY },
+                      ]}
+                    >
+                      <Text variant="label" color={theme.color.ink}>
+                        DONE
+                      </Text>
+                    </Pressable>
+                  </View>
+                </InputAccessoryView>
+              ) : null}
               {error ? (
                 <Text
                   variant="meta"
@@ -193,7 +243,7 @@ function LoginScreenInner() {
                 size="cta"
                 loading={verifyingCode}
                 disabled={!isCompleteSignInCode(code)}
-                onPress={handleCodeSignIn}
+                onPress={() => void handleCodeSignIn()}
                 style={styles.fullBtn}
               />
               <View style={styles.rule} />
@@ -348,4 +398,18 @@ const makeStyles = (theme: Theme) =>
       marginTop: theme.space.s3,
     },
     actions: { alignSelf: 'stretch', gap: theme.space.s2, marginTop: theme.space.s2 },
+    accessoryBar: {
+      flexDirection: 'row',
+      justifyContent: 'flex-end',
+      borderTopWidth: theme.depth.hairline,
+      borderTopColor: theme.color.border,
+      backgroundColor: theme.color.surface,
+      paddingHorizontal: theme.space.s4,
+      paddingVertical: theme.space.s2,
+    },
+    accessoryKey: {
+      minHeight: theme.touch.min,
+      justifyContent: 'center',
+      paddingHorizontal: theme.space.s3,
+    },
   });

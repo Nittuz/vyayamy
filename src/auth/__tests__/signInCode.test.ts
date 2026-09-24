@@ -3,7 +3,12 @@
  * that may add spaces or a trailing newline, and iOS may autofill it with
  * separators — normalization keeps only the digits and caps the length.
  */
-import { SIGN_IN_CODE_LENGTH, isCompleteSignInCode, normalizeSignInCode } from '@/auth/signInCode';
+import {
+  SIGN_IN_CODE_LENGTH,
+  isCompleteSignInCode,
+  normalizeSignInCode,
+  shouldSubmitSignInCode,
+} from '@/auth/signInCode';
 
 describe('normalizeSignInCode', () => {
   test('keeps digits only', () => {
@@ -25,5 +30,23 @@ describe('isCompleteSignInCode', () => {
     expect(isCompleteSignInCode('123456')).toBe(true);
     expect(isCompleteSignInCode('12345')).toBe(false);
     expect(isCompleteSignInCode('')).toBe(false);
+  });
+});
+
+describe('shouldSubmitSignInCode', () => {
+  test('fires once, on the keystroke that completes the code', () => {
+    expect(shouldSubmitSignInCode('12345', '123456')).toBe(true);
+  });
+
+  test('does not fire while the code is still short', () => {
+    expect(shouldSubmitSignInCode('1234', '12345')).toBe(false);
+  });
+
+  test('does not fire again when the code was already complete', () => {
+    expect(shouldSubmitSignInCode('123456', '123456')).toBe(false);
+  });
+
+  test('fires when autofill lands all six digits at once', () => {
+    expect(shouldSubmitSignInCode('', '726352')).toBe(true);
   });
 });
