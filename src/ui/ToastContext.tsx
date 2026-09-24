@@ -260,6 +260,7 @@ const makeStyles = (theme: Theme, bottomInset: number) => {
       // Inverted pill: ink-on-bg stays high-contrast in both schemes (was pinned
       // to the dark palette, so it clashed in light mode, #23).
       backgroundColor: theme.color.ink,
+      borderRadius: theme.radius.card,
     },
     // Applied only when hasAction (see the View's style array above). The
     // real bug behind the "invisible" message report (live-QA correction):

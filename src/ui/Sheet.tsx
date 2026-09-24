@@ -186,8 +186,12 @@ const makeStyles = (theme: Theme) =>
     bottomHost: { flex: 1, justifyContent: 'flex-end' },
     bottomPanel: {
       backgroundColor: theme.color.surface,
-      borderTopWidth: theme.depth.ruleHeavy,
-      borderTopColor: theme.color.borderStrong,
+      // Softened Blacktop: the heavy top rule becomes the same hairline as
+      // cards, and the panel's top corners take the sheet radius.
+      borderTopWidth: theme.depth.hairline,
+      borderTopColor: theme.color.border,
+      borderTopLeftRadius: theme.radius.sheet,
+      borderTopRightRadius: theme.radius.sheet,
       paddingHorizontal: theme.space.page,
       paddingBottom: theme.space.s8,
     },
@@ -195,6 +199,7 @@ const makeStyles = (theme: Theme) =>
       alignSelf: 'center',
       width: 44,
       height: 4,
+      borderRadius: theme.radius.full,
       backgroundColor: theme.color.borderStrong,
       marginTop: theme.space.s3,
       marginBottom: theme.space.s2,
