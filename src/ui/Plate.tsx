@@ -1,15 +1,18 @@
 /**
- * Plate — the Blacktop card primitive.
+ * Plate — the Softened Blacktop card primitive.
  *
- * A flat face whose tone decides fill, ink, and border (panel / inverted /
- * ghost / volt — see plateStyles.ts). The slab shadow and press-sink translate
- * retired with the overhaul: press feedback is now a 60ms opacity dip plus a
- * 0.985 scale (reduced motion: instant opacity dip only). Style maths live in
- * plateStyles.ts (pure, tested).
+ * A flat, lightly rounded face whose tone decides fill, ink, and border and
+ * whose `shape` decides the radius (card / control / none — see
+ * plateStyles.ts). Press feedback is one of two responses: `scale` (cards,
+ * filled buttons: 0.975 scale + darken over motion.duration.press) or
+ * `highlight` (rows, outlined/ghost buttons: a tint layer over the face, no
+ * movement). Reduced motion: scale drops its transform and both responses
+ * apply instantly. Style maths live in plateStyles.ts (pure, tested).
  */
 import { useCallback, useEffect, useRef } from 'react';
 import {
   Pressable,
+  StyleSheet,
   View,
   type AccessibilityRole,
   type AccessibilityState,
@@ -19,11 +22,14 @@ import {
 import Animated, { useAnimatedStyle, useSharedValue, withTiming } from 'react-native-reanimated';
 
 import {
-  PRESS_DIP_OPACITY,
-  PRESS_DIP_SCALE,
+  PRESS_HIGHLIGHT_OPACITY,
+  PRESS_SCALE,
+  PRESS_SCALE_OPACITY,
   resolvePlateStyles,
   type PlateBorder,
   type PlateOffset,
+  type PlatePress,
+  type PlateShape,
   type PlateTone,
 } from './plateStyles';
 import { useReduceMotion } from './useReduceMotion';
@@ -37,6 +43,10 @@ export interface PlateProps {
   tone?: PlateTone;
   /** Omit to take the tone's default border. */
   border?: PlateBorder;
+  /** Corner treatment; omit for `card`. `none` for rows inside a rule-separated list. */
+  shape?: PlateShape;
+  /** Press response; omit for `scale`. Rows and outlined controls pass `highlight`. */
+  press?: PlatePress;
   onPress?: () => void;
   onLongPress?: () => void;
   disabled?: boolean;
@@ -61,8 +71,10 @@ export interface PlateProps {
 export function Plate({
   tone = 'panel',
   border,
+  shape = 'card',
   onPress,
   onLongPress,
+  press = 'scale',
   disabled = false,
   dimWhenDisabled = true,
   accessibilityRole,
@@ -74,7 +86,7 @@ export function Plate({
   children,
 }: PlateProps) {
   const theme = useTheme();
-  const s = resolvePlateStyles(theme, { tone, border });
+  const s = resolvePlateStyles(theme, { tone, border, shape });
   const dim = disabled && dimWhenDisabled ? { opacity: 0.5 } : null;
 
   // A ref, not state, so the press handlers keep stable identities — synced
@@ -88,31 +100,42 @@ export function Plate({
 
   const faceOpacity = useSharedValue(1);
   const faceScale = useSharedValue(1);
+  const tintOpacity = useSharedValue(0);
   const pressMs = theme.motion.duration.press;
 
   const handlePressIn = useCallback(() => {
-    if (reduceMotionRef.current) {
-      // Opacity only, instant — no timing, no scale.
-      faceOpacity.value = PRESS_DIP_OPACITY;
+    if (press === 'highlight') {
+      tintOpacity.value = reduceMotionRef.current
+        ? PRESS_HIGHLIGHT_OPACITY
+        : withTiming(PRESS_HIGHLIGHT_OPACITY, { duration: pressMs });
       return;
     }
-    faceOpacity.value = withTiming(PRESS_DIP_OPACITY, { duration: pressMs });
-    faceScale.value = withTiming(PRESS_DIP_SCALE, { duration: pressMs });
-  }, [faceOpacity, faceScale, pressMs]);
+    if (reduceMotionRef.current) {
+      faceOpacity.value = PRESS_SCALE_OPACITY;
+      return;
+    }
+    faceOpacity.value = withTiming(PRESS_SCALE_OPACITY, { duration: pressMs });
+    faceScale.value = withTiming(PRESS_SCALE, { duration: pressMs });
+  }, [press, faceOpacity, faceScale, tintOpacity, pressMs]);
 
   const handlePressOut = useCallback(() => {
+    if (press === 'highlight') {
+      tintOpacity.value = reduceMotionRef.current ? 0 : withTiming(0, { duration: pressMs });
+      return;
+    }
     if (reduceMotionRef.current) {
       faceOpacity.value = 1;
       return;
     }
     faceOpacity.value = withTiming(1, { duration: pressMs });
     faceScale.value = withTiming(1, { duration: pressMs });
-  }, [faceOpacity, faceScale, pressMs]);
+  }, [press, faceOpacity, faceScale, tintOpacity, pressMs]);
 
   const pressedFace = useAnimatedStyle(() => ({
     opacity: faceOpacity.value,
     transform: [{ scale: faceScale.value }],
   }));
+  const tintStyle = useAnimatedStyle(() => ({ opacity: tintOpacity.value }));
 
   if (!onPress && !onLongPress) {
     return (
@@ -137,6 +160,19 @@ export function Plate({
         style={[s.face, pressedFace, faceStyle]}
       >
         {children}
+        {press === 'highlight' ? (
+          // The highlight: the face's own foreground ink at PRESS_HIGHLIGHT_OPACITY,
+          // clipped to the face's corners. Sits above the children so the tint
+          // covers text too, exactly like a native list-row highlight.
+          <Animated.View
+            pointerEvents="none"
+            style={[
+              StyleSheet.absoluteFill,
+              { backgroundColor: s.ink, borderRadius: s.face.borderRadius },
+              tintStyle,
+            ]}
+          />
+        ) : null}
       </AnimatedPressable>
     </View>
   );

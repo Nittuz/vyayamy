@@ -1,7 +1,8 @@
 /**
  * Pure style resolver for the Plate primitive (no react-native runtime import,
- * so it is unit-testable). Blacktop materiality: shadows are retired — a Plate
- * is a flat face whose tone decides fill, foreground ink, and default border.
+ * so it is unit-testable). Softened Blacktop: a Plate is a flat, lightly
+ * rounded face whose tone decides fill, foreground ink, and default border,
+ * and whose shape decides the radius.
  * Elevation is inversion (chalk face, blacktop ink), never depth.
  *
  * Tones (one semantic per treatment):
@@ -44,12 +45,24 @@ export type PlateTone =
 
 export type PlateBorder = 'strong' | 'soft' | 'none';
 
+/** Corner treatment (Softened Blacktop). `none` is for faces inside a rule-separated list. */
+export type PlateShape = 'card' | 'control' | 'none';
+
+/**
+ * Press response. `scale` (cards, filled buttons): a 0.975 scale plus a mild
+ * darken. `highlight` (list rows, outlined/ghost buttons): a fill tint, no
+ * movement — the iOS list-row feel. Reduced Motion drops the scale.
+ */
+export type PlatePress = 'scale' | 'highlight';
+
 export interface PlateStyleOptions {
   /** Ignored — the offset slab retired with the Blacktop overhaul. */
   offset?: PlateOffset;
   tone?: PlateTone;
   /** Omit to take the tone's default (panel: soft hairline; others: none). */
   border?: PlateBorder;
+  /** Omit for `card`. */
+  shape?: PlateShape;
 }
 
 export interface PlateStyles {
@@ -116,14 +129,14 @@ function borderStyle(
 }
 
 export function resolvePlateStyles(theme: Theme, options: PlateStyleOptions = {}): PlateStyles {
-  const { tone = 'panel' } = options;
+  const { tone = 'panel', shape = 'card' } = options;
   const appearance = toneAppearance(theme, canonicalTone(tone));
   const border = options.border ?? appearance.defaultBorder;
 
-  // Blacktop shape lock: faces are all-sharp — no borderRadius at all.
   const face: ViewStyle = {
     backgroundColor: appearance.fill,
     ...borderStyle(theme, border),
+    ...(shape === 'none' ? {} : { borderRadius: theme.radius[shape] }),
   };
 
   return { container: {}, slab: null, face, ink: appearance.ink };
@@ -146,16 +159,26 @@ export function resolveDisabledFaceStyles(theme: Theme): { face: ViewStyle; ink:
   };
 }
 
-/** Press feedback targets: a 60ms dip (see motion.duration.press). */
+/**
+ * Press feedback targets (Softened Blacktop, spec 2026-09-23).
+ * `scale`: cards and filled buttons shrink to 0.975 and darken to 0.92 over
+ * motion.duration.press. `highlight`: rows and outlined/ghost buttons tint
+ * their fill by 8% of the foreground ink, no movement. PRESS_DIP_OPACITY is
+ * the legacy dip still used by flat, non-Plate pressables (keypad keys).
+ */
+export const PRESS_SCALE = 0.975;
+export const PRESS_SCALE_OPACITY = 0.92;
+export const PRESS_HIGHLIGHT_OPACITY = 0.08;
 export const PRESS_DIP_OPACITY = 0.8;
-export const PRESS_DIP_SCALE = 0.985;
 
 /**
- * The pressed-state target style. Reduced motion drops the scale component —
- * the dip becomes opacity only (and Plate applies it instantly, no timing).
+ * The pressed-state target for the FACE. Highlight returns nothing here: its
+ * response is the tint layer Plate renders over the face. Reduced motion
+ * drops the scale component of `scale` (Plate applies it instantly).
  */
-export function resolvePressedStyle(reduceMotion: boolean): ViewStyle {
+export function resolvePressedStyle(reduceMotion: boolean, press: PlatePress = 'scale'): ViewStyle {
+  if (press === 'highlight') return {};
   return reduceMotion
-    ? { opacity: PRESS_DIP_OPACITY }
-    : { opacity: PRESS_DIP_OPACITY, transform: [{ scale: PRESS_DIP_SCALE }] };
+    ? { opacity: PRESS_SCALE_OPACITY }
+    : { opacity: PRESS_SCALE_OPACITY, transform: [{ scale: PRESS_SCALE }] };
 }

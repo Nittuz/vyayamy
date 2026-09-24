@@ -7,7 +7,9 @@
 import {
   canonicalTone,
   PRESS_DIP_OPACITY,
-  PRESS_DIP_SCALE,
+  PRESS_HIGHLIGHT_OPACITY,
+  PRESS_SCALE,
+  PRESS_SCALE_OPACITY,
   resolvePlateStyles,
   resolvePressedStyle,
 } from '@/ui/plateStyles';
@@ -30,8 +32,8 @@ test('panel (default): surface fill, hairline border rule, ink foreground', () =
     borderWidth: theme.depth.hairline,
     borderColor: theme.color.border,
   });
-  // Blacktop shape lock: faces carry no borderRadius at all.
-  expect(s.face).not.toHaveProperty('borderRadius');
+  // Softened Blacktop: the default shape is a card.
+  expect(s.face.borderRadius).toBe(theme.radius.card);
   expect(s.ink).toBe(theme.color.ink);
 });
 
@@ -83,17 +85,36 @@ test('an explicit border overrides the tone default', () => {
   expect(none.face.borderWidth).toBe(0);
 });
 
-test('corners are sharp: no tone ever produces a borderRadius', () => {
+test('shape picks the radius: card by default, control for keys, none for bare', () => {
   for (const tone of ['panel', 'inverted', 'ghost', 'volt', 'danger'] as const) {
-    expect(resolvePlateStyles(theme, { tone }).face).not.toHaveProperty('borderRadius');
+    expect(resolvePlateStyles(theme, { tone }).face.borderRadius).toBe(theme.radius.card);
+    expect(resolvePlateStyles(theme, { tone, shape: 'control' }).face.borderRadius).toBe(
+      theme.radius.control,
+    );
+    expect(resolvePlateStyles(theme, { tone, shape: 'none' }).face).not.toHaveProperty(
+      'borderRadius',
+    );
   }
 });
 
-test('press = opacity dip + 0.985 scale; reduced motion drops the scale', () => {
-  expect(resolvePressedStyle(false)).toEqual({
-    opacity: PRESS_DIP_OPACITY,
-    transform: [{ scale: PRESS_DIP_SCALE }],
+test('scale press: 0.975 scale with a mild darken; reduced motion keeps only the darken', () => {
+  expect(resolvePressedStyle(false, 'scale')).toEqual({
+    opacity: PRESS_SCALE_OPACITY,
+    transform: [{ scale: PRESS_SCALE }],
   });
-  expect(resolvePressedStyle(true)).toEqual({ opacity: PRESS_DIP_OPACITY });
-  expect(PRESS_DIP_SCALE).toBe(0.985);
+  expect(resolvePressedStyle(true, 'scale')).toEqual({ opacity: PRESS_SCALE_OPACITY });
+  expect(PRESS_SCALE).toBe(0.975);
+  expect(PRESS_SCALE_OPACITY).toBe(0.92);
+  // Default press is scale.
+  expect(resolvePressedStyle(false)).toEqual(resolvePressedStyle(false, 'scale'));
+});
+
+test('highlight press never moves or dims the face — the tint layer carries it', () => {
+  expect(resolvePressedStyle(false, 'highlight')).toEqual({});
+  expect(resolvePressedStyle(true, 'highlight')).toEqual({});
+  expect(PRESS_HIGHLIGHT_OPACITY).toBe(0.08);
+});
+
+test('flat pressables keep the legacy dip constant for their own opacity', () => {
+  expect(PRESS_DIP_OPACITY).toBe(0.8);
 });
