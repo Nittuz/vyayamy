@@ -40,11 +40,14 @@ export interface PaletteTokens {
   overlay: string;
 }
 
+// Surface lift (Softened Blacktop, spec 2026-09-23): `surface` sits one step
+// above `bg` and `border` is a soft hairline that defines rather than
+// outlines. Every ink on surface/surface2 is still checked by contrast.test.ts.
 export const darkPalette: PaletteTokens = {
   bg: '#121212',
-  surface: '#1A1A19',
+  surface: '#1C1C1B',
   surface2: '#232322',
-  border: '#333331',
+  border: '#2E2E2C',
   borderStrong: '#55554F',
   ink: '#F2F1ED',
   inkSecondary: '#A8A8A1',
@@ -65,7 +68,7 @@ export const lightPalette: PaletteTokens = {
   bg: '#EFEEE9',
   surface: '#F7F6F1',
   surface2: '#E4E3DC',
-  border: '#CFCEC6',
+  border: '#D6D5CE',
   borderStrong: '#141414',
   ink: '#141414',
   inkSecondary: '#4F4F4A',
