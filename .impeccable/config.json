@@ -1,0 +1,20 @@
+{
+  "detector": {
+    "ignoreRules": [],
+    "ignoreFiles": [],
+    "ignoreValues": [
+      {
+        "rule": "overused-font",
+        "value": "geist",
+        "createdAt": "2026-09-24T02:38:41.775Z",
+        "reason": "Project design system (docs/design-system.md) ships Geist Sans/Mono as the app's chrome and numeral faces; brainstorm mockups reproduce the shipped type on purpose"
+      },
+      {
+        "rule": "overused-font",
+        "value": "geist mono",
+        "createdAt": "2026-09-24T02:38:41.808Z",
+        "reason": "Project design system (docs/design-system.md) ships Geist Sans/Mono as the app's chrome and numeral faces; brainstorm mockups reproduce the shipped type on purpose"
+      }
+    ]
+  }
+}

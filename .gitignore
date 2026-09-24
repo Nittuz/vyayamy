@@ -54,3 +54,6 @@ supabase/.temp
 
 expo-env.d.ts
 # @end expo-cli
+
+# Design-hook plugin cache (its config.json is tracked)
+.impeccable/hook.cache.json
