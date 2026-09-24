@@ -31,6 +31,7 @@ import { SettleSlam } from '@/ui/SettleSlam';
 import { SyncIndicator } from '@/ui/SyncIndicator';
 import { Text } from '@/ui/Text';
 import { useToast } from '@/ui/ToastContext';
+import { useAppearancePref } from '@/ui/useAppearance';
 import { useTheme, type Theme } from '@/ui/useTheme';
 
 const REST_ALERT_COPY: Record<RestAlertStatus, { value: string; hint: string; a11yHint: string }> =
@@ -66,6 +67,7 @@ export default function ProfileScreen() {
   const updateProfile = useUpdateProfile(userId, toastError);
   const theme = useTheme();
   const styles = useMemo(() => makeStyles(theme), [theme]);
+  const { pref: appearance, setPref: setAppearance } = useAppearancePref();
 
   const [displayName, setDisplayName] = useState('');
   const [signingOut, setSigningOut] = useState(false);
@@ -223,6 +225,25 @@ export default function ProfileScreen() {
               ]}
               value={currentUnits}
               onChange={(u) => updateProfile.mutate({ units: u })}
+            />
+          </Plate>
+
+          <Plate faceStyle={styles.fieldFace}>
+            <Text variant="meta" color={theme.color.inkTertiary}>
+              Appearance
+            </Text>
+            <Segment
+              options={[
+                {
+                  value: 'system',
+                  label: 'AUTO',
+                  accessibilityLabel: 'Follow the phone appearance',
+                },
+                { value: 'light', label: 'LIGHT', accessibilityLabel: 'Always light' },
+                { value: 'dark', label: 'DARK', accessibilityLabel: 'Always dark' },
+              ]}
+              value={appearance}
+              onChange={setAppearance}
             />
           </Plate>
 

@@ -23,6 +23,7 @@ import { useAuth } from '@/auth/useAuth';
 import { useMagicLinkHandler } from '@/auth/useMagicLinkHandler';
 import { canMountNavigator } from '@/lib/bootGate';
 import { initErrorReporting } from '@/lib/errorReporting';
+import { restoreAppearancePref } from '@/ui/useAppearance';
 import { useAppBoot } from '@/lib/useAppBoot';
 import { useRestNotificationRouting } from '@/rest/useRestNotificationRouting';
 import { BootOverlay } from '@/ui/BootOverlay';
@@ -70,6 +71,13 @@ export default function RootLayout() {
   const fontsReady = canMountNavigator(fontsLoaded, fontError);
 
   const { ready, bootError } = useAppBoot(queryClient);
+
+  // Apply the saved Appearance preference (System / Light / Dark) before
+  // anything draws: it drives useColorScheme, hence the boot overlay, Login,
+  // every screen, and the native surfaces.
+  useEffect(() => {
+    void restoreAppearancePref();
+  }, []);
 
   // The navigator mounts only once the custom fonts are registered
   // (canMountNavigator): a Text laid out before that keeps the system font
