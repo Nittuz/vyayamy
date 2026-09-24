@@ -1,10 +1,14 @@
 /**
- * On-device speech recognition adapter.
+ * Speech recognition adapter.
  *
  * Wraps expo-speech-recognition behind a small `SpeechEngine` interface so the
- * voice session hook never imports the native module directly — and so a cloud
- * fallback engine (Phase 2) can drop in behind the same interface. Native module;
- * not exercisable under ts-jest/Node — verified via on-device QA.
+ * voice session hook never imports the native module directly. Recognition
+ * runs on-device when the phone supports it for the language and falls back to
+ * Apple's server recognition otherwise (owner decision, 2026-09-24: iOS 27 no
+ * longer reports on-device support for the SFSpeechRecognizer path, and the
+ * native library was already switching silently — now the choice is explicit
+ * and the failure code reaches the card). Native module; not exercisable under
+ * ts-jest/Node — verified via on-device QA.
  */
 import { ExpoSpeechRecognitionModule } from 'expo-speech-recognition';
 
@@ -18,7 +22,8 @@ export interface SpeechEvent {
 export interface SpeechEngine {
   isAvailable(): boolean;
   requestPermissions(): Promise<boolean>;
-  start(onEvent: (e: SpeechEvent) => void, onError: (msg: string) => void): void;
+  /** Error codes are expo-speech-recognition's web-speech names (see voiceErrors.ts). */
+  start(onEvent: (e: SpeechEvent) => void, onError: (code: string, message?: string) => void): void;
   stop(): void;
 }
 
@@ -41,7 +46,7 @@ export const onDeviceEngine: SpeechEngine = {
         onEvent({ transcript: best.transcript, isFinal: e.isFinal, confidence: best.confidence });
     });
     const errorSub = ExpoSpeechRecognitionModule.addListener('error', (e) => {
-      onError(e.message ?? String(e.error));
+      onError(String(e.error ?? ''), e.message);
     });
     subscriptions = [resultSub, errorSub];
 
@@ -49,7 +54,10 @@ export const onDeviceEngine: SpeechEngine = {
       lang: 'en-US',
       interimResults: true,
       continuous: true,
-      requiresOnDeviceRecognition: true,
+      // On-device when the phone supports it for this language; otherwise
+      // Apple's server recognition (needs Siri & Dictation + a connection —
+      // both surfaced by code through voiceErrorLabel when they are missing).
+      requiresOnDeviceRecognition: ExpoSpeechRecognitionModule.supportsOnDeviceRecognition(),
       addsPunctuation: false,
     });
   },

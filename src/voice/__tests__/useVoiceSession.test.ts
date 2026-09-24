@@ -112,8 +112,8 @@ test('a failed dispatch surfaces an error (#104)', async () => {
 
 test('hold release keeps a start-failure error on the card', async () => {
   const fake = makeFakeEngine();
-  let errCb: ((msg: string) => void) | null = null;
-  fake.engine.start = ((_: unknown, onError: (msg: string) => void) => {
+  let errCb: ((code: string) => void) | null = null;
+  fake.engine.start = ((_: unknown, onError: (code: string) => void) => {
     errCb = onError;
   }) as unknown as SpeechEngine['start'];
   const { result } = renderHook(() => useVoiceSession(deps(fake.engine)));

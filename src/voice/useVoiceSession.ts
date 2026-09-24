@@ -18,6 +18,7 @@ import type { Command, VoiceContext } from './commands';
 import { dispatchCommand, type DispatchContext } from './dispatch';
 import { GrammarParser } from './grammar';
 import { onDeviceEngine, type SpeechEngine } from './speechEngine';
+import { voiceErrorLabel } from './voiceErrors';
 
 export type VoiceUiState =
   | { phase: 'idle' }
@@ -171,9 +172,10 @@ export function useVoiceSession(deps: VoiceSessionDeps) {
         if (e.isFinal) onFinal(e.transcript);
         else setUi({ phase: 'listening', partial: e.transcript });
       },
-      () => {
+      (code) => {
         stop(); // resets ui to idle...
-        setUi({ phase: 'error', label: 'Voice unavailable' }); // ...so surface after
+        const label = voiceErrorLabel(code);
+        if (label) setUi({ phase: 'error', label }); // ...so surface after (silence stays idle)
       },
     );
   }, [engine, onFinal, resetSilence, stop]);
