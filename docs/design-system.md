@@ -12,7 +12,7 @@
 > lifted surface with a soft hairline, and scale/highlight presses; see the
 > Radius and Depth & press sections.
 
-FlexYug is a strength-training journal with an industrial-brutalist identity: iron black, bone ink, one hot ember accent, condensed poster type, and hard offset slabs instead of soft shadows. The design system exists to make the right choices trivial and the wrong ones impossible.
+FlexYug is a strength-training journal with an industrial-brutalist identity: iron black, bone ink, one hot ember accent, condensed poster type, and flat surfaces lifted by a hairline instead of soft shadows. The design system exists to make the right choices trivial and the wrong ones impossible.
 
 ## Philosophy
 
@@ -70,7 +70,6 @@ One skin, two schemes, defined in [src/ui/colors.ts](../src/ui/colors.ts). The a
 | `dangerSoft`   | `rgba(214,82,74,.14)` | `rgba(168,49,43,.10)` | Error wash                          |
 | `onAccent`     | `#0B0B0D`             | `#FFFFFF`             | Text on accent/danger fills         |
 | `overlay`      | `rgba(0,0,0,.6)`      | `rgba(12,12,14,.4)`   | Modal backdrops                     |
-| `slab`         | `#000000`             | `#17171A`             | Hard offset slab behind Plates      |
 
 (The `SkinContext` hydration layer described in earlier revisions is gone along with the skin registry — the scheme comes straight from `useColorScheme()`.)
 
