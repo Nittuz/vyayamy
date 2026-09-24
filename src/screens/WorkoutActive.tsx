@@ -53,7 +53,7 @@ import { Icon } from '@/ui/icons';
 import { Plate } from '@/ui/Plate';
 import { SessionRecap } from '@/ui/SessionRecap';
 import { SettleSlam } from '@/ui/SettleSlam';
-import { SyncIndicator } from '@/ui/SyncIndicator';
+import { SyncIndicator, useSyncIndicatorVisible } from '@/ui/SyncIndicator';
 import { Text } from '@/ui/Text';
 import { useSyncAwareErrorToast } from '@/ui/ToastContext';
 import { useTheme } from '@/ui/useTheme';
@@ -375,6 +375,7 @@ export default function WorkoutActiveScreen() {
     ? findPrevExercise(exercises, currentExForRest.id) !== null
     : false;
 
+  const syncVisible = useSyncIndicatorVisible();
   const screenOptions = useMemo(
     () => ({
       headerTitle: () => (
@@ -390,9 +391,11 @@ export default function WorkoutActiveScreen() {
       ),
       // The next/finish control lives in the bottom action row now, in the thumb
       // zone — not stranded in the top-right header (#1.5).
-      headerRight: () => <SyncIndicator />,
+      // Empty slot when the pill has nothing to say — an idle pill inside the
+      // iOS 26+ glass header capsule rendered as an empty circle.
+      headerRight: syncVisible ? () => <SyncIndicator /> : undefined,
     }),
-    [activeQuery.data, updateTitle],
+    [activeQuery.data, updateTitle, syncVisible],
   );
 
   // Stabilize the props ActiveSetCard/SessionVolumeBar read so their new

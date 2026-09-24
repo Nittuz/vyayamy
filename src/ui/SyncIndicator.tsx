@@ -13,10 +13,20 @@ import { Pressable, StyleSheet, Text, View } from 'react-native';
 import { QuarantineSheet } from '@/components/QuarantineSheet';
 import { SyncDiagnosticsSheet } from '@/components/SyncDiagnosticsSheet';
 import { useQuarantined } from '@/sync/quarantine';
-import { deriveSyncState, syncStateLabel } from '@/core/syncHelpers';
+import { deriveSyncState, isSyncIndicatorVisible, syncStateLabel } from '@/core/syncHelpers';
 import { useSyncStateLive } from '@/sync/useSyncStateLive';
 
 import { useTheme, type Theme } from './useTheme';
+
+/**
+ * Whether SyncIndicator would render anything right now. Screens that mount
+ * the pill in a navigation header must leave the slot EMPTY when this is
+ * false: on iOS 26+ the bar wraps every header item in a glass capsule, and an
+ * idle pill rendered as an empty circle (build 10 on device).
+ */
+export function useSyncIndicatorVisible(): boolean {
+  return isSyncIndicatorVisible(useSyncStateLive());
+}
 
 export function SyncIndicator() {
   const theme = useTheme();

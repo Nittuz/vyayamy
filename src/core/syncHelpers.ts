@@ -66,3 +66,30 @@ export function syncStateLabel(state: SyncState): string {
       return '';
   }
 }
+
+/**
+ * Whether the header sync pill has anything to say. Lifted out of the pill so
+ * a screen can leave the header slot EMPTY instead of mounting an idle pill:
+ * on iOS 26+ the navigation bar wraps every header item in a glass capsule,
+ * and an idle (null-rendering) indicator showed up as an empty circle.
+ */
+export function isSyncIndicatorVisible(state: {
+  online: boolean;
+  pushInFlight: boolean;
+  pullInFlight: boolean;
+  pendingOutbox: number;
+  lastError: string | null;
+}): boolean {
+  return (
+    syncStateLabel(
+      deriveSyncState({
+        online: state.online,
+        pushing: state.pushInFlight,
+        pulling: state.pullInFlight,
+        pendingOutbox: state.pendingOutbox,
+        lastError: state.lastError,
+        showSaved: false,
+      }),
+    ) !== ''
+  );
+}
