@@ -17,6 +17,7 @@ import {
 import { SafeAreaView } from 'react-native-safe-area-context';
 
 import { signInWithOtp, signInWithPassword, verifyEmailOtp } from '@/auth/authActions';
+import { classifyMagicLinkSend } from '@/auth/magicLinkSend';
 import {
   isCompleteSignInCode,
   normalizeSignInCode,
@@ -43,6 +44,12 @@ const LINK_FAILED_ERROR =
   "That sign-in link didn't work. It may have expired. Send yourself a fresh link, or sign in with your password.";
 // Wrong, expired, and already-used codes all read the same (#92 posture).
 const CODE_FAILED_ERROR = "That code didn't work. Check it, or send yourself a fresh link.";
+// A rate-limited send is not a bad address — say so, and keep the code card
+// open because the user's latest email still carries a valid code.
+const SENT_COPY =
+  'Your sign-in link is on its way. Open it on this phone, or enter the code from the email here.';
+const RATE_LIMITED_COPY =
+  'No new email this time: too many were sent just now. Use the code from your latest email, or wait a few minutes to resend.';
 // The iOS number pad has no Done key, so the code field carries its own
 // accessory bar (same treatment as the set-entry keypad).
 const CODE_ACCESSORY_ID = 'sign-in-code-accessory';
@@ -78,6 +85,7 @@ function LoginScreenInner() {
   const [code, setCode] = useState('');
   const [verifyingCode, setVerifyingCode] = useState(false);
   const [sent, setSent] = useState(false);
+  const [rateLimited, setRateLimited] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const theme = useTheme();
   const styles = useMemo(() => makeStyles(theme), [theme]);
@@ -95,12 +103,24 @@ function LoginScreenInner() {
     const redirectTo = Linking.createURL('/login');
     const { error: err } = await signInWithOtp(email.trim(), redirectTo);
     setSending(false);
-    if (err) {
+    const outcome = classifyMagicLinkSend(err);
+    if (outcome === 'failed') {
       // Map raw Supabase errors to a single neutral string so the UI doesn't
       // leak whether the email exists or whether signup is disabled.
       setError(MAGIC_LINK_ERROR);
       return;
     }
+    setRateLimited(outcome === 'rate-limited');
+    setCode('');
+    setSent(true);
+  }
+
+  // The user already holds an unexpired code (app relaunched, or a link
+  // failed) — open the code card without spending another email.
+  function openCodeCard() {
+    setError(null);
+    clearAuthError();
+    setRateLimited(false);
     setCode('');
     setSent(true);
   }
@@ -179,9 +199,13 @@ function LoginScreenInner() {
               <Text variant="numeral" color={theme.color.ink} style={styles.centerText}>
                 {email.trim()}
               </Text>
-              <Text variant="meta" color={theme.color.inkSecondary} style={styles.centerText}>
-                Your sign-in link is on its way. Open it on this phone, or enter the code from the
-                email here.
+              <Text
+                variant="meta"
+                color={rateLimited ? theme.color.danger : theme.color.inkSecondary}
+                style={styles.centerText}
+                accessibilityLiveRegion="polite"
+              >
+                {rateLimited ? RATE_LIMITED_COPY : SENT_COPY}
               </Text>
               <TextInput
                 value={code}
@@ -261,6 +285,7 @@ function LoginScreenInner() {
                   size="row"
                   onPress={() => {
                     setSent(false);
+                    setRateLimited(false);
                     setError(null);
                   }}
                 />
@@ -328,6 +353,15 @@ function LoginScreenInner() {
                   disabled={emailEmpty}
                   onPress={handleSubmit}
                   style={styles.fullBtn}
+                />
+              )}
+              {usePassword ? null : (
+                <Button
+                  label="I already have a code"
+                  kind="ghost"
+                  size="row"
+                  disabled={emailEmpty}
+                  onPress={openCodeCard}
                 />
               )}
               <Button
