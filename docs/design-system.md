@@ -22,13 +22,13 @@ Priority order (never invert it):
 2. **Usability**: every interaction should feel obvious and forgiving
 3. **Speed**: perceived and actual; no layout jank, no unnecessary spinners
 4. **Consistency**: identical patterns for identical actions, everywhere
-5. **Confidence**: bold type, hard edges, one hot color — restraint with conviction, not timidity
+5. **Confidence**: bold type, structural rules, one hot color — restraint with conviction, not timidity
 
 ### Lineage
 
 - **Dieter Rams**: remove everything unnecessary — then make what remains unmistakable
 - **Don Norman**: match human mental models; actions must be predictable
-- **Gym iron**: plates, knurling, chalk; the UI's depth model is stacked steel, not floating glass
+- **Gym iron**: plates, knurling, chalk; the UI's depth model is a lifted surface with a hairline edge, not floating glass
 - **Neo-brutalist print**: visible structure, heavy rules, poster headlines; never decoration for its own sake
 
 ## Non-negotiables
