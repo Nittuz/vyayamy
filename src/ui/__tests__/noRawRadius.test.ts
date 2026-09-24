@@ -19,9 +19,30 @@ const ALLOWED = new Set([
 
 // `borderRadius: 12` / `borderTopLeftRadius: 0` etc. with a numeric literal.
 const RAW_RADIUS = /border(?:Top|Bottom)?(?:Left|Right)?Radius:\s*-?\d/;
-// A style block keyed input*/search* that draws its own border, e.g.
+
+// Style blocks whose key contains `input` or `search` (any case: `input`,
+// `codeInput`, `searchBox`, ...) are scanned. Blocks are brace-balanced, so a
+// nested `shadowOffset: { ... }` does not end the block early, and any
+// `border…Width` inside one (borderWidth, borderBottomWidth, ...) fails, e.g.
 //   input: { ..., borderWidth: theme.depth.hairline, ... }
-const INPUT_BLOCK = /^\s*(?:input|search)\w*:\s*\{[^}]*\}/gms;
+/** Every `…input…: { … }` / `…search…: { … }` style block, brace-balanced. */
+function inputStyleBlocks(source: string): string[] {
+  const blocks: string[] = [];
+  const key = /^\s*\w*(?:[Ii]nput|[Ss]earch)\w*:\s*\{/gm;
+  let m: RegExpExecArray | null;
+  while ((m = key.exec(source)) !== null) {
+    const start = m.index;
+    let depth = 0;
+    let i = start + m[0].length - 1; // index of the opening brace
+    for (; i < source.length; i++) {
+      if (source[i] === '{') depth++;
+      else if (source[i] === '}' && --depth === 0) break;
+    }
+    blocks.push(source.slice(start, i + 1));
+    key.lastIndex = i + 1;
+  }
+  return blocks;
+}
 
 function walk(dir: string, out: string[] = []): string[] {
   for (const name of readdirSync(dir)) {
@@ -56,8 +77,8 @@ describe('no raw radii or hand-rolled input borders outside the tokens', () => {
     });
     test(`${rel} does not draw its own input border`, () => {
       const source = readFileSync(file, 'utf8');
-      const blocks = source.match(INPUT_BLOCK) ?? [];
-      const offending = blocks.filter((b) => /borderWidth/.test(b));
+      const blocks = inputStyleBlocks(source);
+      const offending = blocks.filter((b) => /border\w*Width/.test(b));
       expect(offending.map((b) => b.trim().split('\n')[0])).toEqual([]);
     });
   }
