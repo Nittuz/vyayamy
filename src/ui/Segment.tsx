@@ -5,7 +5,9 @@
  * Blacktop selection semantic), ghost with a hairline rule for the rest.
  * Replaces the two divergent inline implementations (Progress's
  * Pressable-bordered rows, Profile's Plate-toned units toggle). Appearance
- * maths live in segmentStyles.ts (pure, tested).
+ * maths live in segmentStyles.ts (pure, tested). Each option is a
+ * control-shaped Plate with the highlight press (it is a selector, not a
+ * card).
  *
  * Accessibility: the row is a tablist and each option a tab carrying
  * accessibilityState.selected; every option keeps the 44pt minimum target.
@@ -49,6 +51,8 @@ export function Segment<T extends string>({
             key={opt.value}
             tone={a.tone}
             border={a.border}
+            shape="control"
+            press="highlight"
             onPress={() => onChange(opt.value)}
             accessibilityRole="tab"
             accessibilityLabel={opt.accessibilityLabel ?? opt.label}
