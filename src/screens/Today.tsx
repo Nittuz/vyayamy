@@ -359,6 +359,7 @@ export default function TodayScreen() {
           <Plate
             tone="panel"
             border="soft"
+            press="highlight"
             onPress={() => setSyncSheetOpen(true)}
             accessibilityRole="button"
             accessibilityLabel={`${syncLabel}, tap for sync details`}

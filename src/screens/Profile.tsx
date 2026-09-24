@@ -229,6 +229,7 @@ export default function ProfileScreen() {
           <Plate
             tone="ghost"
             border="soft"
+            press="highlight"
             onPress={() => void onRestAlertsPress()}
             accessibilityRole="button"
             accessibilityLabel={
@@ -261,6 +262,7 @@ export default function ProfileScreen() {
           <Plate
             tone="ghost"
             border="soft"
+            press="highlight"
             onPress={() => router.push('/profile/plan')}
             accessibilityRole="button"
             accessibilityLabel="Training plan"

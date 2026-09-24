@@ -154,6 +154,8 @@ function HistoryItem({ row, first, delay }: { row: HistoryRow; first: boolean; d
     <FadeInView delay={delay}>
       <Plate
         tone="ghost"
+        shape="none"
+        press="highlight"
         onPress={() => router.push(`/history/${row.id}`)}
         accessibilityRole="button"
         accessibilityLabel={`View workout ${row.title}`}
