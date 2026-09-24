@@ -8,6 +8,9 @@
 > skins) no longer exist in code. Kept for the primitives inventory and
 > historical rationale until a Blacktop-native rewrite lands; the source of
 > truth is the spec plus the token modules in [src/ui/](../src/ui/).
+> Softened Blacktop (2026-09-23) then reintroduced a small radius scale, a
+> lifted surface with a soft hairline, and scale/highlight presses; see the
+> Radius and Depth & press sections.
 
 FlexYug is a strength-training journal with an industrial-brutalist identity: iron black, bone ink, one hot ember accent, condensed poster type, and hard offset slabs instead of soft shadows. The design system exists to make the right choices trivial and the wrong ones impossible.
 
@@ -34,8 +37,8 @@ Priority order (never invert it):
 - **One signature look**: the Forged Iron palette — iron black (dark) or bone paper (light) selected by system color scheme, with a single ember accent tuned per scheme. The multi-skin system is gone entirely — `buildTheme(scheme)` in [src/ui/useTheme.ts](../src/ui/useTheme.ts) selects the dark/light palette directly.
 - **Custom fonts**: Anton (condensed industrial display) for uppercase chrome headlines, Geist Sans for body/labels, Geist Mono for numerals and data. Loaded via `@expo-google-fonts/anton`, `geist`, and `geist-mono`.
 - **Display type is chrome-only**: `display`/`displayXL` variants force uppercase Anton. User content (workout titles, exercise names) always renders in `title`/`card` — never force-uppercased into a poster face.
-- **Depth is a slab, not a blur**: cards sit on hard offset slabs (the `Plate` primitive); structural edges use 2–3px rules (`theme.depth`), not 1px hairlines. No native shadows, no blur, no gradients.
-- **Pressed = sink**: pressables translate toward their slab (`theme.press.translate`), a direct-manipulation state, not an animation. No opacity-fade press states on Plate-based controls.
+- **Depth is a lift plus a hairline**: cards and rows sit one step lighter than the page (`surface`) with a 1.5px `border` hairline; corners take the small radius scale. The hairline is deliberately soft (well under 3:1 against the page): the lift and the hairline carry the boundary together. No native shadows, no blur, no gradients.
+- **Pressed = scale or highlight**: cards and filled buttons scale to 0.975 with a mild darken; list rows and outlined controls tint their fill (`Plate`'s `press` prop). Reduced Motion drops the scale.
 - **44pt minimum touch target** (`theme.touch.min`) on everything interactive.
 - **Motion budget**: 150 / 220 / 320 ms duration tokens (plus a 600ms counter tally) and three damped Reanimated springs (`snappy` / `settle` / `rebound`), spent on entrances, the complete-set moment, sheet presentation, and the rest tick. Everything else is instant. No particles, no parallax. Reduce Motion always honored.
 - **Progressive disclosure**: primary action first; secondary actions revealed on interaction.
@@ -77,11 +80,11 @@ One skin, two schemes, defined in [src/ui/colors.ts](../src/ui/colors.ts). The a
 
 ### Radius
 
-Near-sharp: `sm` (2), `md` (4), `lg` (6), `full` (9999), `card` (4), `button` (2). The slab and rule carry the form; rounding is detail, not silhouette.
+`control` (6): buttons, inputs, segments, stepper keys. `card` (8): Plates, list rows, toasts, banners. `sheet` (16): the top corners of bottom sheets. `full` (9999): circles only. Rows inside a rule-separated list use `shape="none"`. Never a raw number: `noRawRadius.test.ts` fails the build on a numeric radius or a hand-drawn input border.
 
 ### Depth & press
 
-`depth.slab` (4) / `depth.slabSm` (2): the hard offset of a Plate's underlay. `depth.rule` (2) / `depth.ruleHeavy` (3): structural border widths. `press.translate` (3): how far a pressed face sinks toward its slab.
+`depth.hairline` (1.5): the Plate and input border. `depth.rule` (2) / `depth.ruleHeavy` (3): section rules. Press: `scale` (0.975, opacity 0.92) for cards and filled buttons, `highlight` (an 8% tint of the face's own ink, no movement) for rows and outlined controls; both over `motion.duration.press`. Reduced Motion drops the scale and applies instantly.
 
 ### Typography
 
@@ -116,7 +119,7 @@ All code renders text through the `<Text variant="...">` primitive from [src/ui/
 
 Build screens out of these; do not hand-roll cards, buttons, or sheets.
 
-- **`Plate`** ([src/ui/Plate.tsx](../src/ui/Plate.tsx)) — the Forged Iron card: face + 2px `borderStrong` rule + hard offset `slab` underlay. Same technique both platforms (an absolutely-positioned slab View — never native shadow APIs, which would move with the pressed face). `onPress` makes the face a Pressable that sinks `press.translate` toward the slab.
+- **`Plate`** ([src/ui/Plate.tsx](../src/ui/Plate.tsx)) — the card: flat `surface` face + 1.5px hairline, `shape` (`card` default / `control` / `none`) for the radius, `press` (`scale` default / `highlight`) for the pressed response. `onPress` makes the face a Pressable.
 - **`Button`** ([src/ui/Button.tsx](../src/ui/Button.tsx)) — `primary` (ember plate), `secondary` (surface plate), `ghost` (flat text), `danger`. Sizes `cta` (52) / `row` (44).
 - **`Sheet`** ([src/ui/Sheet.tsx](../src/ui/Sheet.tsx)) — the one modal surface: `bottom` or `center` variants, animated in on `settle`, animated out with deferred unmount, Reduce Motion instant, pinned `footer` action row. **`ConfirmSheet`** ([src/ui/ConfirmSheet.tsx](../src/ui/ConfirmSheet.tsx)) replaces `Alert.alert` for confirm/destructive decisions.
 - **`Icon`** ([src/ui/icons.tsx](../src/ui/icons.tsx)) — 24-grid stroke icon registry on `react-native-svg`. No emoji glyphs, no per-glyph icon-library imports.
@@ -161,7 +164,7 @@ No CSS files ship in the mobile app. No static module-level `theme.ts`-shim styl
 
 ### Pressables
 
-Always `<Pressable>`. Plate-based controls express pressed state by sinking into their slab (built into `Plate`). Flat/ghost controls may use a lighter background. No scale bounces, no opacity-only fades on primary controls.
+Always `<Pressable>`. Plate-based controls express pressed state through `Plate`'s `press` prop: `scale` on cards and filled buttons, `highlight` on rows and outlined controls. No opacity-only fades on primary controls.
 
 ### Haptics
 
@@ -197,7 +200,7 @@ Background: the same hook schedules a one-shot local notification via [src/lib/r
 - Screens: `<SafeAreaView>` → `<ScrollView>` with `contentContainerStyle: { padding: theme.space.page, gap: theme.space.s4 }`
 - Cards: `Plate` with `faceStyle: { padding: theme.space.s4 }` — never hand-rolled `borderRadius`+`borderWidth` views
 - Primary CTA: `Button kind="primary" size="cta"`
-- Inputs: `height: 44`, `backgroundColor: theme.color.bg`, `borderWidth: theme.depth.rule`, `borderColor: theme.color.border`, `borderRadius: theme.radius.sm`
+- Inputs: `style={resolveInputStyle(theme)}` from [src/ui/inputStyles.ts](../src/ui/inputStyles.ts); spread and override only a multiline height or a stronger hairline
 
 ## Responsive
 
