@@ -7,7 +7,8 @@
  * treatment as QuarantineBanner / Today's sync row: destructive actions are
  * quiet, not loud, but still visibly marked).
  * Labels are uppercase stamped type on primary/secondary; ghost and danger
- * stay sentence-case.
+ * stay sentence-case. Filled kinds (primary, inverted) press with the scale
+ * response; secondary, ghost, and danger press with the highlight.
  */
 import { useMemo } from 'react';
 import { ActivityIndicator, StyleSheet, View } from 'react-native';
@@ -99,6 +100,8 @@ export function Button({
     <Plate
       tone={TONE_FOR_KIND[kind]}
       border={kind === 'danger' ? 'soft' : undefined}
+      shape="control"
+      press={isFilledKind ? 'scale' : 'highlight'}
       onPress={onPress}
       disabled={disabled || loading}
       dimWhenDisabled={!honestDisabled}
