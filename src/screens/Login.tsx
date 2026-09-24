@@ -72,7 +72,7 @@ function LoginScreenInner() {
   const [usePassword, setUsePassword] = useState(false);
   const [sending, setSending] = useState(false);
   const [signingIn, setSigningIn] = useState(false);
-  // The emailed six-digit code: the sign-in path that survives mail clients
+  // The emailed eight-digit code: the sign-in path that survives mail clients
   // which drop the link's custom-scheme redirect (Gmail in-app browser,
   // Chrome-hosted Gmail) and works when the email is opened elsewhere.
   const [code, setCode] = useState('');
@@ -198,7 +198,7 @@ function LoginScreenInner() {
                 }}
                 onSubmitEditing={() => void handleCodeSignIn()}
                 inputAccessoryViewID={Platform.OS === 'ios' ? CODE_ACCESSORY_ID : undefined}
-                placeholder="6-digit code"
+                placeholder={`${SIGN_IN_CODE_LENGTH}-digit code`}
                 placeholderTextColor={theme.color.inkTertiary}
                 keyboardType="number-pad"
                 textContentType="oneTimeCode"
@@ -380,7 +380,7 @@ const makeStyles = (theme: Theme) =>
       backgroundColor: theme.color.bg,
     },
     fullBtn: { alignSelf: 'stretch', marginTop: theme.space.s2 },
-    // The code is data, not prose: mono numerals, centered, tracked so six
+    // The code is data, not prose: mono numerals, centered, tracked so the
     // digits read as one token.
     codeInput: {
       alignSelf: 'stretch',

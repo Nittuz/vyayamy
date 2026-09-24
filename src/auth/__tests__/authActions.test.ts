@@ -1,6 +1,6 @@
 /**
  * verifyEmailOtp is the sign-in-code half of the magic-link email: the same
- * email carries a link (same-device only) and a six-digit code that works
+ * email carries a link (same-device only) and a numeric code that works
  * from any mail client on any device. The facade must call GoTrue's email OTP
  * verification, never the SMS/phone variants.
  */

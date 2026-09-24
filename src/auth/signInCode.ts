@@ -1,9 +1,12 @@
 /**
- * The emailed sign-in code (GoTrue's six-digit email OTP, `{{ .Token }}` in
+ * The emailed sign-in code (GoTrue's email OTP, `{{ .Token }}` in
  * the magic-link template). Mail clients and iOS autofill can hand it over
  * with spaces, separators, or a trailing newline; only the digits count.
  */
-export const SIGN_IN_CODE_LENGTH = 6;
+// Must match the hosted project's Auth → Email → "Email OTP Length" (8; the
+// local supabase/config.toml pins the same). A shorter cap silently truncates
+// real codes — TestFlight build 8 shipped with 6 and every code failed.
+export const SIGN_IN_CODE_LENGTH = 8;
 
 export function normalizeSignInCode(raw: string): string {
   return raw.replace(/\D+/g, '').slice(0, SIGN_IN_CODE_LENGTH);

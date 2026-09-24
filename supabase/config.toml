@@ -42,6 +42,9 @@ sign_in_sign_ups = 30
 enable_signup = true
 double_confirm_changes = false
 otp_expiry = 900
+# Mirrors the hosted project's Auth → Email → "Email OTP Length". The app's
+# SIGN_IN_CODE_LENGTH (src/auth/signInCode.ts) must equal this.
+otp_length = 8
 max_frequency = "1m"
 # Require email confirmation before a session is issued. Without this, anyone
 # can sign up with any email and immediately have authenticated access.

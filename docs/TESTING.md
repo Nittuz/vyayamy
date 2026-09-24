@@ -119,7 +119,7 @@ before that keeps the fallback font, and the simulator always wins that race.
 
 - Password login with the tester account.
 - Magic link: request it, open the email in Gmail (in-app browser) — the button
-  may do nothing there, by design of that client; enter the six-digit code from
+  may do nothing there, by design of that client; enter the eight-digit code from
   the same email instead → signed in. Wrong code → one neutral error line.
 - Magic link from Apple Mail → Safari → "Open in FlexYug" → signed in.
 - Cold start: Login (signed out) and Today (signed in) show the Anton wordmark /

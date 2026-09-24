@@ -27,14 +27,14 @@ the failure is entirely in the mail client → app hand-off, which we do not con
 ## Design
 
 **Email.** The magic-link template gains a second block under the button: "Or enter this code
-in the app" with `{{ .Token }}` (GoTrue's six-digit email OTP for the same request). Both the
+in the app" with `{{ .Token }}` (GoTrue's email OTP for the same request; the hosted project's Email OTP Length is 8). Both the
 link and the code share one expiry (`otp_expiry`, 900 s) and are consumed together.
 
 **App.** After "Email me a sign-in link" succeeds, the sent card (Login → `showSent`) gains:
 
-- a numeric code field (`keyboardType: number-pad`, `textContentType: oneTimeCode`, six digits,
+- a numeric code field (`keyboardType: number-pad`, `textContentType: oneTimeCode`, eight digits,
   digits-only normalization — `src/auth/signInCode.ts`),
-- a primary "Sign in with code" button, enabled only when six digits are present,
+- a primary "Sign in with code" button, enabled only when eight digits are present,
 - copy: "Your sign-in link is on its way. Open it on this phone, or enter the code from the
   email here."
 
@@ -45,7 +45,7 @@ Submit calls the auth facade's `verifyEmailOtp(email, code)` →
 already-used code) shows one neutral line: "That code didn't work. Check it, or send yourself a
 fresh link." The resend and "use a different email" actions stay.
 
-**Security.** Six-digit OTPs are brute-forceable without limits; the project already pins
+**Security.** Short OTPs are brute-forceable without limits; the project already pins
 `token_verifications = 30` per 5 min (config.toml, #93) and the code expires with the link.
 The facade stays the only Supabase import outside `src/sync`.
 

@@ -25,7 +25,7 @@ export function exchangeCodeForSession(code: string) {
 /**
  * The sign-in-code half of the magic-link email: the same email carries a
  * link (works only in Safari/Apple Mail on the requesting phone) and a
- * six-digit code that works from any mail client on any device.
+ * numeric code that works from any mail client on any device.
  */
 export function verifyEmailOtp(email: string, token: string) {
   return supabase.auth.verifyOtp({ email, token, type: 'email' });
