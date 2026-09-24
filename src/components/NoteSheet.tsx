@@ -22,6 +22,7 @@ import { ScrollView, StyleSheet, TextInput, View } from 'react-native';
 
 import { Button } from '@/ui/Button';
 import { haptics } from '@/ui/haptics';
+import { resolveInputStyle } from '@/ui/inputStyles';
 import { Sheet } from '@/ui/Sheet';
 import { Text } from '@/ui/Text';
 import { useTheme, type Theme } from '@/ui/useTheme';
@@ -161,11 +162,11 @@ const makeStyles = (theme: Theme) =>
     body: { gap: theme.space.s4, paddingBottom: theme.space.s2 },
     field: { gap: theme.space.s2 },
     input: {
+      ...resolveInputStyle(theme),
+      // Multiline note: grows from 72pt, text anchored to the top.
+      height: undefined,
       minHeight: 72,
-      borderWidth: theme.depth.hairline,
-      paddingHorizontal: theme.space.s3,
       paddingVertical: theme.space.s3,
-      fontSize: theme.font.size.body,
       textAlignVertical: 'top',
     },
   });

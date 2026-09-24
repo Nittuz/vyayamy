@@ -27,6 +27,7 @@ import {
 import { useAuth } from '@/auth/useAuth';
 import { brand } from '@/ui/brand';
 import { Button } from '@/ui/Button';
+import { resolveInputStyle } from '@/ui/inputStyles';
 import { FBarMark } from '@/ui/Logo';
 import { OutlineDisplay } from '@/ui/OutlineDisplay';
 import { Plate } from '@/ui/Plate';
@@ -399,16 +400,9 @@ const makeStyles = (theme: Theme) =>
     cardFace: { padding: theme.space.s6, gap: theme.space.s5 },
     centerText: { textAlign: 'center' },
     form: { gap: theme.space.s3 },
-    input: {
-      height: theme.touch.min + 4,
-      paddingHorizontal: theme.space.s4,
-      borderWidth: theme.depth.hairline,
-      borderColor: theme.color.borderStrong,
-      fontSize: theme.font.size.body,
-      fontFamily: theme.font.family.sans,
-      color: theme.color.ink,
-      backgroundColor: theme.color.bg,
-    },
+    // Shared input; the pinned-dark poster keeps the stronger hairline so the
+    // field reads against the near-black poster (border alone is too quiet here).
+    input: { ...resolveInputStyle(theme), borderColor: theme.color.borderStrong },
     fullBtn: { alignSelf: 'stretch', marginTop: theme.space.s2 },
     // The code is data, not prose: mono numerals, centered, tracked so the
     // digits read as one token.

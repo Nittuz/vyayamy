@@ -23,6 +23,7 @@ import {
 } from '@/queries/plans';
 import { type HydratedPreset, useListPlanPresets } from '@/queries/planPresets';
 import { Button } from '@/ui/Button';
+import { resolveInputStyle } from '@/ui/inputStyles';
 import { Plate } from '@/ui/Plate';
 import { Segment } from '@/ui/Segment';
 import { SettleSlam } from '@/ui/SettleSlam';
@@ -492,16 +493,7 @@ const makeStyles = (theme: Theme) =>
     kav: { flex: 1 },
     scroll: { padding: theme.space.page, gap: theme.space.s4, paddingBottom: theme.space.s12 },
     cardFace: { padding: theme.space.s4, gap: theme.space.s2 },
-    input: {
-      height: theme.touch.min,
-      paddingHorizontal: theme.space.s3,
-      borderWidth: theme.depth.hairline,
-      borderColor: theme.color.border,
-      backgroundColor: theme.color.bg,
-      fontSize: theme.font.size.body,
-      color: theme.color.ink,
-      fontFamily: theme.font.family.sans,
-    },
+    input: resolveInputStyle(theme),
     section: { gap: theme.space.s2 },
     sectionTitle: { marginTop: theme.space.s2 },
     presetSection: { gap: theme.space.s2 },

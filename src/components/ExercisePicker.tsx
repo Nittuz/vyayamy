@@ -2,6 +2,7 @@ import { useEffect, useMemo, useState } from 'react';
 import { ActivityIndicator, FlatList, Pressable, StyleSheet, TextInput, View } from 'react-native';
 
 import { useCreateCustomExercise, useExercisesSearch } from '@/queries/exercises';
+import { resolveInputStyle } from '@/ui/inputStyles';
 import { Sheet } from '@/ui/Sheet';
 import { Text } from '@/ui/Text';
 import { useTheme, type Theme } from '@/ui/useTheme';
@@ -154,14 +155,8 @@ export function ExercisePicker({ userId, visible, onClose, onPick }: Props) {
 const makeStyles = (theme: Theme) =>
   StyleSheet.create({
     search: {
+      ...resolveInputStyle(theme),
       height: theme.touch.min,
-      borderWidth: theme.depth.hairline,
-      borderColor: theme.color.border,
-      backgroundColor: theme.color.bg,
-      paddingHorizontal: theme.space.s4,
-      fontFamily: theme.font.family.sans,
-      fontSize: theme.font.size.body,
-      color: theme.color.ink,
       marginBottom: theme.space.s3,
     },
     createError: { marginBottom: theme.space.s2 },

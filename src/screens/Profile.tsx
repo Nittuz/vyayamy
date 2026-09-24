@@ -24,6 +24,7 @@ import { getOutboxCount } from '@/sync/outboxPreview';
 import { Button } from '@/ui/Button';
 import { ConfirmSheet } from '@/ui/ConfirmSheet';
 import { Icon } from '@/ui/icons';
+import { resolveInputStyle } from '@/ui/inputStyles';
 import { Plate } from '@/ui/Plate';
 import { Segment } from '@/ui/Segment';
 import { SettleSlam } from '@/ui/SettleSlam';
@@ -331,16 +332,7 @@ const makeStyles = (theme: Theme) =>
       marginBottom: theme.space.s1,
     },
     fieldFace: { padding: theme.space.s4, gap: theme.space.s2 },
-    input: {
-      height: 44,
-      paddingHorizontal: theme.space.s3,
-      backgroundColor: theme.color.bg,
-      borderWidth: theme.depth.hairline,
-      borderColor: theme.color.border,
-      fontSize: theme.font.size.body,
-      fontFamily: theme.font.family.sans,
-      color: theme.color.ink,
-    },
+    input: resolveInputStyle(theme),
     navFace: {
       flexDirection: 'row',
       alignItems: 'center',
