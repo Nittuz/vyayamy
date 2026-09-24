@@ -43,7 +43,10 @@ export function VoiceMicButton({ phase, onTap, onHoldStart, onHoldEnd }: Props) 
     reduceMotionRef.current = reduceMotion;
   }, [reduceMotion]);
 
-  const plate = resolvePlateStyles(theme, { tone: listening ? 'volt' : 'ghost' });
+  const plate = resolvePlateStyles(theme, {
+    tone: listening ? 'volt' : 'ghost',
+    shape: 'control',
+  });
 
   return (
     <Pressable

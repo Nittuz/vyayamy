@@ -12,6 +12,7 @@ import {
   PRESS_SCALE_OPACITY,
   resolvePlateStyles,
   resolvePressedStyle,
+  resolvePressTargets,
 } from '@/ui/plateStyles';
 import { buildTheme } from '@/ui/useTheme';
 
@@ -117,4 +118,49 @@ test('highlight press never moves or dims the face — the tint layer carries it
 
 test('flat pressables keep the legacy dip constant for their own opacity', () => {
   expect(PRESS_DIP_OPACITY).toBe(0.8);
+});
+
+test('press targets: scale pressed = 0.92 opacity + 0.975 scale, no tint; released = rest', () => {
+  expect(resolvePressTargets('scale', true, false)).toEqual({
+    faceOpacity: PRESS_SCALE_OPACITY,
+    faceScale: PRESS_SCALE,
+    tintOpacity: 0,
+    animate: true,
+  });
+  expect(resolvePressTargets('scale', false, false)).toEqual({
+    faceOpacity: 1,
+    faceScale: 1,
+    tintOpacity: 0,
+    animate: true,
+  });
+});
+
+test('press targets: highlight pressed = 8% tint only; face never moves or dims', () => {
+  expect(resolvePressTargets('highlight', true, false)).toEqual({
+    faceOpacity: 1,
+    faceScale: 1,
+    tintOpacity: PRESS_HIGHLIGHT_OPACITY,
+    animate: true,
+  });
+  expect(resolvePressTargets('highlight', false, false)).toEqual({
+    faceOpacity: 1,
+    faceScale: 1,
+    tintOpacity: 0,
+    animate: true,
+  });
+});
+
+test('press targets under reduced motion: no scale, no animation, tint still shows', () => {
+  expect(resolvePressTargets('scale', true, true)).toEqual({
+    faceOpacity: PRESS_SCALE_OPACITY,
+    faceScale: 1,
+    tintOpacity: 0,
+    animate: false,
+  });
+  expect(resolvePressTargets('highlight', true, true)).toEqual({
+    faceOpacity: 1,
+    faceScale: 1,
+    tintOpacity: PRESS_HIGHLIGHT_OPACITY,
+    animate: false,
+  });
 });

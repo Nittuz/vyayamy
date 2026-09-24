@@ -22,10 +22,8 @@ import {
 import Animated, { useAnimatedStyle, useSharedValue, withTiming } from 'react-native-reanimated';
 
 import {
-  PRESS_HIGHLIGHT_OPACITY,
-  PRESS_SCALE,
-  PRESS_SCALE_OPACITY,
   resolvePlateStyles,
+  resolvePressTargets,
   type PlateBorder,
   type PlateOffset,
   type PlatePress,
@@ -103,33 +101,18 @@ export function Plate({
   const tintOpacity = useSharedValue(0);
   const pressMs = theme.motion.duration.press;
 
-  const handlePressIn = useCallback(() => {
-    if (press === 'highlight') {
-      tintOpacity.value = reduceMotionRef.current
-        ? PRESS_HIGHLIGHT_OPACITY
-        : withTiming(PRESS_HIGHLIGHT_OPACITY, { duration: pressMs });
-      return;
-    }
-    if (reduceMotionRef.current) {
-      faceOpacity.value = PRESS_SCALE_OPACITY;
-      return;
-    }
-    faceOpacity.value = withTiming(PRESS_SCALE_OPACITY, { duration: pressMs });
-    faceScale.value = withTiming(PRESS_SCALE, { duration: pressMs });
-  }, [press, faceOpacity, faceScale, tintOpacity, pressMs]);
-
-  const handlePressOut = useCallback(() => {
-    if (press === 'highlight') {
-      tintOpacity.value = reduceMotionRef.current ? 0 : withTiming(0, { duration: pressMs });
-      return;
-    }
-    if (reduceMotionRef.current) {
-      faceOpacity.value = 1;
-      return;
-    }
-    faceOpacity.value = withTiming(1, { duration: pressMs });
-    faceScale.value = withTiming(1, { duration: pressMs });
-  }, [press, faceOpacity, faceScale, tintOpacity, pressMs]);
+  const applyTargets = useCallback(
+    (pressed: boolean) => {
+      const t = resolvePressTargets(press, pressed, reduceMotionRef.current);
+      const to = (v: number) => (t.animate ? withTiming(v, { duration: pressMs }) : v);
+      faceOpacity.value = to(t.faceOpacity);
+      faceScale.value = to(t.faceScale);
+      tintOpacity.value = to(t.tintOpacity);
+    },
+    [press, pressMs, faceOpacity, faceScale, tintOpacity],
+  );
+  const handlePressIn = useCallback(() => applyTargets(true), [applyTargets]);
+  const handlePressOut = useCallback(() => applyTargets(false), [applyTargets]);
 
   const pressedFace = useAnimatedStyle(() => ({
     opacity: faceOpacity.value,

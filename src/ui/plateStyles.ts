@@ -164,21 +164,53 @@ export function resolveDisabledFaceStyles(theme: Theme): { face: ViewStyle; ink:
  * `scale`: cards and filled buttons shrink to 0.975 and darken to 0.92 over
  * motion.duration.press. `highlight`: rows and outlined/ghost buttons tint
  * their fill by 8% of the foreground ink, no movement. PRESS_DIP_OPACITY is
- * the legacy dip still used by flat, non-Plate pressables (keypad keys).
+ * the legacy dip still used by flat, non-Plate pressables (keypad keys, the
+ * toast action, Login's accessory bar).
  */
 export const PRESS_SCALE = 0.975;
 export const PRESS_SCALE_OPACITY = 0.92;
 export const PRESS_HIGHLIGHT_OPACITY = 0.08;
 export const PRESS_DIP_OPACITY = 0.8;
 
+export interface PressTargets {
+  faceOpacity: number;
+  faceScale: number;
+  tintOpacity: number;
+  /** false under Reduced Motion: Plate assigns the targets instantly instead of withTiming. */
+  animate: boolean;
+}
+
+/** Shared-value targets for a press response in its pressed or released state. */
+export function resolvePressTargets(
+  press: PlatePress,
+  pressed: boolean,
+  reduceMotion: boolean,
+): PressTargets {
+  const animate = !reduceMotion;
+  // Released resets every layer regardless of mode.
+  if (!pressed) return { faceOpacity: 1, faceScale: 1, tintOpacity: 0, animate };
+  if (press === 'highlight') {
+    return { faceOpacity: 1, faceScale: 1, tintOpacity: PRESS_HIGHLIGHT_OPACITY, animate };
+  }
+  return {
+    faceOpacity: PRESS_SCALE_OPACITY,
+    faceScale: reduceMotion ? 1 : PRESS_SCALE,
+    tintOpacity: 0,
+    animate,
+  };
+}
+
 /**
- * The pressed-state target for the FACE. Highlight returns nothing here: its
- * response is the tint layer Plate renders over the face. Reduced motion
- * drops the scale component of `scale` (Plate applies it instantly).
+ * The pressed-state target for the FACE, derived from resolvePressTargets so
+ * the two cannot drift. Highlight returns nothing here: its response is the
+ * tint layer Plate renders over the face. Reduced motion drops the scale
+ * component of `scale` (Plate applies it instantly).
  */
 export function resolvePressedStyle(reduceMotion: boolean, press: PlatePress = 'scale'): ViewStyle {
   if (press === 'highlight') return {};
-  return reduceMotion
-    ? { opacity: PRESS_SCALE_OPACITY }
-    : { opacity: PRESS_SCALE_OPACITY, transform: [{ scale: PRESS_SCALE }] };
+  const t = resolvePressTargets(press, true, reduceMotion);
+  return {
+    opacity: t.faceOpacity,
+    ...(reduceMotion ? {} : { transform: [{ scale: t.faceScale }] }),
+  };
 }
