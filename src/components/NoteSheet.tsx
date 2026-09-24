@@ -119,14 +119,7 @@ export function NoteSheet({ visible, sessionNote, exercise, onSave, saving }: Pr
             placeholder="How did it go? Energy, sleep, food…"
             placeholderTextColor={theme.color.inkTertiary}
             accessibilityLabel="Session note"
-            style={[
-              styles.input,
-              {
-                color: theme.color.ink,
-                borderColor: theme.color.border,
-                fontFamily: theme.font.family.sans,
-              },
-            ]}
+            style={styles.input}
           />
         </View>
         {exercise ? (
@@ -141,14 +134,7 @@ export function NoteSheet({ visible, sessionNote, exercise, onSave, saving }: Pr
               placeholder="Anything about this exercise…"
               placeholderTextColor={theme.color.inkTertiary}
               accessibilityLabel={`Note for ${exercise.name}`}
-              style={[
-                styles.input,
-                {
-                  color: theme.color.ink,
-                  borderColor: theme.color.border,
-                  fontFamily: theme.font.family.sans,
-                },
-              ]}
+              style={styles.input}
             />
           </View>
         ) : null}

@@ -3,6 +3,7 @@ import { ScrollView, StyleSheet, TextInput, View } from 'react-native';
 
 import { Button } from '@/ui/Button';
 import { haptics } from '@/ui/haptics';
+import { resolveInputStyle } from '@/ui/inputStyles';
 import { Plate } from '@/ui/Plate';
 import { Sheet } from '@/ui/Sheet';
 import { Text } from '@/ui/Text';
@@ -149,14 +150,10 @@ const makeStyles = (theme: Theme) =>
       gap: theme.space.s3,
     },
     input: {
+      ...resolveInputStyle(theme),
       flex: 1,
       height: theme.touch.min,
-      backgroundColor: theme.color.bg,
-      borderWidth: theme.depth.hairline,
-      borderColor: theme.color.border,
-      paddingHorizontal: theme.space.s3,
-      color: theme.color.ink,
+      // Numerals: mono, like every other number in the app.
       fontFamily: theme.font.family.mono,
-      fontSize: theme.font.size.body,
     },
   });

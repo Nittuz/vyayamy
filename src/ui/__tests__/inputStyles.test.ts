@@ -24,8 +24,13 @@ test('input: 48pt tall, page fill, soft hairline, control radius, body sans in i
 });
 
 test('the style is scheme-aware: light mode swaps fill, border, and ink', () => {
-  const light = resolveInputStyle(buildTheme('light'));
-  expect(light.backgroundColor).toBe(buildTheme('light').color.bg);
-  expect(light.color).toBe(buildTheme('light').color.ink);
-  expect(light.borderRadius).toBe(theme.radius.control);
+  const lightTheme = buildTheme('light');
+  const light = resolveInputStyle(lightTheme);
+  expect(light.backgroundColor).toBe(lightTheme.color.bg);
+  expect(light.borderColor).toBe(lightTheme.color.border);
+  expect(light.color).toBe(lightTheme.color.ink);
+  // It really swaps: no light value equals its dark counterpart.
+  expect(light.backgroundColor).not.toBe(theme.color.bg);
+  expect(light.color).not.toBe(theme.color.ink);
+  expect(light.borderRadius).toBe(lightTheme.radius.control);
 });

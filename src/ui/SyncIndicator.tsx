@@ -94,7 +94,7 @@ const makeStyles = (theme: Theme) =>
     dot: {
       width: 6,
       height: 6,
-      borderRadius: 3,
+      borderRadius: theme.radius.full,
       backgroundColor: theme.color.inkSecondary,
     },
     dotOffline: { backgroundColor: theme.color.inkSecondary },
