@@ -27,6 +27,7 @@ export function QuarantineBanner({ staleCount, onPress }: Props) {
     <Plate
       tone="panel"
       border="soft"
+      press="highlight"
       onPress={() => {
         haptics.light();
         onPress();
