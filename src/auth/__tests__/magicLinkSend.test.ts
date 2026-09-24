@@ -4,7 +4,7 @@
  * with copy that says what actually happened. Everything else stays one
  * neutral failure (account existence must not leak, #92).
  */
-import { classifyMagicLinkSend } from '@/auth/magicLinkSend';
+import { classifyMagicLinkSend, sentCardCopy } from '@/auth/magicLinkSend';
 
 describe('classifyMagicLinkSend', () => {
   test('no error is a send', () => {
@@ -22,5 +22,22 @@ describe('classifyMagicLinkSend', () => {
   test('any other error is a neutral failure', () => {
     expect(classifyMagicLinkSend({ status: 400, code: 'validation_failed' })).toBe('failed');
     expect(classifyMagicLinkSend({})).toBe('failed');
+  });
+});
+
+describe('sentCardCopy', () => {
+  test('a fresh send promises the email', () => {
+    expect(sentCardCopy('sent')).toMatch(/on its way/);
+  });
+
+  test('a rate-limited send says no email went out and points at the latest one', () => {
+    expect(sentCardCopy('rate-limited')).toMatch(/No new email/);
+    expect(sentCardCopy('rate-limited')).toMatch(/latest email/);
+  });
+
+  test('entering a code you already have never claims an email was sent', () => {
+    const copy = sentCardCopy('have-code');
+    expect(copy).not.toMatch(/on its way/);
+    expect(copy).toMatch(/latest/);
   });
 });

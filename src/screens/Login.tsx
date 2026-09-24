@@ -17,7 +17,7 @@ import {
 import { SafeAreaView } from 'react-native-safe-area-context';
 
 import { signInWithOtp, signInWithPassword, verifyEmailOtp } from '@/auth/authActions';
-import { classifyMagicLinkSend } from '@/auth/magicLinkSend';
+import { classifyMagicLinkSend, sentCardCopy, type SentCardMode } from '@/auth/magicLinkSend';
 import {
   isCompleteSignInCode,
   normalizeSignInCode,
@@ -44,12 +44,6 @@ const LINK_FAILED_ERROR =
   "That sign-in link didn't work. It may have expired. Send yourself a fresh link, or sign in with your password.";
 // Wrong, expired, and already-used codes all read the same (#92 posture).
 const CODE_FAILED_ERROR = "That code didn't work. Check it, or send yourself a fresh link.";
-// A rate-limited send is not a bad address — say so, and keep the code card
-// open because the user's latest email still carries a valid code.
-const SENT_COPY =
-  'Your sign-in link is on its way. Open it on this phone, or enter the code from the email here.';
-const RATE_LIMITED_COPY =
-  'No new email this time: too many were sent just now. Use the code from your latest email, or wait a few minutes to resend.';
 // The iOS number pad has no Done key, so the code field carries its own
 // accessory bar (same treatment as the set-entry keypad).
 const CODE_ACCESSORY_ID = 'sign-in-code-accessory';
@@ -85,7 +79,10 @@ function LoginScreenInner() {
   const [code, setCode] = useState('');
   const [verifyingCode, setVerifyingCode] = useState(false);
   const [sent, setSent] = useState(false);
-  const [rateLimited, setRateLimited] = useState(false);
+  // How the code card was reached (sentCardCopy): a fresh send, a
+  // rate-limited send (not a bad address — the latest email still carries a
+  // valid code), or "I already have a code".
+  const [cardMode, setCardMode] = useState<SentCardMode>('sent');
   const [error, setError] = useState<string | null>(null);
   const theme = useTheme();
   const styles = useMemo(() => makeStyles(theme), [theme]);
@@ -110,7 +107,7 @@ function LoginScreenInner() {
       setError(MAGIC_LINK_ERROR);
       return;
     }
-    setRateLimited(outcome === 'rate-limited');
+    setCardMode(outcome === 'rate-limited' ? 'rate-limited' : 'sent');
     setCode('');
     setSent(true);
   }
@@ -120,7 +117,7 @@ function LoginScreenInner() {
   function openCodeCard() {
     setError(null);
     clearAuthError();
-    setRateLimited(false);
+    setCardMode('have-code');
     setCode('');
     setSent(true);
   }
@@ -201,11 +198,11 @@ function LoginScreenInner() {
               </Text>
               <Text
                 variant="meta"
-                color={rateLimited ? theme.color.danger : theme.color.inkSecondary}
+                color={cardMode === 'rate-limited' ? theme.color.danger : theme.color.inkSecondary}
                 style={styles.centerText}
                 accessibilityLiveRegion="polite"
               >
-                {rateLimited ? RATE_LIMITED_COPY : SENT_COPY}
+                {sentCardCopy(cardMode)}
               </Text>
               <TextInput
                 value={code}
@@ -285,7 +282,6 @@ function LoginScreenInner() {
                   size="row"
                   onPress={() => {
                     setSent(false);
-                    setRateLimited(false);
                     setError(null);
                   }}
                 />

@@ -18,3 +18,17 @@ export function classifyMagicLinkSend(err: MagicLinkSendError | null): MagicLink
   if (err.status === 429 || err.code === 'over_email_send_rate_limit') return 'rate-limited';
   return 'failed';
 }
+
+/** How the code card was reached; each mode needs copy that matches reality. */
+export type SentCardMode = 'sent' | 'rate-limited' | 'have-code';
+
+export function sentCardCopy(mode: SentCardMode): string {
+  switch (mode) {
+    case 'sent':
+      return 'Your sign-in link is on its way. Open it on this phone, or enter the code from the email here.';
+    case 'rate-limited':
+      return 'No new email this time: too many were sent just now. Use the code from your latest email, or wait a few minutes to resend.';
+    case 'have-code':
+      return 'Enter the code from your latest FlexYug email. Codes expire 15 minutes after they are sent.';
+  }
+}
