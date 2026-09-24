@@ -53,8 +53,13 @@ export const TEXT_VARIANTS: TextVariant[] = [
  */
 export function resolveMaxFontSizeMultiplier(variant: TextVariant): number | undefined {
   switch (variant) {
-    case 'hero':
+    // The poster (displayXXL) never scales: at 96pt it is already the largest
+    // thing on screen, and any growth pushes the long first line into
+    // adjustsFontSizeToFit while the short second line stays full size — the
+    // two lines desync (TestFlight build 9, Dynamic Type one notch up).
     case 'displayXXL':
+      return 1;
+    case 'hero':
     case 'displayXL':
     case 'display':
       return 1.2;
@@ -186,4 +191,30 @@ export function scaledLineHeight(
   const cap = capOverride ?? resolveMaxFontSizeMultiplier(variant);
   const effectiveScale = cap != null ? Math.min(fontScale, cap) : fontScale;
   return Math.round(baseLineHeight * effectiveScale);
+}
+
+// Anton vertical metrics (unitsPerEm 2048), read from the bundled TTF: flat
+// caps reach 1760, and the font declares a 674-unit descent that uppercase
+// display copy never uses. iOS baselines a forced line box at
+// (lineHeight − descent), so that empty descent sits under every line.
+const ANTON_CAP_HEIGHT = 1760 / 2048;
+const ANTON_DESCENT = 674 / 2048;
+// Poster leading: the visual gap between one line's cap bottom and the
+// next line's cap top, as a fraction of the font size.
+const STACKED_DISPLAY_GAP = 0.08;
+
+/**
+ * Negative top margin for the SECOND of two stacked display lines (the
+ * poster: "READY TO" over "LIFT."). Each line keeps its full 1.2 em box (the
+ * box must not shrink — iOS clips cap tops), so the dead descent is closed
+ * by overlap instead: the second line rises until only STACKED_DISPLAY_GAP
+ * shows between the caps.
+ */
+export function stackedDisplayTrim(variant: 'display' | 'displayXL' | 'displayXXL'): number {
+  const style = resolveTextStyle(variant);
+  const size = style.fontSize as number;
+  const lineHeight = style.lineHeight as number;
+  const capTopGap = lineHeight - (ANTON_DESCENT + ANTON_CAP_HEIGHT) * size;
+  const deadSpace = ANTON_DESCENT * size + capTopGap;
+  return -Math.round(deadSpace - STACKED_DISPLAY_GAP * size);
 }

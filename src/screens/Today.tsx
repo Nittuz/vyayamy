@@ -38,6 +38,7 @@ import { Icon } from '@/ui/icons';
 import { FBarMark } from '@/ui/Logo';
 import { staggerDelay } from '@/ui/motion';
 import { OutlineDisplay } from '@/ui/OutlineDisplay';
+import { stackedDisplayTrim } from '@/ui/textVariants';
 import { Plate } from '@/ui/Plate';
 import { resolvePlateStyles } from '@/ui/plateStyles';
 import { SettleSlam } from '@/ui/SettleSlam';
@@ -396,6 +397,7 @@ export default function TodayScreen() {
                   color={theme.color.inkHero}
                   numberOfLines={1}
                   adjustsFontSizeToFit
+                  style={styles.posterSecondLine}
                 >
                   Work.
                 </Text>
@@ -410,7 +412,9 @@ export default function TodayScreen() {
                 >
                   Ready to
                 </Text>
-                <OutlineDisplay size="displayXXL">Lift.</OutlineDisplay>
+                <OutlineDisplay size="displayXXL" style={styles.posterSecondLine}>
+                  Lift.
+                </OutlineDisplay>
               </>
             )
           ) : (
@@ -729,6 +733,11 @@ const makeStyles = (theme: Theme) =>
       paddingHorizontal: theme.space.page,
       paddingBottom: theme.space.s6,
     },
+    // The poster's second line rises into the first line's dead descent
+    // (Anton declares 674/2048 em of descent that uppercase never uses), so
+    // the two lines read as one slab instead of two with a hole between —
+    // TestFlight build 9 on device. The line boxes themselves stay 1.2 em.
+    posterSecondLine: { marginTop: stackedDisplayTrim('displayXXL') },
     cardSkeleton: {
       marginHorizontal: theme.space.s4,
       paddingVertical: theme.space.s10,

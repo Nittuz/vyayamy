@@ -102,7 +102,7 @@ Weights: 400 / 500 / 600 via distinct families. There is no 700 and no `fontWeig
 
 #### Text primitive
 
-All code renders text through the `<Text variant="...">` primitive from [src/ui/Text.tsx](../src/ui/Text.tsx). It binds family + size + tracking + line-height per variant via `resolveTextStyle` in [src/ui/textVariants.ts](../src/ui/textVariants.ts), so no screen can fall back to the system font (#22). Display-class variants cap Dynamic Type at 1.2× (`resolveMaxFontSizeMultiplier`); body-class variants scale freely.
+All code renders text through the `<Text variant="...">` primitive from [src/ui/Text.tsx](../src/ui/Text.tsx). It binds family + size + tracking + line-height per variant via `resolveTextStyle` in [src/ui/textVariants.ts](../src/ui/textVariants.ts), so no screen can fall back to the system font (#22). Display-class variants cap Dynamic Type at 1.2× (`resolveMaxFontSizeMultiplier`), except the poster `displayXXL`, which never scales: at 96pt it is already the largest thing on screen, and growth would push its long first line into shrink-to-fit while the short outlined second line stayed full size. Two stacked display lines use `stackedDisplayTrim` on the second line to close Anton's unused descent (the line boxes stay 1.2 em; the overlap is what closes the gap). Body-class variants scale freely.
 
 ### Touch
 

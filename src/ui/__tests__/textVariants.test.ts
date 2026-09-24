@@ -9,6 +9,7 @@
  */
 import {
   resolveMaxFontSizeMultiplier,
+  stackedDisplayTrim,
   resolveTextStyle,
   scaledLineHeight,
   TEXT_VARIANTS,
@@ -87,7 +88,11 @@ test('display-class variants cap Dynamic Type scaling; body-class scales freely'
   expect(resolveMaxFontSizeMultiplier('hero')).toBe(1.2);
   expect(resolveMaxFontSizeMultiplier('display')).toBe(1.2);
   expect(resolveMaxFontSizeMultiplier('displayXL')).toBe(1.2);
-  expect(resolveMaxFontSizeMultiplier('displayXXL')).toBe(1.2);
+  // The poster never scales: it is already the largest thing on screen, and
+  // any growth forces adjustsFontSizeToFit on the long first line while the
+  // short outlined second line stays full size (TestFlight build 9: READY TO
+  // shrank to ~107pt beside a 115pt LIFT.).
+  expect(resolveMaxFontSizeMultiplier('displayXXL')).toBe(1);
   expect(resolveMaxFontSizeMultiplier('body')).toBeUndefined();
   expect(resolveMaxFontSizeMultiplier('meta')).toBeUndefined();
 });
@@ -149,4 +154,23 @@ describe('scaledLineHeight — line boxes track the effective font scale', () =>
     const displayBase = resolveTextStyle('display').lineHeight!; // capped at 1.2 by default
     expect(scaledLineHeight('display', 3, 2)).toBe(Math.round(displayBase * 2));
   });
+});
+
+test('stackedDisplayTrim closes the dead descent between two stacked poster lines', () => {
+  // Anton (unitsPerEm 2048): caps reach 1760, descent 674. iOS baselines a
+  // forced line box at (lineHeight − descent), so under every uppercase line
+  // sit 674 units of empty descent; stacked, that reads as a hole. The trim
+  // pulls the second line up so the visual gap between cap bottom and the
+  // next cap top is a poster-tight 0.08 em.
+  const CAP = 1760 / 2048;
+  const DESCENT = 674 / 2048;
+  for (const variant of ['displayXL', 'displayXXL'] as const) {
+    const style = resolveTextStyle(variant);
+    const size = style.fontSize!;
+    const lineHeight = style.lineHeight!;
+    const capTopGap = lineHeight - DESCENT * size - CAP * size; // above the caps
+    const visualGap = DESCENT * size + capTopGap + stackedDisplayTrim(variant);
+    expect(Math.abs(visualGap - 0.08 * size)).toBeLessThanOrEqual(1);
+    expect(stackedDisplayTrim(variant)).toBeLessThan(0);
+  }
 });

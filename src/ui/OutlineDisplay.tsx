@@ -13,7 +13,7 @@
  * interior. Consequence: only place this on a solid `bg`-colored ground —
  * anywhere else the knockout would read as a smudge, so pass `knockoutColor`.
  */
-import { StyleSheet, View } from 'react-native';
+import { StyleSheet, View, type StyleProp, type ViewStyle } from 'react-native';
 
 import { Text } from './Text';
 import { useTheme } from './useTheme';
@@ -26,6 +26,8 @@ export interface OutlineDisplayProps {
   size?: OutlineDisplaySize;
   /** Interior color; defaults to the page background. */
   knockoutColor?: string;
+  /** Outer box style — e.g. the stacked-poster trim (stackedDisplayTrim). */
+  style?: StyleProp<ViewStyle>;
 }
 
 // Unit circle at 8 compass points; scaled by the hairline stroke weight.
@@ -44,6 +46,7 @@ export function OutlineDisplay({
   children,
   size = 'displayXL',
   knockoutColor,
+  style,
 }: OutlineDisplayProps) {
   const theme = useTheme();
   const w = theme.depth.hairline;
@@ -51,7 +54,7 @@ export function OutlineDisplay({
   const interior = knockoutColor ?? theme.color.bg;
 
   return (
-    <View style={styles.box} accessible accessibilityLabel={word}>
+    <View style={[styles.box, style]} accessible accessibilityLabel={word}>
       {DIRS.map(([dx, dy], i) => (
         <Text
           key={i}
