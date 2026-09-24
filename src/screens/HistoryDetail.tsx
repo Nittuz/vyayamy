@@ -334,7 +334,7 @@ const makeStyles = (theme: Theme) =>
       paddingHorizontal: theme.space.page,
     },
     scroll: { padding: theme.space.page, paddingBottom: theme.space.s12 },
-    header: { gap: theme.space.s1, marginBottom: theme.space.s6 },
+    header: { gap: theme.space.s1, marginBottom: theme.space.section },
     exBlock: {
       borderTopWidth: theme.depth.hairline,
       borderTopColor: theme.color.border,

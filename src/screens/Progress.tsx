@@ -582,7 +582,9 @@ const makeStyles = (theme: Theme) =>
     // matches the exerciseSelect label idiom above.
     controlGroup: { gap: theme.space.half },
 
-    section: { gap: theme.space.s2, marginTop: theme.space.s2 },
+    // The scroll's own gap (s4) plus this margin lands the PR section one
+    // section step (32) below the controls.
+    section: { gap: theme.space.s2, marginTop: theme.space.section - theme.space.s4 },
     // The ONE section-header treatment: strip caps + a single hairline below.
     sectionHeader: {
       paddingBottom: theme.space.s3,

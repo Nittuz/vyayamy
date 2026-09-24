@@ -732,7 +732,7 @@ const makeStyles = (theme: Theme) =>
     },
     headline: {
       paddingHorizontal: theme.space.page,
-      paddingBottom: theme.space.s6,
+      paddingBottom: theme.space.section,
     },
     // The poster's second line rises into the first line's dead descent
     // (Anton declares 674/2048 em of descent that uppercase never uses), so
