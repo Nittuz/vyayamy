@@ -373,6 +373,7 @@ const makeStyles = (theme: Theme) =>
       borderWidth: theme.depth.hairline,
       backgroundColor: theme.color.surface,
       borderColor: theme.color.border,
+      borderRadius: theme.radius.card,
     },
     exerciseName: { marginBottom: theme.space.s4 },
     heroRow: {

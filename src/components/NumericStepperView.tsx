@@ -342,6 +342,7 @@ const makeStyles = (theme: Theme) =>
       alignItems: 'center',
       justifyContent: 'center',
       borderWidth: theme.depth.hairline,
+      borderRadius: theme.radius.control,
     },
     accessoryBar: {
       flexDirection: 'row',
