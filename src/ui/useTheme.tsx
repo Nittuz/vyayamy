@@ -20,9 +20,16 @@ export const space = {
   page: 20,
 } as const;
 
-// Blacktop shape lock: all-sharp — no corner radii anywhere. `full` survives
-// for the one circular case (avatar / round indicators).
+// Softened Blacktop radius scale (spec 2026-09-23). Small on purpose: the
+// rules and flat surfaces still carry the form; rounding takes the edge off.
+//   control — buttons, inputs, segments, stepper keys
+//   card    — Plates, list rows, toasts, banners
+//   sheet   — top corners of bottom sheets
+//   full    — circles only (avatar, sync dot, sheet handle)
 const radius = {
+  control: 6,
+  card: 8,
+  sheet: 16,
   full: 9999,
 } as const;
 
