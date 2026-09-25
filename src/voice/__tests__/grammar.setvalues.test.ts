@@ -94,3 +94,39 @@ describe('GrammarParser — set values', () => {
     expect(parse('next set')!.command).toEqual({ kind: 'completeSet' });
   });
 });
+
+describe('GrammarParser — server-recognition phrasings (build 12 on device)', () => {
+  test('"for" transcribed as the digit 4 between two numbers is the connector', () => {
+    expect(parse('225 4 5')!.command).toEqual({ kind: 'setValues', weight: 225, reps: 5 });
+    expect(parse('225 4 5')!.confidence).toBe('high');
+    expect(parse('bench 135 4 8')!.command).toEqual({ kind: 'setValues', weight: 135, reps: 8 });
+  });
+
+  test('a plain "4 5" is not rewritten: no number before the 4', () => {
+    expect(parse('4 5')).not.toEqual(
+      expect.objectContaining({ command: { kind: 'setValues', reps: 5 } }),
+    );
+  });
+
+  test('the multiplication sign is a connector', () => {
+    expect(parse('225 × 5')!.command).toEqual({ kind: 'setValues', weight: 225, reps: 5 });
+    expect(parse('225×5')!.command).toEqual({ kind: 'setValues', weight: 225, reps: 5 });
+    expect(parse('225 x 5')!.command).toEqual({ kind: 'setValues', weight: 225, reps: 5 });
+  });
+
+  test('"<weight> <unit> <reps> reps" carries both values, not reps alone', () => {
+    expect(parse('225 pounds 5 reps')!.command).toEqual({
+      kind: 'setValues',
+      weight: 225,
+      reps: 5,
+      unit: 'lb',
+    });
+    expect(parse('100 kilos 8 reps')!.command).toEqual({
+      kind: 'setValues',
+      weight: 100,
+      reps: 8,
+      unit: 'kg',
+    });
+    expect(parse('5 reps')!.command).toEqual({ kind: 'setValues', reps: 5 });
+  });
+});

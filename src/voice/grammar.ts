@@ -6,6 +6,8 @@ function normalize(t: string): string {
     t
       .toLowerCase()
       .replace(/[,!?]/g, ' ')
+      // Apple's server recognition writes the multiplication sign for "x".
+      .replace(/×/g, ' x ')
       // Keep a decimal point between digits ("102.5") but drop sentence dots (#84).
       .replace(/(\d)\.(\d)/g, '$1__DEC__$2')
       .replace(/\./g, ' ')
@@ -91,6 +93,26 @@ function firstNumberIn(phrase: string): number | null {
   return run.length ? wordsToNumber(run.join(' ')) : null;
 }
 
+/** Every contiguous run of number tokens, in order ("225 pounds 5" → [225, 5]). */
+function numberRunsIn(phrase: string): number[] {
+  const tokens = phrase.toLowerCase().replace(/-/g, ' ').split(/\s+/).filter(Boolean);
+  const runs: number[] = [];
+  let run: string[] = [];
+  const flush = () => {
+    if (run.length) {
+      const n = wordsToNumber(run.join(' '));
+      if (n != null) runs.push(n);
+      run = [];
+    }
+  };
+  for (const tok of tokens) {
+    if (/^\d+(\.\d+)?$/.test(tok) || NUM_WORDS.has(tok)) run.push(tok);
+    else flush();
+  }
+  flush();
+  return runs;
+}
+
 function detectUnit(t: string): 'kg' | 'lb' | undefined {
   if (/\b(kilo|kilos|kg|kgs|kilogram|kilograms)\b/.test(t)) return 'kg';
   if (/\b(pound|pounds|lb|lbs)\b/.test(t)) return 'lb';
@@ -103,7 +125,10 @@ function high(command: Command, transcript: string): ParseResult {
 
 export const GrammarParser: VoiceParser = {
   parse(transcript: string, _ctx: VoiceContext): ParseResult | null {
-    const t = normalize(transcript);
+    // Server recognition writes "for" between two numbers as the digit 4
+    // ("225 4 5", build 12 on device): a lone 4 that has a number before it
+    // and a number after it is the connector, not a value.
+    const t = normalize(transcript).replace(/(\d)\s+4\s+(?=\d)/g, '$1 for ');
     if (t === '') return null;
 
     // Stop the REST TIMER (must beat both the global "stop" and "startRest"):
@@ -177,12 +202,27 @@ export const GrammarParser: VoiceParser = {
       }
     }
 
-    // reps only: "<n> reps"
+    // "<n> reps" — and "<weight> <unit> <n> reps", where the weight is the
+    // first number and the reps the last (server recognition often drops the
+    // connector: "225 pounds 5 reps").
     const repsOnly = t.match(/^(.*?)\breps?\b\s*$/);
     if (repsOnly) {
-      const reps = firstNumberIn(repsOnly[1]!);
-      if (reps != null)
-        return { command: { kind: 'setValues', reps }, confidence: 'high', transcript };
+      const runs = numberRunsIn(repsOnly[1]!);
+      if (runs.length >= 2) {
+        const unit = detectUnit(t);
+        return {
+          command: {
+            kind: 'setValues',
+            weight: runs[0]!,
+            reps: runs[runs.length - 1]!,
+            ...(unit ? { unit } : {}),
+          },
+          confidence: 'high',
+          transcript,
+        };
+      }
+      if (runs.length === 1)
+        return { command: { kind: 'setValues', reps: runs[0]! }, confidence: 'high', transcript };
     }
 
     // Bare control keyword (no values found above).

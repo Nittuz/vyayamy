@@ -194,7 +194,7 @@ test('a preserved pending survives the silence timeout after release (timer clea
   }
 });
 
-test('a silent release discards the pending command (no invisible apply later)', async () => {
+test('a silent re-hold brings the pending question back — never an invisible pending', async () => {
   dispatchCommand.mockResolvedValue({ ok: true, message: 'Add Bench Press' });
   const fake = makeFakeEngine();
   const { result } = renderHook(() => useVoiceSession(deps(fake.engine)));
@@ -208,19 +208,29 @@ test('a silent release discards the pending command (no invisible apply later)',
   act(() => {
     result.current.release(); // preserved — the say-"yes"/Confirm flow lives on
   });
-  await act(async () => {
-    await result.current.start(); // re-hold: pendingRef intentionally survives
-  });
   act(() => {
-    result.current.release(); // ...but a silent release ends at idle
+    fake.end();
   });
-  expect(result.current.ui.phase).toBe('idle');
+  expect(result.current.ui.phase).toBe('pending');
 
   await act(async () => {
-    await result.current.confirmPending(); // must be a no-op now
+    await result.current.start(); // re-hold shows listening over the question...
   });
-  expect(dispatchCommand).not.toHaveBeenCalled(); // pending was discarded, never applied
-  expect(result.current.ui.phase).toBe('idle'); // no invisible applied state
+  expect(result.current.ui.phase).toBe('listening');
+  act(() => {
+    result.current.release(); // ...and a silent release
+  });
+  act(() => {
+    fake.end();
+  });
+  // ...restores the question: the command is still pending, so the card must say so.
+  expect(result.current.ui.phase).toBe('pending');
+
+  await act(async () => {
+    await result.current.confirmPending(); // the Confirm button still applies it
+  });
+  expect(dispatchCommand).toHaveBeenCalledTimes(1);
+  expect(result.current.ui.phase).toBe('applied');
 });
 
 test('hold release from plain listening returns to idle and allows a fresh start', async () => {
@@ -232,6 +242,9 @@ test('hold release from plain listening returns to idle and allows a fresh start
   });
   act(() => {
     result.current.release();
+  });
+  act(() => {
+    fake.end(); // the recognizer settles
   });
   expect(result.current.ui.phase).toBe('idle');
 
@@ -266,7 +279,8 @@ test('a final that arrives after release is still parsed and dispatched', async 
   act(() => {
     result.current.release(); // finger lifts — server recognition has not finalized yet
   });
-  expect(result.current.ui.phase).toBe('idle');
+  // No idle flash: the card keeps its listening state until the recognizer settles.
+  expect(result.current.ui.phase).toBe('listening');
 
   await act(async () => {
     fake.emit('225 for 5'); // the late final lands
@@ -315,4 +329,99 @@ test('an engine end after a surfaced outcome keeps the outcome on the card', asy
   });
   expect(result.current.ui.phase).toBe('applied');
   expect(result.current.engineOn).toBe(false);
+});
+
+test('release then end with nothing heard settles to idle without a flash in between', async () => {
+  const fake = makeFakeEngine();
+  const { result } = renderHook(() => useVoiceSession(deps(fake.engine)));
+  await act(async () => {
+    await result.current.start();
+  });
+  act(() => {
+    result.current.release();
+  });
+  expect(result.current.ui.phase).toBe('listening');
+  act(() => {
+    fake.end();
+  });
+  expect(result.current.ui.phase).toBe('idle');
+});
+
+test('a low-confidence command survives release and a late spoken "yes" applies it', async () => {
+  dispatchCommand.mockResolvedValue({ ok: true, message: '225 × -' });
+  const fake = makeFakeEngine();
+  const { result } = renderHook(() => useVoiceSession(deps(fake.engine)));
+
+  await act(async () => {
+    await result.current.start(); // hold 1
+  });
+  act(() => {
+    result.current.release();
+  });
+  await act(async () => {
+    fake.emit('225'); // late final: bare weight → low confidence → asks
+  });
+  expect(result.current.ui.phase).toBe('pending');
+  act(() => {
+    fake.end();
+  });
+  expect(result.current.ui.phase).toBe('pending'); // still asking after the recognizer settles
+
+  await act(async () => {
+    await result.current.start(); // hold 2: "yes"
+  });
+  act(() => {
+    result.current.release();
+  });
+  await act(async () => {
+    fake.emit('yes'); // late final again
+  });
+  expect(dispatchCommand).toHaveBeenCalledTimes(1);
+  expect(result.current.ui.phase).toBe('applied');
+});
+
+test('a low-confidence command survives a tap stop and a later "yes" applies it', async () => {
+  dispatchCommand.mockResolvedValue({ ok: true, message: '225 × -' });
+  const fake = makeFakeEngine();
+  const { result } = renderHook(() => useVoiceSession(deps(fake.engine)));
+
+  await act(async () => {
+    await result.current.start(); // tap
+  });
+  await act(async () => {
+    fake.emit('225');
+  });
+  expect(result.current.ui.phase).toBe('pending');
+  act(() => {
+    result.current.stop(); // tap again
+  });
+  expect(result.current.ui.phase).toBe('pending'); // the question stays on the card
+
+  await act(async () => {
+    await result.current.start();
+  });
+  act(() => {
+    result.current.stop();
+  });
+  await act(async () => {
+    fake.emit('yes');
+  });
+  expect(dispatchCommand).toHaveBeenCalledTimes(1);
+  expect(result.current.ui.phase).toBe('applied');
+});
+
+test('the pending question says what was heard', async () => {
+  const fake = makeFakeEngine();
+  const { result } = renderHook(() => useVoiceSession(deps(fake.engine)));
+  await act(async () => {
+    await result.current.start();
+  });
+  await act(async () => {
+    fake.emit('225');
+  });
+  expect(result.current.ui.phase).toBe('pending');
+  if (result.current.ui.phase === 'pending') {
+    expect(result.current.ui.label).toMatch(/225/);
+    expect(result.current.ui.label).toMatch(/heard/i);
+  }
 });

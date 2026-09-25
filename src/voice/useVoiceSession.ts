@@ -52,15 +52,26 @@ export function useVoiceSession(deps: VoiceSessionDeps) {
   const [engineOn, setEngineOn] = useState(false);
   const lastUndo = useRef<null | (() => Promise<void>)>(null);
   const pendingRef = useRef<Command | null>(null);
+  const pendingLabelRef = useRef('');
+
+  /** What a settled session shows: the open question if there is one, else idle. */
+  const settled = (): VoiceUiState =>
+    pendingRef.current
+      ? { phase: 'pending', command: pendingRef.current, label: pendingLabelRef.current }
+      : { phase: 'idle' };
   const timeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
+  // Tap-toggle / silence-timeout stop. A pending question survives it: the
+  // answer ("yes", or the Confirm button) usually comes in the NEXT session,
+  // and with server recognition even in this one it lands after the stop
+  // (the final transcript arrives once audio ends). Pending is replaced by
+  // the next data command, applied by confirm, or dropped on unmount.
   const stop = useCallback(() => {
     if (timeoutRef.current) clearTimeout(timeoutRef.current);
     timeoutRef.current = null;
-    pendingRef.current = null;
     engine.stop();
     setEngineOn(false);
-    setUi({ phase: 'idle' });
+    setUi((prev) => (prev.phase === 'pending' ? prev : settled()));
   }, [engine]);
 
   const resetSilence = useCallback(() => {
@@ -91,7 +102,7 @@ export function useVoiceSession(deps: VoiceSessionDeps) {
   }, [runDataCommand]);
 
   const handleCommand = useCallback(
-    async (command: Command, confidence: 'high' | 'low') => {
+    async (command: Command, confidence: 'high' | 'low', transcript: string) => {
       switch (command.kind) {
         case 'stop':
           lastUndo.current = null;
@@ -132,7 +143,10 @@ export function useVoiceSession(deps: VoiceSessionDeps) {
         default: {
           if (confidence === 'low') {
             pendingRef.current = command;
-            setUi({ phase: 'pending', command, label: describe(command) });
+            // Say what was heard: the user can tell a mishearing from a
+            // half-heard command instead of guessing at a bare "yes?".
+            pendingLabelRef.current = `${describe(command)}? Heard "${transcript.trim()}"`;
+            setUi({ phase: 'pending', command, label: pendingLabelRef.current });
             return;
           }
           return runDataCommand(command);
@@ -147,7 +161,7 @@ export function useVoiceSession(deps: VoiceSessionDeps) {
       resetSilence();
       const parsed = GrammarParser.parse(transcript, deps.getParserContext());
       if (!parsed) return; // chatter guard
-      void handleCommand(parsed.command, parsed.confidence);
+      void handleCommand(parsed.command, parsed.confidence, transcript);
     },
     [deps, handleCommand, resetSilence],
   );
@@ -186,7 +200,9 @@ export function useVoiceSession(deps: VoiceSessionDeps) {
         timeoutRef.current = null;
         listeningRef.current = false;
         setEngineOn(false);
-        setUi((prev) => (prev.phase === 'listening' ? { phase: 'idle' } : prev));
+        // A re-hold showed listening over an open question; a silent end
+        // brings the question back rather than leaving a hidden pending.
+        setUi((prev) => (prev.phase === 'listening' ? settled() : prev));
       },
     );
   }, [engine, onFinal, resetSilence, stop]);
@@ -205,14 +221,16 @@ export function useVoiceSession(deps: VoiceSessionDeps) {
   useEffect(() => {
     phaseRef.current = ui.phase;
   }, [ui.phase]);
+  // Hold-to-talk release: ends the audio, nothing else. The recognizer's
+  // final transcript (server recognition) lands AFTER this, so the card keeps
+  // its listening state until the engine reports end — no idle flash, no
+  // wiped pending question. The end handler in start() settles the ui.
   const release = useCallback(() => {
     if (timeoutRef.current) clearTimeout(timeoutRef.current);
     timeoutRef.current = null;
     engine.stop();
     setEngineOn(false);
     listeningRef.current = false;
-    if (phaseRef.current === 'listening') pendingRef.current = null;
-    setUi((prev) => (prev.phase === 'listening' ? { phase: 'idle' } : prev));
   }, [engine]);
 
   // Keep the listening flag in sync when stop() runs (silence timeout, command, etc.).

@@ -40,6 +40,8 @@ export interface SpeechEngine {
 
 let subscriptions: { remove: () => void }[] = [];
 let endFallback: ReturnType<typeof setTimeout> | null = null;
+/** Settles the CURRENT session (late final + listeners + onEnd); null once settled. */
+let settleCurrent: (() => void) | null = null;
 
 /** Grace for the recognizer's 'end' after stop(); past it, listeners go regardless. */
 const END_GRACE_MS = 2000;
@@ -83,12 +85,16 @@ export const onDeviceEngine: SpeechEngine = {
     // The recognizer's final transcript can land AFTER stop() (server
     // recognition finalizes once audio ends). Listeners therefore live until
     // 'end'; if 'end' comes with a partial still unfinalized, it is promoted.
-    const endSub = ExpoSpeechRecognitionModule.addListener('end', () => {
+    const settle = () => {
+      if (settleCurrent !== settle) return; // superseded or already settled
+      settleCurrent = null;
       const owed = late.onEnd();
       if (owed) onEvent(owed);
       dropSubscriptions();
       onEnd?.();
-    });
+    };
+    settleCurrent = settle;
+    const endSub = ExpoSpeechRecognitionModule.addListener('end', settle);
     subscriptions = [resultSub, errorSub, endSub];
 
     ExpoSpeechRecognitionModule.start({
@@ -107,9 +113,9 @@ export const onDeviceEngine: SpeechEngine = {
     try {
       ExpoSpeechRecognitionModule.stop();
     } finally {
-      // Keep listening for the late final; 'end' (or the grace timer) cleans up.
-      if (subscriptions.length && !endFallback) {
-        endFallback = setTimeout(dropSubscriptions, END_GRACE_MS);
+      // Keep listening for the late final; 'end' (or the grace timer) settles.
+      if (settleCurrent && !endFallback) {
+        endFallback = setTimeout(() => settleCurrent?.(), END_GRACE_MS);
       }
     }
   },
