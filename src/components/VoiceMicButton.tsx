@@ -48,6 +48,12 @@ export function VoiceMicButton({ phase, onTap, onHoldStart, onHoldEnd }: Props) 
     shape: 'control',
   });
 
+  // Two gestures, one Pressable. RN fires onPressOut on EVERY lift, including
+  // a plain tap — so without this gate a tap ran onHoldEnd (release) and then
+  // onTap, and the two fought over the engine. A lift only counts as a hold
+  // release if a long-press actually started.
+  const heldRef = useRef(false);
+
   return (
     <Pressable
       accessibilityRole="button"
@@ -55,8 +61,15 @@ export function VoiceMicButton({ phase, onTap, onHoldStart, onHoldEnd }: Props) 
       accessibilityState={{ disabled: phase === 'disabled', busy: listening }}
       disabled={phase === 'disabled'}
       onPress={onTap}
-      onLongPress={onHoldStart}
-      onPressOut={onHoldEnd}
+      onLongPress={() => {
+        heldRef.current = true;
+        onHoldStart();
+      }}
+      onPressOut={() => {
+        if (!heldRef.current) return;
+        heldRef.current = false;
+        onHoldEnd();
+      }}
       style={({ pressed }) => [
         styles.btn,
         plate.face,

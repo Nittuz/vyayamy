@@ -177,6 +177,17 @@ export function useVoiceSession(deps: VoiceSessionDeps) {
         const label = voiceErrorLabel(code);
         if (label) setUi({ phase: 'error', label }); // ...so surface after (silence stays idle)
       },
+      () => {
+        // The recognizer ended (after our stop, or by itself: silence, network,
+        // the server session cap). Without this the mic stayed "listening"
+        // and the next tap called stop() on a dead engine — the "tap, tap
+        // again, nothing" report from build 11. Surfaced outcomes stay.
+        if (timeoutRef.current) clearTimeout(timeoutRef.current);
+        timeoutRef.current = null;
+        listeningRef.current = false;
+        setEngineOn(false);
+        setUi((prev) => (prev.phase === 'listening' ? { phase: 'idle' } : prev));
+      },
     );
   }, [engine, onFinal, resetSilence, stop]);
 

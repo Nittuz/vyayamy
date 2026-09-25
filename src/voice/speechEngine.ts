@@ -24,8 +24,17 @@ export interface SpeechEvent {
 export interface SpeechEngine {
   isAvailable(): boolean;
   requestPermissions(): Promise<boolean>;
-  /** Error codes are expo-speech-recognition's web-speech names (see voiceErrors.ts). */
-  start(onEvent: (e: SpeechEvent) => void, onError: (code: string, message?: string) => void): void;
+  /**
+   * Error codes are expo-speech-recognition's web-speech names (see
+   * voiceErrors.ts). `onEnd` fires when the recognizer is done — after our own
+   * stop() AND when it ends by itself (silence, network, the server's session
+   * cap) — so the session never believes a dead recognizer is still listening.
+   */
+  start(
+    onEvent: (e: SpeechEvent) => void,
+    onError: (code: string, message?: string) => void,
+    onEnd?: () => void,
+  ): void;
   stop(): void;
 }
 
@@ -52,7 +61,7 @@ export const onDeviceEngine: SpeechEngine = {
     return res.granted;
   },
 
-  start(onEvent, onError) {
+  start(onEvent, onError, onEnd) {
     // A previous session may still be waiting for its 'end' — never stack
     // listeners, or every command would dispatch twice.
     dropSubscriptions();
@@ -78,6 +87,7 @@ export const onDeviceEngine: SpeechEngine = {
       const owed = late.onEnd();
       if (owed) onEvent(owed);
       dropSubscriptions();
+      onEnd?.();
     });
     subscriptions = [resultSub, errorSub, endSub];
 

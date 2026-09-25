@@ -18,12 +18,20 @@ const { dispatchCommand } = jest.requireMock('@/voice/dispatch') as { dispatchCo
 
 function makeFakeEngine() {
   let onResult: ((e: { transcript: string; isFinal: boolean }) => void) | null = null;
+  let onEnd: (() => void) | null = null;
   // Engine contract: stop() may still deliver ONE late final (server
   // recognition finalizes after audio ends), so the fake keeps its callback.
   const stop = jest.fn();
-  const start = jest.fn((cb: (e: { transcript: string; isFinal: boolean }) => void) => {
-    onResult = cb;
-  });
+  const start = jest.fn(
+    (
+      cb: (e: { transcript: string; isFinal: boolean }) => void,
+      _onError: unknown,
+      endCb?: () => void,
+    ) => {
+      onResult = cb;
+      onEnd = endCb ?? null;
+    },
+  );
   const engine: SpeechEngine = {
     isAvailable: () => true,
     requestPermissions: async () => true,
@@ -35,6 +43,7 @@ function makeFakeEngine() {
     start,
     stop,
     emit: (transcript: string) => onResult?.({ transcript, isFinal: true }),
+    end: () => onEnd?.(),
   };
 }
 
@@ -265,4 +274,45 @@ test('a final that arrives after release is still parsed and dispatched', async 
 
   expect(dispatchCommand).toHaveBeenCalledTimes(1);
   expect(result.current.ui.phase).toBe('applied');
+});
+
+test('the engine ending on its own returns the session to idle so the next tap starts again', async () => {
+  const fake = makeFakeEngine();
+  const { result } = renderHook(() => useVoiceSession(deps(fake.engine)));
+
+  await act(async () => {
+    await result.current.start(); // tap to listen
+  });
+  expect(result.current.engineOn).toBe(true);
+
+  act(() => {
+    fake.end(); // server session ended by itself (silence, network, 1-minute cap)
+  });
+  expect(result.current.engineOn).toBe(false);
+  expect(result.current.ui.phase).toBe('idle');
+
+  await act(async () => {
+    await result.current.start(); // must start a fresh session, not be swallowed
+  });
+  expect(fake.start).toHaveBeenCalledTimes(2);
+  expect(result.current.engineOn).toBe(true);
+});
+
+test('an engine end after a surfaced outcome keeps the outcome on the card', async () => {
+  dispatchCommand.mockResolvedValue({ ok: true, message: '225 × 5' });
+  const fake = makeFakeEngine();
+  const { result } = renderHook(() => useVoiceSession(deps(fake.engine)));
+
+  await act(async () => {
+    await result.current.start();
+  });
+  await act(async () => {
+    fake.emit('225 for 5');
+  });
+  expect(result.current.ui.phase).toBe('applied');
+  act(() => {
+    fake.end();
+  });
+  expect(result.current.ui.phase).toBe('applied');
+  expect(result.current.engineOn).toBe(false);
 });
