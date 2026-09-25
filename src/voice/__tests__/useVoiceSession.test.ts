@@ -18,9 +18,9 @@ const { dispatchCommand } = jest.requireMock('@/voice/dispatch') as { dispatchCo
 
 function makeFakeEngine() {
   let onResult: ((e: { transcript: string; isFinal: boolean }) => void) | null = null;
-  const stop = jest.fn(() => {
-    onResult = null;
-  });
+  // Engine contract: stop() may still deliver ONE late final (server
+  // recognition finalizes after audio ends), so the fake keeps its callback.
+  const stop = jest.fn();
   const start = jest.fn((cb: (e: { transcript: string; isFinal: boolean }) => void) => {
     onResult = cb;
   });
@@ -244,4 +244,25 @@ test('re-entrant start() does not re-subscribe the engine (#97)', async () => {
   });
 
   expect(fake.start).toHaveBeenCalledTimes(1);
+});
+
+test('a final that arrives after release is still parsed and dispatched', async () => {
+  dispatchCommand.mockResolvedValue({ ok: true, message: '225 × 5' });
+  const fake = makeFakeEngine();
+  const { result } = renderHook(() => useVoiceSession(deps(fake.engine)));
+
+  await act(async () => {
+    await result.current.start(); // hold begins
+  });
+  act(() => {
+    result.current.release(); // finger lifts — server recognition has not finalized yet
+  });
+  expect(result.current.ui.phase).toBe('idle');
+
+  await act(async () => {
+    fake.emit('225 for 5'); // the late final lands
+  });
+
+  expect(dispatchCommand).toHaveBeenCalledTimes(1);
+  expect(result.current.ui.phase).toBe('applied');
 });

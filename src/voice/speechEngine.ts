@@ -12,6 +12,8 @@
  */
 import { ExpoSpeechRecognitionModule } from 'expo-speech-recognition';
 
+import { LateFinalTracker } from './lateFinal';
+
 export interface SpeechEvent {
   transcript: string;
   isFinal: boolean;
@@ -28,6 +30,17 @@ export interface SpeechEngine {
 }
 
 let subscriptions: { remove: () => void }[] = [];
+let endFallback: ReturnType<typeof setTimeout> | null = null;
+
+/** Grace for the recognizer's 'end' after stop(); past it, listeners go regardless. */
+const END_GRACE_MS = 2000;
+
+function dropSubscriptions() {
+  if (endFallback) clearTimeout(endFallback);
+  endFallback = null;
+  subscriptions.forEach((s) => s.remove());
+  subscriptions = [];
+}
 
 export const onDeviceEngine: SpeechEngine = {
   isAvailable() {
@@ -40,15 +53,33 @@ export const onDeviceEngine: SpeechEngine = {
   },
 
   start(onEvent, onError) {
+    // A previous session may still be waiting for its 'end' — never stack
+    // listeners, or every command would dispatch twice.
+    dropSubscriptions();
+    const late = new LateFinalTracker();
     const resultSub = ExpoSpeechRecognitionModule.addListener('result', (e) => {
       const best = e.results?.[0];
-      if (best)
-        onEvent({ transcript: best.transcript, isFinal: e.isFinal, confidence: best.confidence });
+      if (!best) return;
+      const event = {
+        transcript: best.transcript,
+        isFinal: e.isFinal,
+        confidence: best.confidence,
+      };
+      late.onResult(event);
+      onEvent(event);
     });
     const errorSub = ExpoSpeechRecognitionModule.addListener('error', (e) => {
       onError(String(e.error ?? ''), e.message);
     });
-    subscriptions = [resultSub, errorSub];
+    // The recognizer's final transcript can land AFTER stop() (server
+    // recognition finalizes once audio ends). Listeners therefore live until
+    // 'end'; if 'end' comes with a partial still unfinalized, it is promoted.
+    const endSub = ExpoSpeechRecognitionModule.addListener('end', () => {
+      const owed = late.onEnd();
+      if (owed) onEvent(owed);
+      dropSubscriptions();
+    });
+    subscriptions = [resultSub, errorSub, endSub];
 
     ExpoSpeechRecognitionModule.start({
       lang: 'en-US',
@@ -66,8 +97,10 @@ export const onDeviceEngine: SpeechEngine = {
     try {
       ExpoSpeechRecognitionModule.stop();
     } finally {
-      subscriptions.forEach((s) => s.remove());
-      subscriptions = [];
+      // Keep listening for the late final; 'end' (or the grace timer) cleans up.
+      if (subscriptions.length && !endFallback) {
+        endFallback = setTimeout(dropSubscriptions, END_GRACE_MS);
+      }
     }
   },
 };
