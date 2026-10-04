@@ -506,39 +506,57 @@ export default function TodayScreen() {
           </Plate>
         ) : null}
 
-        {/* One launcher group, not three scattered ghosts (impeccable polish
-            fix A): the icon registry has no sensible glyph for "Blank
-            workout" or "Training plan" (file/calendar), so Quick log drops
-            its lone `plus` too — bare labels all round instead of an
-            icon/no-icon split. */}
+        {/* The three launchers as one ruled list (owner review of build 14's
+            Today screen, 2026-10-04): the earlier 2+1 cluster of borderless
+            ghost buttons read as scattered — uneven gaps from the ghost
+            padding, no shared edge, no container. Each launcher is now a
+            full-width row with the same anatomy as Profile's navigation rows
+            (ghost Plate, soft border, highlight press, trailing chevron), so
+            the group lines up with the schedule strip above it. */}
         <View style={styles.launcherGroup}>
-          <View style={styles.launcherRow}>
-            <Button
-              label="Quick log"
-              kind="ghost"
-              size="row"
-              onPress={() => setQuickLogOpen(true)}
-              disabled={quickLog.isPending || !!activeQuery.data}
-              accessibilityLabel="Quick log an exercise"
-              accessibilityHint="Pick one exercise and start logging it immediately"
-            />
-            <Button
-              label="Blank workout"
-              kind="ghost"
-              size="row"
-              onPress={onBlankStart}
-              disabled={createWorkout.isPending || !!activeQuery.data}
-              accessibilityLabel="Start a blank workout"
-              accessibilityHint="Begin a new workout with no exercises"
-            />
-          </View>
-          <Button
-            label="Training plan"
-            kind="ghost"
-            size="row"
-            onPress={() => router.push('/profile/plan')}
-            accessibilityLabel="Open training plan"
-          />
+          {(
+            [
+              {
+                label: 'Quick log',
+                onPress: () => setQuickLogOpen(true),
+                disabled: quickLog.isPending || !!activeQuery.data,
+                accessibilityLabel: 'Quick log an exercise',
+                accessibilityHint: 'Pick one exercise and start logging it immediately',
+              },
+              {
+                label: 'Blank workout',
+                onPress: onBlankStart,
+                disabled: createWorkout.isPending || !!activeQuery.data,
+                accessibilityLabel: 'Start a blank workout',
+                accessibilityHint: 'Begin a new workout with no exercises',
+              },
+              {
+                label: 'Training plan',
+                onPress: () => router.push('/profile/plan'),
+                disabled: false,
+                accessibilityLabel: 'Open training plan',
+                accessibilityHint: undefined,
+              },
+            ] as const
+          ).map((row) => (
+            <Plate
+              key={row.label}
+              tone="ghost"
+              border="soft"
+              press="highlight"
+              onPress={row.onPress}
+              disabled={row.disabled}
+              accessibilityRole="button"
+              accessibilityLabel={row.accessibilityLabel}
+              accessibilityHint={row.accessibilityHint}
+              faceStyle={styles.launcherFace}
+            >
+              <Text variant="card" color={theme.color.ink} style={styles.launcherLabel}>
+                {row.label}
+              </Text>
+              <Icon name="chevron-right" size={20} color={theme.color.inkTertiary} />
+            </Plate>
+          ))}
         </View>
 
         <View style={styles.recentSection}>
@@ -773,34 +791,21 @@ const makeStyles = (theme: Theme) =>
       paddingVertical: theme.space.s2,
     },
     flexText: { flexShrink: 1 },
-    // The three secondary launchers as ONE visible, left-anchored group
-    // (impeccable polish fix A, follow-up). alignItems: 'flex-start' is load
-    // bearing, not decorative: without it this column's default
-    // alignItems:'stretch' stretches the lone Training Plan button's Plate
-    // to the full container width, and Button's face is
-    // alignItems/justifyContent:'center' — so a stretched face centers its
-    // label. That's what put "Training plan" dead-center instead of on
-    // Quick log's left edge. flex-start makes every child (the row, and
-    // Training Plan) size to its own content and sit flush against the
-    // group's left inset. gap is a small, even step (s3) shared by both
-    // axes — the row's own internal gap and the vertical gap to Training
-    // Plan read as one tight rhythm, not the section-scale gap before RECENT.
+    // The launcher list: full-width rows, one step apart, inset like the
+    // schedule strip above. Row anatomy mirrors Profile's navFace/navText.
     launcherGroup: {
-      alignItems: 'flex-start',
       paddingHorizontal: theme.space.s4,
       marginTop: theme.space.s2,
-      gap: theme.space.s3,
+      gap: theme.space.s2,
     },
-    launcherRow: {
+    launcherFace: {
       flexDirection: 'row',
-      // Two ghost actions can still outrun narrow-device width; Yoga's
-      // default flexShrink:0 would overflow rather than compress (review
-      // finding precedent), so let the pair wrap.
-      flexWrap: 'wrap',
       alignItems: 'center',
-      justifyContent: 'flex-start',
+      minHeight: theme.touch.min,
+      padding: theme.space.s4,
       gap: theme.space.s3,
     },
+    launcherLabel: { flex: 1 },
     recentSection: {
       marginTop: theme.space.section,
       paddingHorizontal: theme.space.page,
