@@ -44,6 +44,8 @@ export interface VoiceCardState {
   phase: 'idle' | 'listening' | 'pending' | 'applied' | 'error';
   partial?: string;
   feedback?: string;
+  /** Listening only: false until the recognizer's audio capture has begun. */
+  ready?: boolean;
 }
 
 export interface ActiveSetCardHandle {
@@ -321,9 +323,11 @@ const ActiveSetCardBase = forwardRef<ActiveSetCardHandle, Props>(function Active
               {voice.phase === 'listening'
                 ? voice.partial
                   ? `“${voice.partial}”`
-                  : 'Listening…'
+                  : voice.ready === false
+                    ? 'Starting…'
+                    : 'Listening…'
                 : voice.phase === 'pending'
-                  ? `Heard ${voice.feedback ?? ''}. Say “yes” to confirm`
+                  ? `${voice.feedback ?? ''} Say “yes” or tap Confirm.`
                   : voice.phase === 'error'
                     ? (voice.feedback ?? 'Didn’t catch that')
                     : `✓ ${voice.feedback ?? ''}`}

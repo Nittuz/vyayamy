@@ -19,6 +19,7 @@ const { dispatchCommand } = jest.requireMock('@/voice/dispatch') as { dispatchCo
 function makeFakeEngine() {
   let onResult: ((e: { transcript: string; isFinal: boolean }) => void) | null = null;
   let onEnd: (() => void) | null = null;
+  let onReady: (() => void) | null = null;
   // Engine contract: stop() may still deliver ONE late final (server
   // recognition finalizes after audio ends), so the fake keeps its callback.
   const stop = jest.fn();
@@ -27,9 +28,11 @@ function makeFakeEngine() {
       cb: (e: { transcript: string; isFinal: boolean }) => void,
       _onError: unknown,
       endCb?: () => void,
+      readyCb?: () => void,
     ) => {
       onResult = cb;
       onEnd = endCb ?? null;
+      onReady = readyCb ?? null;
     },
   );
   const engine: SpeechEngine = {
@@ -44,6 +47,9 @@ function makeFakeEngine() {
     stop,
     emit: (transcript: string) => onResult?.({ transcript, isFinal: true }),
     end: () => onEnd?.(),
+    ready: () => onReady?.(),
+    emitAlternatives: (alternatives: string[]) =>
+      onResult?.({ transcript: alternatives[0]!, isFinal: true, alternatives } as never),
   };
 }
 
@@ -424,4 +430,32 @@ test('the pending question says what was heard', async () => {
     expect(result.current.ui.label).toMatch(/225/);
     expect(result.current.ui.label).toMatch(/heard/i);
   }
+});
+
+test('listening is not "ready" until the recognizer reports audio has started', async () => {
+  const fake = makeFakeEngine();
+  const { result } = renderHook(() => useVoiceSession(deps(fake.engine)));
+  await act(async () => {
+    await result.current.start();
+  });
+  expect(result.current.ui).toEqual({ phase: 'listening', partial: '', ready: false });
+  act(() => {
+    fake.ready();
+  });
+  expect(result.current.ui).toEqual({ phase: 'listening', partial: '', ready: true });
+});
+
+test('the best-parsing alternative is dispatched, not the fused top hypothesis', async () => {
+  dispatchCommand.mockResolvedValue({ ok: true, message: '225 × 5' });
+  const fake = makeFakeEngine();
+  const { result } = renderHook(() => useVoiceSession(deps(fake.engine)));
+  await act(async () => {
+    await result.current.start();
+  });
+  await act(async () => {
+    fake.emitAlternatives(['220 545', '225 for 5']);
+  });
+  expect(dispatchCommand).toHaveBeenCalledTimes(1);
+  expect(dispatchCommand.mock.calls[0]![0]).toEqual({ kind: 'setValues', weight: 225, reps: 5 });
+  expect(result.current.ui.phase).toBe('applied');
 });

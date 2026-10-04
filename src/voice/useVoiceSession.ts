@@ -17,13 +17,15 @@ import { AppState } from 'react-native';
 import type { Command, VoiceContext } from './commands';
 import { dispatchCommand, type DispatchContext } from './dispatch';
 import { GrammarParser } from './grammar';
+import { pickBestParse } from './alternatives';
 import { onDeviceEngine, type SpeechEngine } from './speechEngine';
 import { voiceErrorLabel } from './voiceErrors';
 import { logVoice } from './voiceLog';
 
 export type VoiceUiState =
   | { phase: 'idle' }
-  | { phase: 'listening'; partial: string }
+  /** `ready` flips when the recognizer's audio capture has begun. */
+  | { phase: 'listening'; partial: string; ready: boolean }
   | { phase: 'pending'; command: Command; label: string }
   | { phase: 'applied'; label: string }
   | { phase: 'error'; label: string };
@@ -117,7 +119,7 @@ export function useVoiceSession(deps: VoiceSessionDeps) {
             await lastUndo.current();
             lastUndo.current = null;
           }
-          setUi({ phase: 'listening', partial: '' });
+          setUi({ phase: 'listening', partial: '', ready: true });
           return;
         }
         case 'confirm':
@@ -163,17 +165,18 @@ export function useVoiceSession(deps: VoiceSessionDeps) {
   );
 
   const onFinal = useCallback(
-    (transcript: string) => {
+    (transcript: string, alternatives: string[] = []) => {
       resetSilence();
-      const parsed = GrammarParser.parse(transcript, deps.getParserContext());
+      const candidates = [transcript, ...alternatives.filter((a) => a !== transcript)];
+      const pick = pickBestParse(candidates, deps.getParserContext());
       logVoice(
         'parse',
-        parsed
-          ? `${parsed.confidence} ${JSON.stringify(parsed.command)} from "${transcript}"`
-          : `no match "${transcript}"`,
+        pick
+          ? `${pick.parsed.confidence} ${JSON.stringify(pick.parsed.command)} from "${pick.transcript}" (alt ${pick.index} of ${candidates.length})`
+          : `no match in ${JSON.stringify(candidates)}`,
       );
-      if (!parsed) return; // chatter guard
-      void handleCommand(parsed.command, parsed.confidence, transcript);
+      if (!pick) return; // chatter guard
+      void handleCommand(pick.parsed.command, pick.parsed.confidence, pick.transcript);
     },
     [deps, handleCommand, resetSilence],
   );
@@ -196,12 +199,12 @@ export function useVoiceSession(deps: VoiceSessionDeps) {
     }
     listeningRef.current = true;
     setEngineOn(true);
-    setUi({ phase: 'listening', partial: '' });
+    setUi({ phase: 'listening', partial: '', ready: false });
     resetSilence();
     engine.start(
       (e) => {
-        if (e.isFinal) onFinal(e.transcript);
-        else setUi({ phase: 'listening', partial: e.transcript });
+        if (e.isFinal) onFinal(e.transcript, e.alternatives);
+        else setUi({ phase: 'listening', partial: e.transcript, ready: true });
       },
       (code) => {
         stop(); // resets ui to idle...
@@ -220,6 +223,9 @@ export function useVoiceSession(deps: VoiceSessionDeps) {
         // A re-hold showed listening over an open question; a silent end
         // brings the question back rather than leaving a hidden pending.
         setUi((prev) => (prev.phase === 'listening' ? settled() : prev));
+      },
+      () => {
+        setUi((prev) => (prev.phase === 'listening' ? { ...prev, ready: true } : prev));
       },
     );
   }, [engine, onFinal, resetSilence, stop]);

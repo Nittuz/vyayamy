@@ -20,6 +20,8 @@ export interface SpeechEvent {
   isFinal: boolean;
   /** 0..1, or -1 when the engine cannot report it; undefined on some partials. */
   confidence?: number;
+  /** The recognizer's N-best list, best first (includes `transcript`). */
+  alternatives?: string[];
 }
 
 export interface SpeechEngine {
@@ -35,6 +37,8 @@ export interface SpeechEngine {
     onEvent: (e: SpeechEvent) => void,
     onError: (code: string, message?: string) => void,
     onEnd?: () => void,
+    /** Audio capture has actually begun — until then, speech is lost. */
+    onReady?: () => void,
   ): void;
   stop(): void;
 }
@@ -43,6 +47,23 @@ let subscriptions: { remove: () => void }[] = [];
 let endFallback: ReturnType<typeof setTimeout> | null = null;
 /** Settles the CURRENT session (late final + listeners + onEnd); null once settled. */
 let settleCurrent: (() => void) | null = null;
+
+/** Words the grammar depends on, handed to the recognizer as hints. */
+const CONTEXTUAL_STRINGS = [
+  'for',
+  'by',
+  'times',
+  'reps',
+  'at',
+  'pounds',
+  'kilos',
+  'done',
+  'undo',
+  'rest',
+  'next',
+  'finish',
+  'yes',
+];
 
 /** Grace for the recognizer's 'end' after stop(); past it, listeners go regardless. */
 const END_GRACE_MS = 2000;
@@ -64,7 +85,7 @@ export const onDeviceEngine: SpeechEngine = {
     return res.granted;
   },
 
-  start(onEvent, onError, onEnd) {
+  start(onEvent, onError, onEnd, onReady) {
     // A previous session may still be waiting for its 'end' — never stack
     // listeners, or every command would dispatch twice.
     dropSubscriptions();
@@ -72,18 +93,41 @@ export const onDeviceEngine: SpeechEngine = {
     const resultSub = ExpoSpeechRecognitionModule.addListener('result', (e) => {
       const best = e.results?.[0];
       if (!best) return;
+      const alternatives = e.results.map((r) => r.transcript);
       const event = {
         transcript: best.transcript,
         isFinal: e.isFinal,
         confidence: best.confidence,
+        alternatives,
       };
       logVoice(
         e.isFinal ? 'result.final' : 'result.partial',
-        `"${best.transcript}" conf=${best.confidence ?? '?'}`,
+        `"${best.transcript}" conf=${best.confidence ?? '?'}` +
+          (e.isFinal && alternatives.length > 1
+            ? ` alts=${alternatives
+                .slice(1)
+                .map((a) => `"${a}"`)
+                .join(' ')}`
+            : ''),
       );
       late.onResult(event);
       onEvent(event);
     });
+    // Readiness: the audio session takes a beat to start; speech before
+    // 'audiostart' is lost (two silent hold sessions on the simulator).
+    const audioStartSub = ExpoSpeechRecognitionModule.addListener('audiostart', () => {
+      logVoice('audio.start');
+      onReady?.();
+    });
+    const speechStartSub = ExpoSpeechRecognitionModule.addListener('speechstart', () =>
+      logVoice('speech.start'),
+    );
+    const speechEndSub = ExpoSpeechRecognitionModule.addListener('speechend', () =>
+      logVoice('speech.end'),
+    );
+    const noMatchSub = ExpoSpeechRecognitionModule.addListener('nomatch', () =>
+      logVoice('nomatch'),
+    );
     const errorSub = ExpoSpeechRecognitionModule.addListener('error', (e) => {
       logVoice('error', `${String(e.error ?? '')} ${e.message ?? ''}`.trim());
       onError(String(e.error ?? ''), e.message);
@@ -102,7 +146,15 @@ export const onDeviceEngine: SpeechEngine = {
     };
     settleCurrent = settle;
     const endSub = ExpoSpeechRecognitionModule.addListener('end', settle);
-    subscriptions = [resultSub, errorSub, endSub];
+    subscriptions = [
+      resultSub,
+      errorSub,
+      endSub,
+      audioStartSub,
+      speechStartSub,
+      speechEndSub,
+      noMatchSub,
+    ];
 
     const onDevice = ExpoSpeechRecognitionModule.supportsOnDeviceRecognition();
     ExpoSpeechRecognitionModule.start({
@@ -114,6 +166,10 @@ export const onDeviceEngine: SpeechEngine = {
       // both surfaced by code through voiceErrorLabel when they are missing).
       requiresOnDeviceRecognition: onDevice,
       addsPunctuation: false,
+      // Bias toward the command vocabulary (SFSpeechRecognitionRequest
+      // .contextualStrings); the number formatter still fuses "for" between
+      // digits, which the N-best pick in alternatives.ts recovers from.
+      contextualStrings: CONTEXTUAL_STRINGS,
     });
     logVoice('engine.start', onDevice ? 'on-device' : 'server');
   },

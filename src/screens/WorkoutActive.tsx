@@ -453,9 +453,15 @@ export default function WorkoutActiveScreen() {
     voice.ui.phase === 'pending' || voice.ui.phase === 'applied' || voice.ui.phase === 'error'
       ? voice.ui.label
       : undefined;
+  const voiceReady = voice.ui.phase === 'listening' ? voice.ui.ready : undefined;
   const voiceCardState = useMemo(
-    () => ({ phase: voice.ui.phase, partial: voicePartial, feedback: voiceFeedback }),
-    [voice.ui.phase, voicePartial, voiceFeedback],
+    () => ({
+      phase: voice.ui.phase,
+      partial: voicePartial,
+      feedback: voiceFeedback,
+      ready: voiceReady,
+    }),
+    [voice.ui.phase, voicePartial, voiceFeedback, voiceReady],
   );
 
   const handleSetComplete = useCallback(
