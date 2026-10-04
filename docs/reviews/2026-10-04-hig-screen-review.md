@@ -58,6 +58,15 @@ Fix: an optional `closeLabel` on `Sheet` rendering a header-right text button; N
 
 **15. Durations expose workouts left open.** A one-set session shows "1H 5M" and a July workout shows "5D 7H". The number is honest but reads as a bug; cap the displayed duration at the last logged set or show "open" for sessions never finished. Files: `src/core/format.ts`, history queries.
 
+## Resolution log
+
+- **Batch A shipped 2026-10-04** (spec `docs/specs/2026-10-04-hig-batch-a-spec.md`): 1 (CTA
+  label cap, stacked bottom bar and toolbar above font scale 1.5, banner chevron and 1.5× cap),
+  2 ("Finish workout?", discard primary for an empty session with Back to sets), 3 (toolbar of
+  two secondary buttons, one Voice help link with the log inside the help sheet, outlined Prev),
+  4 (chart left padding 60), 5 (full-width delete row). Verified on the simulator at the
+  default and accessibility-extra-large sizes.
+
 ## Suggested order
 
 Batch A (one build): 1, 2, 3, 4, 5. These are the ones a tester notices in the first session.

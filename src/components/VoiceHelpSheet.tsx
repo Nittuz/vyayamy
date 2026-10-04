@@ -9,6 +9,7 @@
 import { useMemo } from 'react';
 import { ScrollView, StyleSheet, View } from 'react-native';
 
+import { Button } from '@/ui/Button';
 import { Sheet } from '@/ui/Sheet';
 import { Text } from '@/ui/Text';
 import { useTheme, type Theme } from '@/ui/useTheme';
@@ -32,9 +33,11 @@ const GROUPS: Group[] = [
 interface Props {
   visible: boolean;
   onClose: () => void;
+  /** Diagnostics live one tap deeper than help, not beside the mic. */
+  onOpenLog?: () => void;
 }
 
-export function VoiceHelpSheet({ visible, onClose }: Props) {
+export function VoiceHelpSheet({ visible, onClose, onOpenLog }: Props) {
   const theme = useTheme();
   const styles = useMemo(() => makeStyles(theme), [theme]);
 
@@ -55,6 +58,19 @@ export function VoiceHelpSheet({ visible, onClose }: Props) {
             </View>
           </View>
         ))}
+        {onOpenLog ? (
+          // Diagnostics sit one tap deeper than help (HIG review 2026-10-04,
+          // finding 3): the full event trail of recent voice sessions,
+          // shareable, for the "it heard me but nothing happened" report.
+          <Button
+            label="Open voice log"
+            kind="ghost"
+            size="row"
+            onPress={onOpenLog}
+            accessibilityLabel="Open voice diagnostics log"
+            style={styles.logLink}
+          />
+        ) : null}
       </ScrollView>
     </Sheet>
   );
@@ -65,4 +81,5 @@ const makeStyles = (theme: Theme) =>
     body: { gap: theme.space.s6, paddingBottom: theme.space.s2 },
     group: { gap: theme.space.s2 },
     examples: { gap: theme.space.s2 },
+    logLink: { alignSelf: 'flex-start' },
   });

@@ -56,7 +56,10 @@ interface Props {
   accessibilityLabel?: string;
 }
 
-const PADDING = { top: 18, right: 16, bottom: 28, left: 44 };
+// Left: the widest y label ("600 lb" at 10px mono) must start at the 16pt page
+// margin even though the SVG itself is drawn at window width (HIG review
+// 2026-10-04, finding 4: labels sat flush with the screen edge at 44).
+const PADDING = { top: 18, right: 16, bottom: 28, left: 60 };
 
 export function LineChart({
   data,

@@ -291,7 +291,9 @@ export default function HistoryDetailScreen() {
         })}
 
         {/* Demoted (P2, impeccable r2 wave 2 S3): a hairline rule + extra top
-            margin stop Delete from reading as the screen's visual conclusion. */}
+            margin stop Delete from reading as the screen's visual conclusion.
+            Full width, the same row idiom as Profile's Sign out (HIG review
+            2026-10-04, finding 5). */}
         <View style={styles.deleteSection}>
           <Button
             label="Delete workout"
@@ -301,7 +303,6 @@ export default function HistoryDetailScreen() {
             onPress={() => void onDeleteWorkout()}
             accessibilityLabel="Delete this workout"
             accessibilityHint="Removes it from history and recomputes records"
-            style={styles.deleteBtn}
           />
         </View>
       </ScrollView>
@@ -377,5 +378,4 @@ const makeStyles = (theme: Theme) =>
       borderTopWidth: theme.depth.hairline,
       borderTopColor: theme.color.border,
     },
-    deleteBtn: { alignSelf: 'center' },
   });

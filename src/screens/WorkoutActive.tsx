@@ -1,7 +1,14 @@
 import { useQueryClient } from '@tanstack/react-query';
 import { router, Stack } from 'expo-router';
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
-import { ActivityIndicator, Pressable, ScrollView, StyleSheet, View } from 'react-native';
+import {
+  ActivityIndicator,
+  Pressable,
+  ScrollView,
+  StyleSheet,
+  useWindowDimensions,
+  View,
+} from 'react-native';
 import { SafeAreaView, type Edge } from 'react-native-safe-area-context';
 
 import { useAuth } from '@/auth/useAuth';
@@ -10,6 +17,7 @@ import {
   canCompleteSet,
   completedSetsBeforeCursor,
   countDiscardableSets,
+  findInitialCursor,
   type ExerciseShape,
   findNextExercise,
   findPrevExercise,
@@ -43,6 +51,8 @@ import {
 } from '@/queries/workouts';
 import { NoteSheet } from '@/components/NoteSheet';
 import { useWorkoutDetail } from '@/queries/workoutDetail';
+import { finishSummaryAction } from '@/core/finishSummary';
+import { isStackedLayout } from '@/core/layoutScale';
 import { DEFAULT_UNITS, sumVolume } from '@/core/units';
 import { RestOverrideSheet } from '@/rest/RestOverrideSheet';
 import { RestProgressBar } from '@/rest/RestProgressBar';
@@ -388,6 +398,10 @@ export default function WorkoutActiveScreen() {
     : false;
 
   const syncVisible = useSyncIndicatorVisible();
+  // Accessibility Dynamic Type sizes: control rows become columns (HIG
+  // review 2026-10-04, finding 1). Read above every early return.
+  const { fontScale } = useWindowDimensions();
+  const stacked = isStackedLayout(fontScale);
   const screenOptions = useMemo(
     () => ({
       headerTitle: () => (
@@ -573,6 +587,7 @@ export default function WorkoutActiveScreen() {
   // Cursor is null → all exercises complete → show Finish summary
   if (!cursor) {
     const incomplete = countDiscardableSets(exercises, stagedMarkers);
+    const primary = finishSummaryAction(totalSetsCompleted(exercises));
     return (
       <SafeAreaView
         edges={SCREEN_EDGES}
@@ -585,9 +600,12 @@ export default function WorkoutActiveScreen() {
             { flex: 1, gap: theme.space.s6, paddingHorizontal: theme.space.page },
           ]}
         >
+          {/* A question, not a verdict: this is the confirmation step, the
+              workout is not finished until the button below is pressed (HIG
+              review 2026-10-04, finding 2). */}
           <SettleSlam>
             <Text variant="display" color={theme.color.inkHero} style={styles.centerText}>
-              Workout complete
+              Finish workout?
             </Text>
           </SettleSlam>
           <SessionRecap
@@ -602,14 +620,39 @@ export default function WorkoutActiveScreen() {
             prs={sessionPRs}
           />
           <View style={styles.finishActions}>
-            <Button
-              label="Finish workout"
-              size="cta"
-              loading={finishWorkout.isPending}
-              onPress={() => (incomplete > 0 ? setFinishConfirm(true) : onFinish())}
-              accessibilityLabel="Finish workout"
-              style={styles.fullBtn}
-            />
+            {primary === 'finish' ? (
+              <Button
+                label="Finish workout"
+                size="cta"
+                loading={finishWorkout.isPending}
+                onPress={() => (incomplete > 0 ? setFinishConfirm(true) : onFinish())}
+                accessibilityLabel="Finish workout"
+                style={styles.fullBtn}
+              />
+            ) : (
+              // Nothing logged: finishing would write an empty session into
+              // History. Discard is the honest primary; Back to sets returns
+              // to the first staged set.
+              <>
+                <Button
+                  label="Discard workout"
+                  kind="danger"
+                  size="cta"
+                  onPress={() => setDiscardConfirm(true)}
+                  accessibilityLabel="Discard this workout"
+                  accessibilityHint="Nothing was logged; removes the workout"
+                  style={styles.fullBtn}
+                />
+                <Button
+                  label="Back to sets"
+                  kind="ghost"
+                  size="row"
+                  onPress={() => setCursor(findInitialCursor(exercises))}
+                  accessibilityLabel="Back to sets"
+                  style={styles.fullBtn}
+                />
+              </>
+            )}
             <Button
               label="Add exercise"
               kind="secondary"
@@ -655,6 +698,15 @@ export default function WorkoutActiveScreen() {
           confirmLabel="Finish"
           destructive
           onConfirm={onFinish}
+        />
+        <ConfirmSheet
+          visible={discardConfirm}
+          onClose={() => setDiscardConfirm(false)}
+          title="Discard workout?"
+          message="Nothing was logged. This workout will be removed."
+          confirmLabel="Discard"
+          destructive
+          onConfirm={() => void onDiscardEmpty()}
         />
       </SafeAreaView>
     );
@@ -754,111 +806,153 @@ export default function WorkoutActiveScreen() {
             />
           ) : null}
           {voice.available ? (
-            // hitSlop pads the meta-line label (~19pt) up to the 44pt touch
-            // minimum without reflowing the voice row's layout. alignSelf
-            // shrinks the Pressable to its text content and centers it — the
-            // voiceArea column defaults to alignItems:'stretch', which would
-            // otherwise stretch this Pressable to the full row width and
-            // leave its left-aligned text off-center under the icon-only mic
-            // control above (VoiceMicButton centers itself via its own
-            // alignSelf, at a fixed compact width, not a full-width button).
-            <View style={styles.voiceLinks}>
-              <Pressable
-                onPress={() => setVoiceHelpOpen(true)}
-                hitSlop={14}
-                accessibilityRole="button"
-                accessibilityLabel="Voice command help"
-                style={styles.voiceHelpTrigger}
-              >
-                <Text variant="meta" color={theme.color.inkSecondary}>
-                  What can I say?
-                </Text>
-              </Pressable>
-              {/* Diagnostics (TestFlight): the full event trail of the last
-                  voice sessions, shareable — the thing that turns "it heard
-                  me but nothing happened" into a diagnosis. */}
-              <Pressable
-                onPress={() => setVoiceLogOpen(true)}
-                hitSlop={14}
-                accessibilityRole="button"
-                accessibilityLabel="Voice diagnostics log"
-                style={styles.voiceHelpTrigger}
-              >
-                <Text variant="meta" color={theme.color.inkTertiary}>
-                  Voice log
-                </Text>
-              </Pressable>
-            </View>
+            // One link under the mic (HIG review 2026-10-04, finding 3); the
+            // diagnostics log opens from inside the help sheet. hitSlop pads
+            // the meta-line label (~19pt) up to the 44pt touch minimum.
+            <Pressable
+              onPress={() => setVoiceHelpOpen(true)}
+              hitSlop={14}
+              accessibilityRole="button"
+              accessibilityLabel="Voice help"
+              style={styles.voiceHelpTrigger}
+            >
+              <Text variant="meta" color={theme.color.inkSecondary}>
+                Voice help
+              </Text>
+            </Pressable>
           ) : null}
         </View>
-        <Button
-          label="Add exercise"
-          kind="ghost"
-          size="row"
-          icon="plus"
-          onPress={() => setPickerOpen(true)}
-          accessibilityLabel="Add exercise to workout"
-        />
-        <Button
-          label="Notes"
-          kind="ghost"
-          size="row"
-          onPress={() => {
-            setNoteTarget({
-              weId: currentEx.id,
-              name: currentEx.exerciseName,
-              note: detail.data?.exercises.find((we) => we.id === currentEx.id)?.note ?? null,
-            });
-            setNoteSheetOpen(true);
-          }}
-          accessibilityLabel="Session and exercise notes"
-          accessibilityHint="Add a note for this session or the current exercise"
-        />
+        {/* Secondary actions as one toolbar of equal-weight buttons, not a
+            centered stack of text links (HIG review 2026-10-04, finding 3).
+            Stacks under accessibility type sizes. */}
+        <View style={[styles.toolbar, stacked && styles.toolbarStacked]}>
+          <Button
+            label="Add exercise"
+            kind="secondary"
+            size="row"
+            icon="plus"
+            onPress={() => setPickerOpen(true)}
+            accessibilityLabel="Add exercise to workout"
+            style={styles.toolbarBtn}
+          />
+          <Button
+            label="Notes"
+            kind="secondary"
+            size="row"
+            onPress={() => {
+              setNoteTarget({
+                weId: currentEx.id,
+                name: currentEx.exerciseName,
+                note: detail.data?.exercises.find((we) => we.id === currentEx.id)?.note ?? null,
+              });
+              setNoteSheetOpen(true);
+            }}
+            accessibilityLabel="Session and exercise notes"
+            accessibilityHint="Add a note for this session or the current exercise"
+            style={styles.toolbarBtn}
+          />
+        </View>
       </ScrollView>
       {/* LOG SET is the thumb-zone primary (spec §3): inverted plate, value echo.
           Volt stays reserved for the recap's finish CTA; Next/Finish is quiet. */}
-      <View style={styles.bottomBar}>
+      <View style={[styles.bottomBar, stacked && styles.bottomBarStacked]}>
         {/* Icon-only, built on Plate directly rather than Button: an empty
             Button label leaves a zero-width Text node in the label row's gap,
             which visibly off-centers the icon. Plate gives the same ghost
             fill/border, disabled dimming, and press dip Button uses, with no
-            new colors (batch 2 review). */}
-        <Plate
-          tone="ghost"
-          onPress={onPrevExercisePress}
-          disabled={!hasPrevExercise}
-          accessibilityRole="button"
-          accessibilityLabel="Previous exercise"
-          accessibilityHint="Move to the previous exercise"
-          style={styles.prevBtn}
-          faceStyle={styles.prevFace}
-        >
-          <Icon name="chevron-left" size={18} color={theme.color.ink} />
-        </Plate>
-        <Button
-          label={hasNextExercise ? 'Next ›' : 'Finish ›'}
-          kind="ghost"
-          size="cta"
-          onPress={onNextExercisePress}
-          accessibilityLabel={hasNextExercise ? 'Next exercise' : 'Go to workout summary'}
-          accessibilityHint={
-            hasNextExercise ? 'Move to the next exercise' : 'Shows the finish summary'
-          }
-        />
-        <Button
-          label={
-            canCompleteSet(currentSet)
-              ? `Log set · ${setValuesLabel(currentSet.weight, currentSet.reps)}`
-              : 'Enter reps'
-          }
-          kind="inverted"
-          size="cta"
-          disabled={!canCompleteSet(currentSet)}
-          onPress={onLogSet}
-          accessibilityLabel={`Log set ${currentSetIdx + 1}`}
-          accessibilityHint="Completes this set and stages the next one"
-          style={styles.logBtn}
-        />
+            new colors (batch 2 review). border="soft" outlines the square so
+            it reads as a control, not a stray glyph (HIG review 2026-10-04,
+            finding 3). Under accessibility type sizes the bar is a column:
+            Log set first, then this row (finding 1). */}
+        {/* Explicit order per layout: a reversed column would lay its
+            overflow upward, under the scroll view. */}
+        {stacked ? (
+          <>
+            <Button
+              label={
+                canCompleteSet(currentSet)
+                  ? `Log set · ${setValuesLabel(currentSet.weight, currentSet.reps)}`
+                  : 'Enter reps'
+              }
+              kind="inverted"
+              size="cta"
+              disabled={!canCompleteSet(currentSet)}
+              onPress={onLogSet}
+              accessibilityLabel={`Log set ${currentSetIdx + 1}`}
+              accessibilityHint="Completes this set and stages the next one"
+              style={styles.logBtnStacked}
+            />
+            <View style={[styles.navPair, stacked && styles.navPairStacked]}>
+              <Plate
+                tone="ghost"
+                border="soft"
+                onPress={onPrevExercisePress}
+                disabled={!hasPrevExercise}
+                accessibilityRole="button"
+                accessibilityLabel="Previous exercise"
+                accessibilityHint="Move to the previous exercise"
+                style={styles.prevBtn}
+                faceStyle={styles.prevFace}
+              >
+                <Icon name="chevron-left" size={18} color={theme.color.ink} />
+              </Plate>
+              <Button
+                label={hasNextExercise ? 'Next ›' : 'Finish ›'}
+                kind="ghost"
+                size="cta"
+                onPress={onNextExercisePress}
+                accessibilityLabel={hasNextExercise ? 'Next exercise' : 'Go to workout summary'}
+                accessibilityHint={
+                  hasNextExercise ? 'Move to the next exercise' : 'Shows the finish summary'
+                }
+                style={stacked ? styles.finishStacked : undefined}
+              />
+            </View>
+          </>
+        ) : (
+          <>
+            <View style={[styles.navPair, stacked && styles.navPairStacked]}>
+              <Plate
+                tone="ghost"
+                border="soft"
+                onPress={onPrevExercisePress}
+                disabled={!hasPrevExercise}
+                accessibilityRole="button"
+                accessibilityLabel="Previous exercise"
+                accessibilityHint="Move to the previous exercise"
+                style={styles.prevBtn}
+                faceStyle={styles.prevFace}
+              >
+                <Icon name="chevron-left" size={18} color={theme.color.ink} />
+              </Plate>
+              <Button
+                label={hasNextExercise ? 'Next ›' : 'Finish ›'}
+                kind="ghost"
+                size="cta"
+                onPress={onNextExercisePress}
+                accessibilityLabel={hasNextExercise ? 'Next exercise' : 'Go to workout summary'}
+                accessibilityHint={
+                  hasNextExercise ? 'Move to the next exercise' : 'Shows the finish summary'
+                }
+                style={stacked ? styles.finishStacked : undefined}
+              />
+            </View>
+            <Button
+              label={
+                canCompleteSet(currentSet)
+                  ? `Log set · ${setValuesLabel(currentSet.weight, currentSet.reps)}`
+                  : 'Enter reps'
+              }
+              kind="inverted"
+              size="cta"
+              disabled={!canCompleteSet(currentSet)}
+              onPress={onLogSet}
+              accessibilityLabel={`Log set ${currentSetIdx + 1}`}
+              accessibilityHint="Completes this set and stages the next one"
+              style={styles.logBtn}
+            />
+          </>
+        )}
       </View>
       <ExercisePicker
         userId={userId}
@@ -873,7 +967,16 @@ export default function WorkoutActiveScreen() {
         saving={setWorkoutNoteMut.isPending || setExerciseNoteMut.isPending}
         onSave={(changes) => onSaveNotes(changes, noteTarget?.weId)}
       />
-      <VoiceHelpSheet visible={voiceHelpOpen} onClose={() => setVoiceHelpOpen(false)} />
+      <VoiceHelpSheet
+        visible={voiceHelpOpen}
+        onClose={() => setVoiceHelpOpen(false)}
+        onOpenLog={() => {
+          // One sheet at a time: a Modal cannot present while another is
+          // still dismissing, so the log opens after the help sheet's exit.
+          setVoiceHelpOpen(false);
+          setTimeout(() => setVoiceLogOpen(true), theme.motion.duration.base + 50);
+        }}
+      />
       <VoiceLogSheet visible={voiceLogOpen} onClose={() => setVoiceLogOpen(false)} />
       {currentEx ? (
         <RestOverrideSheet
@@ -934,8 +1037,15 @@ const styles = StyleSheet.create({
   scrollFlex: { flex: 1 },
   scroll: { paddingBottom: 24 },
   voiceArea: { marginTop: 16, gap: 12 },
-  voiceLinks: { flexDirection: 'row', justifyContent: 'center', gap: space.s5 },
   voiceHelpTrigger: { alignSelf: 'center' },
+  toolbar: {
+    flexDirection: 'row',
+    gap: space.s2,
+    paddingHorizontal: space.s4,
+    marginTop: space.s4,
+  },
+  toolbarStacked: { flexDirection: 'column' },
+  toolbarBtn: { flex: 1 },
   finishActions: { alignSelf: 'stretch', gap: 12 },
   fullBtn: { alignSelf: 'stretch' },
   bottomBar: {
@@ -945,7 +1055,16 @@ const styles = StyleSheet.create({
     paddingTop: 8,
     paddingBottom: 8,
   },
+  // Accessibility type sizes: Log set first and full width, Prev + Finish on
+  // a row beneath.
+  bottomBarStacked: { flexDirection: 'column' },
+  navPair: { flexDirection: 'row', gap: 8 },
+  navPairStacked: { alignSelf: 'stretch' },
+  finishStacked: { flex: 1 },
   logBtn: { flex: 1 },
+  // In the stacked column flex: 1 would collapse the Plate container to a
+  // zero basis while its 52pt face still paints, overlapping the row below.
+  logBtnStacked: { alignSelf: 'stretch' },
   // Fixed width, no flex — Log set keeps its thumb-zone dominance and Next/
   // Finish keeps its current flex (batch 2 spec). Height is layout-derived:
   // bottomBar's default alignItems:'stretch' grows this Plate's container to
@@ -957,5 +1076,7 @@ const styles = StyleSheet.create({
   // top (default flex-start), reading as a chevron floating above the
   // Next/Log set centerline (impeccable polish, item C).
   prevBtn: { width: 44, justifyContent: 'center' },
-  prevFace: { alignItems: 'center', justifyContent: 'center' },
+  // flex: 1 fills the stretched container so the soft border outlines the
+  // full 44 × cta-height square, not just the glyph's own box.
+  prevFace: { flex: 1, alignItems: 'center', justifyContent: 'center' },
 });

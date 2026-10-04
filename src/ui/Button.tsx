@@ -23,6 +23,14 @@ import { useTheme, type Theme } from './useTheme';
 export type ButtonKind = 'primary' | 'secondary' | 'ghost' | 'danger' | 'inverted';
 export type ButtonSize = 'cta' | 'row';
 
+/**
+ * A call-to-action label is a one-line control: it may shrink to fit, never
+ * grow into a column. At accessibility Dynamic Type sizes an uncapped `card`
+ * label turned "LOG SET · 250 × 7" into a tall slab that covered the set card
+ * (HIG review 2026-10-04, finding 1).
+ */
+export const CTA_LABEL_MAX_SCALE = 1.3;
+
 export interface ButtonProps {
   label: string;
   kind?: ButtonKind;
@@ -90,6 +98,9 @@ export function Button({
         variant={size === 'cta' ? 'card' : 'body'}
         color={textColor}
         style={stamped ? styles.stampedLabel : styles.ghostLabel}
+        numberOfLines={1}
+        adjustsFontSizeToFit={size === 'cta'}
+        maxFontSizeMultiplier={size === 'cta' ? CTA_LABEL_MAX_SCALE : undefined}
       >
         {label}
       </Text>
