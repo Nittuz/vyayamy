@@ -16,7 +16,7 @@ export interface BestParse {
   index: number;
 }
 
-function isFullSet(p: ParseResult): boolean {
+export function isFullSet(p: ParseResult): boolean {
   return (
     p.confidence === 'high' &&
     p.command.kind === 'setValues' &&

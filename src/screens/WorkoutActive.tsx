@@ -28,9 +28,10 @@ import { VoiceHelpSheet } from '@/components/VoiceHelpSheet';
 import { VoiceLogSheet } from '@/components/VoiceLogSheet';
 import { VoiceMicButton } from '@/components/VoiceMicButton';
 import { useVoiceSession } from '@/voice/useVoiceSession';
+import { logVoice } from '@/voice/voiceLog';
 import { useAddExerciseToWorkout } from '@/queries/exercises';
 import { useProfile } from '@/queries/profile';
-import { queryKeys } from '@/queries/keys';
+import { queryKeys, setWriteInvalidationKeys } from '@/queries/keys';
 import { addSet, useUpdateSet } from '@/queries/sets';
 import {
   deleteWorkoutLocal,
@@ -366,6 +367,15 @@ export default function WorkoutActiveScreen() {
     onPrevExercise: onPrevExercisePress,
     onFinishWorkout: () => setCursor(null),
     onCompleteSet: () => onLogSet(),
+    // Voice writes go through dispatchCommand, not the mutation hooks, so the
+    // composite detail query (and the set list) must be refreshed here or the
+    // card keeps showing the pre-voice values.
+    onDataChanged: () => {
+      logVoice('data.changed', `invalidate we=${cursor?.weId ?? 'none'}`);
+      for (const key of setWriteInvalidationKeys(cursor?.weId ?? '')) {
+        void qc.invalidateQueries({ queryKey: key as unknown as readonly unknown[] });
+      }
+    },
   });
 
   const hasNextExercise = currentExForRest

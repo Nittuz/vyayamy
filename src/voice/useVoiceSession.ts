@@ -16,8 +16,8 @@ import { AppState } from 'react-native';
 
 import type { Command, VoiceContext } from './commands';
 import { dispatchCommand, type DispatchContext } from './dispatch';
-import { GrammarParser } from './grammar';
-import { pickBestParse } from './alternatives';
+import { isFullSet, pickBestParse } from './alternatives';
+import { BestPartialTracker, isTruncatedBy } from './bestPartial';
 import { onDeviceEngine, type SpeechEngine } from './speechEngine';
 import { voiceErrorLabel } from './voiceErrors';
 import { logVoice } from './voiceLog';
@@ -41,6 +41,15 @@ export interface VoiceSessionDeps {
   onFinishWorkout: () => void;
   /** When provided, "done" runs the screen's canonical completion (timer + auto-stage). */
   onCompleteSet?: () => void;
+  /**
+   * Called after a data command (or its undo) has written SQLite. The screen
+   * must refresh its React Query readers here: dispatchCommand bypasses the
+   * useMutation wrappers that normally invalidate, so without this the card
+   * kept rendering the stale set while the log said "dispatch.result ok"
+   * (simulator Voice log, 2026-10-04) — and the next LOG SET then wrote the
+   * stale on-screen values back over the spoken ones.
+   */
+  onDataChanged?: () => void;
   silenceTimeoutMs?: number;
 }
 
@@ -91,6 +100,7 @@ export function useVoiceSession(deps: VoiceSessionDeps) {
       logVoice('dispatch.result', res.ok ? `ok "${res.message}"` : `FAIL "${res.message}"`);
       if (res.ok) {
         lastUndo.current = res.undo ?? null;
+        deps.onDataChanged?.();
         setUi({ phase: 'applied', label: res.message });
       } else {
         // Don't fail silently — show what went wrong (#104).
@@ -118,6 +128,7 @@ export function useVoiceSession(deps: VoiceSessionDeps) {
           if (lastUndo.current) {
             await lastUndo.current();
             lastUndo.current = null;
+            deps.onDataChanged?.();
           }
           setUi({ phase: 'listening', partial: '', ready: true });
           return;
@@ -164,11 +175,49 @@ export function useVoiceSession(deps: VoiceSessionDeps) {
     [deps, runDataCommand, applyPending, stop],
   );
 
+  // The best complete set seen in this session's partial stream. Apple's
+  // number formatter rewrites the final ("225 for five" → "220 545") after the
+  // word form has already streamed past as a partial; see bestPartial.ts.
+  const bestPartialRef = useRef(new BestPartialTracker());
+
   const onFinal = useCallback(
     (transcript: string, alternatives: string[] = []) => {
       resetSilence();
+      const ctx = deps.getParserContext();
       const candidates = [transcript, ...alternatives.filter((a) => a !== transcript)];
-      const pick = pickBestParse(candidates, deps.getParserContext());
+      const pick = pickBestParse(candidates, ctx);
+      const fromPartial = bestPartialRef.current.best();
+      bestPartialRef.current.reset();
+      // A control word on top ("yes", "undo", "done") or a complete set in the
+      // final is what the user said; otherwise the complete set heard in the
+      // partials beats a fused or half-parsed final.
+      const finalIsAuthoritative =
+        pick != null &&
+        ((pick.index === 0 && pick.parsed.command.kind !== 'setValues') || isFullSet(pick.parsed));
+      // A remembered partial that was cut off mid-number ("seven reps at two"
+      // before "…at 2:50") is not the set the user said; let the final decide.
+      const partialUsable =
+        fromPartial != null &&
+        !(
+          fromPartial.parsed.command.kind === 'setValues' &&
+          fromPartial.parsed.command.weight != null &&
+          isTruncatedBy(fromPartial.parsed.command.weight, candidates)
+        );
+      if (fromPartial && !partialUsable) {
+        logVoice('parse.partial', `discarded truncated "${fromPartial.transcript}"`);
+      }
+      if (!finalIsAuthoritative && fromPartial && partialUsable) {
+        logVoice(
+          'parse',
+          `${fromPartial.parsed.confidence} ${JSON.stringify(fromPartial.parsed.command)} from partial "${fromPartial.transcript}" (final ${pick ? 'incomplete' : 'no match'}: ${JSON.stringify(candidates)})`,
+        );
+        void handleCommand(
+          fromPartial.parsed.command,
+          fromPartial.parsed.confidence,
+          fromPartial.transcript,
+        );
+        return;
+      }
       logVoice(
         'parse',
         pick
@@ -201,10 +250,14 @@ export function useVoiceSession(deps: VoiceSessionDeps) {
     setEngineOn(true);
     setUi({ phase: 'listening', partial: '', ready: false });
     resetSilence();
+    bestPartialRef.current.reset();
     engine.start(
       (e) => {
         if (e.isFinal) onFinal(e.transcript, e.alternatives);
-        else setUi({ phase: 'listening', partial: e.transcript, ready: true });
+        else {
+          bestPartialRef.current.onPartial(e.transcript, deps.getParserContext());
+          setUi({ phase: 'listening', partial: e.transcript, ready: true });
+        }
       },
       (code) => {
         stop(); // resets ui to idle...
@@ -228,7 +281,7 @@ export function useVoiceSession(deps: VoiceSessionDeps) {
         setUi((prev) => (prev.phase === 'listening' ? { ...prev, ready: true } : prev));
       },
     );
-  }, [engine, onFinal, resetSilence, stop]);
+  }, [deps, engine, onFinal, resetSilence, stop]);
 
   // Hold-to-talk release. stop() is the tap-toggle reset — using it on hold
   // release also wiped whatever the session surfaced mid-hold, so a failed

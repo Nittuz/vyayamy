@@ -50,6 +50,7 @@ function makeFakeEngine() {
     ready: () => onReady?.(),
     emitAlternatives: (alternatives: string[]) =>
       onResult?.({ transcript: alternatives[0]!, isFinal: true, alternatives } as never),
+    emitPartial: (transcript: string) => onResult?.({ transcript, isFinal: false }),
   };
 }
 
@@ -458,4 +459,102 @@ test('the best-parsing alternative is dispatched, not the fused top hypothesis',
   expect(dispatchCommand).toHaveBeenCalledTimes(1);
   expect(dispatchCommand.mock.calls[0]![0]).toEqual({ kind: 'setValues', weight: 225, reps: 5 });
   expect(result.current.ui.phase).toBe('applied');
+});
+
+test('a complete set heard in the partials survives a fused final', async () => {
+  dispatchCommand.mockResolvedValue({ ok: true, message: '225 × 5' });
+  const fake = makeFakeEngine();
+  const { result } = renderHook(() => useVoiceSession(deps(fake.engine)));
+  await act(async () => {
+    await result.current.start();
+  });
+  await act(async () => {
+    for (const p of ['Two', '225', '225 for', '225 for five', '220 545']) fake.emitPartial(p);
+  });
+  await act(async () => {
+    fake.emitAlternatives(['220 545', '22 545', '220 5 for five']); // the fused final
+  });
+  expect(dispatchCommand).toHaveBeenCalledTimes(1);
+  expect(dispatchCommand.mock.calls[0]![0]).toEqual({ kind: 'setValues', weight: 225, reps: 5 });
+  expect(result.current.ui.phase).toBe('applied');
+});
+
+test('the partial memory is per session: a new start forgets the last set', async () => {
+  dispatchCommand.mockResolvedValue({ ok: true, message: 'x' });
+  const fake = makeFakeEngine();
+  const { result } = renderHook(() => useVoiceSession(deps(fake.engine)));
+  await act(async () => {
+    await result.current.start();
+  });
+  await act(async () => {
+    fake.emitPartial('225 for five');
+  });
+  act(() => {
+    result.current.stop();
+  });
+  act(() => {
+    fake.end();
+  });
+  await act(async () => {
+    await result.current.start();
+  });
+  await act(async () => {
+    fake.emitAlternatives(['zzz']); // nothing parses now
+  });
+  expect(dispatchCommand).not.toHaveBeenCalled();
+});
+
+test('a logged set tells the screen its data changed, and so does undo', async () => {
+  const undo = jest.fn().mockResolvedValue(undefined);
+  dispatchCommand.mockResolvedValue({ ok: true, message: '225 × 5', undo });
+  const onDataChanged = jest.fn();
+  const fake = makeFakeEngine();
+  const { result } = renderHook(() => useVoiceSession(deps(fake.engine, { onDataChanged })));
+  await act(async () => {
+    await result.current.start();
+  });
+  await act(async () => {
+    fake.emitAlternatives(['225 for 5']);
+  });
+  expect(onDataChanged).toHaveBeenCalledTimes(1);
+  await act(async () => {
+    fake.emitAlternatives(['undo']);
+  });
+  expect(undo).toHaveBeenCalledTimes(1);
+  expect(onDataChanged).toHaveBeenCalledTimes(2);
+});
+
+test('a failed dispatch does not claim the data changed', async () => {
+  dispatchCommand.mockResolvedValue({ ok: false, message: 'No active set' });
+  const onDataChanged = jest.fn();
+  const fake = makeFakeEngine();
+  const { result } = renderHook(() => useVoiceSession(deps(fake.engine, { onDataChanged })));
+  await act(async () => {
+    await result.current.start();
+  });
+  await act(async () => {
+    fake.emitAlternatives(['225 for 5']);
+  });
+  expect(onDataChanged).not.toHaveBeenCalled();
+});
+
+test('a partial cut off mid-number does not beat an unparseable final', async () => {
+  dispatchCommand.mockResolvedValue({ ok: true, message: 'x' });
+  const fake = makeFakeEngine();
+  const { result } = renderHook(() => useVoiceSession(deps(fake.engine)));
+  await act(async () => {
+    await result.current.start();
+  });
+  await act(async () => {
+    for (const p of ['Seven', 'Seven reps at', 'Seven reps at two', 'Seven reps at 2 fif']) {
+      fake.emitPartial(p);
+    }
+  });
+  await act(async () => {
+    fake.emitAlternatives(['Seven reps 2:50 x']); // no connector: not a set, only a bare number
+  });
+  expect(dispatchCommand).not.toHaveBeenCalledWith(
+    expect.objectContaining({ weight: 2 }),
+    expect.anything(),
+  );
 });

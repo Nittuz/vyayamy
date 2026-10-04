@@ -130,3 +130,68 @@ describe('GrammarParser — server-recognition phrasings (build 12 on device)', 
     expect(parse('5 reps')!.command).toEqual({ kind: 'setValues', reps: 5 });
   });
 });
+
+describe('GrammarParser — recognizer splits a spoken weight into digit groups (sim log 2026-10-04)', () => {
+  // "two forty by eight" came back as the dimension "2 40 x 8" (alt "2 48").
+  test('a leading digit then a two-digit group is the hundreds-elided weight', () => {
+    expect(parse('2 40 x 8')!.command).toEqual({ kind: 'setValues', weight: 240, reps: 8 });
+    expect(parse('2 25 for 5')!.command).toEqual({ kind: 'setValues', weight: 225, reps: 5 });
+    expect(parse('8 reps at 2 40')!.command).toEqual({ kind: 'setValues', weight: 240, reps: 8 });
+  });
+
+  // "two twenty five for five" came back as "220 5 for five" in the N-best list.
+  test('a round number then a single digit is the split tail of the weight', () => {
+    expect(parse('220 5 for five')!.command).toEqual({ kind: 'setValues', weight: 225, reps: 5 });
+    expect(parse('2 20 5 for 5')!.command).toEqual({ kind: 'setValues', weight: 225, reps: 5 });
+  });
+
+  test('the repair stays on the weight side: a dropped connector is not glued into a weight', () => {
+    // "230 for six" with the connector lost must not become a 236 weight.
+    expect(parse('230 6')?.command).not.toEqual(expect.objectContaining({ weight: 236 }));
+  });
+
+  test('fused forms still do not parse as a set', () => {
+    expect(parse('220 545')?.command).not.toEqual(expect.objectContaining({ reps: 5 }));
+    expect(parse('22 545')?.command).not.toEqual(expect.objectContaining({ reps: 5 }));
+  });
+});
+
+describe('GrammarParser — recognizer writes a spoken weight as a clock time (sim log 2026-10-04)', () => {
+  // "seven reps at two fifty" came back as "Seven reps at 2:50" (alt "Seven reps of 250").
+  test('H:MM between digits is the hundreds-elided weight', () => {
+    expect(parse('7 reps at 2:50')!.command).toEqual({ kind: 'setValues', weight: 250, reps: 7 });
+    expect(parse('2:25 for 5')!.command).toEqual({ kind: 'setValues', weight: 225, reps: 5 });
+  });
+
+  test('"reps of" is a reps-first connector', () => {
+    expect(parse('seven reps of 250')!.command).toEqual({
+      kind: 'setValues',
+      weight: 250,
+      reps: 7,
+    });
+  });
+});
+
+describe('GrammarParser — connector dropped between weight and reps (sim log 2026-10-04)', () => {
+  // "two twenty five for five" finalised as "225 five" (conf 0.12); the
+  // user is asked either way, so the question should carry both numbers.
+  test('"<weight> <small number>" is a full set at low confidence', () => {
+    const r = parse('225 five')!;
+    expect(r.command).toEqual({ kind: 'setValues', weight: 225, reps: 5 });
+    expect(r.confidence).toBe('low');
+    expect(parse('230 6')!.command).toEqual({ kind: 'setValues', weight: 230, reps: 6 });
+  });
+
+  test('a second number too large for reps is not a set', () => {
+    expect(parse('220 545')?.command).not.toEqual(expect.objectContaining({ reps: 545 }));
+  });
+
+  test('the unit still travels with the weight', () => {
+    expect(parse('100 kilos 5')!.command).toEqual({
+      kind: 'setValues',
+      weight: 100,
+      reps: 5,
+      unit: 'kg',
+    });
+  });
+});
