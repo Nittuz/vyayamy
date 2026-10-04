@@ -13,6 +13,7 @@
 import { ExpoSpeechRecognitionModule } from 'expo-speech-recognition';
 
 import { LateFinalTracker } from './lateFinal';
+import { logVoice } from './voiceLog';
 
 export interface SpeechEvent {
   transcript: string;
@@ -76,10 +77,15 @@ export const onDeviceEngine: SpeechEngine = {
         isFinal: e.isFinal,
         confidence: best.confidence,
       };
+      logVoice(
+        e.isFinal ? 'result.final' : 'result.partial',
+        `"${best.transcript}" conf=${best.confidence ?? '?'}`,
+      );
       late.onResult(event);
       onEvent(event);
     });
     const errorSub = ExpoSpeechRecognitionModule.addListener('error', (e) => {
+      logVoice('error', `${String(e.error ?? '')} ${e.message ?? ''}`.trim());
       onError(String(e.error ?? ''), e.message);
     });
     // The recognizer's final transcript can land AFTER stop() (server
@@ -89,6 +95,7 @@ export const onDeviceEngine: SpeechEngine = {
       if (settleCurrent !== settle) return; // superseded or already settled
       settleCurrent = null;
       const owed = late.onEnd();
+      logVoice('end', owed ? `promoted "${owed.transcript}"` : 'no promotion');
       if (owed) onEvent(owed);
       dropSubscriptions();
       onEnd?.();
@@ -97,6 +104,7 @@ export const onDeviceEngine: SpeechEngine = {
     const endSub = ExpoSpeechRecognitionModule.addListener('end', settle);
     subscriptions = [resultSub, errorSub, endSub];
 
+    const onDevice = ExpoSpeechRecognitionModule.supportsOnDeviceRecognition();
     ExpoSpeechRecognitionModule.start({
       lang: 'en-US',
       interimResults: true,
@@ -104,18 +112,23 @@ export const onDeviceEngine: SpeechEngine = {
       // On-device when the phone supports it for this language; otherwise
       // Apple's server recognition (needs Siri & Dictation + a connection —
       // both surfaced by code through voiceErrorLabel when they are missing).
-      requiresOnDeviceRecognition: ExpoSpeechRecognitionModule.supportsOnDeviceRecognition(),
+      requiresOnDeviceRecognition: onDevice,
       addsPunctuation: false,
     });
+    logVoice('engine.start', onDevice ? 'on-device' : 'server');
   },
 
   stop() {
+    logVoice('engine.stop');
     try {
       ExpoSpeechRecognitionModule.stop();
     } finally {
       // Keep listening for the late final; 'end' (or the grace timer) settles.
       if (settleCurrent && !endFallback) {
-        endFallback = setTimeout(() => settleCurrent?.(), END_GRACE_MS);
+        endFallback = setTimeout(() => {
+          logVoice('end.grace', `no end event within ${END_GRACE_MS}ms`);
+          settleCurrent?.();
+        }, END_GRACE_MS);
       }
     }
   },

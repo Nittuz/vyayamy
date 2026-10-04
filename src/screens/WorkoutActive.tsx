@@ -25,6 +25,7 @@ import { ExercisePicker } from '@/components/ExercisePicker';
 import { SessionVolumeBar } from '@/components/SessionVolumeBar';
 import { SyncErrorStripe } from '@/components/SyncErrorStripe';
 import { VoiceHelpSheet } from '@/components/VoiceHelpSheet';
+import { VoiceLogSheet } from '@/components/VoiceLogSheet';
 import { VoiceMicButton } from '@/components/VoiceMicButton';
 import { useVoiceSession } from '@/voice/useVoiceSession';
 import { useAddExerciseToWorkout } from '@/queries/exercises';
@@ -56,7 +57,7 @@ import { SettleSlam } from '@/ui/SettleSlam';
 import { SyncIndicator, useSyncIndicatorVisible } from '@/ui/SyncIndicator';
 import { Text } from '@/ui/Text';
 import { useSyncAwareErrorToast } from '@/ui/ToastContext';
-import { useTheme } from '@/ui/useTheme';
+import { space, useTheme } from '@/ui/useTheme';
 
 import { useWorkoutCursor } from './workoutActive/useWorkoutCursor';
 import { useSessionPRs } from './workoutActive/useSessionPRs';
@@ -106,6 +107,7 @@ export default function WorkoutActiveScreen() {
 
   const [pickerOpen, setPickerOpen] = useState(false);
   const [voiceHelpOpen, setVoiceHelpOpen] = useState(false);
+  const [voiceLogOpen, setVoiceLogOpen] = useState(false);
   const [discardConfirm, setDiscardConfirm] = useState(false);
   // Recap branch only (spec 2026-08-22 §3): destructive confirm when Finish
   // would prune incomplete sets. Declared here, not inside the `!cursor`
@@ -744,17 +746,33 @@ export default function WorkoutActiveScreen() {
             // leave its left-aligned text off-center under the icon-only mic
             // control above (VoiceMicButton centers itself via its own
             // alignSelf, at a fixed compact width, not a full-width button).
-            <Pressable
-              onPress={() => setVoiceHelpOpen(true)}
-              hitSlop={14}
-              accessibilityRole="button"
-              accessibilityLabel="Voice command help"
-              style={styles.voiceHelpTrigger}
-            >
-              <Text variant="meta" color={theme.color.inkSecondary}>
-                What can I say?
-              </Text>
-            </Pressable>
+            <View style={styles.voiceLinks}>
+              <Pressable
+                onPress={() => setVoiceHelpOpen(true)}
+                hitSlop={14}
+                accessibilityRole="button"
+                accessibilityLabel="Voice command help"
+                style={styles.voiceHelpTrigger}
+              >
+                <Text variant="meta" color={theme.color.inkSecondary}>
+                  What can I say?
+                </Text>
+              </Pressable>
+              {/* Diagnostics (TestFlight): the full event trail of the last
+                  voice sessions, shareable — the thing that turns "it heard
+                  me but nothing happened" into a diagnosis. */}
+              <Pressable
+                onPress={() => setVoiceLogOpen(true)}
+                hitSlop={14}
+                accessibilityRole="button"
+                accessibilityLabel="Voice diagnostics log"
+                style={styles.voiceHelpTrigger}
+              >
+                <Text variant="meta" color={theme.color.inkTertiary}>
+                  Voice log
+                </Text>
+              </Pressable>
+            </View>
           ) : null}
         </View>
         <Button
@@ -840,6 +858,7 @@ export default function WorkoutActiveScreen() {
         onSave={(changes) => onSaveNotes(changes, noteTarget?.weId)}
       />
       <VoiceHelpSheet visible={voiceHelpOpen} onClose={() => setVoiceHelpOpen(false)} />
+      <VoiceLogSheet visible={voiceLogOpen} onClose={() => setVoiceLogOpen(false)} />
       {currentEx ? (
         <RestOverrideSheet
           visible={overrideSheetOpen}
@@ -899,6 +918,7 @@ const styles = StyleSheet.create({
   scrollFlex: { flex: 1 },
   scroll: { paddingBottom: 24 },
   voiceArea: { marginTop: 16, gap: 12 },
+  voiceLinks: { flexDirection: 'row', justifyContent: 'center', gap: space.s5 },
   voiceHelpTrigger: { alignSelf: 'center' },
   finishActions: { alignSelf: 'stretch', gap: 12 },
   fullBtn: { alignSelf: 'stretch' },

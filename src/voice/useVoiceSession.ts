@@ -19,6 +19,7 @@ import { dispatchCommand, type DispatchContext } from './dispatch';
 import { GrammarParser } from './grammar';
 import { onDeviceEngine, type SpeechEngine } from './speechEngine';
 import { voiceErrorLabel } from './voiceErrors';
+import { logVoice } from './voiceLog';
 
 export type VoiceUiState =
   | { phase: 'idle' }
@@ -67,6 +68,7 @@ export function useVoiceSession(deps: VoiceSessionDeps) {
   // (the final transcript arrives once audio ends). Pending is replaced by
   // the next data command, applied by confirm, or dropped on unmount.
   const stop = useCallback(() => {
+    logVoice('session.stop');
     if (timeoutRef.current) clearTimeout(timeoutRef.current);
     timeoutRef.current = null;
     engine.stop();
@@ -81,7 +83,10 @@ export function useVoiceSession(deps: VoiceSessionDeps) {
 
   const runDataCommand = useCallback(
     async (command: Command) => {
-      const res = await dispatchCommand(command, deps.getDispatchContext());
+      const ctx = deps.getDispatchContext();
+      logVoice('dispatch', `${JSON.stringify(command)} ctx=${JSON.stringify(ctx)}`);
+      const res = await dispatchCommand(command, ctx);
+      logVoice('dispatch.result', res.ok ? `ok "${res.message}"` : `FAIL "${res.message}"`);
       if (res.ok) {
         lastUndo.current = res.undo ?? null;
         setUi({ phase: 'applied', label: res.message });
@@ -146,6 +151,7 @@ export function useVoiceSession(deps: VoiceSessionDeps) {
             // Say what was heard: the user can tell a mishearing from a
             // half-heard command instead of guessing at a bare "yes?".
             pendingLabelRef.current = `${describe(command)}? Heard "${transcript.trim()}"`;
+            logVoice('ui.pending', pendingLabelRef.current);
             setUi({ phase: 'pending', command, label: pendingLabelRef.current });
             return;
           }
@@ -160,6 +166,12 @@ export function useVoiceSession(deps: VoiceSessionDeps) {
     (transcript: string) => {
       resetSilence();
       const parsed = GrammarParser.parse(transcript, deps.getParserContext());
+      logVoice(
+        'parse',
+        parsed
+          ? `${parsed.confidence} ${JSON.stringify(parsed.command)} from "${transcript}"`
+          : `no match "${transcript}"`,
+      );
       if (!parsed) return; // chatter guard
       void handleCommand(parsed.command, parsed.confidence, transcript);
     },
@@ -170,8 +182,13 @@ export function useVoiceSession(deps: VoiceSessionDeps) {
   const start = useCallback(async () => {
     // Re-entrancy guard: a second start() while already listening would register
     // a second result listener and every command would dispatch twice (#97).
-    if (listeningRef.current) return;
+    if (listeningRef.current) {
+      logVoice('session.start', 'ignored: already listening');
+      return;
+    }
+    logVoice('session.start');
     if (!(await engine.requestPermissions())) {
+      logVoice('permission', 'denied');
       // Surface the denial (the screen can route to Settings) instead of a
       // dead mic button (#104).
       setUi({ phase: 'error', label: 'Microphone access needed' });
@@ -226,6 +243,7 @@ export function useVoiceSession(deps: VoiceSessionDeps) {
   // its listening state until the engine reports end — no idle flash, no
   // wiped pending question. The end handler in start() settles the ui.
   const release = useCallback(() => {
+    logVoice('session.release');
     if (timeoutRef.current) clearTimeout(timeoutRef.current);
     timeoutRef.current = null;
     engine.stop();
