@@ -38,7 +38,15 @@ export function formatRelativeDate(dateStr: string): string {
   if (diffDays < 7) return `${diffDays} days ago`;
   if (diffDays < 14) return '1 week ago';
   if (diffDays < 30) return `${Math.floor(diffDays / 7)} weeks ago`;
-  return new Date(dateStr).toLocaleDateString();
+  // Same family as the History row date ("Oct 4"), with the year because a
+  // record can be old: the locale default ("6/11/2026") was the one numeric
+  // date in an app that spells months everywhere else (HIG review
+  // 2026-10-04, finding 7). 'en-US' pinned for the same reason as formatRowDate.
+  return new Date(dateStr).toLocaleDateString('en-US', {
+    month: 'short',
+    day: 'numeric',
+    year: 'numeric',
+  });
 }
 
 /**

@@ -689,6 +689,7 @@ export default function WorkoutActiveScreen() {
           exercise={noteTarget}
           saving={setWorkoutNoteMut.isPending || setExerciseNoteMut.isPending}
           onSave={(changes) => onSaveNotes(changes, noteTarget?.weId)}
+          onCancel={() => setNoteSheetOpen(false)}
         />
         <ConfirmSheet
           visible={finishConfirm}
@@ -733,6 +734,7 @@ export default function WorkoutActiveScreen() {
           exercise={noteTarget}
           saving={setWorkoutNoteMut.isPending || setExerciseNoteMut.isPending}
           onSave={(changes) => onSaveNotes(changes, noteTarget?.weId)}
+          onCancel={() => setNoteSheetOpen(false)}
         />
       </SafeAreaView>
     );
@@ -966,6 +968,7 @@ export default function WorkoutActiveScreen() {
         exercise={noteTarget}
         saving={setWorkoutNoteMut.isPending || setExerciseNoteMut.isPending}
         onSave={(changes) => onSaveNotes(changes, noteTarget?.weId)}
+        onCancel={() => setNoteSheetOpen(false)}
       />
       <VoiceHelpSheet
         visible={voiceHelpOpen}

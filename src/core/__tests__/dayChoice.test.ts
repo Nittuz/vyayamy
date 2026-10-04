@@ -7,14 +7,14 @@ import {
 } from '@/core/dayChoice';
 
 describe('buildDayChoiceOptions', () => {
-  test('always leads with Rest then None, day context in every accessibility label', () => {
+  test('always leads with Rest then Free, day context in every accessibility label', () => {
     const options = buildDayChoiceOptions('Monday', [{ id: 'tpl-push', name: 'Push' }]);
     expect(options).toEqual([
       { value: DAY_CHOICE_REST, label: 'Rest', accessibilityLabel: 'Monday schedule, rest' },
       {
         value: DAY_CHOICE_NONE,
-        label: 'None',
-        accessibilityLabel: 'Monday schedule, no template',
+        label: 'Free',
+        accessibilityLabel: 'Monday schedule, free day with no template',
       },
       {
         value: 'tpl-push',
@@ -24,10 +24,14 @@ describe('buildDayChoiceOptions', () => {
     ]);
   });
 
-  test('with no templates configured, still offers Rest and None', () => {
+  test('with no templates configured, still offers Rest and Free', () => {
     expect(buildDayChoiceOptions('Day 3', [])).toEqual([
       { value: DAY_CHOICE_REST, label: 'Rest', accessibilityLabel: 'Day 3 schedule, rest' },
-      { value: DAY_CHOICE_NONE, label: 'None', accessibilityLabel: 'Day 3 schedule, no template' },
+      {
+        value: DAY_CHOICE_NONE,
+        label: 'Free',
+        accessibilityLabel: 'Day 3 schedule, free day with no template',
+      },
     ]);
   });
 

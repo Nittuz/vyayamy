@@ -1,4 +1,8 @@
-import { router } from 'expo-router';
+import { router, Stack, useNavigation } from 'expo-router';
+// Vendored React Navigation (expo-router 56 ships it; there is no separate
+// @react-navigation install). In a native stack only this hook can hold a
+// screen: a plain beforeRemove listener fires after the native pop.
+import { usePreventRemove } from 'expo-router/build/react-navigation/core';
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import {
   ActivityIndicator,
@@ -14,6 +18,7 @@ import { SafeAreaView, type Edge } from 'react-native-safe-area-context';
 import { useAuth } from '@/auth/useAuth';
 import { buildDayChoiceOptions, dayChoicePatch, dayChoiceValue } from '@/core/dayChoice';
 import type { SlotDraft } from '@/core/domain';
+import { isPlanDraftDirty, planDraftKey } from '@/core/planDraft';
 import {
   type ActivePlan,
   useActivePlan,
@@ -23,6 +28,7 @@ import {
 } from '@/queries/plans';
 import { type HydratedPreset, useListPlanPresets } from '@/queries/planPresets';
 import { Button } from '@/ui/Button';
+import { ConfirmSheet } from '@/ui/ConfirmSheet';
 import { resolveInputStyle } from '@/ui/inputStyles';
 import { Plate } from '@/ui/Plate';
 import { Segment } from '@/ui/Segment';
@@ -54,6 +60,33 @@ export default function PlanSetupScreen() {
   const [planType, setPlanType] = useState<'weekly' | 'cycle'>('weekly');
   const [slots, setSlots] = useState<SlotDraft[]>(() => buildWeeklyDraft());
   const [stagedPreset, setStagedPreset] = useState<HydratedPreset | null>(null);
+  // Unsaved-work guard (HIG review 2026-10-04, finding 9). The baseline is
+  // the draft as hydrated (or the fresh default); leaving with a different
+  // draft asks first. savedRef lets the post-save pop through.
+  const [baselineKey, setBaselineKey] = useState<string | null>(() =>
+    planDraftKey({ name: 'My plan', planType: 'weekly', slots: buildWeeklyDraft() }),
+  );
+  const dirty = isPlanDraftDirty(baselineKey, { name, planType, slots });
+  const navigation = useNavigation();
+  type LeaveAction = Parameters<typeof navigation.dispatch>[0];
+  // The pop the user attempted while dirty, held for the confirm sheet.
+  const [leaveAction, setLeaveAction] = useState<LeaveAction | null>(null);
+  // Once true the guard is down and the pending leave (a saved form, or a
+  // confirmed discard) goes through on the next tick, after the navigator
+  // has seen the guard drop.
+  const [allowLeave, setAllowLeave] = useState(false);
+  const pendingLeaveRef = useRef<LeaveAction | null>(null);
+  usePreventRemove(dirty && !allowLeave, ({ data }) => setLeaveAction(data.action));
+  useEffect(() => {
+    if (!allowLeave) return;
+    const timer = setTimeout(() => {
+      const action = pendingLeaveRef.current;
+      if (action) navigation.dispatch(action);
+      else if (router.canGoBack()) router.back();
+      else router.replace('/profile/plan');
+    }, 0);
+    return () => clearTimeout(timer);
+  }, [allowLeave, navigation]);
 
   const lastHydratedKeyRef = useRef<string | null>(null);
   // While the user is staging a preset, background invalidations of `existing`
@@ -72,20 +105,22 @@ export default function PlanSetupScreen() {
     const key = activePlanHydrationKey(p);
     if (lastHydratedKeyRef.current === key) return;
     lastHydratedKeyRef.current = key;
+    const hydratedSlots = p.slots.map(
+      (s, idx): SlotDraft => ({
+        key: s.id,
+        templateId: s.template_id,
+        isRestDay: Boolean(s.is_rest_day),
+        label: s.label ?? '',
+        ...(p.plan.plan_type === 'weekly'
+          ? { dayOfWeek: s.day_of_week ?? idx }
+          : { cyclePosition: s.cycle_position ?? idx }),
+      }),
+    );
     setName(p.plan.name);
     setPlanType(p.plan.plan_type);
-    setSlots(
-      p.slots.map(
-        (s, idx): SlotDraft => ({
-          key: s.id,
-          templateId: s.template_id,
-          isRestDay: Boolean(s.is_rest_day),
-          label: s.label ?? '',
-          ...(p.plan.plan_type === 'weekly'
-            ? { dayOfWeek: s.day_of_week ?? idx }
-            : { cyclePosition: s.cycle_position ?? idx }),
-        }),
-      ),
+    setSlots(hydratedSlots);
+    setBaselineKey(
+      planDraftKey({ name: p.plan.name, planType: p.plan.plan_type, slots: hydratedSlots }),
     );
   }, [existing.data]);
 
@@ -206,8 +241,7 @@ export default function PlanSetupScreen() {
       // The mutation's onError already surfaced a toast; stay on the form.
       return;
     }
-    if (router.canGoBack()) router.back();
-    else router.replace('/profile/plan');
+    setAllowLeave(true);
   }
 
   if (!userId) return null;
@@ -217,6 +251,37 @@ export default function PlanSetupScreen() {
 
   return (
     <SafeAreaView edges={SCREEN_EDGES} style={styles.container}>
+      {/* Save lives in the header too: the form runs seven day cards long and
+          the bottom button was the only way to commit (HIG review 2026-10-04,
+          finding 9). Disabled until something changed. */}
+      <Stack.Screen
+        options={{
+          headerRight: () => (
+            <Button
+              label="Save"
+              kind="ghost"
+              size="row"
+              disabled={!dirty || isSaving}
+              onPress={() => void onSave()}
+              accessibilityLabel="Save plan"
+              accessibilityHint="Saves your changes and returns to the plan"
+            />
+          ),
+        }}
+      />
+      <ConfirmSheet
+        visible={leaveAction != null}
+        onClose={() => setLeaveAction(null)}
+        title="Discard changes?"
+        message="Your edits to this plan have not been saved."
+        confirmLabel="Discard"
+        destructive
+        onConfirm={() => {
+          pendingLeaveRef.current = leaveAction;
+          setLeaveAction(null);
+          setAllowLeave(true);
+        }}
+      />
       {/* Keyboard avoidance mirrors Login — the plan-name field must not hide
           behind the keyboard (impeccable batch 4). */}
       <KeyboardAvoidingView
@@ -431,7 +496,7 @@ function summarizeSlots(p: HydratedPreset): string {
         s.day_of_week,
         s.is_rest_day
           ? 'Rest'
-          : (s.preset_template_id && tplName.get(s.preset_template_id)) || 'None',
+          : (s.preset_template_id && tplName.get(s.preset_template_id)) || 'Free',
       );
     }
     return DAY_LABELS.map((d, i) => `${d}: ${byDay.get(i) ?? 'Rest'}`).join(' · ');
@@ -444,7 +509,7 @@ function summarizeSlots(p: HydratedPreset): string {
         `D${i + 1}: ${
           s.is_rest_day
             ? 'Rest'
-            : (s.preset_template_id && tplName.get(s.preset_template_id)) || 'None'
+            : (s.preset_template_id && tplName.get(s.preset_template_id)) || 'Free'
         }`,
     )
     .join(' · ');

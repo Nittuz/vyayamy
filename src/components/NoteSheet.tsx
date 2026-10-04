@@ -40,10 +40,12 @@ interface Props {
   exercise?: { weId: string; name: string; note: string | null } | null;
   /** Called with the fields the user changed (may be empty = just close). */
   onSave: (changes: NoteChanges) => void;
+  /** Header "Cancel": close without writing anything typed this time. */
+  onCancel?: () => void;
   saving?: boolean;
 }
 
-export function NoteSheet({ visible, sessionNote, exercise, onSave, saving }: Props) {
+export function NoteSheet({ visible, sessionNote, exercise, onSave, onCancel, saving }: Props) {
   const theme = useTheme();
   const styles = useMemo(() => makeStyles(theme), [theme]);
 
@@ -76,6 +78,13 @@ export function NoteSheet({ visible, sessionNote, exercise, onSave, saving }: Pr
     haptics.light();
     onSave(computeChanges());
   };
+  const handleCancel = () => {
+    // Drop this open's typing so neither the next open nor the unmount
+    // flush can write it.
+    setSessionDraft(sessionBase);
+    setExerciseDraft(exerciseBase);
+    onCancel?.();
+  };
 
   // Unmount flush: latest-state ref so the cleanup sees current drafts.
   const flushRef = useRef({ visible, computeChanges, onSave });
@@ -95,6 +104,7 @@ export function NoteSheet({ visible, sessionNote, exercise, onSave, saving }: Pr
       visible={visible}
       onClose={handleSave}
       title="Notes"
+      dismissAction={onCancel ? { label: 'Cancel', onPress: handleCancel } : undefined}
       footer={
         <Button
           label="Save"

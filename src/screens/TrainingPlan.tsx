@@ -11,8 +11,6 @@ import { Button } from '@/ui/Button';
 import { EmptyState } from '@/ui/EmptyState';
 import { FadeInView } from '@/ui/FadeInView';
 import { staggerDelay } from '@/ui/motion';
-import { Plate } from '@/ui/Plate';
-import { resolvePlateStyles } from '@/ui/plateStyles';
 import { SettleSlam } from '@/ui/SettleSlam';
 import { Text } from '@/ui/Text';
 import { useTheme, type Theme } from '@/ui/useTheme';
@@ -29,8 +27,6 @@ export default function TrainingPlanScreen() {
   const planQuery = useActivePlan(userId);
   const theme = useTheme();
   const styles = useMemo(() => makeStyles(theme), [theme]);
-  // Recommended foreground for the inverted (training-day) plates.
-  const invertedInk = resolvePlateStyles(theme, { tone: 'inverted' }).ink;
 
   const plan = planQuery.data;
   // Today's slot per the same resolver Today/plannedWorkout use (spec
@@ -99,7 +95,7 @@ export default function TrainingPlanScreen() {
                 // developer-ish "No template". template is already undefined
                 // when there's no template_id, so this single fallback covers
                 // both the unset and deleted-template cases.
-                const templateName = template?.name ?? 'None';
+                const templateName = template?.name ?? 'Free day';
                 const exerciseCount = template
                   ? parseExerciseOrder(template.exercise_order).length
                   : 0;
@@ -111,16 +107,17 @@ export default function TrainingPlanScreen() {
                   todayResolution.slot.id === slot.id;
                 return (
                   <FadeInView key={slot.id} delay={staggerDelay(i)}>
-                    {slot.is_rest_day ? (
-                      // Rest is the quiet state: ghost text, no fill, no border.
-                      <View style={styles.restRow}>
-                        <Text
-                          variant="strip"
-                          color={theme.color.inkTertiary}
-                          style={styles.slotDay}
-                        >
-                          {label}
-                        </Text>
+                    {/* Every day is a ruled row (HIG review 2026-10-04,
+                        finding 6): the filled training-day plates used the
+                        same treatment as Today's tappable Repeat card and
+                        read as buttons, but nothing here is tappable. The
+                        hierarchy now lives in the type: training days in
+                        ink with the template name, rest days in tertiary. */}
+                    <View style={[styles.slotRow, i > 0 && styles.slotRowRule]}>
+                      <Text variant="strip" color={theme.color.inkTertiary} style={styles.slotDay}>
+                        {label}
+                      </Text>
+                      {slot.is_rest_day ? (
                         <Text
                           variant="body"
                           color={theme.color.inkTertiary}
@@ -128,52 +125,28 @@ export default function TrainingPlanScreen() {
                         >
                           Rest
                         </Text>
-                        {isToday ? (
-                          <Text
-                            variant="strip"
-                            color={theme.color.inkTertiary}
-                            style={styles.todayTag}
-                          >
-                            Today
-                          </Text>
-                        ) : null}
-                      </View>
-                    ) : (
-                      // Training days carry the emphasis: inverted plates. The
-                      // strip keeps the panel ink at 0.65 (inverted exception).
-                      <Plate tone="inverted" faceStyle={styles.slotFace}>
-                        <Text
-                          variant="strip"
-                          color={invertedInk}
-                          style={[styles.slotDay, styles.slotDaySoft]}
-                        >
-                          {label}
-                        </Text>
+                      ) : (
                         <View style={styles.slotBody}>
-                          <Text variant="card" color={invertedInk}>
+                          <Text variant="card" color={theme.color.ink}>
                             {templateName}
                           </Text>
                           {exerciseCount > 0 ? (
                             <Text
                               variant="strip"
-                              color={invertedInk}
-                              style={[styles.slotMeta, styles.slotDaySoft]}
+                              color={theme.color.inkTertiary}
+                              style={styles.slotMeta}
                             >
                               {pluralize(exerciseCount, 'exercise')}
                             </Text>
                           ) : null}
                         </View>
-                        {isToday ? (
-                          <Text
-                            variant="strip"
-                            color={invertedInk}
-                            style={[styles.todayTag, styles.slotDaySoft]}
-                          >
-                            Today
-                          </Text>
-                        ) : null}
-                      </Plate>
-                    )}
+                      )}
+                      {isToday ? (
+                        <Text variant="strip" color={theme.color.accent} style={styles.todayTag}>
+                          Today
+                        </Text>
+                      ) : null}
+                    </View>
                   </FadeInView>
                 );
               })}
@@ -193,25 +166,20 @@ const makeStyles = (theme: Theme) =>
     headerRow: { flexDirection: 'row', alignItems: 'center', gap: theme.space.s3 },
     headerText: { flex: 1 },
     planType: { marginTop: theme.space.half },
-    slotList: { gap: theme.space.s2 },
-    slotFace: {
+    slotList: {},
+    slotRow: {
       flexDirection: 'row',
       alignItems: 'center',
-      padding: theme.space.s4,
+      paddingVertical: theme.space.s3,
       gap: theme.space.s3,
       minHeight: theme.touch.min,
     },
-    restRow: {
-      flexDirection: 'row',
-      alignItems: 'center',
-      paddingHorizontal: theme.space.s4,
-      paddingVertical: theme.space.s2,
-      gap: theme.space.s3,
-      minHeight: theme.touch.min,
+    slotRowRule: {
+      borderTopWidth: theme.depth.hairline,
+      borderTopColor: theme.color.border,
     },
     // Day labels are metadata: the strip variant carries the treatment.
     slotDay: { width: 64 },
-    slotDaySoft: { opacity: 0.65 },
     slotBody: { flex: 1 },
     slotMeta: { marginTop: theme.space.half },
     // Right-aligned, mirroring History's row-date idiom; never lets a long

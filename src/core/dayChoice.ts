@@ -38,10 +38,13 @@ export function buildDayChoiceOptions(
 ): DayChoiceOption[] {
   return [
     { value: DAY_CHOICE_REST, label: 'Rest', accessibilityLabel: `${dayLabel} schedule, rest` },
+    // "Free": a training day with no template, as opposed to Rest. "None"
+    // beside "Rest" read as two words for the same thing (HIG review
+    // 2026-10-04, finding 9).
     {
       value: DAY_CHOICE_NONE,
-      label: 'None',
-      accessibilityLabel: `${dayLabel} schedule, no template`,
+      label: 'Free',
+      accessibilityLabel: `${dayLabel} schedule, free day with no template`,
     },
     ...templates.map((t) => ({
       value: t.id,

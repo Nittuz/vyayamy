@@ -75,10 +75,11 @@ describe('formatRelativeDate', () => {
     expect(formatRelativeDate(daysAgo(20))).toBe('2 weeks ago');
   });
 
-  test('falls back to a locale date string beyond 30 days', () => {
+  test('falls back to a spelled month with the year beyond 30 days', () => {
     const out = formatRelativeDate(daysAgo(60));
     expect(out).not.toMatch(/ago|Today|Yesterday/);
-    expect(typeof out).toBe('string');
+    // "Jun 11, 2026": the History row family, never the numeric locale default.
+    expect(out).toMatch(/^[A-Z][a-z]{2} \d{1,2}, \d{4}$/);
   });
 });
 

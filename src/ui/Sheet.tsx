@@ -38,6 +38,13 @@ export interface SheetProps {
   /** false = blocking modal: no backdrop dismiss, no hardware back. */
   dismissable?: boolean;
   maxHeightPct?: number;
+  /**
+   * A labeled header-right action ("Done", "Cancel"). The handle and the
+   * scrim already dismiss, but a sheet that collects input needs a visible,
+   * labeled way out, and VoiceOver needs something to land on (HIG review
+   * 2026-10-04, finding 10).
+   */
+  dismissAction?: { label: string; onPress: () => void };
   footer?: React.ReactNode;
   children: React.ReactNode;
 }
@@ -49,6 +56,7 @@ export function Sheet({
   variant = 'bottom',
   dismissable = true,
   maxHeightPct = 0.8,
+  dismissAction,
   footer,
   children,
 }: SheetProps) {
@@ -105,9 +113,25 @@ export function Sheet({
 
   const header = title ? (
     <View style={styles.header}>
-      <Text variant="title" color={theme.color.inkHero}>
-        {title}
-      </Text>
+      <View style={styles.headerRow}>
+        <Text variant="title" color={theme.color.inkHero} style={styles.headerTitle}>
+          {title}
+        </Text>
+        {dismissAction ? (
+          <Pressable
+            onPress={dismissAction.onPress}
+            hitSlop={12}
+            accessibilityRole="button"
+            accessibilityLabel={dismissAction.label}
+            accessibilityHint="Closes this sheet"
+            style={styles.dismiss}
+          >
+            <Text variant="body" color={theme.color.inkSecondary}>
+              {dismissAction.label}
+            </Text>
+          </Pressable>
+        ) : null}
+      </View>
       <View style={styles.headerRule} />
     </View>
   ) : null;
@@ -215,6 +239,9 @@ const makeStyles = (theme: Theme) =>
       paddingVertical: theme.space.s6,
     },
     header: { marginBottom: theme.space.s3 },
+    headerRow: { flexDirection: 'row', alignItems: 'center', gap: theme.space.s3 },
+    headerTitle: { flex: 1 },
+    dismiss: { minHeight: theme.touch.min, justifyContent: 'center' },
     headerRule: {
       height: theme.depth.ruleHeavy,
       backgroundColor: theme.color.borderStrong,

@@ -141,10 +141,6 @@ export default function HistoryDetailScreen() {
   }
 
   const { workout, exercises } = detail.data;
-  // Gates the correction hint below: once every set across the workout has
-  // been undo-deleted, "Tap a set to correct it" points at nothing tappable
-  // (reviewer minor, live-QA).
-  const hasTappableSets = exercises.some((we) => we.sets.length > 0);
 
   return (
     <SafeAreaView edges={SCREEN_EDGES} style={styles.container}>
@@ -166,15 +162,8 @@ export default function HistoryDetailScreen() {
                 .filter(Boolean)
                 .join(' · ')}
             </Text>
-            {/* Correction affordance (P2, impeccable r2 wave 2 S3): names the
-                interaction up front — inkTertiary now passes body contrast.
-                Gated on hasTappableSets — once every set is undo-deleted,
-                there's nothing left to tap (reviewer minor, live-QA). */}
-            {hasTappableSets ? (
-              <Text variant="meta" color={theme.color.inkTertiary}>
-                Tap a set to correct it.
-              </Text>
-            ) : null}
+            {/* No "tap a set to correct it" line: the rows' trailing chevrons
+                are the affordance (HIG review 2026-10-04, finding 8). */}
             {workout.note ? (
               <Text variant="meta" color={theme.color.inkSecondary} style={styles.note}>
                 {workout.note}

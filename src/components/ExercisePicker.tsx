@@ -82,7 +82,14 @@ export function ExercisePicker({ userId, visible, onClose, onPick }: Props) {
   );
 
   return (
-    <Sheet visible={visible} onClose={onClose} title="Add exercise" variant="bottom" dismissable>
+    <Sheet
+      visible={visible}
+      onClose={onClose}
+      title="Add exercise"
+      variant="bottom"
+      dismissable
+      dismissAction={{ label: 'Done', onPress: onClose }}
+    >
       <TextInput
         value={query}
         onChangeText={setQuery}

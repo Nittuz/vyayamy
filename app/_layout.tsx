@@ -55,7 +55,10 @@ const tabsScreenOpts = { headerShown: false };
 const loginScreenOpts = { headerShown: false };
 const workoutActiveOpts = { title: 'Workout' };
 const historyIndexOpts = { title: '' };
-const historyDetailOpts = { title: 'Workout' };
+// Empty: the screen's own title line is the title (History, Training plan
+// precedent). A bar reading "Workout" over an in-screen "Sunday" was two
+// titles competing (HIG review 2026-10-04, finding 8).
+const historyDetailOpts = { title: '' };
 const planIndexOpts = { title: '' };
 const planSetupOpts = { title: '' };
 

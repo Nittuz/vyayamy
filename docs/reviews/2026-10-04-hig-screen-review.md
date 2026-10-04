@@ -66,6 +66,12 @@ Fix: an optional `closeLabel` on `Sheet` rendering a header-right text button; N
   two secondary buttons, one Voice help link with the log inside the help sheet, outlined Prev),
   4 (chart left padding 60), 5 (full-width delete row). Verified on the simulator at the
   default and accessibility-extra-large sizes.
+- **Batch B shipped 2026-10-04**: 6 (training plan days are ruled rows, nothing looks
+  tappable that is not), 7 (relative dates fall back to "Jun 11, 2026", never the numeric
+  locale default), 8 (History detail bar title empty, helper line dropped), 9 (header Save
+  disabled until dirty, "Discard changes?" confirm through the vendored prevent-remove hook,
+  "None" renamed "Free" / "Free day"), 10 (`Sheet` gains a labeled header dismiss: Add
+  exercise "Done", Notes "Cancel" that discards this open's typing). Verified on the simulator.
 
 ## Suggested order
 
