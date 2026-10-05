@@ -5,11 +5,14 @@ import { SafeAreaView, type Edge } from 'react-native-safe-area-context';
 
 import { useAuth } from '@/auth/useAuth';
 import { formatDuration, formatRowDate, getDateGroup } from '@/core/format';
+import { effectiveSessionWindow } from '@/core/sessionDuration';
+import { workoutDisplayTitle } from '@/core/workoutTitle';
 import { useHistoryInfinite, workoutDayAnchor, type HistoryRow } from '@/queries/history';
 import { triggerPull } from '@/sync/engine';
 import { EmptyState } from '@/ui/EmptyState';
 import { FadeInView } from '@/ui/FadeInView';
 import { staggerDelay } from '@/ui/motion';
+import { Icon } from '@/ui/icons';
 import { Plate } from '@/ui/Plate';
 import { SettleSlam } from '@/ui/SettleSlam';
 import { SyncIndicator } from '@/ui/SyncIndicator';
@@ -136,7 +139,15 @@ function HistoryItem({ row, first, delay }: { row: HistoryRow; first: boolean; d
 
   const setNoun = row.set_count === 1 ? 'set' : 'sets';
   const exerciseNoun = row.exercise_count === 1 ? 'exercise' : 'exercises';
-  const duration = formatDuration(row.started_at, row.ended_at);
+  // Capped at the last logged set when the finish came hours later (finding 15).
+  const window = effectiveSessionWindow(
+    row.started_at,
+    row.ended_at,
+    row.first_completed_at,
+    row.last_completed_at,
+  );
+  const duration = formatDuration(window.start, window.end);
+  const title = workoutDisplayTitle(row.title, row.started_at);
   // #155: same started_at anchor the month sections group by — the row date
   // and its section can never disagree.
   const rowDate = formatRowDate(row.started_at);
@@ -158,21 +169,27 @@ function HistoryItem({ row, first, delay }: { row: HistoryRow; first: boolean; d
         press="highlight"
         onPress={() => router.push(`/history/${row.id}`)}
         accessibilityRole="button"
-        accessibilityLabel={`View workout ${row.title}`}
+        accessibilityLabel={`View workout ${title}`}
         style={[styles.row, first && styles.rowFirst]}
         faceStyle={styles.rowFace}
       >
-        <View style={styles.titleRow}>
-          <Text variant="card" color={theme.color.ink} style={styles.titleText} numberOfLines={1}>
-            {row.title}
-          </Text>
-          <Text variant="strip" color={theme.color.inkTertiary} style={styles.dateText}>
-            {rowDate}
+        <View style={styles.rowText}>
+          <View style={styles.titleRow}>
+            <Text variant="card" color={theme.color.ink} style={styles.titleText} numberOfLines={1}>
+              {title}
+            </Text>
+            <Text variant="strip" color={theme.color.inkTertiary} style={styles.dateText}>
+              {rowDate}
+            </Text>
+          </View>
+          <Text variant="strip" color={theme.color.inkTertiary}>
+            {strip}
           </Text>
         </View>
-        <Text variant="strip" color={theme.color.inkTertiary}>
-          {strip}
-        </Text>
+        {/* Navigational rows carry a chevron everywhere else in the app
+            (Today launchers, Profile, History detail); this list was the
+            exception (HIG review 2026-10-04, finding 13). */}
+        <Icon name="chevron-right" size={18} color={theme.color.inkTertiary} />
       </Plate>
     </FadeInView>
   );
@@ -203,9 +220,12 @@ const makeStyles = (theme: Theme) =>
     // The header's rule below already separates the first row.
     rowFirst: { borderTopWidth: 0 },
     rowFace: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      gap: theme.space.s3,
       paddingVertical: theme.space.s3,
-      gap: theme.space.s1,
     },
+    rowText: { flex: 1, gap: theme.space.s1 },
     // Title + anchored date (row-squaring fix): the date pins the right edge
     // of line 1 so rows read as equal-width bands even though the strip
     // below still varies in length.

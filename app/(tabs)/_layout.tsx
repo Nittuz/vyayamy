@@ -48,7 +48,8 @@ export default function TabsLayout() {
       },
       tabBarLabelStyle: {
         fontFamily: theme.font.family.mono,
-        fontSize: 10,
+        // HIG floor for text is 11pt (review 2026-10-04, finding 11).
+        fontSize: 11,
         letterSpacing: 0.5,
         textTransform: 'uppercase' as const,
       },

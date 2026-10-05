@@ -6,6 +6,7 @@ import { useQueryClient } from '@tanstack/react-query';
 
 import { useAuth } from '@/auth/useAuth';
 import { greetingFor, localDaysBetween } from '@/core/format';
+import { workoutDisplayTitle } from '@/core/workoutTitle';
 import { DEFAULT_UNITS } from '@/core/units';
 import { CollisionSheet } from '@/components/CollisionSheet';
 import { ExercisePicker } from '@/components/ExercisePicker';
@@ -211,7 +212,7 @@ export default function TodayScreen() {
         : 'empty';
     const recent = (recentQuery.data ?? []).map((w) => ({
       id: w.id,
-      title: w.title || 'Workout',
+      title: workoutDisplayTitle(w.title, w.started_at),
       daysAgo: daysSince(w.started_at),
     }));
     void persistSnapshot({
@@ -578,7 +579,7 @@ export default function TodayScreen() {
                     polish scope (HARD RULE). */}
                 <View
                   style={[styles.recentRow, i === 0 && styles.recentRowFirst]}
-                  accessibilityLabel={`${w.title || 'Workout'}, ${recentMeta(w).toLowerCase()}`}
+                  accessibilityLabel={`${workoutDisplayTitle(w.title, w.started_at)}, ${recentMeta(w).toLowerCase()}`}
                 >
                   <Text
                     variant="card"
@@ -586,7 +587,7 @@ export default function TodayScreen() {
                     numberOfLines={1}
                     style={styles.flexText}
                   >
-                    {w.title || 'Workout'}
+                    {workoutDisplayTitle(w.title, w.started_at)}
                   </Text>
                   <Text variant="strip" color={theme.color.inkTertiary}>
                     {recentMeta(w)}

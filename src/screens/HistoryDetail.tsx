@@ -8,6 +8,7 @@ import { useAuth } from '@/auth/useAuth';
 import { setRowToShape, type SetShape } from '@/components/activeSet';
 import { EditSetSheet } from '@/components/EditSetSheet';
 import { formatDuration, formatShortDate, formatTimeOfDay, formatWeight } from '@/core/format';
+import { effectiveSessionWindow } from '@/core/sessionDuration';
 import { DEFAULT_UNITS } from '@/core/units';
 import { queryKeys } from '@/queries/keys';
 import { useProfile } from '@/queries/profile';
@@ -141,6 +142,19 @@ export default function HistoryDetailScreen() {
   }
 
   const { workout, exercises } = detail.data;
+  // Capped at the last logged set when the finish came hours later (HIG
+  // review 2026-10-04, finding 15).
+  const completedStamps = exercises
+    .flatMap((we) => we.sets)
+    .filter((s) => s.completed && s.completed_at)
+    .map((s) => s.completed_at as string)
+    .sort();
+  const sessionWindow = effectiveSessionWindow(
+    workout.started_at,
+    workout.ended_at,
+    completedStamps[0],
+    completedStamps.at(-1),
+  );
 
   return (
     <SafeAreaView edges={SCREEN_EDGES} style={styles.container}>
@@ -157,7 +171,7 @@ export default function HistoryDetailScreen() {
               {[
                 formatShortDate(workout.started_at),
                 formatTimeOfDay(workout.started_at),
-                formatDuration(workout.started_at, workout.ended_at),
+                formatDuration(sessionWindow.start, sessionWindow.end),
               ]
                 .filter(Boolean)
                 .join(' · ')}

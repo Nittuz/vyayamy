@@ -72,6 +72,14 @@ Fix: an optional `closeLabel` on `Sheet` rendering a header-right text button; N
   disabled until dirty, "Discard changes?" confirm through the vendored prevent-remove hook,
   "None" renamed "Free" / "Free day"), 10 (`Sheet` gains a labeled header dismiss: Add
   exercise "Done", Notes "Cancel" that discards this open's typing). Verified on the simulator.
+- **Batch C shipped 2026-10-04**: 11 (tab labels 11pt), 12 (no change: Progress already
+  renders both groups with the `Segment` primitive; its spaced-box look is the design
+  system's control, shared with Profile and the plan editor), 13 (History rows carry the
+  trailing chevron), 14 (an unnamed or default-"Workout" row is listed by its start day,
+  `workoutDisplayTitle`, also on Today's recent rows), 15 (durations are bounded by the
+  first and last logged sets when the start or the finish sits more than two hours away,
+  `effectiveSessionWindow`; the "5d 7h" and "15h 10m" rows now read "<1m"). Verified on
+  the simulator. All three batches are on the branch; build 16 carries them.
 
 ## Suggested order
 

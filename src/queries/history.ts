@@ -10,6 +10,9 @@ export interface HistoryRow extends Workout {
   set_count: number;
   completed_set_count: number;
   volume: number;
+  /** When the first and last completed sets were logged; they bound the displayed duration. */
+  first_completed_at: string | null;
+  last_completed_at: string | null;
 }
 
 const PAGE_SIZE = 30;
@@ -40,7 +43,13 @@ export async function getHistory(userId: string, limit = 50, offset = 0): Promis
             WHERE we.workout_id = w.id AND s.completed = 1 AND s.deleted_at IS NULL AND we.deleted_at IS NULL) AS completed_set_count,
         COALESCE((SELECT SUM(COALESCE(s.weight, 0) * COALESCE(s.reps, 0)) FROM sets s
             JOIN workout_exercises we ON we.id = s.workout_exercise_id
-            WHERE we.workout_id = w.id AND s.completed = 1 AND s.deleted_at IS NULL AND we.deleted_at IS NULL), 0) AS volume
+            WHERE we.workout_id = w.id AND s.completed = 1 AND s.deleted_at IS NULL AND we.deleted_at IS NULL), 0) AS volume,
+        (SELECT MIN(s.completed_at) FROM sets s
+            JOIN workout_exercises we ON we.id = s.workout_exercise_id
+            WHERE we.workout_id = w.id AND s.completed = 1 AND s.deleted_at IS NULL AND we.deleted_at IS NULL) AS first_completed_at,
+        (SELECT MAX(s.completed_at) FROM sets s
+            JOIN workout_exercises we ON we.id = s.workout_exercise_id
+            WHERE we.workout_id = w.id AND s.completed = 1 AND s.deleted_at IS NULL AND we.deleted_at IS NULL) AS last_completed_at
      FROM workouts w
      WHERE w.user_id = ? AND w.ended_at IS NOT NULL AND w.deleted_at IS NULL
      ORDER BY w.started_at DESC
